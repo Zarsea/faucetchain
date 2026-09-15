@@ -1,0 +1,6 @@
+[dotenv@17.3.1] injecting env (3) from .env -- tip: ≡ƒöÉ prevent building .env in docker: https://dotenvx.com/prebuild
+Downloading solc 0.8.26
+Downloading solc 0.8.26 (WASM build)
+
+Compiled 6 Solidity files with solc 0.8.26 (evm target: cancun)
+No Solidity tests to compile

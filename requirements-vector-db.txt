@@ -1,0 +1,13 @@
+# FaucetChain Vector Knowledge Base - Dependencies
+
+# Core ML/AI
+sentence-transformers>=2.2.2
+chromadb>=0.4.22
+
+# API Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.5.3
+
+# Utilities
+numpy>=1.26.4

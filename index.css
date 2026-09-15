@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* Global styles */
+:root {
+    --brand-primary: #00f0ff;
+    --brand-secondary: #e2e8f0;
+    --brand-bg: #05050a;
+    --brand-surface: #0d0e15;
+    --brand-border: #222538;
+    --brand-accent: #ff003c;
+    --brand-success: #00ff66;
+    --brand-muted: #64748b;
+}
+
+body {
+    margin: 0;
+    font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--brand-bg);
+    color: var(--brand-secondary);
+    background-image: radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
+                      radial-gradient(circle at 100% 100%, rgba(138, 43, 226, 0.08) 0%, transparent 50%),
+                      linear-gradient(to bottom, transparent, rgba(5, 5, 10, 1) 100%);
+    background-attachment: fixed;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Outfit', sans-serif;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Glassmorphism & Cyberpunk Effects */
+.glass {
+    background: rgba(13, 14, 21, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 240, 255, 0.02);
+}
+
+.shadow-glow-primary {
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+}
+
+.shadow-glow-accent {
+    box-shadow: 0 0 25px rgba(255, 0, 60, 0.5);
+}
+
+.animate-pulseGlow {
+    animation: pulseGlow 3s infinite alternate cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 10px rgba(0, 240, 255, 0.2); }
+    100% { box-shadow: 0 0 40px rgba(0, 240, 255, 0.8); }
+}
+
+.liquid-bg {
+    background: linear-gradient(-45deg, #00f0ff, #8a2be2, #ff00ff, #00f0ff);
+    background-size: 400% 400%;
+    animation: liquidFlow 8s ease infinite;
+}
+
+.neon-text {
+    color: #fff;
+    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #00f0ff, 0 0 40px #00f0ff, 0 0 80px #00f0ff;
+}
+
+.neon-border-dynamic {
+    position: relative;
+}
+.neon-border-dynamic::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(45deg, #00f0ff, transparent, #8a2be2, transparent, #00f0ff);
+    background-size: 200% 200%;
+    animation: liquidFlow 4s linear infinite;
+    z-index: -1;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.neon-border-dynamic:hover::before {
+    opacity: 1;
+}
+
+/* Smooth transitions */
+* {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--brand-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--brand-border);
+    border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--brand-primary);
+}
+@keyframes slideUpFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slideUpFadeIn {
+  animation: slideUpFadeIn 0.5s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out forwards;
+}

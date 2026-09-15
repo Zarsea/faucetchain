@@ -1,0 +1,20 @@
+{
+  "name": "faucetchain-mining-node",
+  "version": "1.0.0",
+  "description": "FaucetChain Mining Node — Earn $CLAIM by keeping this node running",
+  "main": "app/main.js",
+  "scripts": {
+    "start": "node index.js",
+    "mine": "node index.js",
+    "app": "electron ."
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.4.7",
+    "chalk": "^4.1.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}

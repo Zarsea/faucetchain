@@ -1,0 +1,22 @@
+{
+  "blocks": {
+    "count": 709,
+    "min_height": 10276329,
+    "max_height": 10277037,
+    "min_timestamp": 1771295532,
+    "max_timestamp": 1771304568
+  },
+  "transactions": {
+    "count": 94100,
+    "total_value": 4456.4326123627925,
+    "min_timestamp": 1771295532,
+    "max_timestamp": 1771304568
+  },
+  "unique_addresses": 28248,
+  "sync_state": {
+    "last_block": "10277036"
+  },
+  "epoch_roots": {
+    "error": "no such table: epoch_roots"
+  }
+}

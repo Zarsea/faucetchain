@@ -1,0 +1,81 @@
+{
+  "latest_blocks": [
+    {
+      "height": 10282836,
+      "timestamp": 1771379736,
+      "tx_count": 173,
+      "validator": "0xC4bFccB1668d6E464F33a76baDD8C8D7D341e04A",
+      "reward": 2.0
+    },
+    {
+      "height": 10282835,
+      "timestamp": 1771379724,
+      "tx_count": 204,
+      "validator": "0xC4bFccB1668d6E464F33a76baDD8C8D7D341e04A",
+      "reward": 2.0
+    },
+    {
+      "height": 10282834,
+      "timestamp": 1771379712,
+      "tx_count": 118,
+      "validator": "0x9B984D5a03980D8dc0a24506c968465424c81DbE",
+      "reward": 2.0
+    },
+    {
+      "height": 10282833,
+      "timestamp": 1771379700,
+      "tx_count": 122,
+      "validator": "0x4dF6EB2EC570B58cC64f540247A8AdFA11F1Cf63",
+      "reward": 2.0
+    },
+    {
+      "height": 10282832,
+      "timestamp": 1771379688,
+      "tx_count": 147,
+      "validator": "0x3826539Cbd8d68DCF119e80B994557B4278CeC9f",
+      "reward": 2.0
+    }
+  ],
+  "latest_transactions": [
+    {
+      "hash": "09744376c7db463c98cdfe32437c67e970451b5c45d6e25e7e54f0d0f1841139",
+      "block_height": 10282836,
+      "from": "0x22e30b21477C4aCf6e37743e7A347C273cD107A8",
+      "to": "0x72A843a9C2Bfd2256dc8cF7F06068b22b5F3a4a8",
+      "value": 0.0,
+      "timestamp": 1771379736
+    },
+    {
+      "hash": "7fb3d3b68e0431231662ebaccb892eebca1d7eca1ba8dac3f5546a45a467a346",
+      "block_height": 10282836,
+      "from": "0xD82e32bC5cb8741Fa831737b454334820d709622",
+      "to": "0x2cbB4Ace5a7D3AcC85F034787EF13344b9Ab9903",
+      "value": 0.0,
+      "timestamp": 1771379736
+    },
+    {
+      "hash": "7048021f960e98c244e981eed1757d00ae0bfe5c60b79aa30f12dc02845c053c",
+      "block_height": 10282836,
+      "from": "0x22e30b21477C4aCf6e37743e7A347C273cD107A8",
+      "to": "0x2cbB4Ace5a7D3AcC85F034787EF13344b9Ab9903",
+      "value": 0.0,
+      "timestamp": 1771379736
+    },
+    {
+      "hash": "8b8580ef01da32eb38bc60df723d29a0fb15386a45b30629c04934fb4c34810a",
+      "block_height": 10282836,
+      "from": "0xD82e32bC5cb8741Fa831737b454334820d709622",
+      "to": "0x72A843a9C2Bfd2256dc8cF7F06068b22b5F3a4a8",
+      "value": 0.0,
+      "timestamp": 1771379736
+    },
+    {
+      "hash": "1ef478d737f8eef2c3b8ba66790f2d769964c23d44ae35d6d4feeea9f22cbaca",
+      "block_height": 10282836,
+      "from": "0x5fB961258f9ca7a24cb699Db1e797B3eca637b89",
+      "to": "0xeA30c4B8b44078Bbf8a6ef5b9f1eC1626C7848D9",
+      "value": 0.0,
+      "timestamp": 1771379736
+    }
+  ]
+}

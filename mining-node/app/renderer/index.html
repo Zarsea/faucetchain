@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaucetChain AutoClaim</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- ─── Custom Titlebar ──────────────────────────────── -->
+    <div class="titlebar" id="titlebar">
+        <div class="titlebar-left">
+            <span class="titlebar-icon">⛏️</span>
+            <span class="titlebar-title">FaucetChain AutoClaim</span>
+            <span class="titlebar-version">v1.0.0</span>
+        </div>
+        <div class="titlebar-controls">
+            <button class="tb-btn tb-minimize" id="btn-minimize" title="Minimizar">─</button>
+            <button class="tb-btn tb-maximize" id="btn-maximize" title="Maximizar">□</button>
+            <button class="tb-btn tb-close" id="btn-close" title="Fechar">✕</button>
+        </div>
+    </div>
+
+    <!-- ─── Main Content ─────────────────────────────────── -->
+    <div class="app-container">
+        <!-- Background particles -->
+        <canvas id="particles-canvas"></canvas>
+
+        <!-- ─── Header ─────────────────────────────────── -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1 class="app-title">
+                    <span class="title-icon">⛏️</span>
+                    FaucetChain <span class="title-accent">AutoClaim</span>
+                </h1>
+                <p class="app-subtitle">Earn $CLAIM by keeping your node running</p>
+            </div>
+            <div class="header-right">
+                <div class="status-badge" id="status-badge">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span class="status-text" id="status-text">Offline</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ─── Config Panel ───────────────────────────── -->
+        <section class="config-panel" id="config-panel">
+            <div class="config-grid">
+                <div class="config-field">
+                    <label for="input-wallet">Wallet Address</label>
+                    <input type="text" id="input-wallet" placeholder="0x..." spellcheck="false" autocomplete="off">
+                </div>
+                <div class="config-row">
+                    <div class="config-field">
+                        <label for="input-api">API URL</label>
+                        <input type="text" id="input-api" placeholder="http://127.0.0.1:8000" spellcheck="false">
+                    </div>
+                    <div class="config-field">
+                        <label for="input-name">Node Name</label>
+                        <input type="text" id="input-name" placeholder="meu-node-01" spellcheck="false">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Mining Control ─────────────────────────── -->
+        <section class="mining-control">
+            <button class="mine-btn" id="btn-mine">
+                <span class="mine-btn-icon" id="mine-btn-icon">⛏️</span>
+                <span class="mine-btn-text" id="mine-btn-text">START AUTOCLAIM</span>
+            </button>
+            <p class="mine-hint" id="mine-hint">Configure sua wallet e clique para iniciar</p>
+        </section>
+
+        <!-- ─── Stats Grid ─────────────────────────────── -->
+        <section class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-uptime">0h 0m 0s</div>
+                    <div class="stat-label">Total Uptime</div>
+                </div>
+            </div>
+            <div class="stat-card stat-earned">
+                <div class="stat-icon">💰</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-earned">0.0000</div>
+                    <div class="stat-label">CLAIM Earned</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-cpu">0%</div>
+                    <div class="stat-label">CPU Load</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💓</div>
+                <div class="stat-body">
+                    <div class="stat-value" id="stat-hb">#0</div>
+                    <div class="stat-label">Heartbeats</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Epoch Progress ─────────────────────────── -->
+        <section class="epoch-section" id="epoch-section">
+            <div class="epoch-header">
+                <span class="epoch-title">⏳ Epoch Progress</span>
+                <span class="epoch-timer" id="epoch-timer">60:00</span>
+            </div>
+            <div class="epoch-bar-bg">
+                <div class="epoch-bar-fill" id="epoch-bar-fill"></div>
+            </div>
+            <div class="epoch-info">
+                <span>Epoch Uptime: <strong id="epoch-uptime">0h 0m 0s</strong></span>
+                <span>Epochs Active: <strong id="epochs-active">0</strong></span>
+                <span>Reward/Epoch: <strong>2,000 CLAIM</strong></span>
+            </div>
+        </section>
+
+        <!-- ─── Activity Log ───────────────────────────── -->
+        <section class="log-section">
+            <div class="log-header">
+                <span>📋 Activity Log</span>
+                <button class="log-clear" id="btn-clear-log" title="Limpar log">🗑️</button>
+            </div>
+            <div class="log-container" id="log-container">
+                <div class="log-entry log-info">
+                    <span class="log-time">--:--:--</span>
+                    <span class="log-msg">Bem-vindo ao FaucetChain AutoClaim! Configure sua wallet para começar.</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ─── Footer ─────────────────────────────────── -->
+        <footer class="app-footer">
+            <span>FaucetChain PoC+PoS Network</span>
+            <span class="footer-sep">•</span>
+            <span id="footer-node-id">—</span>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
