@@ -19,6 +19,7 @@ from datetime import datetime, timedelta
 import uvicorn
 import re
 import json
+import math
 import secrets
 from eth_account.messages import encode_defunct
 from eth_account import Account
@@ -992,15 +993,30 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
         raise HTTPException(status_code=401, detail="Invalid or inactive API key")
     
     faucet_wallet = key_row["faucet_wallet"]
-    
+
     try:
         user_lower = normalize_address(req.user_wallet)
     except ValueError as e:
         conn.close()
         raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
-    
+
+    try:
+        result = _credit_microclaim(conn, faucet_wallet, user_lower, req.amount)
+        conn.execute('''
+            UPDATE faucet_api_keys SET total_requests = total_requests + 1, last_used = ?
+            WHERE api_key = ?
+        ''', (int(datetime.now().timestamp()), x_api_key))
+        conn.commit()
+    finally:
+        conn.close()
+    return result
+
+
+def _credit_microclaim(conn, faucet_wallet: str, user_lower: str, amount: float) -> dict:
+    """Credita saldo virtual L2 (cooldown por usuário e faucet). Não fecha a conexão."""
+    c = conn.cursor()
     now = int(datetime.now().timestamp())
-    
+
     # Check cooldown per user per faucet
     c.execute('''
         SELECT last_claim_at FROM microclaims_ledger
@@ -1011,13 +1027,12 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
     if ledger_row and ledger_row["last_claim_at"]:
         elapsed = now - ledger_row["last_claim_at"]
         if elapsed < MICROCLAIM_COOLDOWN:
-            conn.close()
             remaining = MICROCLAIM_COOLDOWN - elapsed
             raise HTTPException(
                 status_code=429,
                 detail=f"Cooldown active. Wait {remaining}s before next claim."
             )
-    
+
     # Upsert the ledger entry
     if ledger_row:
         c.execute('''
@@ -1027,44 +1042,74 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
                 claim_count = claim_count + 1,
                 last_claim_at = ?
             WHERE faucet_wallet = ? AND user_wallet = ?
-        ''', (req.amount, req.amount, now, faucet_wallet, user_lower))
+        ''', (amount, amount, now, faucet_wallet, user_lower))
     else:
         c.execute('''
             INSERT INTO microclaims_ledger
             (faucet_wallet, user_wallet, virtual_balance, total_claimed, claim_count, last_claim_at, created_at)
             VALUES (?, ?, ?, ?, 1, ?, ?)
-        ''', (faucet_wallet, user_lower, req.amount, req.amount, now, now))
-    
+        ''', (faucet_wallet, user_lower, amount, amount, now, now))
+
     # Log claim event
     c.execute('''
         INSERT INTO microclaims_history (faucet_wallet, user_wallet, amount, event_type, timestamp)
         VALUES (?, ?, ?, 'CLAIM', ?)
-    ''', (faucet_wallet, user_lower, req.amount, now))
-    
-    # Update API key usage stats
-    c.execute('''
-        UPDATE faucet_api_keys SET total_requests = total_requests + 1, last_used = ?
-        WHERE api_key = ?
-    ''', (now, x_api_key))
-    
+    ''', (faucet_wallet, user_lower, amount, now))
+
     conn.commit()
-    
+
     # Read updated balance
     c.execute('SELECT virtual_balance, total_claimed, claim_count FROM microclaims_ledger WHERE faucet_wallet = ? AND user_wallet = ?',
               (faucet_wallet, user_lower))
     updated = c.fetchone()
-    conn.close()
-    
+
     return {
         "status": "success",
         "faucet": faucet_wallet,
         "user": user_lower,
-        "credited": req.amount,
+        "credited": amount,
         "virtual_balance": updated["virtual_balance"],
         "total_claimed": updated["total_claimed"],
         "claim_count": updated["claim_count"],
         "next_claim_in": MICROCLAIM_COOLDOWN
     }
+
+
+INTERNAL_MICROCLAIM_AMOUNT = 0.5  # $CLAIM por micro-claim da faucet interna (CyberDrip)
+
+class InternalMicroClaimRequest(BaseModel):
+    user_wallet: str
+    poc_nonce: Optional[int] = None
+    poc_epoch_id: Optional[int] = None
+    poc_parent_hash: Optional[str] = None
+
+@app.post("/api/faucethub/internal/microclaim")
+async def internal_microclaim(req: InternalMicroClaimRequest, request: Request):
+    """Micro-claim da faucet interna (CyberDrip) sem API key no navegador.
+
+    A carteira da faucet vem do servidor (INTERNAL_FAUCET_WALLET), o valor é
+    fixo e o clique precisa trazer Claim Proof, como no /api/claim.
+    """
+    if not check_rate_limit(request.client.host):
+        raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    faucet_wallet = (os.getenv("INTERNAL_FAUCET_WALLET") or "").strip().lower()
+    if not faucet_wallet:
+        raise HTTPException(status_code=503, detail="Internal faucet not configured")
+    try:
+        user_lower = normalize_address(req.user_wallet)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
+
+    conn = get_db_connection()
+    try:
+        verify_claim_proof(conn.cursor(), user_lower, req.poc_epoch_id, req.poc_parent_hash,
+                           req.poc_nonce, int(datetime.now().timestamp()))
+        result = _credit_microclaim(conn, faucet_wallet, user_lower, INTERNAL_MICROCLAIM_AMOUNT)
+    finally:
+        conn.close()
+
+    await record_cyberdrip_claim(CyberDripClaimEvent(wallet=user_lower, amount=INTERNAL_MICROCLAIM_AMOUNT))
+    return result
 
 @app.get("/api/faucethub/microclaim/balance/{user_wallet}")
 async def get_microclaim_balance(user_wallet: str):
@@ -1119,6 +1164,8 @@ async def get_microclaim_balance(user_wallet: str):
 class MicroClaimWithdrawRequest(BaseModel):
     user_wallet: str
     faucet_wallet: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
 @app.post("/api/faucethub/microclaim/withdraw")
 async def withdraw_microclaim(req: MicroClaimWithdrawRequest):
@@ -1132,7 +1179,14 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest):
         faucet_lower = normalize_address(req.faucet_wallet)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+    # Só o dono decide quando sacar (antes, qualquer um disparava o saque).
+    require_action_signature(
+        user_lower,
+        f"FaucetChain Withdraw | chain:{CHAIN_ID} | {user_lower} | {faucet_lower} | ts:{req.sig_timestamp}",
+        req.signature, req.sig_timestamp
+    )
+
     conn = get_db_connection()
     c = conn.cursor()
     
@@ -1535,6 +1589,18 @@ MINER_POOL_ADDRESS = "0xminerrewardpool00000000000000000000000"
 
 # Hard cap (fix B4): MAX_SUPPLY (constante no topo do arquivo) espelha o
 # FaucetToken_CLAIM.sol. Nenhum caminho de emissão pode ultrapassá-lo.
+
+def current_claim_reward(c) -> float:
+    """Recompensa por claim, definida só pelo servidor.
+
+    Começa em 10 $CLAIM e decai com o número de claims já explorados (mínimo 0,5).
+    O valor enviado pelo cliente é ignorado: antes, qualquer amount era aceito,
+    inclusive negativo ou do tamanho da quota inteira da hora.
+    """
+    c.execute("SELECT COUNT(*) FROM user_claims")
+    total_claims = c.fetchone()[0]
+    return round(max(0.5, 10.0 - math.log1p(total_claims) * 0.8), 2)
+
 
 def get_total_minted(c) -> float:
     """Total de $CLAIM já emitido (equivalente ao totalSupply() on-chain).
@@ -2045,10 +2111,7 @@ async def get_network_metrics():
 
     block_height = max(1, total_claims + total_txs)
 
-    # Current reward decays: starts at 10.0, decays slowly
-    import math
-    current_reward = max(0.5, 10.0 - math.log1p(total_claims) * 0.8)
-    current_reward = round(current_reward, 2)
+    current_reward = current_claim_reward(c)
 
     # Mining nodes online
     nodes_online = 0
@@ -2209,7 +2272,7 @@ async def get_staked_dapps():
 
 class ClaimRequest(BaseModel):
     user_address: str
-    amount: float
+    amount: Optional[float] = None  # ignorado: o valor vem de current_claim_reward()
     block_height: int
     tx_hash: str
     source_platform: Optional[str] = 'WEB3'
@@ -2307,16 +2370,17 @@ async def submit_claim(req: ClaimRequest, request: Request):
             audit_log("FRAUD_DETECTED", client_ip, {"address": addr_lower, "pattern": "sybil"})
             raise HTTPException(status_code=403, detail="Atividade suspeita detectada. Claim bloqueado pelo Sentinel.")
 
+    amount = current_claim_reward(c)
     c.execute('''
         INSERT INTO pending_claims (user_address, amount, timestamp, tx_hash, block_height, status, source_platform, poc_nonce, poc_hash)
         VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-    ''', (addr_lower, req.amount, current_ts, req.tx_hash, req.block_height, req.source_platform, req.poc_nonce, poc_hash))
+    ''', (addr_lower, amount, current_ts, req.tx_hash, req.block_height, req.source_platform, req.poc_nonce, poc_hash))
     conn.commit()
     conn.close()
-    
-    audit_log("CLAIM_SUBMITTED", client_ip, {"address": addr_lower, "amount": req.amount, "tx_hash": req.tx_hash})
-    await manager.broadcast({"type": "CLAIM_SUBMITTED", "data": {"address": addr_lower[:10] + "...", "amount": req.amount, "timestamp": current_ts}})
-    return {"status": "pending", "tx_hash": req.tx_hash, "timestamp": current_ts}
+
+    audit_log("CLAIM_SUBMITTED", client_ip, {"address": addr_lower, "amount": amount, "tx_hash": req.tx_hash})
+    await manager.broadcast({"type": "CLAIM_SUBMITTED", "data": {"address": addr_lower[:10] + "...", "amount": amount, "timestamp": current_ts}})
+    return {"status": "pending", "tx_hash": req.tx_hash, "amount": amount, "timestamp": current_ts}
 
 @app.get("/api/claim/status/{tx_hash}")
 async def get_claim_status(tx_hash: str):
@@ -3478,7 +3542,17 @@ async def _distribute_epoch():
     if remaining_supply <= 1e-6:
         conn.close()
         return {"status": "max_supply_reached", "distributed": 0}
-    epoch_pool = min(MINING_CONFIG["epoch_reward"], remaining_supply)
+
+    # A recompensa de uptime também é emissão: entra na quota global da hora,
+    # como os claims. Antes ela era somada por fora e a emissão real passava
+    # de TOKENS_PER_HOUR.
+    epoch_id_hr, tokens_mined_hr, depleted_hr = get_hourly_epoch_state(c, current_ts)
+    remaining_hour = TOKENS_PER_HOUR - tokens_mined_hr
+    if depleted_hr or remaining_hour <= 1e-6:
+        conn.commit()
+        conn.close()
+        return {"status": "hourly_quota_depleted", "distributed": 0}
+    epoch_pool = min(MINING_CONFIG["epoch_reward"], remaining_supply, remaining_hour)
 
     # Calculate total epoch uptime
     total_epoch_uptime = sum(n["epoch_uptime_seconds"] for n in active_nodes)
@@ -3492,7 +3566,8 @@ async def _distribute_epoch():
 
     for node in active_nodes:
         share = node["epoch_uptime_seconds"] / total_epoch_uptime
-        reward = round(epoch_pool * share, 6)
+        # arredonda para baixo: a soma nunca passa do pool (e da quota)
+        reward = math.floor(epoch_pool * share * 1e6) / 1e6
         total_paid += reward
 
         # Record reward
@@ -3517,6 +3592,7 @@ async def _distribute_epoch():
             "share_pct": round(share * 100, 2)
         })
 
+    record_epoch_mint(c, epoch_id_hr, total_paid)
     conn.commit()
     conn.close()
 
@@ -4073,6 +4149,9 @@ def _today_str():
 @app.get("/api/cyberdrip/profile/{wallet}")
 async def get_cyberdrip_profile(wallet: str):
     wallet_lower = wallet.strip().lower()
+    # Sem isso, cada tecla digitada no campo de endereço criava um perfil ("0", "0x", "0x7"...)
+    if not re.fullmatch(r"0x[0-9a-f]{40}", wallet_lower):
+        raise HTTPException(status_code=400, detail="Invalid wallet address")
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM cyberdrip_profiles WHERE wallet = ?", (wallet_lower,))
@@ -4192,9 +4271,12 @@ class CyberDripClaimEvent(BaseModel):
     wallet: str
     amount: float
 
-@app.post("/api/cyberdrip/record-claim")
 async def record_cyberdrip_claim(req: CyberDripClaimEvent):
-    """Called after each FaucetInternal microclaim to update CyberDrip profile, streak, and auto-complete missions."""
+    """Atualiza perfil, streak e missões após cada micro-claim da faucet interna.
+
+    Chamado só pelo servidor (/api/faucethub/internal/microclaim). Antes era uma
+    rota pública que aceitava qualquer amount vindo do navegador.
+    """
     wallet_lower = req.wallet.strip().lower()
     now_ts = int(_time.time())
     today = _today_str()

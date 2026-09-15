@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../apiConfig';
-
-const API_KEY = "fch_internal_faucet_key_77777777777777777777777777777777";
+import { useAuth } from './AuthContext';
+import { solvePocChallenge } from '../utils/poc';
+import { signAction } from '../utils/actionSignature';
 
 export interface Mission { id: string; label: string; desc: string; reward: number; completed: boolean; available: boolean; }
 export interface Booster { type: string; label: string; multiplier: number; remaining_seconds: number; }
@@ -41,6 +42,7 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
   const [stats, setStats] = useState<{ daily_logs: DailyLog[]; nfts: NFT[] }>({ daily_logs: [], nfts: [] });
 
   const wallet = walletAddress.trim().toLowerCase();
+  const { authMethod } = useAuth();
 
   const fetchProfile = useCallback(async () => {
     if (!wallet) return;
@@ -170,17 +172,16 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
     if (!wallet) return;
     setLoading(true); setStatus(null);
     try {
-      const r = await fetch(`${API_BASE_URL}/api/faucethub/microclaim`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': API_KEY },
-        body: JSON.stringify({ user_wallet: wallet, amount: 0.5 })
+      // A faucet interna não usa API key no navegador: o servidor define carteira
+      // e valor, e o clique carrega a mesma Proof of Claim do /api/claim.
+      const proof = await solvePocChallenge(wallet, (text) => setStatus({ text, type: 'info' }));
+      const r = await fetch(`${API_BASE_URL}/api/faucethub/internal/microclaim`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_wallet: wallet, ...proof })
       });
       const d = await r.json();
       if (r.ok) {
-        await fetch(`${API_BASE_URL}/api/cyberdrip/record-claim`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wallet, amount: 0.5 })
-        });
-        setStatus({ text: `+0.50 CLAIM injetado no sistema`, type: 'success' });
+        setStatus({ text: `+${Number(d.credited).toFixed(2)} CLAIM injetado no sistema`, type: 'success' });
         setCooldown(300);
         fetchProfile(); fetchBalance(); fetchLeaderboard();
         startMinigame(); // Start Data Intercept
@@ -200,9 +201,12 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
     if (virtualBalance < 10) { setStatus({ text: 'Mínimo 10 CLAIM para saque L1', type: 'error' }); return; }
     setLoading(true);
     try {
+      const faucet = faucetWallet.trim().toLowerCase();
+      const sig = await signAction(authMethod, (ts) =>
+        `FaucetChain Withdraw | chain:7777 | ${wallet} | ${faucet} | ts:${ts}`);
       const r = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/withdraw`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_wallet: wallet, faucet_wallet: faucetWallet })
+        body: JSON.stringify({ user_wallet: wallet, faucet_wallet: faucet, ...sig })
       });
       const d = await r.json();
       if (r.ok) { setStatus({ text: `Liquidação L1 OK! Tx: ${d.tx_hash?.slice(0, 16)}...`, type: 'success' }); fetchBalance(); fetchReserve(); }

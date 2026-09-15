@@ -8,6 +8,7 @@ import { useNetwork } from './NetworkContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
+import { solvePocChallenge } from '../utils/poc';
 
 interface ClaimHistory {
     blockHeight: number;
@@ -27,33 +28,6 @@ export const Faucet: React.FC = () => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [pocStatus, setPocStatus] = useState<string | null>(null);
-
-    // ── Proof of Claim (Fase B) ─────────────────────────────────────────
-    // O clique resolve um desafio criptográfico: achar `nonce` tal que
-    // keccak256("FaucetChain-PoC|chain|epoch|parentHash|user|nonce") tenha
-    // N bits iniciais em zero. Amarrado ao tip da cadeia → não pré-computável.
-    const solvePocChallenge = async (userAddr: string) => {
-        const chRes = await fetch(`${API_BASE_URL}/api/poc/challenge`);
-        if (!chRes.ok) throw new Error('Falha ao obter o desafio PoC');
-        const ch = await chRes.json();
-        const target = BigInt(1) << BigInt(256 - ch.difficultyBits);
-        let nonce = Math.floor(Math.random() * 1_000_000_000);
-        let attempts = 0;
-        while (true) {
-            const msg = `FaucetChain-PoC|${ch.chainId}|${ch.epochId}|${ch.parentHash}|${userAddr.toLowerCase()}|${nonce}`;
-            const hash = ethers.keccak256(ethers.toUtf8Bytes(msg));
-            if (BigInt(hash) < target) {
-                setPocStatus(`⛏️ Bloco explorado! ${attempts.toLocaleString()} hashes`);
-                return { poc_nonce: nonce, poc_epoch_id: ch.epochId, poc_parent_hash: ch.parentHash };
-            }
-            nonce++;
-            attempts++;
-            if (attempts % 2000 === 0) {
-                setPocStatus(`⛏️ Explorando bloco... ${attempts.toLocaleString()} hashes`);
-                await new Promise(r => setTimeout(r, 0)); // não travar a UI
-            }
-        }
-    };
     const [epochActive, setEpochActive] = useState(true);
 
     // Fetch real balance from API
@@ -144,7 +118,7 @@ export const Faucet: React.FC = () => {
 
         try {
             // ── Proof of Claim: resolve o desafio criptográfico (o "trabalho" do clique)
-            const pocProof = await solvePocChallenge(userAddress);
+            const pocProof = await solvePocChallenge(userAddress, setPocStatus);
 
             // Gera um hash criptográfico local caso não seja Metamask
             const randomBytes = new Uint8Array(32);
@@ -177,7 +151,6 @@ export const Faucet: React.FC = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     user_address: userAddress,
-                    amount: metrics.currentReward,
                     block_height: metrics.blockHeight,
                     tx_hash: txHash,
                     source_platform: authMethod || 'WEB3',

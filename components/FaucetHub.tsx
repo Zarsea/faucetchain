@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
+import { useAuth } from './AuthContext';
+import { signAction } from '../utils/actionSignature';
 
 interface FaucetHubProps {
     onBack: () => void;
@@ -51,6 +53,7 @@ interface L2BalanceResponse {
 }
 
 export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
+    const { authMethod } = useAuth();
     const [faucets, setFaucets] = useState<FaucetData[]>([]);
     const [loading, setLoading] = useState(true);
     const [showRegister, setShowRegister] = useState(false);
@@ -145,10 +148,15 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const handleL2Withdraw = async (faucetWallet: string) => {
         setL2WithdrawStatus(null);
         try {
+            // O saque exige a assinatura do dono da carteira consultada.
+            const user = l2LookupWallet.trim().toLowerCase();
+            const faucet = faucetWallet.trim().toLowerCase();
+            const sig = await signAction(authMethod, (ts) =>
+                `FaucetChain Withdraw | chain:7777 | ${user} | ${faucet} | ts:${ts}`);
             const res = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/withdraw`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_wallet: l2LookupWallet.trim(), faucet_wallet: faucetWallet })
+                body: JSON.stringify({ user_wallet: user, faucet_wallet: faucet, ...sig })
             });
             const data = await res.json();
             if (res.ok) {

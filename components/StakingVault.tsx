@@ -13,7 +13,7 @@ import {
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
-import { ethers } from 'ethers';
+import { signAction } from '../utils/actionSignature';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 interface StakingPosition {
@@ -71,20 +71,7 @@ function formatDate(ts: number): string {
 export const StakingVault: React.FC = () => {
     const { userAddress, isConnected, authMethod } = useAuth();
 
-    // fix B6: carteiras Web3 assinam cada ação de staking (EIP-191);
-    // contas demo/custodiais não têm chave e enviam signature nula.
-    const signStakingAction = async (
-        buildMessage: (ts: number) => string
-    ): Promise<{ signature: string | null; sig_timestamp: number | null }> => {
-        if (authMethod !== 'WALLET' || typeof window.ethereum === 'undefined') {
-            return { signature: null, sig_timestamp: null };
-        }
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const sig_timestamp = Math.floor(Date.now() / 1000);
-        const signature = await signer.signMessage(buildMessage(sig_timestamp));
-        return { signature, sig_timestamp };
-    };
+    const signStakingAction = (buildMessage: (ts: number) => string) => signAction(authMethod, buildMessage);
     const { tFn: t } = useLanguage();
 
     const [positions, setPositions] = useState<StakingPosition[]>([]);
