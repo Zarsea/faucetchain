@@ -53,6 +53,16 @@ pub mod faucetchain {
         instructions::publish_root::handle_publish_root(ctx, index, root, total_amount, leaf_count)
     }
 
+    /// Devolve ao parceiro o que sobrou no cofre além do já prometido.
+    pub fn withdraw_surplus(ctx: Context<WithdrawSurplus>, amount: u64) -> Result<()> {
+        instructions::withdraw_surplus::handle_withdraw_surplus(ctx, amount)
+    }
+
+    /// Encerra a campanha: nenhuma raiz nova, mas o prometido continua sacável.
+    pub fn close_campaign(ctx: Context<CloseCampaign>) -> Result<()> {
+        instructions::close_campaign::handle_close_campaign(ctx)
+    }
+
     /// O usuário saca seu prêmio com a prova de inclusão na raiz publicada.
     pub fn claim_reward(
         ctx: Context<ClaimReward>,

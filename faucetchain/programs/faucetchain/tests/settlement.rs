@@ -325,4 +325,94 @@ fn campaign_pays_only_what_the_published_root_proves() {
         "{:?}",
         err.meta.logs
     );
+
+    // 8. O parceiro tira de volta o que sobrou — e nem um token a mais. Dos 300
+    //    no cofre, 100 continuam prometidos ao Bob.
+    let withdraw = |amount: u64| {
+        ix(
+            faucetchain::accounts::WithdrawSurplus {
+                sponsor: sponsor.pubkey(),
+                campaign,
+                mint,
+                sponsor_token_account: sponsor_tokens,
+                vault,
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::WithdrawSurplus { amount }.data(),
+        )
+    };
+    let err = send(&mut svm, &[withdraw(200_000_001)], &[&sponsor]).unwrap_err();
+    assert!(
+        err.meta
+            .logs
+            .iter()
+            .any(|l| l.contains("InsufficientReserve")),
+        "{:?}",
+        err.meta.logs
+    );
+    send(&mut svm, &[withdraw(200_000_000)], &[&sponsor]).unwrap();
+    assert_eq!(token_balance(&svm, &vault), 100_000_000);
+    assert_eq!(token_balance(&svm, &sponsor_tokens), 700_000_000);
+
+    // 9. O saque do Bob sobrevive à devolução: o que já estava prometido nunca
+    //    esteve disponível para o parceiro retirar.
+    let bob_tokens = associated_token::get_associated_token_address(&bob.pubkey(), &mint);
+    send(
+        &mut svm,
+        &[ix(
+            faucetchain::accounts::ClaimReward {
+                recipient: bob.pubkey(),
+                payer: relayer.pubkey(),
+                campaign,
+                reward_root,
+                receipt: pda(&[
+                    faucetchain::RECEIPT_SEED,
+                    reward_root.as_ref(),
+                    &1u32.to_le_bytes(),
+                ]),
+                mint,
+                vault,
+                recipient_token_account: bob_tokens,
+                token_program: spl_token::ID,
+                associated_token_program: associated_token::ID,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::ClaimReward {
+                leaf_index: 1,
+                amount: 100_000_000,
+                proof: vec![leaf_alice],
+            }
+            .data(),
+        )],
+        &[&relayer, &bob],
+    )
+    .unwrap();
+    assert_eq!(token_balance(&svm, &bob_tokens), 100_000_000);
+    assert_eq!(token_balance(&svm, &vault), 0);
+
+    // 10. Encerrada a campanha, nenhuma raiz nova entra.
+    let close = ix(
+        faucetchain::accounts::CloseCampaign {
+            sponsor: sponsor.pubkey(),
+            campaign,
+        }
+        .to_account_metas(None),
+        faucetchain::instruction::CloseCampaign {}.data(),
+    );
+    send(&mut svm, &[close.clone()], &[&sponsor]).unwrap();
+    let err = send(
+        &mut svm,
+        &[publish(1, [9u8; 32], 1, second_root)],
+        &[&operator],
+    )
+    .unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("CampaignClosed")),
+        "{:?}",
+        err.meta.logs
+    );
+    svm.expire_blockhash();
+    assert!(send(&mut svm, &[close], &[&sponsor]).is_err());
 }
