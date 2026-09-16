@@ -60,6 +60,43 @@ def test_claim_amount_is_defined_by_server(client):
         assert stored == expected == r.json()["amount"], (stored, expected)
 
 
+def test_difficulty_rises_with_quota_usage(client):
+    base = srv.CLAIM_PROOF_DIFFICULTY_BITS
+    assert client.get("/api/poc/challenge").json()["difficultyBits"] == base
+
+    now = int(time.time())
+    conn = db()
+    c = conn.cursor()
+    epoch_id, _, _ = srv.get_hourly_epoch_state(c, now)
+    srv.record_epoch_mint(c, epoch_id, srv.TOKENS_PER_HOUR * 0.6)  # 60% da hora consumida
+    conn.commit()
+    conn.close()
+    assert client.get("/api/poc/challenge").json()["difficultyBits"] == base + 2
+
+    conn = db()
+    conn.execute("DELETE FROM hourly_epochs WHERE epoch_id = ?", (epoch_id,))
+    conn.commit()
+    conn.close()
+    assert client.get("/api/poc/challenge").json()["difficultyBits"] == base
+
+
+def test_ip_cap_blocks_wallet_farm(client):
+    srv.claim_ip_wallets.clear()
+    original_cap = srv.CLAIM_IP_HOURLY_WALLETS
+    srv.CLAIM_IP_HOURLY_WALLETS = 3
+    try:
+        codes = []
+        for i in range(4):
+            user = f"google_farm{i}@faucetchain.io"
+            body = {"user_address": user, "block_height": 0,
+                    "tx_hash": f"0xfarm{i}", **solve_proof(client, user)}
+            codes.append(client.post("/api/claim", json=body).status_code)
+        assert codes == [200, 200, 200, 429], codes
+    finally:
+        srv.CLAIM_IP_HOURLY_WALLETS = original_cap
+        srv.claim_ip_wallets.clear()
+
+
 def test_uptime_rewards_count_in_hourly_quota(client):
     now = int(time.time())
     conn = db()

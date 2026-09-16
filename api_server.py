@@ -1100,10 +1100,17 @@ async def internal_microclaim(req: InternalMicroClaimRequest, request: Request):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
 
+    now_ts = int(datetime.now().timestamp())
+    if not claim_ip_allowed(request.client.host, user_lower, now_ts):
+        raise HTTPException(
+            status_code=429,
+            detail=f"Limite de {CLAIM_IP_HOURLY_WALLETS} carteiras por hora neste IP."
+        )
+
     conn = get_db_connection()
     try:
         verify_claim_proof(conn.cursor(), user_lower, req.poc_epoch_id, req.poc_parent_hash,
-                           req.poc_nonce, int(datetime.now().timestamp()))
+                           req.poc_nonce, now_ts)
         result = _credit_microclaim(conn, faucet_wallet, user_lower, INTERNAL_MICROCLAIM_AMOUNT)
     finally:
         conn.close()
@@ -1737,7 +1744,43 @@ def require_action_signature(address: str, message: str, signature, sig_timestam
 # Amarrado ao parent_hash (tip da cadeia) → impossível pré-computar em massa;
 # custo de ~0.5-2s de CPU por claim → o "trabalho" do clique (anti-bot).
 CLAIM_PROOF_DIFFICULTY_BITS = 16   # ~65k hashes em média (ajustável)
+CLAIM_PROOF_MAX_EXTRA_BITS = 3     # +1 bit (o dobro de trabalho) a cada 25% da quota
 POC_MESSAGE_PREFIX = "FaucetChain-PoC"
+
+# Limite de carteiras novas por IP por hora. Medido em tests/bot_quota_attack.py:
+# um núcleo resolve provas de sobra para esvaziar a quota da hora sozinho, então
+# a prova, isolada, não segura um bot — ela só encarece cada clique.
+# Estado em memória do processo: reiniciar o servidor zera a janela. Vira tabela
+# se precisar sobreviver a restart ou rodar em mais de um processo.
+CLAIM_IP_HOURLY_WALLETS = int(os.getenv("CLAIM_IP_HOURLY_WALLETS", "5"))
+claim_ip_wallets = defaultdict(dict)   # ip -> {endereço: timestamp}
+
+
+def current_difficulty_bits(c, now_ts: int = None) -> int:
+    """Dificuldade da prova do clique, que sobe conforme a quota da hora é consumida.
+
+    Quem chega cedo na hora paga o custo base; quem tenta varrer o resto da quota
+    paga o dobro a cada degrau de 25%.
+    """
+    _, tokens_mined, _ = get_hourly_epoch_state(c, now_ts)
+    used = (tokens_mined / TOKENS_PER_HOUR) if TOKENS_PER_HOUR else 0.0
+    extra = min(CLAIM_PROOF_MAX_EXTRA_BITS, max(0, int(used * 4)))
+    return CLAIM_PROOF_DIFFICULTY_BITS + extra
+
+
+def claim_ip_allowed(client_ip: str, addr_lower: str, now_ts: int) -> bool:
+    """False quando o IP já usou carteiras demais na última hora.
+
+    Não impede um bot com muitos IPs, mas transforma "criar carteira" num custo.
+    """
+    seen = claim_ip_wallets[client_ip]
+    for addr, ts in list(seen.items()):
+        if now_ts - ts > 3600:
+            del seen[addr]
+    if addr_lower not in seen and len(seen) >= CLAIM_IP_HOURLY_WALLETS:
+        return False
+    seen[addr_lower] = now_ts
+    return True
 
 
 def get_chain_tip(c):
@@ -1772,8 +1815,10 @@ def verify_claim_proof(c, user_addr: str, poc_epoch_id, poc_parent_hash, poc_non
     if poc_parent_hash not in (tip_hash, tip_parent):
         raise HTTPException(status_code=400, detail="Claim Proof desatualizado (a cadeia avançou). Resolva um novo desafio.")
 
+    # 1 bit de tolerância: a dificuldade pode ter subido entre o desafio e o envio
+    required_bits = max(CLAIM_PROOF_DIFFICULTY_BITS, current_difficulty_bits(c, now_ts) - 1)
     digest = keccak256(poc_message(poc_epoch_id, poc_parent_hash, user_addr, int(poc_nonce)).encode())
-    if int.from_bytes(digest, 'big') >> (256 - CLAIM_PROOF_DIFFICULTY_BITS) != 0:
+    if int.from_bytes(digest, 'big') >> (256 - required_bits) != 0:
         raise HTTPException(status_code=400, detail="Claim Proof inválido: dificuldade não atingida.")
 
     return "0x" + digest.hex()
@@ -2293,13 +2338,15 @@ async def get_poc_challenge():
     c = conn.cursor()
     now_ts = int(datetime.now().timestamp())
     tip_height, tip_hash, _ = get_chain_tip(c)
+    bits = current_difficulty_bits(c, now_ts)
+    conn.commit()  # persiste o CREATE TABLE lazy da epoch horária, se ocorreu
     conn.close()
     return {
         "chainId": CHAIN_ID,
         "epochId": now_ts // EPOCH_DURATION,
         "parentHash": tip_hash,
         "tipHeight": tip_height,
-        "difficultyBits": CLAIM_PROOF_DIFFICULTY_BITS,
+        "difficultyBits": bits,
         "messageTemplate": f"{POC_MESSAGE_PREFIX}|{CHAIN_ID}|<epochId>|<parentHash>|<userAddress>|<nonce>"
     }
 
@@ -2343,6 +2390,16 @@ async def submit_claim(req: ClaimRequest, request: Request):
     except HTTPException:
         conn.close()
         raise
+
+    # Fazenda de carteiras: a prova encarece o clique, mas não impede criar
+    # endereços novos. O teto por IP é a segunda camada (tests/bot_quota_attack.py).
+    if not claim_ip_allowed(client_ip, addr_lower, int(datetime.now().timestamp())):
+        conn.close()
+        audit_log("IP_WALLET_CAP", client_ip, {"address": addr_lower, "cap": CLAIM_IP_HOURLY_WALLETS})
+        raise HTTPException(
+            status_code=429,
+            detail=f"Limite de {CLAIM_IP_HOURLY_WALLETS} carteiras por hora neste IP."
+        )
 
     # Cooldown check
     c.execute('''
