@@ -131,6 +131,13 @@ same leaf twice, change a root once published, or touch a campaign it is not the
 operator of. The sponsor cannot do any of those either, and cannot take back a
 token already inside a published root.
 
+Nothing about that has to be taken on faith. `GET /api/solana/ledger/{id}`
+reads the campaign account, its vault and every published root straight from
+Solana and returns what they say — the sequencer only supplies the addresses,
+which are derived from public seeds. When the chain cannot be read the endpoint
+says so instead of falling back to its own numbers, and the screen says the
+figures are a claim rather than proof.
+
 The appchain database is not a trust boundary for money. If it is lost or
 tampered with, the roots already on Solana still pay exactly what they promised,
 to exactly the wallets they were built for — the proofs can be rebuilt from the
@@ -190,6 +197,11 @@ These are open on purpose, not oversights:
   once, which is a spending pace question rather than a hole.
 
 ## Change log
+
+**2026-09-16 — the ledger.** `GET /api/solana/ledger/{campaign_id}` decodes the
+campaign, vault and reward-root accounts from Solana, so what a campaign holds,
+owes and has paid can be read from the chain rather than from this server. The
+Settlement Ledger screen shows it, with every address linking to the explorer.
 
 **2026-09-16 — the receipt check.** The relayer asks whether a leaf's receipt
 account exists before signing, so a reward already collected is refused without

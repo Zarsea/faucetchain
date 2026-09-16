@@ -5306,6 +5306,87 @@ async def list_settlement_batches(campaign_id: Optional[int] = None, limit: int 
     }
 
 
+@app.get("/api/solana/ledger/{campaign_id}")
+async def get_campaign_ledger(campaign_id: int):
+    """What Solana says about a campaign, not what this server says.
+
+    The vault balance, the totals on the campaign account and every published
+    root come from the chain. The sequencer only supplies the addresses, so
+    anyone can recompute the same view without asking it anything.
+    """
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT sponsor, mint FROM settlement_campaigns WHERE campaign_id = ?", (campaign_id,)
+    )
+    registered = c.fetchone()
+    c.execute(
+        """SELECT root_index, root, total_amount, leaf_count, created_at, published_signature
+             FROM settlement_batches WHERE campaign_id = ? ORDER BY root_index""",
+        (campaign_id,),
+    )
+    batches = c.fetchall()
+    conn.close()
+    if not registered:
+        raise HTTPException(status_code=404, detail=f"Campaign {campaign_id} is not registered here")
+
+    off_chain = [
+        {
+            "root_index": row[0],
+            "root": row[1],
+            "total_amount": row[2],
+            "leaf_count": row[3],
+            "created_at": row[4],
+            "published_signature": row[5],
+        }
+        for row in batches
+    ]
+    result = {
+        "campaign_id": campaign_id,
+        "sponsor": registered[0],
+        "mint": registered[1],
+        "batches": off_chain,
+        "on_chain": None,
+    }
+
+    try:
+        import solana_settlement as chain
+
+        idl = chain.load_idl()
+    except (ImportError, SystemExit):
+        return result
+
+    from solders.pubkey import Pubkey
+
+    pid = chain.program_id(idl)
+    campaign = chain.campaign_pda(pid, Pubkey.from_string(registered[0]), campaign_id)
+    vault = chain.vault_pda(pid, campaign)
+    roots = [chain.root_pda(pid, campaign, item["root_index"]) for item in off_chain]
+
+    try:
+        rpc_url = chain.default_rpc_url()
+        accounts = chain.fetch_accounts(rpc_url, [campaign] + roots)
+        vault_amount = chain.token_balance(rpc_url, vault)
+    except Exception as e:
+        # The page says the chain could not be read, rather than quietly
+        # falling back to numbers this server made up.
+        audit_logger.warning(f"Could not read campaign {campaign_id} from Solana: {e}")
+        return result
+
+    if accounts[0] is None:
+        return result
+
+    state = chain.decode_campaign(accounts[0])
+    state["vault"] = str(vault)
+    state["vault_amount"] = vault_amount
+    state["address"] = str(campaign)
+    for item, data, address in zip(off_chain, accounts[1:], roots):
+        item["address"] = str(address)
+        item["on_chain"] = chain.decode_reward_root(data) if data else None
+    result["on_chain"] = state
+    return result
+
+
 @app.get("/api/solana/proof/{address}")
 async def get_settlement_proofs(address: str):
     """A user's proofs, one per batch they were part of."""

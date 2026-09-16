@@ -375,6 +375,24 @@ def main() -> None:
     assert after == before + surplus
     assert chain.token_balance(rpc_url, vault) == 0
 
+    step(9, "The ledger, read from Solana rather than from this script")
+    ledger = requests.get(f"{api}/api/solana/ledger/{args.campaign_id}", timeout=30).json()
+    chain_state = ledger["on_chain"]
+    assert chain_state is not None, "the sequencer could not read the chain"
+    root_state = ledger["batches"][0]["on_chain"]
+    print(f"    funded {chain_state['funded'] / UNIT:.2f} - promised "
+          f"{chain_state['committed'] / UNIT:.2f} - paid {chain_state['paid'] / UNIT:.2f} - "
+          f"vault {chain_state['vault_amount'] / UNIT:.2f}")
+    print(f"    root {root_state['index']}: {root_state['claimed'] / UNIT:.2f} of "
+          f"{root_state['total_amount'] / UNIT:.2f} collected across "
+          f"{root_state['leaf_count']} leaves")
+    assert chain_state["funded"] == 500 * UNIT, chain_state
+    assert chain_state["committed"] == 350 * UNIT, chain_state
+    assert chain_state["paid"] == 350 * UNIT, chain_state
+    assert chain_state["vault_amount"] == 0, chain_state
+    assert root_state["claimed"] == root_state["total_amount"] == 350 * UNIT, root_state
+    assert root_state["root"] == batch["root"], (root_state["root"], batch["root"])
+
     print("\nDone. 350 tokens left the vault against one published root,")
     print("and neither user ever held a lamport of their own.")
 

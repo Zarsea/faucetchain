@@ -15,7 +15,7 @@ import base64
 import json
 import os
 import time
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
 import requests
 from solders.instruction import AccountMeta, Instruction
@@ -284,6 +284,65 @@ def send_and_confirm(url: str, instructions: List[Instruction], payer: Keypair,
                 return signature
         time.sleep(1)
     raise SystemExit(f"Transaction {signature} did not confirm in {timeout}s")
+
+
+# --------------------------------------------------------------------------
+# Reading the program's accounts
+#
+# An Anchor account is an 8-byte discriminator followed by the Borsh struct.
+# Every field here is fixed size, so the layout is just offsets — and reading
+# them is what lets anyone check the vault against what the sequencer claims.
+# --------------------------------------------------------------------------
+
+
+def _u(data: bytes, offset: int, size: int) -> int:
+    return int.from_bytes(data[offset:offset + size], "little")
+
+
+def decode_campaign(data: bytes) -> dict:
+    if len(data) < 8 + 32 * 3 + 8 * 4 + 4 + 3:
+        raise ValueError("not a Campaign account")
+    body = data[8:]
+    return {
+        "sponsor": str(Pubkey.from_bytes(body[0:32])),
+        "operator": str(Pubkey.from_bytes(body[32:64])),
+        "mint": str(Pubkey.from_bytes(body[64:96])),
+        "campaign_id": _u(body, 96, 8),
+        "funded": _u(body, 104, 8),
+        "paid": _u(body, 112, 8),
+        "committed": _u(body, 120, 8),
+        "root_count": _u(body, 128, 4),
+        "closed": bool(body[132]),
+    }
+
+
+def decode_reward_root(data: bytes) -> dict:
+    if len(data) < 8 + 32 + 4 + 32 + 8 * 2 + 4 + 8:
+        raise ValueError("not a RewardRoot account")
+    body = data[8:]
+    return {
+        "campaign": str(Pubkey.from_bytes(body[0:32])),
+        "index": _u(body, 32, 4),
+        "root": "0x" + body[36:68].hex(),
+        "total_amount": _u(body, 68, 8),
+        "claimed": _u(body, 76, 8),
+        "leaf_count": _u(body, 84, 4),
+        "published_at": _u(body, 88, 8),
+    }
+
+
+def fetch_accounts(url: str, addresses: Sequence[Pubkey]) -> List[Optional[bytes]]:
+    """Raw data of each account, or None where nothing is there."""
+    if not addresses:
+        return []
+    accounts = rpc(
+        url,
+        "getMultipleAccounts",
+        [[str(a) for a in addresses], {"commitment": "confirmed", "encoding": "base64"}],
+    )["value"]
+    return [
+        base64.b64decode(account["data"][0]) if account else None for account in accounts
+    ]
 
 
 def token_balance(url: str, token_account: Pubkey) -> int:

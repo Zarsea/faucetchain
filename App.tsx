@@ -25,10 +25,12 @@ import { InfrastructureMonitor } from './components/InfrastructureMonitor';
 import { DappsEnvironment, DappsFloatingButton } from './components/DappsEnvironment';
 import { BlockViewer } from './components/BlockViewer';
 import { SolanaPayouts } from './components/SolanaPayouts';
+import { SettlementLedger } from './components/SettlementLedger';
 
 const TABS = [
     'Dashboard',
     'Solana Payouts',
+    'Settlement Ledger',
     'AutoClaim Hub',
     'Address Tracker',
     'Staking Vault',
@@ -57,6 +59,8 @@ const AppContent: React.FC = () => {
                 return <UserDashboard onNavigate={setActiveTab} />;
             case 'Solana Payouts':
                 return <SolanaPayouts />;
+            case 'Settlement Ledger':
+                return <SettlementLedger />;
             case 'AutoClaim Hub':
                 return <MiningHub />;
             case 'Address Tracker':
