@@ -20,7 +20,7 @@ pub struct CreateCampaign<'info> {
 
     pub mint: InterfaceAccount<'info, Mint>,
 
-    /// Cofre da campanha: conta de token cuja autoridade é a própria campanha.
+    /// The campaign vault: a token account whose authority is the campaign itself.
     #[account(
         init,
         payer = sponsor,

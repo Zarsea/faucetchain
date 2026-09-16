@@ -195,6 +195,6 @@ if __name__ == "__main__":
                 print(f"OK    {test.__name__}")
             except AssertionError as e:
                 failures += 1
-                print(f"FALHA {test.__name__}: {e}")
-    print(f"\n{len(tests) - failures}/{len(tests)} passaram (banco temporário em {TMP})")
+                print(f"FAIL  {test.__name__}: {e}")
+    print(f"\n{len(tests) - failures}/{len(tests)} passed (temporary database in {TMP})")
     sys.exit(1 if failures else 0)

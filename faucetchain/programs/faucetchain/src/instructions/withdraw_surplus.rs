@@ -34,13 +34,13 @@ pub struct WithdrawSurplus<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 }
 
-/// Devolve ao parceiro o que sobrou no cofre além do que já foi prometido.
+/// Returns to the partner whatever the vault holds above what is already owed.
 ///
-/// Sem isto, o que entra no cofre e não vira prêmio nunca mais sai, e financiar
-/// uma campanha vira uma aposta de mão única. O limite é o mesmo que o
-/// `publish_root` usa para aceitar uma raiz: o cofre tem que continuar cobrindo
-/// tudo que foi publicado e ainda não sacado, então nenhum prêmio já prometido
-/// a um usuário pode ser retirado por baixo dele.
+/// Without this, tokens that enter the vault and never become a reward can never
+/// leave, and funding a campaign is a one-way door. The bound is the same one
+/// `publish_root` uses to accept a root: the vault must keep covering everything
+/// published and not yet withdrawn, so a reward already promised to a user
+/// cannot be pulled out from under them.
 pub fn handle_withdraw_surplus(ctx: Context<WithdrawSurplus>, amount: u64) -> Result<()> {
     require!(amount > 0, ErrorCode::AmountZero);
 

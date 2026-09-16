@@ -1,7 +1,7 @@
-//! Fluxo completo da liquidação, contra o programa compilado rodando na SVM:
-//! campanha -> cofre -> raiz publicada -> saque com prova.
+//! The whole settlement flow, against the compiled program running on the SVM:
+//! campaign -> vault -> published root -> withdrawal with a proof.
 //!
-//! Exige o binário: `bash scripts/build-program.sh` antes de `cargo test`.
+//! Needs the binary: run `bash scripts/build-program.sh` before `cargo test`.
 
 
 use anchor_lang::{
@@ -34,11 +34,11 @@ fn send(svm: &mut LiteSVM, ixs: &[Instruction], signers: &[&Keypair]) -> Transac
 }
 
 fn token_balance(svm: &LiteSVM, account: &Pubkey) -> u64 {
-    let raw = svm.get_account(account).expect("conta de token não existe");
+    let raw = svm.get_account(account).expect("token account does not exist");
     spl_token::state::Account::unpack(&raw.data).unwrap().amount
 }
 
-/// Cria um mint com autoridade `authority` e devolve seu endereço.
+/// Creates a mint owned by `authority` and returns its address.
 fn create_mint(svm: &mut LiteSVM, authority: &Keypair) -> Pubkey {
     let mint = Keypair::new();
     let rent = svm.minimum_balance_for_rent_exemption(spl_token::state::Mint::LEN);
@@ -63,7 +63,7 @@ fn create_mint(svm: &mut LiteSVM, authority: &Keypair) -> Pubkey {
     mint.pubkey()
 }
 
-/// Conta de token avulsa já com saldo, para o patrocinador financiar a campanha.
+/// A standalone token account with a balance, for the sponsor to fund with.
 fn create_funded_account(
     svm: &mut LiteSVM,
     authority: &Keypair,
@@ -123,7 +123,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
             "/../../target/deploy/faucetchain.so"
         ),
     )
-    .expect("rode scripts/build-program.sh antes do teste");
+    .expect("run scripts/build-program.sh before the test");
 
     let sponsor = Keypair::new();
     let operator = Keypair::new();
@@ -133,7 +133,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
     for who in [&sponsor, &operator, &relayer] {
         svm.airdrop(&who.pubkey(), 10 * SOL).unwrap();
     }
-    // Alice não recebe SOL: quem paga taxa e rent do saque dela é o relayer.
+    // Alice gets no SOL: the relayer pays the fee and the rent of her withdrawal.
 
     let mint = create_mint(&mut svm, &sponsor);
     let sponsor_tokens = create_funded_account(&mut svm, &sponsor, &mint, 1_000_000_000);
@@ -145,7 +145,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
     ]);
     let vault = pda(&[faucetchain::VAULT_SEED, campaign.as_ref()]);
 
-    // 1. Campanha aberta com o cofre vazio.
+    // 1. The campaign opens with an empty vault.
     send(
         &mut svm,
         &[ix(
@@ -168,7 +168,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
     )
     .unwrap();
 
-    // 2. O parceiro deposita 500 tokens.
+    // 2. The partner deposits 500 tokens.
     send(
         &mut svm,
         &[ix(
@@ -191,7 +191,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
     .unwrap();
     assert_eq!(token_balance(&svm, &vault), 500_000_000);
 
-    // 3. Lote de dois prêmios fechado fora da cadeia; aqui só entra a raiz.
+    // 3. A two-reward batch closed off-chain; only its root comes in here.
     let leaf_alice = leaf_hash(&alice.pubkey(), 200_000_000, 0);
     let leaf_bob = leaf_hash(&bob.pubkey(), 100_000_000, 1);
     let root = hashv(&[&leaf_alice, &leaf_bob]).to_bytes();
@@ -227,7 +227,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
     )
     .unwrap();
 
-    // 4. Alice saca provando a folha; o relayer paga tudo que custa SOL.
+    // 4. Alice withdraws by proving her leaf; the relayer pays everything that costs SOL.
     let alice_tokens = associated_token::get_associated_token_address(&alice.pubkey(), &mint);
     let receipt = pda(&[
         faucetchain::RECEIPT_SEED,
@@ -259,15 +259,15 @@ fn campaign_pays_only_what_the_published_root_proves() {
     send(&mut svm, &[claim.clone()], &[&relayer, &alice]).unwrap();
     assert_eq!(token_balance(&svm, &alice_tokens), 200_000_000);
     assert_eq!(token_balance(&svm, &vault), 300_000_000);
-    // Alice não gastou nada: a conta dela na rede nem chegou a existir.
+    // Alice spent nothing: her account on the network never even came to exist.
     assert_eq!(svm.get_balance(&alice.pubkey()).unwrap_or(0), 0);
 
-    // 5. Repetir o mesmo saque esbarra no recibo que já existe.
+    // 5. Repeating the same withdrawal runs into the receipt that already exists.
     svm.expire_blockhash();
     assert!(send(&mut svm, &[claim], &[&relayer, &alice]).is_err());
     assert_eq!(token_balance(&svm, &alice_tokens), 200_000_000);
 
-    // 6. Valor mentido na folha não fecha com a raiz.
+    // 6. A lie about the amount in the leaf does not add up to the root.
     let forged = ix(
         faucetchain::accounts::ClaimReward {
             recipient: bob.pubkey(),
@@ -304,8 +304,8 @@ fn campaign_pays_only_what_the_published_root_proves() {
         err.meta.logs
     );
 
-    // 7. Proof of Reserve: sobram 300 no cofre e 100 ainda prometidos, então uma
-    //    raiz de mais 300 não pode ser publicada.
+    // 7. Proof of reserve: 300 left in the vault and 100 still promised, so a
+    //    root for another 300 cannot be published.
     let second_root = pda(&[
         faucetchain::ROOT_SEED,
         campaign.as_ref(),
@@ -326,8 +326,8 @@ fn campaign_pays_only_what_the_published_root_proves() {
         err.meta.logs
     );
 
-    // 8. O parceiro tira de volta o que sobrou — e nem um token a mais. Dos 300
-    //    no cofre, 100 continuam prometidos ao Bob.
+    // 8. The partner takes back the surplus, and not one token more. Of the 300
+    //    in the vault, 100 are still promised to Bob.
     let withdraw = |amount: u64| {
         ix(
             faucetchain::accounts::WithdrawSurplus {
@@ -355,8 +355,8 @@ fn campaign_pays_only_what_the_published_root_proves() {
     assert_eq!(token_balance(&svm, &vault), 100_000_000);
     assert_eq!(token_balance(&svm, &sponsor_tokens), 700_000_000);
 
-    // 9. O saque do Bob sobrevive à devolução: o que já estava prometido nunca
-    //    esteve disponível para o parceiro retirar.
+    // 9. Bob's withdrawal survives the refund: what was already promised was
+    //    never available for the partner to take.
     let bob_tokens = associated_token::get_associated_token_address(&bob.pubkey(), &mint);
     send(
         &mut svm,
@@ -392,7 +392,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
     assert_eq!(token_balance(&svm, &bob_tokens), 100_000_000);
     assert_eq!(token_balance(&svm, &vault), 0);
 
-    // 10. Encerrada a campanha, nenhuma raiz nova entra.
+    // 10. Once the campaign is closed, no new root gets in.
     let close = ix(
         faucetchain::accounts::CloseCampaign {
             sponsor: sponsor.pubkey(),

@@ -1,21 +1,21 @@
 use anchor_lang::prelude::*;
 
-/// Campanha de um projeto parceiro: o orçamento fica num cofre nesta rede e só
-/// sai contra uma raiz de prêmios publicada pela FaucetChain.
+/// A partner project's campaign: the budget sits in a vault on this network
+/// and only leaves it against a reward root published by FaucetChain.
 #[account]
 #[derive(InitSpace)]
 pub struct Campaign {
-    /// Quem financia (deposita no cofre).
+    /// Who funds it, by depositing into the vault.
     pub sponsor: Pubkey,
-    /// Quem publica as raízes de prêmios (o sequenciador da FaucetChain).
+    /// Who publishes reward roots: the FaucetChain sequencer.
     pub operator: Pubkey,
     pub mint: Pubkey,
     pub campaign_id: u64,
-    /// Total já depositado no cofre.
+    /// Everything ever deposited into the vault.
     pub funded: u64,
-    /// Total já sacado por usuários.
+    /// Everything users have withdrawn.
     pub paid: u64,
-    /// Soma dos totais de todas as raízes publicadas.
+    /// Sum of the totals of every published root.
     pub committed: u64,
     pub root_count: u32,
     pub closed: bool,
@@ -23,8 +23,8 @@ pub struct Campaign {
     pub vault_bump: u8,
 }
 
-/// Um lote de prêmios: a FaucetChain fecha o lote fora da cadeia e publica aqui
-/// só a raiz. Cada usuário saca provando que sua folha está nessa árvore.
+/// A batch of rewards. FaucetChain closes the batch off-chain and publishes
+/// only its root here; each user withdraws by proving their leaf is in it.
 #[account]
 #[derive(InitSpace)]
 pub struct RewardRoot {
@@ -37,8 +37,8 @@ pub struct RewardRoot {
     pub published_at: i64,
 }
 
-/// Marca uma folha como gasta. A existência desta conta é o que impede sacar
-/// duas vezes o mesmo prêmio.
+/// Marks a leaf as spent. This account existing is what stops the same reward
+/// from being withdrawn twice.
 #[account]
 #[derive(InitSpace)]
 pub struct ClaimReceipt {

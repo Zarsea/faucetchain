@@ -15,11 +15,11 @@ pub struct CloseCampaign<'info> {
     pub campaign: Account<'info, Campaign>,
 }
 
-/// Encerra a campanha: o operador não publica mais raízes nela.
+/// Closes the campaign: the operator publishes no further roots on it.
 ///
-/// Não mexe no cofre. Quem já tem prêmio numa raiz publicada continua podendo
-/// sacar depois do encerramento — o que fecha é a entrada de novas promessas,
-/// não a saída do que já foi prometido. O que sobrar volta pelo
+/// It does not touch the vault. Anyone holding a reward in a published root can
+/// still withdraw after the close — what shuts is the way in for new promises,
+/// not the way out for what was already promised. The rest goes back through
 /// `withdraw_surplus`.
 pub fn handle_close_campaign(ctx: Context<CloseCampaign>) -> Result<()> {
     let campaign = &mut ctx.accounts.campaign;

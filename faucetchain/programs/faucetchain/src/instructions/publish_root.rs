@@ -50,8 +50,8 @@ pub fn handle_publish_root(
     require!(!campaign.closed, ErrorCode::CampaignClosed);
     require!(total_amount > 0 && leaf_count > 0, ErrorCode::AmountZero);
 
-    // Proof of Reserve na própria instrução: a campanha não pode prometer mais
-    // do que o cofre cobre, contando tudo que já foi publicado e ainda não sacado.
+    // Proof of reserve inside the instruction itself: a campaign cannot promise
+    // more than the vault covers, counting everything published and not yet paid.
     let outstanding = campaign
         .committed
         .checked_sub(campaign.paid)

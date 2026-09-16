@@ -1,12 +1,12 @@
 use anchor_lang::prelude::*;
 use solana_keccak_hasher::hashv;
 
-/// Folha de prêmio: keccak256(destinatário ‖ valor LE ‖ índice LE).
+/// A reward leaf: keccak256(recipient ‖ amount LE ‖ index LE).
 ///
-/// Mesma regra de combinação do resto do projeto (api_server.py e
-/// utils/merkle.ts): pai = keccak256(esquerda ‖ direita), com a direção dada
-/// pelo bit do índice. Nível ímpar duplica o último nó, o que aparece na prova
-/// como um irmão igual ao próprio nó.
+/// Same combination rule as the rest of the project (api_server.py and
+/// settlement.py): parent = keccak256(left ‖ right), with the direction taken
+/// from the index bit. An odd level duplicates its last node, which shows up in
+/// a proof as a sibling equal to the node itself.
 pub fn leaf_hash(recipient: &Pubkey, amount: u64, leaf_index: u32) -> [u8; 32] {
     hashv(&[
         recipient.as_ref(),
@@ -43,7 +43,7 @@ mod tests {
         hashv(&[&left, &right]).to_bytes()
     }
 
-    /// Árvore de 3 folhas: o nível ímpar duplica a última, como no backend.
+    /// A three-leaf tree: the odd level duplicates the last one, as the backend does.
     fn tree() -> ([[u8; 32]; 3], [u8; 32]) {
         let leaves = [
             leaf_hash(&Pubkey::new_from_array([1; 32]), 10, 0),
@@ -71,17 +71,17 @@ mod tests {
         let (leaves, root) = tree();
         let n22 = parent(leaves[2], leaves[2]);
 
-        // valor trocado na folha
+        // the amount in the leaf was changed
         let forged = leaf_hash(&Pubkey::new_from_array([1; 32]), 99, 0);
         assert!(!verify_proof(forged, 0, &[leaves[1], n22], root));
-        // índice trocado inverte a direção da combinação
+        // a different index flips the direction of the combination
         assert!(!verify_proof(leaves[0], 1, &[leaves[1], n22], root));
-        // irmão trocado
+        // the sibling was swapped
         assert!(!verify_proof(leaves[0], 0, &[leaves[2], n22], root));
     }
 
-    /// Mesmo vetor fixo do `_self_check` em settlement.py: se um dos lados
-    /// mudar a regra da árvore, os dois testes divergem e o saque quebraria.
+    /// The same fixed vector `_self_check` asserts in settlement.py: if either
+    /// side changed the rule, the two tests would disagree and withdrawals break.
     #[test]
     fn matches_the_backend_vector() {
         let (_, root) = tree();

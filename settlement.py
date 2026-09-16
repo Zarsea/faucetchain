@@ -1,22 +1,22 @@
 """
-FaucetChain — lote de liquidação para o programa da Solana.
+FaucetChain — reward batches for the settlement program on Solana.
 
-A appchain continua distribuindo. De tempos em tempos ela fecha um lote de
-prêmios e publica na Solana só a raiz Merkle dele; cada usuário saca provando
-que sua folha está naquela raiz.
+The appchain keeps distributing. Every so often it closes a batch of rewards
+and publishes only its Merkle root on Solana; each user withdraws by proving
+their leaf is in that root.
 
-Este módulo monta o lote. Ele precisa produzir exatamente a mesma árvore que
-`programs/faucetchain/src/merkle.rs` verifica dentro do programa:
+This module builds the batch. It has to produce exactly the tree that
+`programs/faucetchain/src/merkle.rs` verifies inside the program:
 
-  folha  = keccak256(pubkey ‖ amount u64 LE ‖ index u32 LE)
-  pai    = keccak256(esquerda ‖ direita), direção dada pelo bit do índice
-  nível ímpar duplica o último nó
+  leaf   = keccak256(pubkey ‖ amount u64 LE ‖ index u32 LE)
+  parent = keccak256(left ‖ right), direction taken from the index bit
+  an odd level duplicates its last node
 
-(a regra de combinação é a mesma de compute_merkle_root_and_proof no
-api_server.py; só a folha é diferente, porque aqui ela carrega o valor)
+(the combination rule is the one compute_merkle_root_and_proof already used in
+api_server.py; only the leaf differs, because here it carries the amount)
 
-Rodar `python settlement.py` executa a autoverificação, que inclui o vetor
-fixo replicado no teste em Rust.
+Running `python settlement.py` executes the self-check, which includes the
+fixed vector the Rust test pins as well.
 """
 
 from typing import Dict, List, Sequence, Tuple
@@ -27,7 +27,7 @@ B58_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
 def decode_pubkey(address: str) -> bytes:
-    """Base58 -> 32 bytes. Rejeita qualquer coisa que não seja um endereço."""
+    """Base58 -> 32 bytes. Rejects anything that is not an address."""
     num = 0
     for char in address.encode():
         digit = B58_ALPHABET.find(char)
@@ -53,12 +53,12 @@ def leaf_hash(pubkey: bytes, amount: int, index: int) -> bytes:
 
 
 def root_and_proofs(leaves: Sequence[bytes]) -> Tuple[bytes, List[List[bytes]]]:
-    """Raiz do lote e a prova de cada folha, na ordem em que entraram."""
+    """The batch root and each leaf's proof, in the order they came in."""
     if not leaves:
         raise ValueError("empty batch")
     proofs: List[List[bytes]] = [[] for _ in leaves]
     level = list(leaves)
-    tracked = list(range(len(leaves)))  # onde cada folha está no nível atual
+    tracked = list(range(len(leaves)))  # where each leaf sits in the current level
     while len(level) > 1:
         if len(level) % 2 == 1:
             level.append(level[-1])
@@ -70,10 +70,10 @@ def root_and_proofs(leaves: Sequence[bytes]) -> Tuple[bytes, List[List[bytes]]]:
 
 
 def build_batch(rewards: Dict[str, int]) -> dict:
-    """Fecha um lote a partir de {endereço solana: valor em unidades base}.
+    """Closes a batch from {solana address: amount in base units}.
 
-    A ordem das folhas é o endereço ordenado, não a ordem de chegada: quem
-    auditar o lote recompõe a mesma árvore sem conhecer a ordem do banco.
+    Leaves are ordered by address, not by arrival: anyone auditing the batch
+    rebuilds the same tree without knowing the order rows were written in.
     """
     entries = sorted((addr, amount) for addr, amount in rewards.items() if amount > 0)
     if not entries:
@@ -100,7 +100,7 @@ def build_batch(rewards: Dict[str, int]) -> dict:
 
 
 def verify(root: bytes, leaf: bytes, index: int, proof: Sequence[bytes]) -> bool:
-    """Mesma verificação que o programa faz on-chain, para conferir o lote."""
+    """The same check the program runs on-chain, for verifying a batch here."""
     node = leaf
     for sibling in proof:
         node = keccak(sibling + node) if index & 1 else keccak(node + sibling)
@@ -109,8 +109,8 @@ def verify(root: bytes, leaf: bytes, index: int, proof: Sequence[bytes]) -> bool
 
 
 def _self_check() -> None:
-    # Vetor fixo, idêntico ao teste `matches_the_backend_vector` em merkle.rs:
-    # se um dos lados mudar a regra da árvore, os dois testes divergem.
+    # Fixed vector, identical to the `matches_the_backend_vector` test in
+    # merkle.rs: if either side changes the tree rule, the two tests disagree.
     leaves = [
         leaf_hash(bytes([1]) * 32, 10, 0),
         leaf_hash(bytes([2]) * 32, 20, 1),
@@ -124,11 +124,11 @@ def _self_check() -> None:
         assert verify(root, leaf, index, proofs[index]), index
         assert not verify(root, leaves[(index + 1) % 3], index, proofs[index])
 
-    # Uma folha só: a raiz é a própria folha e a prova é vazia.
+    # A single leaf: the root is the leaf itself and the proof is empty.
     single = leaf_hash(bytes([7]) * 32, 5, 0)
     assert root_and_proofs([single]) == (single, [[]])
 
-    # O lote inteiro tem que passar pela mesma checagem do programa.
+    # The whole batch has to pass the same check the program runs.
     batch = build_batch(
         {
             "11111111111111111111111111111112": 200_000_000,
@@ -145,7 +145,7 @@ def _self_check() -> None:
         )
         proof = [bytes.fromhex(s[2:]) for s in claim["proof"]]
         assert verify(root, leaf, claim["leaf_index"], proof), claim["recipient"]
-    # Valor inflado na hora do saque não fecha com a raiz publicada.
+    # An inflated amount at withdrawal time does not add up to the published root.
     first = batch["claims"][0]
     forged = leaf_hash(decode_pubkey(first["recipient"]), first["amount"] + 1, 0)
     assert not verify(root, forged, 0, [bytes.fromhex(s[2:]) for s in first["proof"]])

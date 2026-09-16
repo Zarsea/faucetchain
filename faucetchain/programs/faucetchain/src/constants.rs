@@ -12,5 +12,5 @@ pub const ROOT_SEED: &[u8] = b"root";
 #[constant]
 pub const RECEIPT_SEED: &[u8] = b"receipt";
 
-/// Profundidade máxima da árvore aceita numa prova (2^24 folhas por lote).
+/// Deepest tree a proof may describe (2^24 leaves per batch).
 pub const MAX_PROOF_LEN: usize = 24;

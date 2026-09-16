@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "hackathon/**"]
+  pull_request:
+
+jobs:
+  backend:
+    name: Sequencer and settlement
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install fastapi uvicorn httpx eth-account eth-hash[pycryptodome] solders requests
+
+      - name: Reward batches match the tree the program verifies
+        run: python settlement.py
+
+      - name: Settlement API
+        run: python tests/test_settlement_api.py
+
+      - name: Sequencer security checks
+        run: python tests/test_security_fixes.py
+
+  program:
+    name: Solana program
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache the Solana and Rust toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.local/share/solana
+            ~/.cache/solana
+          key: solana-toolchain-agave4.2.2-anchor1.2.0
+
+      - name: Cache the build
+        uses: actions/cache@v4
+        with:
+          path: |
+            faucetchain/target
+          key: program-build-${{ hashFiles('faucetchain/Cargo.lock') }}
+          restore-keys: program-build-
+
+      - name: Install the toolchain
+        run: bash scripts/setup-solana-toolchain.sh
+
+      - name: Build
+        run: |
+          export PATH="$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          bash scripts/build-program.sh
+
+      - name: Merkle and the end-to-end flow on LiteSVM
+        run: |
+          export PATH="$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          cd faucetchain && cargo test -p faucetchain
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instruction encoders still match the IDL
+        run: |
+          pip install solders requests
+          python solana_settlement.py

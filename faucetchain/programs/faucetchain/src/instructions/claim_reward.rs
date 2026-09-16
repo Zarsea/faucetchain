@@ -14,8 +14,8 @@ use crate::{
 #[derive(Accounts)]
 #[instruction(leaf_index: u32)]
 pub struct ClaimReward<'info> {
-    /// Dono do prêmio. Assina, mas não precisa ter SOL: quem paga a taxa e o
-    /// rent das contas novas é o `payer` (o relayer Kora, na prática).
+    /// Owner of the reward. Signs, but needs no SOL: the fee and the rent for
+    /// any new account are paid by `payer` — a relayer, in practice.
     pub recipient: Signer<'info>,
 
     #[account(mut)]
@@ -37,7 +37,7 @@ pub struct ClaimReward<'info> {
     )]
     pub reward_root: Account<'info, RewardRoot>,
 
-    /// A existência desta conta é o registro de que a folha já foi paga.
+    /// This account existing is the record that the leaf has been paid.
     #[account(
         init,
         payer = payer,
