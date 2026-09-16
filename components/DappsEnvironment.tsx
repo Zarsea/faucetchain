@@ -85,17 +85,6 @@ const apps = [
         available: false,
     },
     {
-        id: 'casinodrip',
-        title: 'Cassino Drip',
-        desc: 'Aposte seus micro-claims L2 em roletas e sorteios on-chain.',
-        icon: '🎲',
-        category: 'l2',
-        tag: 'L2 Futuro',
-        color: 'from-red-600 to-rose-600',
-        glow: 'rgba(225,29,72,0.5)',
-        available: false,
-    },
-    {
         id: 'devhub',
         title: 'SDK & Deploy',
         desc: 'Crie seu próprio DApp ou Faucet L2 gamificada utilizando os recursos on-chain.',
