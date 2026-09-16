@@ -71,6 +71,14 @@ It only ever signs a transaction it built itself:
    for this program, this data, these accounts, this fee payer — and compares
    byte for byte before adding its own signature.
 
+Before either step, it asks the chain whether the receipt account for that leaf
+already exists. If it does, the reward was collected and the program would
+reject the transaction — refusing here means not paying a fee to be told so. The
+same answer is what tells the screen a reward reads as collected. When the chain
+cannot be reached the withdrawal goes through anyway: the program is the real
+guard, so an unreachable RPC costs a wasted fee at worst and must not stop
+anyone from collecting.
+
 So the relayer's key cannot be turned into a general-purpose payer: a forged
 instruction, a tampered amount, a second instruction smuggled behind the
 withdrawal, an unsigned transaction and a batch belonging to someone else are
@@ -175,14 +183,19 @@ These are open on purpose, not oversights:
 - **The proof endpoint has no rate limit.** The cache removes the repeated cost,
   but the first request on a large batch still costs real CPU — about 0.7s for
   ten thousand leaves.
-- **The relayer can be made to burn fees.** It refuses to sign anything but a
-  withdrawal it built, so nobody can spend its key on their own business. But a
-  leaf that was already claimed still builds a valid-looking withdrawal, and
-  sending it costs a fee before the program rejects it. A cheap fix is to check
-  the receipt account before signing; a rate limit per recipient is the other
-  half.
+- **The relayer has no rate limit.** It refuses to sign anything but a
+  withdrawal it built, and it now checks the receipt account first so an
+  already-collected reward costs nothing to refuse. What is left is volume: a
+  caller with many unclaimed leaves can still make it pay for all of them at
+  once, which is a spending pace question rather than a hole.
 
 ## Change log
+
+**2026-09-16 — the receipt check.** The relayer asks whether a leaf's receipt
+account exists before signing, so a reward already collected is refused without
+paying for the rejection, and `GET /api/solana/proof/{address}` carries a
+`claimed` flag the screen uses. An unreachable RPC is now a 503 with a reason
+rather than a stack trace.
 
 **2026-09-16 — the relayer.** `POST /api/solana/relay/prepare` and
 `/submit` let a user withdraw holding no SOL, with the sequencer signing as fee

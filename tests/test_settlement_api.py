@@ -30,6 +30,9 @@ RELAYER_PATH = os.path.join(TMP, "relayer.json")
 with open(RELAYER_PATH, "w", encoding="utf-8") as _handle:
     json.dump(list(bytes(RELAYER)), _handle)
 os.environ["SETTLEMENT_RELAYER_KEYPAIR"] = RELAYER_PATH
+# Nothing here talks to a chain. Pointing the RPC at a dead port makes the
+# receipt lookup fail fast and take its "could not ask" path.
+os.environ["SOLANA_RPC_URL"] = "http://127.0.0.1:1"
 
 import indexer_service  # noqa: E402
 
@@ -338,6 +341,45 @@ def test_relayer_needs_the_campaign_registered(client):
         json={"address": user.address.lower(), "batch_id": batch["batch_id"]},
     )
     assert response.status_code == 409, response.text
+
+
+def test_relayer_refuses_a_reward_already_withdrawn(client):
+    """The program would reject it anyway; the point is not to pay to find out."""
+    user, batch = _settled_batch(client, 24)
+    body = {"address": user.address.lower(), "batch_id": batch["batch_id"]}
+    # Nothing is claimed yet, so it gets as far as needing a blockhash — and
+    # says the chain is unreachable instead of raising.
+    assert client.post("/api/solana/relay/prepare", json=body).status_code == 503
+
+    original = srv._receipts_claimed
+    srv._receipts_claimed = lambda chain, receipts: set(receipts)
+    try:
+        assert client.post("/api/solana/relay/prepare", json=body).status_code == 409
+    finally:
+        srv._receipts_claimed = original
+
+
+def test_proofs_say_what_was_already_withdrawn(client):
+    user, batch = _settled_batch(client, 25)
+
+    # With the chain unreachable the screen is told nothing rather than a guess.
+    served = client.get(f"/api/solana/proof/{user.address.lower()}").json()["proofs"][0]
+    assert served["claimed"] is None, served
+
+    original = srv._receipts_claimed
+    srv._receipts_claimed = lambda chain, receipts: set(receipts)
+    try:
+        served = client.get(f"/api/solana/proof/{user.address.lower()}").json()["proofs"][0]
+        assert served["claimed"] is True, served
+    finally:
+        srv._receipts_claimed = original
+
+    srv._receipts_claimed = lambda chain, receipts: set()
+    try:
+        served = client.get(f"/api/solana/proof/{user.address.lower()}").json()["proofs"][0]
+        assert served["claimed"] is False, served
+    finally:
+        srv._receipts_claimed = original
 
 
 if __name__ == "__main__":

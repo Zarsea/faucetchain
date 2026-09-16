@@ -5351,11 +5351,55 @@ async def get_settlement_proofs(address: str):
                     "root_index": root_index,
                     "root": root,
                     "published_signature": signature,
+                    "claimed": None,
                     **claim,
                 }
             )
+    _mark_claimed(c, proofs)
     conn.close()
     return {"address": user, "solana_address": solana_address, "proofs": proofs}
+
+
+def _mark_claimed(c, proofs: list) -> None:
+    """Says which of these rewards have already been withdrawn.
+
+    A user who reloads the page should see what they collected, not a button
+    that fails. It stays None when the chain cannot be asked, so the screen says
+    nothing rather than something wrong.
+    """
+    if not proofs:
+        return
+    try:
+        import solana_settlement as chain
+
+        idl = chain.load_idl()
+    except (ImportError, SystemExit):
+        return
+
+    from solders.pubkey import Pubkey
+
+    pid = chain.program_id(idl)
+    receipts = {}
+    for proof in proofs:
+        c.execute(
+            "SELECT sponsor FROM settlement_campaigns WHERE campaign_id = ?", (proof["campaign_id"],)
+        )
+        row = c.fetchone()
+        if not row:
+            continue
+        campaign = chain.campaign_pda(pid, Pubkey.from_string(row[0]), proof["campaign_id"])
+        reward_root = chain.root_pda(pid, campaign, proof["root_index"])
+        receipts[proof["batch_id"]] = str(
+            chain.receipt_pda(pid, reward_root, proof["leaf_index"])
+        )
+
+    claimed = _receipts_claimed(chain, sorted(set(receipts.values())))
+    if claimed is None:
+        return
+    for proof in proofs:
+        address = receipts.get(proof["batch_id"])
+        if address:
+            proof["claimed"] = address in claimed
 
 
 # --- The relayer -------------------------------------------------------------
@@ -5381,6 +5425,39 @@ def _relayer():
     except ImportError:
         raise HTTPException(status_code=503, detail="solders is not installed on the sequencer")
     return chain, chain.load_keypair(SETTLEMENT_RELAYER_KEYPAIR)
+
+
+def _rpc_or_503(chain, method: str, params: list):
+    """An unreachable chain is a 503 with a reason, not a stack trace."""
+    try:
+        return chain.rpc(chain.default_rpc_url(), method, params)
+    except SystemExit as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Solana is unreachable: {e}")
+
+
+def _receipts_claimed(chain, receipts: List[str]) -> Optional[set]:
+    """Which of these receipt accounts already exist on Solana.
+
+    A receipt exists once its leaf has been withdrawn, and the program refuses
+    the second attempt. Asking first is what stops the relayer from paying the
+    fee to find that out. Returns None when the chain cannot be reached: the
+    program is still the real guard, so an unreachable RPC costs a wasted fee
+    at worst and must not block anyone's withdrawal.
+    """
+    if not receipts:
+        return set()
+    try:
+        accounts = chain.rpc(
+            chain.default_rpc_url(),
+            "getMultipleAccounts",
+            [receipts, {"commitment": "confirmed", "encoding": "base64"}],
+        )["value"]
+    except Exception as e:
+        audit_logger.warning(f"Could not read receipt accounts, letting the withdrawal through: {e}")
+        return None
+    return {address for address, account in zip(receipts, accounts) if account}
 
 
 def _claim_instruction(c, chain, relayer, user: str, batch_id: int):
@@ -5428,6 +5505,14 @@ def _claim_instruction(c, chain, relayer, user: str, batch_id: int):
         claim["amount"],
         [bytes.fromhex(s[2:]) for s in claim["proof"]],
     )
+
+    # Account 4 is the receipt, per the IDL. If it is already there the leaf was
+    # withdrawn, and signing would only pay for a transaction the program
+    # rejects.
+    receipt = str(instruction.accounts[4].pubkey)
+    if _receipts_claimed(chain, [receipt]) == {receipt}:
+        raise HTTPException(status_code=409, detail="That reward has already been withdrawn")
+
     return instruction, claim, paid_to
 
 
@@ -5455,9 +5540,7 @@ async def prepare_relayed_claim(req: RelayPrepareRequest):
     from solders.message import Message
     from solders.transaction import Transaction
 
-    blockhash = chain.rpc(
-        chain.default_rpc_url(), "getLatestBlockhash", [{"commitment": "confirmed"}]
-    )["value"]["blockhash"]
+    blockhash = _rpc_or_503(chain, "getLatestBlockhash", [{"commitment": "confirmed"}])["value"]["blockhash"]
     message = Message.new_with_blockhash(
         [instruction], relayer.pubkey(), Hash.from_string(blockhash)
     )
@@ -5518,8 +5601,8 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="The recipient did not sign the withdrawal")
 
-    signature = chain.rpc(
-        chain.default_rpc_url(),
+    signature = _rpc_or_503(
+        chain,
         "sendTransaction",
         [
             base64.b64encode(bytes(transaction)).decode(),

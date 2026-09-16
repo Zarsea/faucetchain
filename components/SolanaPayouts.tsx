@@ -22,6 +22,8 @@ interface Proof {
     amount: number;
     leaf_index: number;
     proof: string[];
+    // null when the sequencer could not reach Solana to check
+    claimed: boolean | null;
 }
 
 // Phantom and Solflare both inject a provider that speaks this much.
@@ -294,15 +296,21 @@ export const SolanaPayouts: React.FC = () => {
                                     <span className="text-2xl font-black text-white tabular-nums">
                                         {(item.amount / 1_000_000).toFixed(2)}
                                     </span>
-                                    {sent[item.batch_id] ? (
-                                        <a
-                                            href={explorerUrl(sent[item.batch_id])}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="px-5 py-2.5 border border-green-500/40 text-green-300 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-green-500/10"
-                                        >
-                                            Withdrawn
-                                        </a>
+                                    {sent[item.batch_id] || item.claimed ? (
+                                        sent[item.batch_id] ? (
+                                            <a
+                                                href={explorerUrl(sent[item.batch_id])}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="px-5 py-2.5 border border-green-500/40 text-green-300 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-green-500/10"
+                                            >
+                                                Withdrawn
+                                            </a>
+                                        ) : (
+                                            <span className="px-5 py-2.5 border border-green-500/40 text-green-300 rounded-xl text-sm font-bold uppercase tracking-wide">
+                                                Withdrawn
+                                            </span>
+                                        )
                                     ) : (
                                         <button
                                             onClick={() => withdraw(item.batch_id)}

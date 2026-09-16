@@ -344,6 +344,20 @@ def main() -> None:
         assert received == proof["amount"], (received, proof["amount"])
         assert balance == 0, balance
 
+        # Asking again is refused before anything is signed: the receipt for
+        # that leaf is on-chain now, so paying to be rejected is avoidable.
+        again = requests.post(
+            f"{api}/api/solana/relay/prepare",
+            json={"address": eth_account.address.lower(), "batch_id": proof["batch_id"]},
+            timeout=30,
+        )
+        assert again.status_code == 409, (again.status_code, again.text)
+        listed = requests.get(
+            f"{api}/api/solana/proof/{eth_account.address.lower()}", timeout=30
+        ).json()["proofs"][0]
+        assert listed["claimed"] is True, listed
+        print(f"    {name}: a second withdrawal is refused, and the reward reads as collected")
+
     step(8, "The partner takes back what was never promised")
     before = chain.token_balance(rpc_url, sponsor_tokens.pubkey())
     surplus = chain.token_balance(rpc_url, vault)
