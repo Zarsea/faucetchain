@@ -55,6 +55,7 @@ the backend is a tree the program accepts.
 | `components/`, `services/`, `utils/` | React explorer and faucet front end |
 | `tests/` | Backend checks, each file runnable on its own with no test framework |
 | `verify_chain.py` | Independent auditor of the appchain, trusting no server |
+| `ARCHITECTURE.md` | How the two layers fit together, and what each one can and cannot do |
 | `legacy/evm/` | The EVM contracts the prototype used before the Solana layer |
 
 ## Running it
