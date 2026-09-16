@@ -4959,6 +4959,14 @@ def init_settlement_tables():
         )
     ''')
     c.execute('''
+        CREATE TABLE IF NOT EXISTS settlement_campaigns (
+            campaign_id INTEGER PRIMARY KEY,
+            sponsor TEXT NOT NULL,
+            mint TEXT NOT NULL,
+            registered_at INTEGER NOT NULL
+        )
+    ''')
+    c.execute('''
         CREATE TABLE IF NOT EXISTS settlement_batches (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             campaign_id INTEGER NOT NULL,
@@ -5038,6 +5046,61 @@ def _batch_tree(c, batch_id: int, published_root: str):
         _batch_trees.clear()
     _batch_trees[batch_id] = rebuilt
     return rebuilt
+
+
+class CampaignRegisterRequest(BaseModel):
+    campaign_id: int
+    sponsor: str
+    mint: str
+
+
+@app.post("/api/solana/campaign")
+async def register_campaign(
+    req: CampaignRegisterRequest, x_operator_token: Optional[str] = Header(None)
+):
+    """Records the campaign that was opened on Solana.
+
+    The sponsor and the mint are what a withdrawal needs to be built: the
+    campaign address is derived from the sponsor, and the tokens come from that
+    mint. Keeping them here is what lets one sequencer serve more than one
+    partner.
+    """
+    require_operator(x_operator_token)
+    for name, value in (("sponsor", req.sponsor), ("mint", req.mint)):
+        try:
+            settlement.decode_pubkey(value.strip())
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"{name}: {e}")
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        """INSERT INTO settlement_campaigns (campaign_id, sponsor, mint, registered_at)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(campaign_id) DO UPDATE SET sponsor = excluded.sponsor,
+                                                  mint = excluded.mint""",
+        (req.campaign_id, req.sponsor.strip(), req.mint.strip(), int(_time.time())),
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "registered", "campaign_id": req.campaign_id}
+
+
+@app.get("/api/solana/campaigns")
+async def list_campaigns():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT campaign_id, sponsor, mint, registered_at FROM settlement_campaigns ORDER BY campaign_id"
+    )
+    rows = c.fetchall()
+    conn.close()
+    return {
+        "campaigns": [
+            {"campaign_id": r[0], "sponsor": r[1], "mint": r[2], "registered_at": r[3]}
+            for r in rows
+        ]
+    }
 
 
 class SolanaLinkRequest(BaseModel):
@@ -5293,6 +5356,178 @@ async def get_settlement_proofs(address: str):
             )
     conn.close()
     return {"address": user, "solana_address": solana_address, "proofs": proofs}
+
+
+# --- The relayer -------------------------------------------------------------
+# A user who earned fractions of a cent does not hold SOL, and asking them to
+# buy some to collect a reward defeats the whole thing. The program already
+# takes the fee payer as a signer separate from the recipient; this is the
+# service that signs as that payer.
+#
+# It only ever signs a transaction it built itself. The client gets an unsigned
+# withdrawal, adds the recipient's signature, and sends it back; before adding
+# its own, the relayer rebuilds what it expects byte for byte and refuses
+# anything else. So a caller cannot get the relayer's key to pay for a
+# transaction of their choosing.
+
+SETTLEMENT_RELAYER_KEYPAIR = os.getenv("SETTLEMENT_RELAYER_KEYPAIR")
+
+
+def _relayer():
+    if not SETTLEMENT_RELAYER_KEYPAIR:
+        raise HTTPException(status_code=503, detail="SETTLEMENT_RELAYER_KEYPAIR is not configured")
+    try:
+        import solana_settlement as chain  # optional: the appchain runs without it
+    except ImportError:
+        raise HTTPException(status_code=503, detail="solders is not installed on the sequencer")
+    return chain, chain.load_keypair(SETTLEMENT_RELAYER_KEYPAIR)
+
+
+def _claim_instruction(c, chain, relayer, user: str, batch_id: int):
+    """The one withdrawal this user can make from this batch, and nothing else."""
+    c.execute(
+        """SELECT b.campaign_id, b.root_index, b.root, MIN(r.solana_address)
+             FROM settlement_batches b
+             JOIN settlement_rewards r ON r.batch_id = b.id
+            WHERE b.id = ? AND r.user_address = ? AND r.solana_address IS NOT NULL
+            GROUP BY b.id""",
+        (batch_id, user),
+    )
+    row = c.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="No reward for this address in that batch")
+    campaign_id, root_index, root, paid_to = row
+
+    c.execute(
+        "SELECT sponsor, mint FROM settlement_campaigns WHERE campaign_id = ?", (campaign_id,)
+    )
+    campaign = c.fetchone()
+    if not campaign:
+        raise HTTPException(
+            status_code=409, detail=f"Campaign {campaign_id} was never registered on this sequencer"
+        )
+
+    rebuilt = _batch_tree(c, batch_id, root)
+    if rebuilt is None:
+        raise HTTPException(status_code=409, detail="Batch no longer rebuilds to its published root")
+    claim = next((x for x in rebuilt["claims"] if x["recipient"] == paid_to), None)
+    if claim is None:
+        raise HTTPException(status_code=404, detail="No leaf for this wallet in that batch")
+
+    from solders.pubkey import Pubkey
+
+    instruction = chain.claim_reward(
+        chain.load_idl(),
+        Pubkey.from_string(paid_to),
+        relayer.pubkey(),
+        Pubkey.from_string(campaign[0]),
+        Pubkey.from_string(campaign[1]),
+        campaign_id,
+        root_index,
+        claim["leaf_index"],
+        claim["amount"],
+        [bytes.fromhex(s[2:]) for s in claim["proof"]],
+    )
+    return instruction, claim, paid_to
+
+
+class RelayPrepareRequest(BaseModel):
+    address: str
+    batch_id: int
+
+
+@app.post("/api/solana/relay/prepare")
+async def prepare_relayed_claim(req: RelayPrepareRequest):
+    """Builds the withdrawal. The user only has to sign it."""
+    chain, relayer = _relayer()
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        instruction, claim, paid_to = _claim_instruction(
+            c, chain, relayer, req.address.strip().lower(), req.batch_id
+        )
+    finally:
+        conn.close()
+
+    import base64
+
+    from solders.hash import Hash
+    from solders.message import Message
+    from solders.transaction import Transaction
+
+    blockhash = chain.rpc(
+        chain.default_rpc_url(), "getLatestBlockhash", [{"commitment": "confirmed"}]
+    )["value"]["blockhash"]
+    message = Message.new_with_blockhash(
+        [instruction], relayer.pubkey(), Hash.from_string(blockhash)
+    )
+    return {
+        "transaction": base64.b64encode(bytes(Transaction.new_unsigned(message))).decode(),
+        "recipient": paid_to,
+        "amount": claim["amount"],
+        "leaf_index": claim["leaf_index"],
+        "fee_payer": str(relayer.pubkey()),
+    }
+
+
+class RelaySubmitRequest(BaseModel):
+    address: str
+    batch_id: int
+    transaction: str
+
+
+@app.post("/api/solana/relay/submit")
+async def submit_relayed_claim(req: RelaySubmitRequest):
+    """Signs as fee payer and sends — but only the withdrawal we built."""
+    chain, relayer = _relayer()
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        expected, claim, _ = _claim_instruction(
+            c, chain, relayer, req.address.strip().lower(), req.batch_id
+        )
+    finally:
+        conn.close()
+
+    import base64
+
+    from solders.transaction import Transaction
+
+    try:
+        transaction = Transaction.from_bytes(base64.b64decode(req.transaction))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Not a Solana transaction: {e}")
+
+    message = transaction.message
+    keys = message.account_keys
+    if len(message.instructions) != 1:
+        raise HTTPException(status_code=400, detail="The transaction must carry one instruction")
+    compiled = message.instructions[0]
+    if keys[0] != relayer.pubkey():
+        raise HTTPException(status_code=400, detail="The relayer must be the fee payer")
+    if keys[compiled.program_id_index] != expected.program_id:
+        raise HTTPException(status_code=400, detail="That instruction is not for the settlement program")
+    if bytes(compiled.data) != bytes(expected.data):
+        raise HTTPException(status_code=400, detail="The instruction is not the withdrawal we built")
+    if [keys[i] for i in compiled.accounts] != [meta.pubkey for meta in expected.accounts]:
+        raise HTTPException(status_code=400, detail="The accounts are not the ones we built")
+
+    transaction.partial_sign([relayer], message.recent_blockhash)
+    try:
+        transaction.verify()
+    except Exception:
+        raise HTTPException(status_code=400, detail="The recipient did not sign the withdrawal")
+
+    signature = chain.rpc(
+        chain.default_rpc_url(),
+        "sendTransaction",
+        [
+            base64.b64encode(bytes(transaction)).decode(),
+            {"encoding": "base64", "preflightCommitment": "confirmed"},
+        ],
+    )
+    audit_logger.info(f"Relayed withdrawal of {claim['amount']} in batch {req.batch_id}: {signature}")
+    return {"signature": signature, "amount": claim["amount"]}
 
 
 if __name__ == "__main__":

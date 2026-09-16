@@ -25,6 +25,7 @@ Against devnet, pass --rpc and expect the airdrops to be rate limited.
 """
 
 import argparse
+import base64
 import json
 import os
 import subprocess
@@ -41,6 +42,7 @@ from eth_account.messages import encode_defunct
 from solders.instruction import AccountMeta, Instruction
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
+from solders.transaction import Transaction
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -146,6 +148,11 @@ def main() -> None:
     parser.add_argument("--rpc", default="http://127.0.0.1:8899")
     parser.add_argument("--api", default=os.getenv("FAUCETCHAIN_API", "http://localhost:8000"))
     parser.add_argument("--campaign-id", type=int, default=int(time.time()) % 1_000_000)
+    parser.add_argument(
+        "--relayer-keypair",
+        default="relayer.json",
+        help="the keypair the API was started with as SETTLEMENT_RELAYER_KEYPAIR",
+    )
     args = parser.parse_args()
 
     api = args.api.rstrip("/")
@@ -159,7 +166,18 @@ def main() -> None:
     if not chain.rpc(rpc_url, "getAccountInfo", [str(pid), {"commitment": "confirmed"}])["value"]:
         raise SystemExit(f"Program {pid} is not deployed on {rpc_url}")
 
-    sponsor, operator, relayer = Keypair(), Keypair(), Keypair()
+    sponsor, operator = Keypair(), Keypair()
+    # The relayer is the one key the API needs too, so it comes from a file
+    # both sides read.
+    if os.path.exists(args.relayer_keypair):
+        with open(args.relayer_keypair, encoding="utf-8") as handle:
+            relayer = Keypair.from_bytes(bytes(json.load(handle)))
+    else:
+        relayer = Keypair()
+        with open(args.relayer_keypair, "w", encoding="utf-8") as handle:
+            json.dump(list(bytes(relayer)), handle)
+        print(f"    wrote a new relayer keypair to {args.relayer_keypair};"
+              " restart the API with SETTLEMENT_RELAYER_KEYPAIR pointing at it")
     alice_sol, bob_sol = Keypair(), Keypair()
     alice_eth, bob_eth = Account.create(), Account.create()
 
@@ -207,6 +225,16 @@ def main() -> None:
         sponsor,
         [sponsor],
     )
+    requests.post(
+        f"{api}/api/solana/campaign",
+        json={
+            "campaign_id": args.campaign_id,
+            "sponsor": str(sponsor.pubkey()),
+            "mint": str(mint.pubkey()),
+        },
+        headers={"x-operator-token": token},
+        timeout=30,
+    ).raise_for_status()
     print(f"    campaign {campaign}")
     print(f"    vault    {vault} holds {chain.token_balance(rpc_url, vault) / UNIT:.2f}")
 
@@ -261,7 +289,7 @@ def main() -> None:
     finally:
         os.unlink(operator_path)
 
-    step(7, "Users withdraw with the proof the sequencer serves")
+    step(7, "Users withdraw through the relayer, signing but paying nothing")
     for eth_account, sol_keypair, name in (
         (alice_eth, alice_sol, "alice"),
         (bob_eth, bob_sol, "bob"),
@@ -270,19 +298,44 @@ def main() -> None:
             f"{api}/api/solana/proof/{eth_account.address.lower()}", timeout=30
         ).json()
         proof = served["proofs"][0]
-        instruction = chain.claim_reward(
-            idl,
-            sol_keypair.pubkey(),
-            relayer.pubkey(),
-            sponsor.pubkey(),
-            mint.pubkey(),
-            args.campaign_id,
-            proof["root_index"],
-            proof["leaf_index"],
-            proof["amount"],
-            [bytes.fromhex(sibling.removeprefix("0x")) for sibling in proof["proof"]],
+
+        prepared = requests.post(
+            f"{api}/api/solana/relay/prepare",
+            json={"address": eth_account.address.lower(), "batch_id": proof["batch_id"]},
+            timeout=30,
         )
-        chain.send_and_confirm(rpc_url, [instruction], relayer, [relayer, sol_keypair])
+        if prepared.status_code == 503:
+            raise SystemExit(
+                "The API has no relayer configured. Restart it with "
+                f"SETTLEMENT_RELAYER_KEYPAIR={os.path.abspath(args.relayer_keypair)}"
+            )
+        prepared.raise_for_status()
+        unsigned = prepared.json()["transaction"]
+
+        # The user signs the withdrawal and nothing else: the fee payer slot
+        # already belongs to the relayer.
+        transaction = Transaction.from_bytes(base64.b64decode(unsigned))
+        transaction.partial_sign([sol_keypair], transaction.message.recent_blockhash)
+        submitted = requests.post(
+            f"{api}/api/solana/relay/submit",
+            json={
+                "address": eth_account.address.lower(),
+                "batch_id": proof["batch_id"],
+                "transaction": base64.b64encode(bytes(transaction)).decode(),
+            },
+            timeout=60,
+        )
+        submitted.raise_for_status()
+        signature = submitted.json()["signature"]
+        for _ in range(30):
+            status = chain.rpc(
+                rpc_url, "getSignatureStatuses", [[signature], {"searchTransactionHistory": True}]
+            )["value"][0]
+            if status and status.get("confirmationStatus") in ("confirmed", "finalized"):
+                break
+            time.sleep(1)
+        else:
+            raise SystemExit(f"Withdrawal {signature} never confirmed")
         received = chain.token_balance(
             rpc_url, chain.associated_token_address(sol_keypair.pubkey(), mint.pubkey())
         )

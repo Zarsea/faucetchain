@@ -54,6 +54,29 @@ forged, mints anything.
    the surplus. **`close_campaign()`** stops new roots without touching the
    vault.
 
+## The relayer
+
+A user who earned fractions of a cent does not hold SOL, and telling them to buy
+some before they can collect defeats the point. `claim_reward` therefore takes
+the fee payer as a signer separate from the recipient, and the sequencer runs
+the service that signs as that payer.
+
+It only ever signs a transaction it built itself:
+
+1. `POST /api/solana/relay/prepare` returns the unsigned withdrawal, with the
+   relayer already in the fee payer slot.
+2. The user's wallet adds their signature. Nothing else about the transaction
+   is theirs to change.
+3. `POST /api/solana/relay/submit` rebuilds what it expects — one instruction,
+   for this program, this data, these accounts, this fee payer — and compares
+   byte for byte before adding its own signature.
+
+So the relayer's key cannot be turned into a general-purpose payer: a forged
+instruction, a tampered amount, a second instruction smuggled behind the
+withdrawal, an unsigned transaction and a batch belonging to someone else are
+each refused before anything is sent. Those five refusals are tests, not
+claims.
+
 ## The tree
 
 Both sides build the same tree or nothing works:
@@ -109,6 +132,7 @@ chain and any copy of the reward rows.
 
 | Table | Purpose |
 | --- | --- |
+| `settlement_campaigns` | campaign_id -> sponsor and mint, so one sequencer can serve several partners |
 | `solana_links` | FaucetChain account -> Solana wallet, one row per user |
 | `settlement_rewards` | campaign, user, amount, batch_id, and the wallet the batch was built for |
 | `settlement_batches` | campaign, root_index, root, totals, and the signature that published it |
@@ -151,8 +175,22 @@ These are open on purpose, not oversights:
 - **The proof endpoint has no rate limit.** The cache removes the repeated cost,
   but the first request on a large batch still costs real CPU — about 0.7s for
   ten thousand leaves.
+- **The relayer can be made to burn fees.** It refuses to sign anything but a
+  withdrawal it built, so nobody can spend its key on their own business. But a
+  leaf that was already claimed still builds a valid-looking withdrawal, and
+  sending it costs a fee before the program rejects it. A cheap fix is to check
+  the receipt account before signing; a rate limit per recipient is the other
+  half.
 
 ## Change log
+
+**2026-09-16 — the relayer.** `POST /api/solana/relay/prepare` and
+`/submit` let a user withdraw holding no SOL, with the sequencer signing as fee
+payer for a transaction it built and verified. Campaigns are now registered in
+`settlement_campaigns` with their sponsor and mint, which is what a withdrawal
+needs to be built and what lets one sequencer serve more than one partner. The
+IDL is committed at `faucetchain/idl/faucetchain.json` and rewritten by every
+build, so clients encode against the program that was actually compiled.
 
 **2026-09-16 — the Solana settlement layer.** Campaign vaults, reward roots and
 Merkle-proof withdrawals on Solana; the appchain keeps distribution. Added

@@ -51,6 +51,7 @@ the backend is a tree the program accepts.
 | `api_server.py` | The appchain sequencer: claims, quota, FaucetHub, settlement endpoints |
 | `settlement.py` | Builds a reward batch: leaves, root and proofs |
 | `publish_root.py` | Publishes a closed batch's root on Solana |
+| `solana_settlement.py` | Instruction encoders and RPC, keyed off the built IDL |
 | `faucetchain/` | Anchor workspace with the settlement program |
 | `components/`, `services/`, `utils/` | React explorer and faucet front end |
 | `tests/` | Backend checks, each file runnable on its own with no test framework |
@@ -111,6 +112,7 @@ the backend builds were not the tree the program verifies, it would fail.
 | `SETTLEMENT_OPERATOR_TOKEN` | Guards crediting rewards and closing batches |
 | `SETTLEMENT_CAMPAIGN_SPONSOR` | The wallet that opened the campaign, for the PDA |
 | `SETTLEMENT_OPERATOR_KEYPAIR` | Keypair that signs `publish_root` |
+| `SETTLEMENT_RELAYER_KEYPAIR` | Keypair that pays the fee and the rent of a user's withdrawal |
 | `SOLANA_RPC_URL` | Defaults to devnet |
 
 ## Hackathon

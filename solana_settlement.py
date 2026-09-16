@@ -23,13 +23,11 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.transaction import Transaction
 
-IDL_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    "faucetchain",
-    "target",
-    "idl",
-    "faucetchain.json",
-)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# The committed copy first, the build output second: a fresh build overwrites
+# the committed one, so they only differ when someone forgot to commit.
+IDL_PATH = os.path.join(_HERE, "faucetchain", "idl", "faucetchain.json")
+IDL_BUILD_PATH = os.path.join(_HERE, "faucetchain", "target", "idl", "faucetchain.json")
 
 SYSTEM_PROGRAM = Pubkey.from_string("11111111111111111111111111111111")
 TOKEN_PROGRAM = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
@@ -46,12 +44,14 @@ RECEIPT_SEED = b"receipt"
 # --------------------------------------------------------------------------
 
 
-def load_idl(path: str = IDL_PATH) -> dict:
-    try:
-        with open(path, encoding="utf-8") as handle:
-            return json.load(handle)
-    except FileNotFoundError:
-        raise SystemExit(f"IDL not found at {path}. Run scripts/build-program.sh first.")
+def load_idl(path: str = None) -> dict:
+    for candidate in ([path] if path else [IDL_PATH, IDL_BUILD_PATH]):
+        try:
+            with open(candidate, encoding="utf-8") as handle:
+                return json.load(handle)
+        except FileNotFoundError:
+            continue
+    raise SystemExit(f"IDL not found at {IDL_PATH}. Run scripts/build-program.sh first.")
 
 
 def program_id(idl: dict) -> Pubkey:

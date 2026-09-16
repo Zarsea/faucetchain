@@ -19,5 +19,11 @@ cd "$(dirname "$0")/../faucetchain"
 rustup toolchain uninstall "$SBF_TOOLCHAIN" >/dev/null 2>&1 || true
 anchor build
 
+# The IDL is what every client encodes against, so it is kept in the tree
+# rather than only under the ignored target/ directory. Copying it here on
+# every build is what stops it drifting from the program that was compiled.
+mkdir -p idl
+cp target/idl/faucetchain.json idl/faucetchain.json
+
 readelf -h target/deploy/faucetchain.so | grep -i flags
-echo "built: target/deploy/faucetchain.so"
+echo "built: target/deploy/faucetchain.so and idl/faucetchain.json"
