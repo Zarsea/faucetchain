@@ -1,8 +1,8 @@
 //! Fluxo completo da liquidação, contra o programa compilado rodando na SVM:
 //! campanha -> cofre -> raiz publicada -> saque com prova.
 //!
-//! Exige o binário: `anchor build --arch v0` antes de `cargo test`. O v3 que o
-//! Anchor gera por padrão não carrega no runtime desta versão do litesvm.
+//! Exige o binário: `bash scripts/build-program.sh` antes de `cargo test`.
+
 
 use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
@@ -123,7 +123,7 @@ fn campaign_pays_only_what_the_published_root_proves() {
             "/../../target/deploy/faucetchain.so"
         ),
     )
-    .expect("compile com `anchor build --arch v0` antes do teste");
+    .expect("rode scripts/build-program.sh antes do teste");
 
     let sponsor = Keypair::new();
     let operator = Keypair::new();

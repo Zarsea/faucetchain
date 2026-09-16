@@ -1,4 +1,7 @@
 [toolchain]
-channel = "1.89.0"
+# The SBF build brings its own rustc; this is the host toolchain, and the
+# Agave 4.x crates the tests pull in need a newer one than Anchor's template
+# pinned (they use MaybeUninit::write_copy_of_slice).
+channel = "1.98.1"
 components = ["rustfmt","clippy"]
 profile = "minimal"

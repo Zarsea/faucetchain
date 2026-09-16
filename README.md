@@ -75,17 +75,30 @@ npm install
 npm run dev
 ```
 
-**Solana program** (Rust 1.89, Solana CLI 4.2, Anchor 1.2):
+**Solana program** (Solana CLI 4.2, Anchor 1.2):
 
 ```bash
-bash scripts/build-program.sh   # anchor build --arch v0, plus the rustup
-                                # workaround the SBF toolchain needs
+bash scripts/build-program.sh   # anchor build, plus the rustup workaround
+                                # cargo-build-sbf needs on a rebuild
 cd faucetchain
 cargo test -p faucetchain       # unit tests plus the end-to-end flow on LiteSVM
 ```
 
-Build the program with that script, not with a bare `anchor build`: Anchor 1.2
-defaults to SBPF v3, and the LiteSVM runtime the tests use cannot load that ELF.
+**The whole payout, against a running program:**
+
+```bash
+solana-test-validator --reset                                   # terminal 1
+solana program deploy faucetchain/target/deploy/faucetchain.so \
+  --program-id faucetchain/target/deploy/faucetchain-keypair.json
+SETTLEMENT_OPERATOR_TOKEN=secret python api_server.py           # terminal 2
+SETTLEMENT_OPERATOR_TOKEN=secret \
+  python scripts/demo_settlement.py --rpc http://127.0.0.1:8899 # terminal 3
+```
+
+That script opens a campaign, funds a vault, links two wallets, closes a batch,
+publishes its root on-chain and has both users withdraw with the proof the
+sequencer serves — while holding no SOL. Nothing in it is mocked: if the tree
+the backend builds were not the tree the program verifies, it would fail.
 
 ### Environment
 

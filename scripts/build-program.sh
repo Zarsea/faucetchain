@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# Compila o programa da Solana do jeito que os testes esperam.
+# Builds the Solana program the way the network accepts it.
 #
-# Dois detalhes do toolchain que mordem quem roda `anchor build` direto:
+# Agave 4.x no longer enables SBPF v0 execution, so a v0 build is refused at
+# deploy time with "Detected sbpf_version required by the executable which are
+# not enabled". Anchor's default (v3) is the target.
 #
-#   1. o Anchor 1.2 passa `--arch v3` por padrão, e o runtime da LiteSVM usada
-#      nos testes não carrega esse ELF — v0 é o alvo padrão do cargo-build-sbf
-#      e o mais compatível para deploy;
-#   2. o cargo-build-sbf quebra ao reencontrar a toolchain SBF já linkada
-#      (passa a linha inteira de `rustup toolchain list -v` como um argumento
-#      só), então desfazemos o link antes: ele relinka sozinho.
+# The one workaround left: cargo-build-sbf breaks when it finds its SBF
+# toolchain already linked - it passes the whole `rustup toolchain list -v`
+# line, tab included, as a single argument. Unlinking first makes it relink.
 #
-# Uso:  bash scripts/build-program.sh
+# Usage:  bash scripts/build-program.sh
 set -euo pipefail
 
 SBF_TOOLCHAIN="${SBF_TOOLCHAIN:-1.95.0-sbpf-solana-v1.57}"
@@ -18,7 +17,7 @@ SBF_TOOLCHAIN="${SBF_TOOLCHAIN:-1.95.0-sbpf-solana-v1.57}"
 cd "$(dirname "$0")/../faucetchain"
 
 rustup toolchain uninstall "$SBF_TOOLCHAIN" >/dev/null 2>&1 || true
-anchor build --arch v0
+anchor build
 
 readelf -h target/deploy/faucetchain.so | grep -i flags
-echo "pronto: target/deploy/faucetchain.so"
+echo "built: target/deploy/faucetchain.so"
