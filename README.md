@@ -78,10 +78,14 @@ npm run dev
 **Solana program** (Rust 1.89, Solana CLI 4.2, Anchor 1.2):
 
 ```bash
+bash scripts/build-program.sh   # anchor build --arch v0, plus the rustup
+                                # workaround the SBF toolchain needs
 cd faucetchain
-anchor build
 cargo test -p faucetchain       # unit tests plus the end-to-end flow on LiteSVM
 ```
+
+Build the program with that script, not with a bare `anchor build`: Anchor 1.2
+defaults to SBPF v3, and the LiteSVM runtime the tests use cannot load that ELF.
 
 ### Environment
 

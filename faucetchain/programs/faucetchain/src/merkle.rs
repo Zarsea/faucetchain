@@ -80,6 +80,21 @@ mod tests {
         assert!(!verify_proof(leaves[0], 0, &[leaves[2], n22], root));
     }
 
+    /// Mesmo vetor fixo do `_self_check` em settlement.py: se um dos lados
+    /// mudar a regra da árvore, os dois testes divergem e o saque quebraria.
+    #[test]
+    fn matches_the_backend_vector() {
+        let (_, root) = tree();
+        assert_eq!(
+            root,
+            [
+                0xe5, 0x50, 0x5b, 0xf9, 0x59, 0x82, 0xe5, 0x4e, 0x7e, 0xc2, 0xa2, 0x06, 0x6f, 0x8a,
+                0xcc, 0x19, 0x07, 0x0e, 0x81, 0xc0, 0x4a, 0x52, 0x24, 0x1d, 0xc8, 0xbd, 0xa8, 0x31,
+                0x73, 0x48, 0x92, 0xc8
+            ]
+        );
+    }
+
     #[test]
     fn single_leaf_tree_has_the_leaf_as_root() {
         let only = leaf_hash(&Pubkey::new_from_array([7; 32]), 5, 0);
