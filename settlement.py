@@ -1,0 +1,157 @@
+"""
+FaucetChain — lote de liquidação para o programa da Solana.
+
+A appchain continua distribuindo. De tempos em tempos ela fecha um lote de
+prêmios e publica na Solana só a raiz Merkle dele; cada usuário saca provando
+que sua folha está naquela raiz.
+
+Este módulo monta o lote. Ele precisa produzir exatamente a mesma árvore que
+`programs/faucetchain/src/merkle.rs` verifica dentro do programa:
+
+  folha  = keccak256(pubkey ‖ amount u64 LE ‖ index u32 LE)
+  pai    = keccak256(esquerda ‖ direita), direção dada pelo bit do índice
+  nível ímpar duplica o último nó
+
+(a regra de combinação é a mesma de compute_merkle_root_and_proof no
+api_server.py; só a folha é diferente, porque aqui ela carrega o valor)
+
+Rodar `python settlement.py` executa a autoverificação, que inclui o vetor
+fixo replicado no teste em Rust.
+"""
+
+from typing import Dict, List, Sequence, Tuple
+
+from eth_hash.auto import keccak
+
+B58_ALPHABET = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+
+def decode_pubkey(address: str) -> bytes:
+    """Base58 -> 32 bytes. Rejeita qualquer coisa que não seja um endereço."""
+    num = 0
+    for char in address.encode():
+        digit = B58_ALPHABET.find(char)
+        if digit < 0:
+            raise ValueError(f"Invalid base58 character in {address!r}")
+        num = num * 58 + digit
+    body = num.to_bytes((num.bit_length() + 7) // 8, "big")
+    zeros = len(address) - len(address.lstrip("1"))
+    decoded = b"\x00" * zeros + body
+    if len(decoded) != 32:
+        raise ValueError(f"{address!r} is not a 32-byte Solana address")
+    return decoded
+
+
+def leaf_hash(pubkey: bytes, amount: int, index: int) -> bytes:
+    if len(pubkey) != 32:
+        raise ValueError("pubkey must be 32 bytes")
+    if not 0 <= amount < 2**64:
+        raise ValueError("amount must fit in u64")
+    if not 0 <= index < 2**32:
+        raise ValueError("index must fit in u32")
+    return keccak(pubkey + amount.to_bytes(8, "little") + index.to_bytes(4, "little"))
+
+
+def root_and_proofs(leaves: Sequence[bytes]) -> Tuple[bytes, List[List[bytes]]]:
+    """Raiz do lote e a prova de cada folha, na ordem em que entraram."""
+    if not leaves:
+        raise ValueError("empty batch")
+    proofs: List[List[bytes]] = [[] for _ in leaves]
+    level = list(leaves)
+    tracked = list(range(len(leaves)))  # onde cada folha está no nível atual
+    while len(level) > 1:
+        if len(level) % 2 == 1:
+            level.append(level[-1])
+        for leaf_pos, node in enumerate(tracked):
+            proofs[leaf_pos].append(level[node ^ 1])
+        level = [keccak(level[i] + level[i + 1]) for i in range(0, len(level), 2)]
+        tracked = [node // 2 for node in tracked]
+    return level[0], proofs
+
+
+def build_batch(rewards: Dict[str, int]) -> dict:
+    """Fecha um lote a partir de {endereço solana: valor em unidades base}.
+
+    A ordem das folhas é o endereço ordenado, não a ordem de chegada: quem
+    auditar o lote recompõe a mesma árvore sem conhecer a ordem do banco.
+    """
+    entries = sorted((addr, amount) for addr, amount in rewards.items() if amount > 0)
+    if not entries:
+        raise ValueError("no positive reward in the batch")
+    leaves = [
+        leaf_hash(decode_pubkey(addr), amount, index)
+        for index, (addr, amount) in enumerate(entries)
+    ]
+    root, proofs = root_and_proofs(leaves)
+    return {
+        "root": "0x" + root.hex(),
+        "total_amount": sum(amount for _, amount in entries),
+        "leaf_count": len(entries),
+        "claims": [
+            {
+                "recipient": addr,
+                "amount": amount,
+                "leaf_index": index,
+                "proof": ["0x" + sibling.hex() for sibling in proofs[index]],
+            }
+            for index, (addr, amount) in enumerate(entries)
+        ],
+    }
+
+
+def verify(root: bytes, leaf: bytes, index: int, proof: Sequence[bytes]) -> bool:
+    """Mesma verificação que o programa faz on-chain, para conferir o lote."""
+    node = leaf
+    for sibling in proof:
+        node = keccak(sibling + node) if index & 1 else keccak(node + sibling)
+        index >>= 1
+    return node == root
+
+
+def _self_check() -> None:
+    # Vetor fixo, idêntico ao teste `matches_the_backend_vector` em merkle.rs:
+    # se um dos lados mudar a regra da árvore, os dois testes divergem.
+    leaves = [
+        leaf_hash(bytes([1]) * 32, 10, 0),
+        leaf_hash(bytes([2]) * 32, 20, 1),
+        leaf_hash(bytes([3]) * 32, 30, 2),
+    ]
+    root, proofs = root_and_proofs(leaves)
+    assert (
+        root.hex() == "e5505bf95982e54e7ec2a2066f8acc19070e81c04a52241dc8bda831734892c8"
+    ), root.hex()
+    for index, leaf in enumerate(leaves):
+        assert verify(root, leaf, index, proofs[index]), index
+        assert not verify(root, leaves[(index + 1) % 3], index, proofs[index])
+
+    # Uma folha só: a raiz é a própria folha e a prova é vazia.
+    single = leaf_hash(bytes([7]) * 32, 5, 0)
+    assert root_and_proofs([single]) == (single, [[]])
+
+    # O lote inteiro tem que passar pela mesma checagem do programa.
+    batch = build_batch(
+        {
+            "11111111111111111111111111111112": 200_000_000,
+            "SysvarC1ock11111111111111111111111111111111": 100_000_000,
+            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA": 1,
+        }
+    )
+    assert batch["total_amount"] == 300_000_001
+    assert batch["leaf_count"] == 3
+    root = bytes.fromhex(batch["root"][2:])
+    for claim in batch["claims"]:
+        leaf = leaf_hash(
+            decode_pubkey(claim["recipient"]), claim["amount"], claim["leaf_index"]
+        )
+        proof = [bytes.fromhex(s[2:]) for s in claim["proof"]]
+        assert verify(root, leaf, claim["leaf_index"], proof), claim["recipient"]
+    # Valor inflado na hora do saque não fecha com a raiz publicada.
+    first = batch["claims"][0]
+    forged = leaf_hash(decode_pubkey(first["recipient"]), first["amount"] + 1, 0)
+    assert not verify(root, forged, 0, [bytes.fromhex(s[2:]) for s in first["proof"]])
+
+    print("settlement.py OK")
+
+
+if __name__ == "__main__":
+    _self_check()

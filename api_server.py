@@ -4937,6 +4937,332 @@ async def ai_sentinel_inference(req: AISentinelRequest):
         print(f"GenAI Sentinel Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro de Conexão com o Cérebro IA Sentinel: {str(e)}")
 
+# --- Liquidação na Solana ---------------------------------------------------
+# A appchain continua distribuindo; o orçamento do parceiro fica num cofre na
+# Solana e só sai contra uma raiz Merkle publicada por este sequenciador
+# (programa em faucetchain/programs/faucetchain). Aqui fechamos o lote e
+# servimos a prova que o usuário apresenta ao programa para sacar.
+
+import settlement
+
+SETTLEMENT_OPERATOR_TOKEN = os.getenv("SETTLEMENT_OPERATOR_TOKEN")
+
+
+def init_settlement_tables():
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS solana_links (
+            user_address TEXT PRIMARY KEY,
+            solana_address TEXT NOT NULL,
+            linked_at INTEGER NOT NULL
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settlement_batches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER NOT NULL,
+            root_index INTEGER NOT NULL,
+            root TEXT NOT NULL,
+            total_amount INTEGER NOT NULL,
+            leaf_count INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            published_signature TEXT,
+            UNIQUE (campaign_id, root_index)
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settlement_rewards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            campaign_id INTEGER NOT NULL,
+            user_address TEXT NOT NULL,
+            amount INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            batch_id INTEGER REFERENCES settlement_batches(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+
+@app.on_event("startup")
+def startup_settlement():
+    init_settlement_tables()
+
+
+def require_operator(token: Optional[str]) -> None:
+    """Creditar prêmio e fechar lote são ações do sequenciador, não do usuário."""
+    if not SETTLEMENT_OPERATOR_TOKEN:
+        raise HTTPException(status_code=503, detail="SETTLEMENT_OPERATOR_TOKEN is not configured")
+    if not token or not hmac.compare_digest(token, SETTLEMENT_OPERATOR_TOKEN):
+        raise HTTPException(status_code=401, detail="Invalid operator token")
+
+
+def _batch_rewards(c, batch_id: int) -> Dict[str, int]:
+    """Prêmios de um lote somados por carteira Solana.
+
+    A árvore é reconstruída a partir daqui sempre que alguém pede uma prova:
+    guardar só as linhas de prêmio evita uma segunda cópia da árvore que
+    poderia divergir da raiz publicada.
+    """
+    c.execute(
+        """SELECT l.solana_address, SUM(r.amount)
+             FROM settlement_rewards r
+             JOIN solana_links l ON l.user_address = r.user_address
+            WHERE r.batch_id = ?
+            GROUP BY l.solana_address""",
+        (batch_id,),
+    )
+    return {row[0]: int(row[1]) for row in c.fetchall()}
+
+
+class SolanaLinkRequest(BaseModel):
+    address: str
+    solana_address: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
+
+
+@app.post("/api/solana/link")
+async def link_solana_wallet(req: SolanaLinkRequest):
+    """Liga a conta da FaucetChain à carteira que vai sacar na Solana."""
+    user = req.address.strip().lower()
+    if not re.fullmatch(r"0x[0-9a-f]{40}", user):
+        raise HTTPException(status_code=400, detail="Invalid FaucetChain address")
+    solana_address = req.solana_address.strip()
+    try:
+        settlement.decode_pubkey(solana_address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    require_action_signature(
+        user,
+        f"FaucetChain Link Solana | chain:{CHAIN_ID} | {user} | {solana_address} | ts:{req.sig_timestamp}",
+        req.signature,
+        req.sig_timestamp,
+    )
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    # Trocar a carteira só vale para lotes futuros: um lote já fechado tem a
+    # raiz publicada na Solana e não pode mudar de destinatário.
+    c.execute(
+        """INSERT INTO solana_links (user_address, solana_address, linked_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_address) DO UPDATE SET solana_address = excluded.solana_address,
+                                                   linked_at = excluded.linked_at""",
+        (user, solana_address, int(_time.time())),
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "linked", "address": user, "solana_address": solana_address}
+
+
+@app.get("/api/solana/link/{address}")
+async def get_solana_link(address: str):
+    user = address.strip().lower()
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT solana_address, linked_at FROM solana_links WHERE user_address = ?", (user,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="No Solana wallet linked to this address")
+    return {"address": user, "solana_address": row[0], "linked_at": row[1]}
+
+
+class RewardCreditRequest(BaseModel):
+    campaign_id: int
+    address: str
+    amount: int
+
+
+@app.post("/api/solana/reward")
+async def credit_settlement_reward(
+    req: RewardCreditRequest, x_operator_token: Optional[str] = Header(None)
+):
+    """Anota um prêmio devido na campanha. Só vira dinheiro no lote seguinte."""
+    require_operator(x_operator_token)
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    user = req.address.strip().lower()
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO settlement_rewards (campaign_id, user_address, amount, created_at) VALUES (?, ?, ?, ?)",
+        (req.campaign_id, user, req.amount, int(_time.time())),
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "credited", "campaign_id": req.campaign_id, "address": user, "amount": req.amount}
+
+
+class CloseBatchRequest(BaseModel):
+    campaign_id: int
+
+
+@app.post("/api/solana/batch")
+async def close_settlement_batch(
+    req: CloseBatchRequest, x_operator_token: Optional[str] = Header(None)
+):
+    """Fecha o lote: a raiz que sai daqui é a que vai para o programa."""
+    require_operator(x_operator_token)
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        """SELECT r.id, l.solana_address, r.amount
+             FROM settlement_rewards r
+             JOIN solana_links l ON l.user_address = r.user_address
+            WHERE r.campaign_id = ? AND r.batch_id IS NULL""",
+        (req.campaign_id,),
+    )
+    pending = c.fetchall()
+    if not pending:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Nothing to settle in this campaign")
+
+    rewards: Dict[str, int] = defaultdict(int)
+    for _, solana_address, amount in pending:
+        rewards[solana_address] += int(amount)
+    batch = settlement.build_batch(rewards)
+
+    c.execute("SELECT COUNT(*) FROM settlement_batches WHERE campaign_id = ?", (req.campaign_id,))
+    root_index = c.fetchone()[0]
+    c.execute(
+        """INSERT INTO settlement_batches
+               (campaign_id, root_index, root, total_amount, leaf_count, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (
+            req.campaign_id,
+            root_index,
+            batch["root"],
+            batch["total_amount"],
+            batch["leaf_count"],
+            int(_time.time()),
+        ),
+    )
+    batch_id = c.lastrowid
+    c.executemany(
+        "UPDATE settlement_rewards SET batch_id = ? WHERE id = ?",
+        [(batch_id, row[0]) for row in pending],
+    )
+    conn.commit()
+    conn.close()
+    return {
+        "status": "closed",
+        "batch_id": batch_id,
+        "campaign_id": req.campaign_id,
+        "root_index": root_index,
+        "root": batch["root"],
+        "total_amount": batch["total_amount"],
+        "leaf_count": batch["leaf_count"],
+    }
+
+
+class BatchPublishedRequest(BaseModel):
+    signature: str
+
+
+@app.post("/api/solana/batch/{batch_id}/published")
+async def mark_batch_published(
+    batch_id: int, req: BatchPublishedRequest, x_operator_token: Optional[str] = Header(None)
+):
+    """Guarda a transação que levou a raiz para a Solana, para auditoria."""
+    require_operator(x_operator_token)
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE settlement_batches SET published_signature = ? WHERE id = ?",
+        (req.signature.strip(), batch_id),
+    )
+    if c.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Batch not found")
+    conn.commit()
+    conn.close()
+    return {"status": "published", "batch_id": batch_id, "signature": req.signature.strip()}
+
+
+@app.get("/api/solana/batches")
+async def list_settlement_batches(campaign_id: Optional[int] = None, limit: int = 50):
+    conn = get_db_connection()
+    c = conn.cursor()
+    query = """SELECT id, campaign_id, root_index, root, total_amount, leaf_count,
+                      created_at, published_signature
+                 FROM settlement_batches"""
+    params: list = []
+    if campaign_id is not None:
+        query += " WHERE campaign_id = ?"
+        params.append(campaign_id)
+    query += " ORDER BY id DESC LIMIT ?"
+    params.append(max(1, min(limit, 200)))
+    c.execute(query, params)
+    rows = c.fetchall()
+    conn.close()
+    return {
+        "batches": [
+            {
+                "batch_id": row[0],
+                "campaign_id": row[1],
+                "root_index": row[2],
+                "root": row[3],
+                "total_amount": row[4],
+                "leaf_count": row[5],
+                "created_at": row[6],
+                "published_signature": row[7],
+            }
+            for row in rows
+        ]
+    }
+
+
+@app.get("/api/solana/proof/{address}")
+async def get_settlement_proofs(address: str):
+    """Provas do usuário, uma por lote em que ele entrou."""
+    user = address.strip().lower()
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT solana_address FROM solana_links WHERE user_address = ?", (user,))
+    link = c.fetchone()
+    if not link:
+        conn.close()
+        raise HTTPException(status_code=404, detail="No Solana wallet linked to this address")
+    solana_address = link[0]
+
+    c.execute(
+        """SELECT DISTINCT b.id, b.campaign_id, b.root_index, b.root, b.published_signature
+             FROM settlement_batches b
+             JOIN settlement_rewards r ON r.batch_id = b.id
+            WHERE r.user_address = ?
+            ORDER BY b.id DESC""",
+        (user,),
+    )
+    batches = c.fetchall()
+
+    proofs = []
+    for batch_id, campaign_id, root_index, root, signature in batches:
+        rebuilt = settlement.build_batch(_batch_rewards(c, batch_id))
+        if rebuilt["root"] != root:
+            # A raiz publicada é a verdade; servir uma prova de outra árvore
+            # faria o usuário gastar taxa numa transação que o programa recusa.
+            audit_logger.error(f"Settlement batch {batch_id} no longer rebuilds to its published root")
+            continue
+        claim = next((x for x in rebuilt["claims"] if x["recipient"] == solana_address), None)
+        if claim:
+            proofs.append(
+                {
+                    "batch_id": batch_id,
+                    "campaign_id": campaign_id,
+                    "root_index": root_index,
+                    "root": root,
+                    "published_signature": signature,
+                    **claim,
+                }
+            )
+    conn.close()
+    return {"address": user, "solana_address": solana_address, "proofs": proofs}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
