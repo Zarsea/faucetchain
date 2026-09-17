@@ -1,7 +1,7 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 
-type AuthMethod = 'GOOGLE' | 'EMAIL' | 'WALLET' | 'MANUAL' | null;
+type AuthMethod = 'GUEST' | 'EMAIL' | 'WALLET' | 'MANUAL' | null;
 
 interface AuthContextType {
     userAddress: string | null;

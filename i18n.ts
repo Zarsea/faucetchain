@@ -126,7 +126,7 @@ const resourcesEn = {
         auth: {
             title: "Access FaucetChain TestNet",
             subtitle: "Choose your test identity.",
-            google: "Sign in with Google",
+            guest: "Continue as guest",
             email: "Sign in with Email",
             wallet: "Connect MetaMask",
             nativeWeb3: "Native Web3",
@@ -291,7 +291,7 @@ const resourcesPt = {
         auth: {
             title: "Acessar FaucetChain TestNet",
             subtitle: "Escolha sua identidade de teste.",
-            google: "Entrar com Google",
+            guest: "Entrar como convidado",
             email: "Entrar com E-mail",
             wallet: "Conectar MetaMask",
             nativeWeb3: "Web3 Nativo",
@@ -456,7 +456,7 @@ const resourcesEs = {
         auth: {
             title: "Acceder a FaucetChain TestNet",
             subtitle: "Elija su identidad de prueba.",
-            google: "Iniciar con Google",
+            guest: "Entrar como invitado",
             email: "Iniciar con Email",
             wallet: "Conectar MetaMask",
             nativeWeb3: "Web3 Nativo",

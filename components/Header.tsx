@@ -11,6 +11,7 @@ export const Header: React.FC = () => {
     const { tFn: t, lang, setLang } = useLanguage();
     const { isConnected, userAddress, authMethod, login, logout } = useAuth();
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isGuestLoading, setIsGuestLoading] = useState(false);
     const [authModalView, setAuthModalView] = useState<'MAIN' | 'EMAIL'>('MAIN');
     const [emailInput, setEmailInput] = useState('');
     const [passwordInput, setPasswordInput] = useState('');
@@ -46,7 +47,7 @@ export const Header: React.FC = () => {
         }
     };
 
-    const handleConnect = async (method: 'GOOGLE' | 'EMAIL' | 'WALLET') => {
+    const handleConnect = async (method: 'GUEST' | 'EMAIL' | 'WALLET') => {
         if (method === 'EMAIL') {
             setAuthModalView('EMAIL');
             return;
@@ -67,13 +68,22 @@ export const Header: React.FC = () => {
                 alert(t('auth.noMetamask'));
             }
         } else {
-            // Demo mode for Google/Email - Enable for testing
-            const demoAddress = `google_${Math.random().toString(36).substring(7)}@faucetchain.io`;
-
-            login(demoAddress, method);
-            setIsAuthModalOpen(false);
-
-            console.log(`✅ Modo Demo Ativado: ${method} - ${demoAddress}`);
+            // A guest account is created by the server, not invented here. The
+            // browser used to mint its own identity, which the API then trusted
+            // without a signature because it did not look like an address.
+            setIsGuestLoading(true);
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/auth/guest`, { method: 'POST' });
+                if (!res.ok) throw new Error(String(res.status));
+                const data = await res.json();
+                login(data.wallet_address, 'GUEST');
+                setIsAuthModalOpen(false);
+            } catch {
+                setAuthError(t('auth.connError'));
+                setAuthModalView('MAIN');
+            } finally {
+                setIsGuestLoading(false);
+            }
         }
     };
 
@@ -157,12 +167,16 @@ export const Header: React.FC = () => {
 
                         {authModalView === 'MAIN' ? (
                             <div className="space-y-4">
+                                {/* The guest button can fail too, so the banner cannot live
+                                    only in the email view where it started. */}
+                                {authError && <div className="p-3 bg-brand-error/20 text-brand-error text-sm rounded-xl text-center border border-brand-error/30">{authError}</div>}
                                 <button
-                                    onClick={() => handleConnect('GOOGLE')}
-                                    className="w-full flex items-center justify-center gap-4 bg-white text-brand-bg p-4 rounded-2xl font-bold hover:bg-brand-secondary transition-all"
+                                    onClick={() => handleConnect('GUEST')}
+                                    disabled={isGuestLoading}
+                                    className="w-full flex items-center justify-center gap-4 bg-brand-surface border border-brand-border p-4 rounded-2xl font-bold text-white hover:border-brand-primary transition-all disabled:opacity-40"
                                 >
-                                    <img src="https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png" className="w-5 h-5" alt="Google" />
-                                    {t('auth.google')}
+                                    <CubeIcon className="w-5 h-5 text-brand-primary" />
+                                    {isGuestLoading ? '...' : t('auth.guest')}
                                 </button>
                                 <button
                                     onClick={() => handleConnect('EMAIL')}

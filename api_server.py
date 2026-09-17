@@ -11,6 +11,15 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     os.environ['PYTHONIOENCODING'] = 'utf-8'
 
+# Read .env before anything asks for a secret. Values already in the real
+# environment win, so a deployment overrides the file rather than fighting it.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except ImportError:  # the appchain still starts; PASSWORD_SALT must then be exported
+    pass
+
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict
@@ -1674,10 +1683,18 @@ SIGNATURE_MAX_AGE = 300  # validade (s) de uma assinatura de ação
 
 
 def is_custodial_address(addr: str) -> bool:
-    """True para contas demo/custodiais (sem chave ECDSA própria)."""
+    """True for accounts this server holds the key of, so they sign nothing.
+
+    Anything that is not an address at all answers False, not True. It used to
+    answer True, which meant a caller could skip every signature check simply by
+    sending something that was not an address -- and the old "Sign in with
+    Google" button did exactly that by accident, minting identities like
+    `google_x7f2a@faucetchain.io` in the browser. A malformed address is not a
+    trusted account; it is not an account.
+    """
     addr_lower = addr.strip().lower()
     if not re.fullmatch(r'0x[0-9a-fA-F]{40}', addr_lower):
-        return True
+        return False
     
     conn = get_db_connection()
     c = conn.cursor()
@@ -4832,9 +4849,9 @@ async def register_user(req: RegisterRequest):
     password = req.password
     
     if not email or not password:
-        raise HTTPException(status_code=400, detail="Email e senha são obrigatórios.")
+        raise HTTPException(status_code=400, detail="Email and password are both required.")
     if len(password) < PASSWORD_MIN_LENGTH:
-        raise HTTPException(status_code=400, detail=f"Senha deve ter pelo menos {PASSWORD_MIN_LENGTH} caracteres.")
+        raise HTTPException(status_code=400, detail=f"The password needs at least {PASSWORD_MIN_LENGTH} characters.")
         
     password_hash = hash_password(password)
     # Generate custodial wallet address
@@ -4849,10 +4866,39 @@ async def register_user(req: RegisterRequest):
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
-        raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
+        raise HTTPException(status_code=400, detail="That email is already registered.")
         
     conn.close()
     return {"status": "success", "wallet_address": wallet_address, "email": email}
+
+@app.post("/api/auth/guest")
+async def create_guest_account():
+    """A one-click account whose key this server holds.
+
+    This replaces a button labelled "Sign in with Google" that spoke neither to
+    Google nor to this server: it minted an identity in the browser. Since that
+    identity was not an 0x address, is_custodial_address waved it through and
+    every signature check was skipped. A guest is now a real row here, with a
+    real custodial address, trusted exactly as much as an email account is.
+    """
+    wallet_address = "0x" + secrets.token_hex(20)
+    email = f"guest_{secrets.token_hex(8)}@guest.faucetchain.local"
+    # The column cannot be null and no one should be able to sign in to a guest
+    # account later, so it holds the hash of a secret nobody was told.
+    password_hash = hash_password(secrets.token_hex(32))
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        c.execute(
+            "INSERT INTO users (email, password_hash, wallet_address, created_at) VALUES (?, ?, ?, ?)",
+            (email, password_hash, wallet_address, int(datetime.now().timestamp())),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"status": "success", "wallet_address": wallet_address, "guest": True}
+
 
 @app.post("/api/auth/login")
 async def login_user(req: LoginRequest):

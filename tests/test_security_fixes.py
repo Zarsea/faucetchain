@@ -18,6 +18,7 @@ sys.path.insert(0, ROOT)
 FAUCET = "0x" + "fa" * 20
 os.environ["INTERNAL_FAUCET_WALLET"] = FAUCET
 os.environ["INTERNAL_FAUCET_API_KEY"] = "fch_test_" + "0" * 32
+os.environ.setdefault("PASSWORD_SALT", "test-salt")
 
 import indexer_service  # noqa: E402
 
@@ -46,9 +47,22 @@ def db():
     return srv.get_db_connection()
 
 
+def custodial_account(client):
+    """A real server-side account, which is what "custodial" is allowed to mean.
+
+    These tests used to pass strings like `google_x@faucetchain.io` as the user,
+    relying on is_custodial_address waving through anything that was not an 0x
+    address. That hole is closed, and it was the same one the old fake Google
+    button walked through.
+    """
+    r = client.post("/api/auth/guest")
+    assert r.status_code == 200, r.text
+    return r.json()["wallet_address"]
+
+
 def test_claim_amount_is_defined_by_server(client):
     for i, fake_amount in enumerate((999999.0, -5000.0)):
-        user = f"google_amount{i}@faucetchain.io"  # conta custodial: dispensa assinatura
+        user = custodial_account(client)  # a real custodial account signs nothing
         body = {"user_address": user, "amount": fake_amount, "block_height": 0,
                 "tx_hash": f"0xtest{i}", **solve_proof(client, user)}
         r = client.post("/api/claim", json=body)
@@ -58,6 +72,26 @@ def test_claim_amount_is_defined_by_server(client):
         expected = srv.current_claim_reward(conn.cursor())
         conn.close()
         assert stored == expected == r.json()["amount"], (stored, expected)
+
+
+def test_a_made_up_identity_cannot_skip_the_signature(client):
+    """Not being an address used to mean being trusted.
+
+    is_custodial_address answered True for anything that did not match
+    0x[0-9a-f]{40}, so a caller who sent a string instead of an address skipped
+    every signature check. The old "Sign in with Google" button minted exactly
+    such a string in the browser, which is how the hole stayed invisible.
+    """
+    invented = "google_x7f2a@faucetchain.io"
+    body = {"user_address": invented, "block_height": 0, "tx_hash": "0xmadeup",
+            **solve_proof(client, invented)}
+    assert client.post("/api/claim", json=body).status_code == 401
+
+    # and a well-formed address nobody registered is still not custodial either
+    stranger = "0x" + "ab" * 20
+    body = {"user_address": stranger, "block_height": 0, "tx_hash": "0xstranger",
+            **solve_proof(client, stranger)}
+    assert client.post("/api/claim", json=body).status_code == 401
 
 
 def test_difficulty_rises_with_quota_usage(client):
@@ -87,7 +121,7 @@ def test_ip_cap_blocks_wallet_farm(client):
     try:
         codes = []
         for i in range(4):
-            user = f"google_farm{i}@faucetchain.io"
+            user = custodial_account(client)
             body = {"user_address": user, "block_height": 0,
                     "tx_hash": f"0xfarm{i}", **solve_proof(client, user)}
             codes.append(client.post("/api/claim", json=body).status_code)

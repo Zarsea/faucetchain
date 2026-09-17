@@ -207,7 +207,35 @@ These are open on purpose, not oversights:
   caller with many unclaimed leaves can still make it pay for all of them at
   once, which is a spending pace question rather than a hole.
 
+## Who is allowed to act without signing
+
+Every action that moves value passes `require_action_signature`, which demands
+an EIP-191 signature from the wallet that owns the acting address. One group is
+exempt: **custodial accounts**, whose keys this server holds, created by
+`/api/auth/register` or `/api/auth/guest`. They are rows in `users` with a real
+`0x` address, and the exemption is sound because the server is the signer.
+
+Membership in that group is decided by `is_custodial_address`, and it is a trust
+boundary rather than a convenience. It answers True only for an address found in
+`users`. Anything that is not a well-formed address answers **False** — not an
+account at all. It used to answer True, which meant sending a string in place of
+an address skipped every check; the fake "Sign in with Google" button minted
+exactly such strings in the browser. A regression test now sends an invented
+identity and a well-formed address nobody registered, and expects 401 from both.
+
 ## Change log
+
+**2026-09-17 — login stops inventing identities.** The Google button never spoke
+to Google or to this server; it minted `google_<random>@faucetchain.io` in the
+browser, and because that is not an address, every signature check was skipped.
+It is now "Continue as guest", backed by `POST /api/auth/guest`, which creates a
+real custodial account. `is_custodial_address` no longer trusts malformed input,
+and two security tests that had been leaning on that hole now open real guest
+accounts instead. `PASSWORD_SALT` is read from `.env`, which the server never
+loaded, so account creation had been failing with a 500. The login modal also
+moved into a portal: it lived inside the `glass` header, whose `backdrop-filter`
+made it the containing block for fixed positioning, so the modal opened 238px
+above the top of the screen.
 
 **2026-09-16 — the wallet proves itself.** Linking now needs an ed25519
 signature from the Solana wallet, not just the user's word that it is theirs.
