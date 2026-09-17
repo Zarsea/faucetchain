@@ -5,9 +5,14 @@ export interface ActionSignature {
     sig_timestamp: number | null;
 }
 
-// Carteiras Web3 assinam cada ação que mexe em saldo (EIP-191, verificada por
-// require_action_signature no backend). Contas demo/custodiais não têm chave
-// e enviam assinatura nula.
+// Signs a balance-moving action with the account's own EVM key (EIP-191,
+// checked by require_action_signature on the server).
+//
+// Since external wallets were dropped as a login method, every account here is
+// custodial and this returns nulls: the server holds the key, so it does the
+// signing itself. The path is kept because the server still verifies a
+// signature whenever one arrives, and because the Solana wallet proof on the
+// payouts screen is the live example of the same idea.
 export async function signAction(
     authMethod: string | null,
     buildMessage: (ts: number) => string

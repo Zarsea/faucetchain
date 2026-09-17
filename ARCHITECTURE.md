@@ -256,6 +256,17 @@ rejects.
 
 These are open on purpose, not oversights:
 
+- **A custodial account has no per-request authentication.** Since external
+  wallets were dropped as a login method, every account is custodial, and
+  `require_action_signature` waves those through because the server holds their
+  key. But nothing proves the caller *is* that account: knowing the address is
+  enough. Demonstrated against a running server — a withdrawal posted for
+  somebody else's guest account, to a faucet address of the caller's choosing,
+  passed authentication and stopped only at the balance check. The fix is a
+  session token issued by `/api/auth/guest`, `/register` and `/login`, and
+  required on every balance-moving route. **This is the sharpest open item in
+  the system.**
+
 - **Unclaimed rewards sit in the vault forever.** `withdraw_surplus` cannot
   touch them, by design. **Decided 2026-09-16: a claim deadline goes in the
   whitepaper now, the on-chain expiry after the event.** Writing the policy
@@ -276,6 +287,14 @@ These are open on purpose, not oversights:
   once, which is a spending pace question rather than a hole.
 
 ## Change log
+
+**2026-09-17 — one way in, and it is not a wallet.** Connecting an external EVM
+wallet was removed as a login method: payouts settle on Solana, so the only
+wallet the product needs is the Solana one, linked from the payouts screen.
+Guest and email remain. The consequence is recorded above: with no wallet
+logins, every account is custodial, and custodial accounts are authenticated by
+nothing more than knowing their address.
+
 
 **2026-09-17 — one shape for every signed sentence.** Claim, withdraw, stake,
 unstake and link now use the same readable format the wallet proof already had,

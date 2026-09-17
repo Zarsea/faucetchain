@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ethers } from 'ethers';
 import { FaucetChainLogoIcon, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
@@ -47,27 +46,15 @@ export const Header: React.FC = () => {
         }
     };
 
-    const handleConnect = async (method: 'GUEST' | 'EMAIL' | 'WALLET') => {
+    // Only accounts this server holds the key for. Connecting an external EVM
+    // wallet was removed: payouts settle on Solana, and the only wallet the
+    // product needs is the Solana one, linked from the payouts screen.
+    const handleConnect = async (method: 'GUEST' | 'EMAIL') => {
         if (method === 'EMAIL') {
             setAuthModalView('EMAIL');
             return;
         }
-        if (method === 'WALLET') {
-            if (typeof window.ethereum !== 'undefined') {
-                try {
-                    const provider = new ethers.BrowserProvider(window.ethereum);
-                    const accounts = await provider.send("eth_requestAccounts", []);
-                    const address = accounts[0];
-                    login(address, 'WALLET');
-                    setIsAuthModalOpen(false);
-                } catch (error) {
-                    console.error("Connection denied or error:", error);
-                    alert(t('auth.walletDenied') + (error as any).message);
-                }
-            } else {
-                alert(t('auth.noMetamask'));
-            }
-        } else {
+        {
             // A guest account is created by the server, not invented here. The
             // browser used to mint its own identity, which the API then trusted
             // without a signature because it did not look like an address.
@@ -185,19 +172,6 @@ export const Header: React.FC = () => {
                                     <GlobeAltIcon className="w-5 h-5 text-brand-primary" />
                                     {t('auth.email')}
                                 </button>
-                                <div className="flex items-center gap-4 py-2">
-                                    <div className="h-px flex-1 bg-brand-border"></div>
-                                    <span className="text-[10px] font-black text-brand-muted uppercase">{t('auth.nativeWeb3')}</span>
-                                    <div className="h-px flex-1 bg-brand-border"></div>
-                                </div>
-                                <button
-                                    onClick={() => handleConnect('WALLET')}
-                                    className="w-full flex items-center justify-center gap-4 bg-brand-primary/10 border border-brand-primary/30 p-4 rounded-2xl font-bold text-brand-primary hover:bg-brand-primary hover:text-brand-bg transition-all"
-                                >
-                                    <WalletIcon className="w-5 h-5" />
-                                    {t('auth.wallet')}
-                                </button>
-                                
                                 <div className="flex items-center gap-4 py-2">
                                     <div className="h-px flex-1 bg-brand-border"></div>
                                     <span className="text-[10px] font-black text-brand-muted uppercase">{t('auth.orPasteAddress')}</span>

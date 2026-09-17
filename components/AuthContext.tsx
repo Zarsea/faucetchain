@@ -1,7 +1,9 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 
-type AuthMethod = 'GUEST' | 'EMAIL' | 'WALLET' | 'MANUAL' | null;
+// No external EVM wallet: the only wallet the product needs is the Solana
+// one, and that is linked from the payouts screen rather than used to log in.
+type AuthMethod = 'GUEST' | 'EMAIL' | 'MANUAL' | null;
 
 interface AuthContextType {
     userAddress: string | null;
