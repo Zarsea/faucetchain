@@ -1688,33 +1688,44 @@ def is_custodial_address(addr: str) -> bool:
 
 
 def require_action_signature(address: str, message: str, signature, sig_timestamp):
-    """Exige e valida a assinatura ECDSA de uma ação para carteiras Web3.
+    """Demands the EIP-191 signature of the wallet that owns `address`.
 
-    - Recupera o signatário via EIP-191 e exige que seja o dono do endereço
-    - Janela de validade (SIGNATURE_MAX_AGE) contra replay tardio
-    - Dedup em used_signatures contra replay imediato
-    Contas custodiais (demo) passam direto. Lança HTTPException(401) em falha.
+    - Recovers the signer and requires it to be the address acting
+    - A validity window (SIGNATURE_MAX_AGE) against a late replay
+    - Dedup in used_signatures against an immediate one
+    Custodial accounts pass straight through: the server holds their key.
+    Raises HTTPException(401) on failure.
     """
     addr_lower = address.strip().lower()
     if is_custodial_address(addr_lower):
-        return  # conta custodial: o servidor detém a chave
+        return  # custodial: the server holds this account's key
 
     if not signature or not sig_timestamp:
-        raise HTTPException(status_code=401, detail="Assinatura obrigatória para carteiras Web3.")
+        # The server cannot tell a read-only session from a wallet that simply
+        # sent nothing -- both arrive as a valid address with no signature -- so
+        # the message has to be useful in either case.
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "This action has to be signed by the wallet that owns the address. "
+                "If you signed in by pasting an address, that session is read-only: "
+                "connect the wallet itself, or sign in with email, to act."
+            ),
+        )
 
     now_ts = int(_time.time())
     if abs(now_ts - int(sig_timestamp)) > SIGNATURE_MAX_AGE:
-        raise HTTPException(status_code=401, detail="Assinatura expirada. Assine novamente.")
+        raise HTTPException(status_code=401, detail="That signature expired. Sign again.")
 
     try:
         recovered = Account.recover_message(
             encode_defunct(text=message), signature=signature
         ).lower()
     except Exception as e:
-        raise HTTPException(status_code=401, detail=f"Assinatura inválida ou corrompida: {e}")
+        raise HTTPException(status_code=401, detail=f"That signature is invalid or corrupted: {e}")
 
     if recovered != addr_lower:
-        raise HTTPException(status_code=401, detail="Assinatura não corresponde ao endereço da ação.")
+        raise HTTPException(status_code=401, detail="That signature is from a different address than the one acting.")
 
     sig_hash = "0x" + keccak256(signature.encode()).hex()
     conn = get_db_connection()
@@ -1728,9 +1739,9 @@ def require_action_signature(address: str, message: str, signature, sig_timestam
         ''')
         c.execute("SELECT 1 FROM used_signatures WHERE sig_hash = ?", (sig_hash,))
         if c.fetchone():
-            raise HTTPException(status_code=401, detail="Assinatura já utilizada (replay bloqueado).")
+            raise HTTPException(status_code=401, detail="That signature was already used.")
         c.execute("INSERT INTO used_signatures (sig_hash, used_at) VALUES (?, ?)", (sig_hash, now_ts))
-        # Higiene: registros fora da janela de validade não servem mais para replay
+        # Hygiene: rows past the window cannot be replayed any more
         c.execute("DELETE FROM used_signatures WHERE used_at < ?", (now_ts - 2 * SIGNATURE_MAX_AGE,))
         conn.commit()
     finally:
@@ -1917,7 +1928,7 @@ async def transfer_claim(req: TransferRequest, request: Request):
             raise ValueError("Signature mismatch")
     except Exception as e:
         conn.close()
-        raise HTTPException(status_code=401, detail=f"Assinatura inválida ou corrompida: {e}")
+        raise HTTPException(status_code=401, detail=f"That signature is invalid or corrupted: {e}")
 
     # 3. Check balance including dynamic fee
     fee = calculate_dynamic_fee()
