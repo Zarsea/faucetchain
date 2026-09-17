@@ -5108,6 +5108,62 @@ class SolanaLinkRequest(BaseModel):
     solana_address: str
     signature: Optional[str] = None
     sig_timestamp: Optional[int] = None
+    solana_signature: Optional[str] = None
+    solana_sig_timestamp: Optional[int] = None
+
+
+def require_solana_ownership(
+    solana_address: str, message: str, signature: Optional[str], sig_timestamp: Optional[int]
+):
+    """Proves the user controls the Solana wallet, not merely that they named it.
+
+    The FaucetChain signature says who chose the wallet. This one says who holds
+    its key. Both matter: a reward inside a published root pays the address on
+    the leaf and nothing can redirect it afterwards, so a wallet named by typo
+    is money burned.
+
+    `signature` is the raw 64-byte ed25519 signature, base64 encoded -- the same
+    encoding the relayer already uses for transactions, so the browser needs no
+    base58 library.
+    """
+    if not signature:
+        raise HTTPException(
+            status_code=401,
+            detail="Sign the link with the Solana wallet as well, to prove you control it.",
+        )
+    import base64
+
+    # Its own timestamp, not the FaucetChain one: a custodial account signs no
+    # EIP-191 message at all and would arrive here with none.
+    if not sig_timestamp:
+        raise HTTPException(status_code=401, detail="Missing timestamp on the wallet proof")
+    if abs(int(_time.time()) - int(sig_timestamp)) > SIGNATURE_MAX_AGE:
+        raise HTTPException(status_code=401, detail="The wallet proof expired. Sign again.")
+
+    try:
+        from solders.pubkey import Pubkey
+        from solders.signature import Signature
+    except ImportError:
+        raise HTTPException(status_code=503, detail="solders is not installed on the sequencer")
+
+    try:
+        raw = base64.b64decode(signature, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed Solana signature")
+    if len(raw) != 64:
+        raise HTTPException(status_code=400, detail="A Solana signature is 64 bytes")
+
+    try:
+        parsed = Signature.from_bytes(raw)
+        owner = Pubkey.from_string(solana_address)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed Solana signature")
+
+    if not parsed.verify(owner, message.encode("utf-8")):
+        raise HTTPException(
+            status_code=401,
+            detail="That signature does not come from the wallet being linked.",
+        )
 
 
 @app.post("/api/solana/link")
@@ -5127,6 +5183,16 @@ async def link_solana_wallet(req: SolanaLinkRequest):
         f"FaucetChain Link Solana | chain:{CHAIN_ID} | {user} | {solana_address} | ts:{req.sig_timestamp}",
         req.signature,
         req.sig_timestamp,
+    )
+    # A second, separate proof: the first says who chose this wallet, this one
+    # says who holds its key. A different verb so neither signature can stand in
+    # for the other.
+    require_solana_ownership(
+        solana_address,
+        f"FaucetChain Prove Wallet | chain:{CHAIN_ID} | {user} | {solana_address} "
+        f"| ts:{req.solana_sig_timestamp}",
+        req.solana_signature,
+        req.solana_sig_timestamp,
     )
 
     conn = get_db_connection()

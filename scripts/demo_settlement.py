@@ -115,12 +115,24 @@ def airdrop(rpc_url: str, who: Pubkey, sol: int) -> None:
     raise SystemExit(f"Airdrop to {who} never landed — rate limited?")
 
 
-def link_wallet(api: str, account, solana_address: str) -> None:
+def link_wallet(api: str, account, wallet: Keypair) -> None:
+    """Links a FaucetChain account to a Solana wallet, with both signatures.
+
+    The user's own key says which wallet they chose; the wallet's key says they
+    hold it. In the browser these are two prompts, one per wallet.
+    """
     timestamp = int(time.time())
     user = account.address.lower()
+    solana_address = str(wallet.pubkey())
     message = (
         f"FaucetChain Link Solana | chain:7777 | {user} | {solana_address} | ts:{timestamp}"
     )
+    proof = (
+        f"FaucetChain Prove Wallet | chain:7777 | {user} | {solana_address} | ts:{timestamp}"
+    )
+    solana_signature = base64.b64encode(
+        bytes(wallet.sign_message(proof.encode("utf-8")))
+    ).decode()
     signature = Account.sign_message(
         encode_defunct(text=message), private_key=account.key
     ).signature.hex()
@@ -133,6 +145,8 @@ def link_wallet(api: str, account, solana_address: str) -> None:
             "solana_address": solana_address,
             "signature": signature,
             "sig_timestamp": timestamp,
+            "solana_signature": solana_signature,
+            "solana_sig_timestamp": timestamp,
         },
         timeout=30,
     )
@@ -239,8 +253,8 @@ def main() -> None:
     print(f"    vault    {vault} holds {chain.token_balance(rpc_url, vault) / UNIT:.2f}")
 
     step(4, "Users link the wallet that will receive the payout")
-    link_wallet(api, alice_eth, str(alice_sol.pubkey()))
-    link_wallet(api, bob_eth, str(bob_sol.pubkey()))
+    link_wallet(api, alice_eth, alice_sol)
+    link_wallet(api, bob_eth, bob_sol)
     print(f"    {alice_eth.address.lower()} -> {alice_sol.pubkey()}")
     print(f"    {bob_eth.address.lower()} -> {bob_sol.pubkey()}")
 

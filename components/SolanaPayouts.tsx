@@ -31,6 +31,7 @@ interface SolanaProvider {
     publicKey?: { toString(): string };
     connect(): Promise<{ publicKey: { toString(): string } }>;
     signTransaction(transaction: Transaction): Promise<Transaction>;
+    signMessage(message: Uint8Array, display?: string): Promise<{ signature: Uint8Array }>;
 }
 
 declare global {
@@ -111,7 +112,8 @@ export const SolanaPayouts: React.FC = () => {
     };
 
     const linkWallet = async () => {
-        if (!wallet || !userAddress) return;
+        const solana = provider();
+        if (!wallet || !userAddress || !solana) return;
         setError(null);
         setBusy('link');
         try {
@@ -119,6 +121,15 @@ export const SolanaPayouts: React.FC = () => {
                 authMethod,
                 (ts) => `FaucetChain Link Solana | chain:${CHAIN_ID} | ${userAddress.toLowerCase()} | ${wallet} | ts:${ts}`
             );
+
+            // The second signature, from the Solana wallet itself. The one above
+            // says who chose this address; only this one says who holds its key,
+            // and a root already published cannot be redirected to fix a typo.
+            const solana_sig_timestamp = Math.floor(Date.now() / 1000);
+            const proof = `FaucetChain Prove Wallet | chain:${CHAIN_ID} | ${userAddress.toLowerCase()} | ${wallet} | ts:${solana_sig_timestamp}`;
+            const signed = await solana.signMessage(new TextEncoder().encode(proof), 'utf8');
+            const solana_signature = btoa(String.fromCharCode(...signed.signature));
+
             const response = await fetch(`${API_BASE_URL}/api/solana/link`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -127,6 +138,8 @@ export const SolanaPayouts: React.FC = () => {
                     solana_address: wallet,
                     signature,
                     sig_timestamp,
+                    solana_signature,
+                    solana_sig_timestamp,
                 }),
             });
             if (!response.ok) {
@@ -235,8 +248,12 @@ export const SolanaPayouts: React.FC = () => {
                 ) : (
                     <div className="space-y-4">
                         <p className="text-brand-muted">
-                            No wallet linked yet. Connect the one that should receive the tokens and
-                            sign the link with your FaucetChain account.
+                            No wallet linked yet. Connect the one that should receive the tokens.
+                            You will be asked to sign <span className="text-white font-semibold">twice</span>:
+                            once with your FaucetChain account, to say this is the wallet you chose,
+                            and once with the wallet itself, to prove you hold its key. A reward
+                            already published on-chain pays the address on the leaf, so a wallet
+                            typed wrong cannot be corrected afterwards.
                         </p>
                         <div className="flex flex-wrap gap-3 items-center">
                             <button

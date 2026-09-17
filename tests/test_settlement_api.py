@@ -49,9 +49,17 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 OP = {"x-operator-token": OPERATOR_TOKEN}
 # Real Solana addresses, only so the base58 is a valid 32 bytes.
-WALLET_A = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-WALLET_B = "SysvarC1ock11111111111111111111111111111111"
-WALLET_C = "11111111111111111111111111111112"
+# Real keypairs, from fixed seeds so the addresses -- and therefore the leaf
+# order in every tree below -- stay the same on each run. Linking now demands a
+# signature from the wallet itself, which a well-known address cannot give.
+KEY_A = Keypair.from_seed(bytes([11] * 32))
+KEY_B = Keypair.from_seed(bytes([22] * 32))
+WALLET_A = str(KEY_A.pubkey())
+WALLET_B = str(KEY_B.pubkey())
+WALLETS = {WALLET_A: KEY_A, WALLET_B: KEY_B}  # WALLET_C joins below
+KEY_C = Keypair.from_seed(bytes([33] * 32))
+WALLET_C = str(KEY_C.pubkey())
+WALLETS[WALLET_C] = KEY_C
 
 
 def link_body(account, solana_address, ts=None):
@@ -61,12 +69,26 @@ def link_body(account, solana_address, ts=None):
     signature = Account.sign_message(encode_defunct(text=message), private_key=account.key).signature.hex()
     if not signature.startswith("0x"):
         signature = "0x" + signature
-    return {
+    body = {
         "address": user,
         "solana_address": solana_address,
         "signature": signature,
         "sig_timestamp": ts,
     }
+    # The wallet proves it holds its own key. Unknown addresses (the malformed
+    # ones a test feeds on purpose) are rejected before this is ever read.
+    key = WALLETS.get(solana_address)
+    if key is not None:
+        body["solana_signature"] = solana_proof(key, user, solana_address, ts)
+        body["solana_sig_timestamp"] = ts
+    return body
+
+
+def solana_proof(key, user, solana_address, ts):
+    message = (
+        f"FaucetChain Prove Wallet | chain:{srv.CHAIN_ID} | {user} | {solana_address} | ts:{ts}"
+    )
+    return base64.b64encode(bytes(key.sign_message(message.encode("utf-8")))).decode()
 
 
 def test_link_requires_a_real_solana_address(client):
@@ -94,6 +116,55 @@ def test_link_requires_the_owner_signature(client):
     assert client.post("/api/solana/link", json=body).status_code == 200
     linked = client.get(f"/api/solana/link/{account.address.lower()}").json()
     assert linked["solana_address"] == WALLET_A
+
+
+def test_link_requires_the_wallet_to_prove_it_holds_the_key(client):
+    """Naming a wallet is not owning it.
+
+    The FaucetChain signature says who chose the address. Only a signature from
+    the wallet says who can spend from it, and once a root is published the leaf
+    pays that address forever -- a typo has no undo.
+    """
+    # A fresh FaucetChain account per case on purpose: reusing one would reuse
+    # its EIP-191 signature, and the replay dedup would answer 401 before the
+    # wallet proof is ever read -- the test would pass while proving nothing.
+    def case():
+        account = Account.create()
+        return link_body(account, WALLET_A), account.address.lower()
+
+    body, user = case()
+    no_proof = dict(body)
+    no_proof.pop("solana_signature")
+    assert client.post("/api/solana/link", json=no_proof).status_code == 401
+
+    # signed by a wallet that is not the one being linked
+    body, user = case()
+    wrong = dict(body, solana_signature=solana_proof(KEY_B, user, WALLET_A, body["sig_timestamp"]))
+    assert client.post("/api/solana/link", json=wrong).status_code == 401
+
+    # the right key, but attesting to a different address than the one sent
+    body, user = case()
+    mismatched = dict(
+        body, solana_signature=solana_proof(KEY_A, user, WALLET_B, body["sig_timestamp"])
+    )
+    assert client.post("/api/solana/link", json=mismatched).status_code == 401
+
+    # the right key, but the proof is older than the window allows
+    body, user = case()
+    stale_ts = int(time.time()) - srv.SIGNATURE_MAX_AGE - 60
+    stale = dict(
+        body,
+        solana_signature=solana_proof(KEY_A, user, WALLET_A, stale_ts),
+        solana_sig_timestamp=stale_ts,
+    )
+    assert client.post("/api/solana/link", json=stale).status_code == 401
+
+    body, user = case()
+    garbage = dict(body, solana_signature="not base64 at all!!")
+    assert client.post("/api/solana/link", json=garbage).status_code == 400
+
+    body, user = case()
+    assert client.post("/api/solana/link", json=body).status_code == 200
 
 
 def test_only_the_operator_credits_and_closes(client):

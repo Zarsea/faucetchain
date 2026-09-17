@@ -35,8 +35,13 @@ forged, mints anything.
    `settlement_rewards`, credited through `POST /api/solana/reward` by the
    operator.
 4. A user links the Solana wallet that will receive the payout
-   (`POST /api/solana/link`), signing the link with the same EIP-191 scheme
-   every other FaucetChain action uses.
+   (`POST /api/solana/link`). This takes **two** signatures over two different
+   sentences: the FaucetChain key signs `Link Solana` under the same EIP-191
+   scheme every other action uses, saying which wallet was chosen, and the
+   Solana wallet signs `Prove Wallet` with ed25519, saying who holds its key.
+   Different verbs so neither signature can stand in for the other, and the
+   wallet proof carries its own timestamp — a custodial account signs no EIP-191
+   message at all and would otherwise arrive with none.
 5. **`POST /api/solana/batch`** closes a batch: every unbatched reward from a
    user with a linked wallet goes into one Merkle tree, summed per wallet. The
    wallet each reward was built for is written onto the row, so the batch is
@@ -183,12 +188,6 @@ rejects.
 
 These are open on purpose, not oversights:
 
-- **Wallet ownership is declared, not proved.** `POST /api/solana/link` accepts
-  the address the user names, signed with their FaucetChain key. That proves who
-  chose the wallet, not who controls it. A typo or a stolen session sends a
-  reward to a wallet the user cannot reach, and after the root is published
-  there is no way back. **Decided 2026-09-16: the link will require a signature
-  from the Solana wallet too.** Open until that ships.
 - **Unclaimed rewards sit in the vault forever.** `withdraw_surplus` cannot
   touch them, by design. **Decided 2026-09-16: a claim deadline goes in the
   whitepaper now, the on-chain expiry after the event.** Writing the policy
@@ -209,6 +208,16 @@ These are open on purpose, not oversights:
   once, which is a spending pace question rather than a hole.
 
 ## Change log
+
+**2026-09-16 — the wallet proves itself.** Linking now needs an ed25519
+signature from the Solana wallet, not just the user's word that it is theirs.
+This closes the gap that used to head the list below: a reward inside a
+published root pays the address on its leaf and nothing can redirect it, so an
+address entered wrong was money burned with no undo. Verification uses
+`solders`, already a dependency, and the signature travels base64 so the browser
+needs no base58 library. Six refusals are under test — no proof, the wrong
+wallet's key, the right key attesting to a different address, an expired proof,
+malformed bytes, and the accepted case.
 
 **2026-09-16 — four decisions that were open.** Wallet ownership will be proved
 by a signature from the Solana wallet, not just declared. A claim deadline for
