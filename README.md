@@ -44,6 +44,25 @@ levels duplicating the last node. Both implementations pin the same test vector
 (`settlement.py` and `programs/faucetchain/src/merkle.rs`), so a tree built by
 the backend is a tree the program accepts.
 
+## Who can change the program
+
+The program is deployed on devnet at
+`64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, and its **upgrade authority is
+held by the team**, at `EL5HubafFFn3XLmzXatb6vrEcwXnAPZGjpPAvpkmjLzA`. Whoever
+holds that key can replace the deployed code, including the checks that guard
+the vault. It outranks every other key in the system, so it is stated here
+rather than left to be discovered.
+
+It stays with the team through the hackathon, deliberately: a bug found during
+judging can then be fixed instead of standing as a broken submission. It will be
+revoked or moved to a multisig afterwards, before any real value is involved.
+
+Two more things that are true today and would not be acceptable on mainnet. The
+same key is the deploy payer, the upgrade authority and the wallet that funds the
+demo — three jobs that belong to three keys. And the network is devnet, where
+tokens are free, so the worst an attacker could do with it is break this
+demonstration.
+
 ## Layout
 
 | Path | What it is |
