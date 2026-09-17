@@ -74,6 +74,15 @@ def create_account_ix(payer: Pubkey, new: Pubkey, lamports: int, space: int, own
     )
 
 
+def transfer_ix(payer: Pubkey, to: Pubkey, lamports: int):
+    """System transfer. On devnet the faucet is rate limited, so the actors are
+    funded from one wallet that already holds SOL instead of begging for it."""
+    data = (2).to_bytes(4, "little") + lamports.to_bytes(8, "little")
+    return Instruction(
+        chain.SYSTEM_PROGRAM, data, [AccountMeta(payer, True, True), AccountMeta(to, False, True)]
+    )
+
+
 def initialize_mint_ix(mint: Pubkey, authority: Pubkey, decimals: int):
     # InitializeMint2: tag 20, decimals, mint authority, then the freeze
     # authority as an option — 0 alone when there is none.
@@ -160,6 +169,17 @@ def main() -> None:
     parser.add_argument("--api", default=os.getenv("FAUCETCHAIN_API", "http://localhost:8000"))
     parser.add_argument("--campaign-id", type=int, default=int(time.time()) % 1_000_000)
     parser.add_argument(
+        "--funder",
+        help="keypair that pays the actors instead of an airdrop; required on devnet, "
+             "where requestAirdrop is rate limited",
+    )
+    parser.add_argument(
+        "--fund-sol",
+        type=float,
+        default=0.3,
+        help="SOL given to each of the three actors when --funder is used",
+    )
+    parser.add_argument(
         "--relayer-keypair",
         default="relayer.json",
         help="the keypair the API was started with as SETTLEMENT_RELAYER_KEYPAIR",
@@ -193,8 +213,20 @@ def main() -> None:
     alice_eth, bob_eth = Account.create(), Account.create()
 
     step(1, "Funding the partner, the operator and the relayer")
-    for who in (sponsor, operator, relayer):
-        airdrop(rpc_url, who.pubkey(), 5)
+    if args.funder:
+        funder = chain.load_keypair(args.funder)
+        lamports = int(args.fund_sol * LAMPORT)
+        chain.send_and_confirm(
+            rpc_url,
+            [transfer_ix(funder.pubkey(), who.pubkey(), lamports)
+             for who in (sponsor, operator, relayer)],
+            funder,
+            [funder],
+        )
+        print(f"    paid {args.fund_sol} SOL each from {funder.pubkey()}")
+    else:
+        for who in (sponsor, operator, relayer):
+            airdrop(rpc_url, who.pubkey(), 5)
     print(f"    partner  {sponsor.pubkey()}")
     print(f"    operator {operator.pubkey()}")
     print(f"    relayer  {relayer.pubkey()}")
