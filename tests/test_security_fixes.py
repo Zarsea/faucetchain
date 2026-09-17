@@ -25,6 +25,7 @@ import indexer_service  # noqa: E402
 indexer_service.init_db()
 
 import api_server as srv  # noqa: E402
+import settlement  # noqa: E402
 
 srv.HAS_VECTOR_DB = False  # não carrega ChromaDB/modelo nos testes
 
@@ -170,7 +171,7 @@ def test_microclaim_withdraw_requires_owner_signature(client):
     assert r.status_code == 401, r.text
 
     ts = int(time.time())
-    msg = f"FaucetChain Withdraw | chain:{srv.CHAIN_ID} | {user} | {FAUCET} | ts:{ts}"
+    msg = settlement.withdraw_message(user, FAUCET, srv.CHAIN_ID, ts)
     sig = Account.sign_message(encode_defunct(text=msg), acct.key).signature.hex()
     body = {"user_wallet": user, "faucet_wallet": FAUCET, "signature": sig, "sig_timestamp": ts}
     r = client.post("/api/faucethub/microclaim/withdraw", json=body)

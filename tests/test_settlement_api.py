@@ -65,7 +65,7 @@ WALLETS[WALLET_C] = KEY_C
 def link_body(account, solana_address, ts=None):
     ts = ts or int(time.time())
     user = account.address.lower()
-    message = f"FaucetChain Link Solana | chain:{srv.CHAIN_ID} | {user} | {solana_address} | ts:{ts}"
+    message = settlement.link_message(user, solana_address, srv.CHAIN_ID, ts)
     signature = Account.sign_message(encode_defunct(text=message), private_key=account.key).signature.hex()
     if not signature.startswith("0x"):
         signature = "0x" + signature

@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from './AuthContext';
 import { solvePocChallenge } from '../utils/poc';
-import { signAction } from '../utils/actionSignature';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage } from '../utils/actionMessage';
+
 
 export interface Mission { id: string; label: string; desc: string; reward: number; completed: boolean; available: boolean; }
 export interface Booster { type: string; label: string; multiplier: number; remaining_seconds: number; }
@@ -203,7 +204,7 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
     try {
       const faucet = faucetWallet.trim().toLowerCase();
       const sig = await signAction(authMethod, (ts) =>
-        `FaucetChain Withdraw | chain:7777 | ${wallet} | ${faucet} | ts:${ts}`);
+        withdrawMessage(wallet, faucet, ts));
       const r = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/withdraw`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_wallet: wallet, faucet_wallet: faucet, ...sig })

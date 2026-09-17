@@ -109,29 +109,97 @@ def verify(root: bytes, leaf: bytes, index: int, proof: Sequence[bytes]) -> bool
     return node == root
 
 
-def wallet_proof_message(user: str, solana_address: str, chain_id, ts: int) -> str:
-    """The sentence the Solana wallet signs, written to be read inside a wallet.
+def action_message(action, explanation, fields, chain_id, ts) -> str:
+    """One shape for every sentence a wallet asks somebody to sign.
 
-    Phantom renders this verbatim, and the previous one-line form wrapped into
-    four lines of pipes and hex -- approving it told the person nothing. The
-    server rebuilds this string byte for byte before checking a signature, so
-    this function and the browser must never drift:
-    test_the_wallet_proof_sentence_is_pinned holds the fixed vector.
+    A wallet shows the message verbatim, so it opens with what the signature
+    does and what it does not do, then lists the facts one per line. Each
+    action used to invent its own pipe-separated line, which read as jargon in
+    the wallet and gave five chances for the browser and the server to disagree
+    about a byte -- a disagreement that surfaces as "invalid signature", miles
+    from its cause. The vectors in _self_check pin every one of them.
+
+    `fields` is a sequence of (label, value) pairs; Chain and Issued are added
+    last because every action carries them.
     """
-    issued = _dt.datetime.fromtimestamp(int(ts), tz=_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return "\n".join(
-        [
-            "FaucetChain: prove you control this wallet",
-            "",
-            "Signing links your FaucetChain account to this Solana wallet so "
-            "rewards can be paid to it. It costs nothing and authorises no "
-            "transaction.",
-            "",
-            f"Account: {user}",
-            f"Wallet: {solana_address}",
-            f"Chain: {chain_id}",
-            f"Issued: {issued}",
-        ]
+    issued = _dt.datetime.fromtimestamp(int(ts), tz=_dt.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    lines = [f"FaucetChain: {action}", "", explanation, ""]
+    lines += [f"{label}: {value}" for label, value in fields]
+    lines += [f"Chain: {chain_id}", f"Issued: {issued}"]
+    return "\n".join(lines)
+
+
+def wallet_proof_message(user: str, solana_address: str, chain_id, ts: int) -> str:
+    """The sentence the Solana wallet signs, proving it holds its own key.
+
+    Separate from the FaucetChain signature over `link_message`: that one says
+    which wallet was chosen, this one says who can spend from it.
+    """
+    return action_message(
+        "prove you control this wallet",
+        "Signing links your FaucetChain account to this Solana wallet so "
+        "rewards can be paid to it. It costs nothing and authorises no "
+        "transaction.",
+        [("Account", user), ("Wallet", solana_address)],
+        chain_id,
+        ts,
+    )
+
+
+def claim_message(user, chain_id, ts) -> str:
+    return action_message(
+        "claim your rewards",
+        "Signing proves this claim came from you. It costs nothing and moves "
+        "no money on its own.",
+        [("Account", user)],
+        chain_id,
+        ts,
+    )
+
+
+def withdraw_message(user, faucet, chain_id, ts) -> str:
+    return action_message(
+        "withdraw your balance",
+        "Signing sends the micro-claims you have collected to the faucet "
+        "below. Check that address: the transfer cannot be undone.",
+        [("Account", user), ("Faucet", faucet)],
+        chain_id,
+        ts,
+    )
+
+
+def stake_message(user, amount, tier, chain_id, ts) -> str:
+    return action_message(
+        "stake your CLAIM",
+        "Signing locks the amount below in the tier below. It stays locked "
+        "until you unstake it under that tier's terms.",
+        [("Account", user), ("Amount", f"{float(amount):.6f} CLAIM"), ("Tier", tier)],
+        chain_id,
+        ts,
+    )
+
+
+def unstake_message(user, position, chain_id, ts) -> str:
+    return action_message(
+        "close a staking position",
+        "Signing closes the position below and credits its principal and "
+        "yield back to your balance.",
+        [("Account", user), ("Position", position)],
+        chain_id,
+        ts,
+    )
+
+
+def link_message(user, solana_address, chain_id, ts) -> str:
+    return action_message(
+        "link a Solana wallet",
+        "Signing names the Solana wallet that should receive your rewards. "
+        "The wallet signs separately to prove you hold its key.",
+        [("Account", user), ("Wallet", solana_address)],
+        chain_id,
+        ts,
     )
 
 

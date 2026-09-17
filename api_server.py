@@ -20,6 +20,7 @@ try:
 except ImportError:  # the appchain still starts; PASSWORD_SALT must then be exported
     pass
 
+import settlement  # the sentences wallets sign live here, shared with the browser
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict
@@ -1199,7 +1200,7 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest):
     # Só o dono decide quando sacar (antes, qualquer um disparava o saque).
     require_action_signature(
         user_lower,
-        f"FaucetChain Withdraw | chain:{CHAIN_ID} | {user_lower} | {faucet_lower} | ts:{req.sig_timestamp}",
+        settlement.withdraw_message(user_lower, faucet_lower, CHAIN_ID, req.sig_timestamp or 0),
         req.signature, req.sig_timestamp
     )
 
@@ -2401,7 +2402,7 @@ async def submit_claim(req: ClaimRequest, request: Request):
     # A mensagem assinada é a mesma que o Faucet.tsx constrói no clique.
     require_action_signature(
         addr_lower,
-        f"FaucetChain Claim | chain:{CHAIN_ID} | {addr_lower} | ts:{req.sig_timestamp}",
+        settlement.claim_message(addr_lower, CHAIN_ID, req.sig_timestamp or 0),
         req.signature, req.sig_timestamp
     )
 
@@ -2794,7 +2795,7 @@ async def create_stake(req: StakeRequest, request: Request):
     # Mensagem canônica: amount com 6 casas (toFixed(6) no frontend).
     require_action_signature(
         staker_lower,
-        f"FaucetChain Stake | chain:{CHAIN_ID} | {staker_lower} | amount:{req.amount:.6f} | tier:{req.tier} | ts:{req.sig_timestamp}",
+        settlement.stake_message(staker_lower, req.amount, req.tier, CHAIN_ID, req.sig_timestamp or 0),
         req.signature, req.sig_timestamp
     )
 
@@ -2881,7 +2882,7 @@ async def unstake_position(req: UnstakeRequest):
     # ── Autenticação da ação (fix B6) ──
     require_action_signature(
         staker_lower,
-        f"FaucetChain Unstake | chain:{CHAIN_ID} | {staker_lower} | utxo:{req.token_id} | ts:{req.sig_timestamp}",
+        settlement.unstake_message(staker_lower, req.token_id, CHAIN_ID, req.sig_timestamp or 0),
         req.signature, req.sig_timestamp
     )
 
@@ -5000,7 +5001,6 @@ async def ai_sentinel_inference(req: AISentinelRequest):
 # (the program lives in faucetchain/programs/faucetchain). Here we close the
 # batch and serve the proof a user presents to the program to withdraw.
 
-import settlement
 
 SETTLEMENT_OPERATOR_TOKEN = os.getenv("SETTLEMENT_OPERATOR_TOKEN")
 
@@ -5237,7 +5237,7 @@ async def link_solana_wallet(req: SolanaLinkRequest):
 
     require_action_signature(
         user,
-        f"FaucetChain Link Solana | chain:{CHAIN_ID} | {user} | {solana_address} | ts:{req.sig_timestamp}",
+        settlement.link_message(user, solana_address, CHAIN_ID, req.sig_timestamp or 0),
         req.signature,
         req.sig_timestamp,
     )

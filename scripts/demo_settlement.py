@@ -125,9 +125,7 @@ def link_wallet(api: str, account, wallet: Keypair) -> None:
     timestamp = int(time.time())
     user = account.address.lower()
     solana_address = str(wallet.pubkey())
-    message = (
-        f"FaucetChain Link Solana | chain:7777 | {user} | {solana_address} | ts:{timestamp}"
-    )
+    message = settlement.link_message(user, solana_address, "7777", timestamp)
     proof = settlement.wallet_proof_message(user, solana_address, "7777", timestamp)
     solana_signature = base64.b64encode(
         bytes(wallet.sign_message(proof.encode("utf-8")))

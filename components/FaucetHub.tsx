@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from './AuthContext';
-import { signAction } from '../utils/actionSignature';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage } from '../utils/actionMessage';
+
 
 interface FaucetHubProps {
     onBack: () => void;
@@ -152,7 +153,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             const user = l2LookupWallet.trim().toLowerCase();
             const faucet = faucetWallet.trim().toLowerCase();
             const sig = await signAction(authMethod, (ts) =>
-                `FaucetChain Withdraw | chain:7777 | ${user} | ${faucet} | ts:${ts}`);
+                withdrawMessage(user, faucet, ts));
             const res = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/withdraw`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

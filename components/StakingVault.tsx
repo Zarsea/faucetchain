@@ -13,7 +13,8 @@ import {
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
-import { signAction } from '../utils/actionSignature';
+import { signAction } from '../utils/actionSignature';import { stakeMessage, unstakeMessage } from '../utils/actionMessage';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────
 interface StakingPosition {
@@ -120,7 +121,7 @@ export const StakingVault: React.FC = () => {
         try {
             // fix B6: mensagem canônica idêntica à verificada pelo backend
             const { signature, sig_timestamp } = await signStakingAction((ts) =>
-                `FaucetChain Stake | chain:7777 | ${userAddress.toLowerCase()} | amount:${amount.toFixed(6)} | tier:${selectedTier} | ts:${ts}`
+                stakeMessage(userAddress.toLowerCase(), amount, selectedTier, ts)
             );
             const res = await fetch(`${API_BASE}/api/staking/stake`, {
                 method: 'POST',
@@ -150,7 +151,7 @@ export const StakingVault: React.FC = () => {
         try {
             // fix B6: mensagem canônica idêntica à verificada pelo backend
             const { signature, sig_timestamp } = await signStakingAction((ts) =>
-                `FaucetChain Unstake | chain:7777 | ${userAddress.toLowerCase()} | utxo:${tokenId} | ts:${ts}`
+                unstakeMessage(userAddress.toLowerCase(), tokenId, ts)
             );
             const res = await fetch(`${API_BASE}/api/staking/unstake`, {
                 method: 'POST',

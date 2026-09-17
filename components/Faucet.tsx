@@ -8,7 +8,8 @@ import { useNetwork } from './NetworkContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
-import { solvePocChallenge } from '../utils/poc';
+import { solvePocChallenge } from '../utils/poc';import { claimMessage as buildClaimMessage } from '../utils/actionMessage';
+
 
 interface ClaimHistory {
     blockHeight: number;
@@ -138,7 +139,7 @@ export const Faucet: React.FC = () => {
                 // on-chain é enviada. O tx hash nativo deriva da assinatura.
                 // O backend verifica esta MESMA mensagem via ECDSA (fix B6).
                 claimSigTimestamp = Math.floor(Date.now() / 1000);
-                const claimMessage = `FaucetChain Claim | chain:7777 | ${userAddress.toLowerCase()} | ts:${claimSigTimestamp}`;
+                const claimMessage = buildClaimMessage(userAddress.toLowerCase(), claimSigTimestamp);
                 claimSignature = await signer.signMessage(claimMessage);
                 txHash = ethers.keccak256(ethers.toUtf8Bytes(`${claimMessage}|${claimSignature}`));
             } else {

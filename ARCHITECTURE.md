@@ -58,12 +58,7 @@ forged, mints anything.
    Issued: 2026-09-17T04:12:09Z
    ```
 
-   `settlement.wallet_proof_message` is its only home on this side. The browser
-   keeps its own copy in `components/SolanaPayouts.tsx`, because it has to build
-   the same bytes before signing, so a fixed vector in `settlement.py`'s
-   self-check pins the sha256 of the whole sentence. Drift between the two then
-   breaks a test, rather than breaking every link with what would look like a
-   bad signature.
+   Both sentences come from the shared builders described below.
 5. **`POST /api/solana/batch`** closes a batch: every unbatched reward from a
    user with a linked wallet goes into one Merkle tree, summed per wallet. The
    wallet each reward was built for is written onto the row, so the batch is
@@ -80,6 +75,39 @@ forged, mints anything.
    above `committed - paid`. A reward inside a published root was never part of
    the surplus. **`close_campaign()`** stops new roots without touching the
    vault.
+
+## What a wallet asks you to sign
+
+Five actions need a signature: claim, withdraw, stake, unstake and linking a
+Solana wallet. A sixth sentence is signed by the Solana wallet itself. All six
+share one shape, because a wallet displays the message verbatim and the person
+approving it deserves to know what they are agreeing to:
+
+```
+FaucetChain: <what this does>
+
+<one plain sentence on what signing does, and what it does not do>
+
+<Label>: <value>          one per fact
+Chain: 7777
+Issued: 2026-09-17T04:12:09Z
+```
+
+Each action used to build its own pipe-separated line at the call site, which
+read as jargon in the wallet and gave five separate chances for the browser and
+the server to disagree about a byte.
+
+That disagreement is the danger worth designing against: the signature then
+verifies against a different sentence, and the server answers *invalid
+signature*, which sends you hunting through keys and encodings instead of
+looking at a missing space. No ordinary test catches it, because each side is
+self-consistent.
+
+So there is one builder per side — `settlement.py` and `utils/actionMessage.ts`
+— and two guards. `settlement.py`'s self-check pins the sha256 of the wallet
+proof sentence. `scripts/check_messages.py` transpiles the real TypeScript with
+the esbuild the frontend already ships, runs it, and compares all six sentences
+against the Python ones byte for byte.
 
 ## The relayer
 
@@ -246,6 +274,14 @@ exactly such strings in the browser. A regression test now sends an invented
 identity and a well-formed address nobody registered, and expects 401 from both.
 
 ## Change log
+
+**2026-09-17 — one shape for every signed sentence.** Claim, withdraw, stake,
+unstake and link now use the same readable format the wallet proof already had,
+built by `settlement.py` and mirrored in `utils/actionMessage.ts`.
+`scripts/check_messages.py` runs the real TypeScript against the real Python and
+compares all six byte for byte, because drift between them surfaces as "invalid
+signature" far from its cause.
+
 
 **2026-09-17 — login stops inventing identities.** The Google button never spoke
 to Google or to this server; it minted `google_<random>@faucetchain.io` in the
