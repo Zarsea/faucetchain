@@ -1,62 +1,62 @@
-# FaucetHub — Manual de Integração para Desenvolvedores
-**Guia completo para conectar sua Faucet ao ecossistema FaucetChain via API.**
+# FaucetHub — Integration Guide for Developers
+**Everything needed to connect your faucet to FaucetChain through the API.**
 
-**Versão:** 1.0 | **Última atualização:** Junho 2026 | **Base URL:** `http://localhost:8000`
+**Version:** 1.1 | **Updated:** September 2026 | **Base URL:** `http://localhost:8000`
 
 ---
 
-## 📋 Índice
+## Contents
 
-1. [Visão Geral](#1-visão-geral)
-2. [Pré-requisitos](#2-pré-requisitos)
-3. [Passo 1: Registrar sua Faucet](#3-passo-1-registrar-sua-faucet)
-4. [Passo 2: Gerenciar sua API Key](#4-passo-2-gerenciar-sua-api-key)
-5. [Passo 3: Realizar Settlements (Liquidações)](#5-passo-3-realizar-settlements-liquidações)
-6. [Passo 4: Consultar Histórico](#6-passo-4-consultar-histórico)
-7. [Arquitetura Recomendada (L2 Off-chain)](#7-arquitetura-recomendada-l2-off-chain)
-8. [Exemplos Completos](#8-exemplos-completos)
-9. [Códigos de Erro](#9-códigos-de-erro)
+1. [Overview](#1-overview)
+2. [Before you start](#2-before-you-start)
+3. [Step 1: Register your faucet](#3-step-1-register-your-faucet)
+4. [Step 2: Manage your API key](#4-step-2-manage-your-api-key)
+5. [Step 3: Settle a withdrawal](#5-step-3-settle-a-withdrawal)
+6. [Step 4: Read your history](#6-step-4-read-your-history)
+7. [The architecture we recommend](#7-the-architecture-we-recommend)
+8. [Complete examples](#8-complete-examples)
+9. [Error codes](#9-error-codes)
 10. [FAQ](#10-faq)
 
 ---
 
-## 1. Visão Geral
+## 1. Overview
 
-A **FaucetHub** é a plataforma de integração da FaucetChain que permite que qualquer desenvolvedor conecte sua torneira (faucet) ao ecossistema $CLAIM. Ao se registrar, você recebe uma **API Key** exclusiva que permite:
+**FaucetHub** is how an outside faucet connects to FaucetChain. Registering gives you an **API key**, and with it you can:
 
-- **Distribuir $CLAIM** da sua carteira institucional para os usuários finais da sua Faucet.
-- **Ser monitorado** no painel público de Proof of Reserve (PoR), garantindo transparência.
-- **Escalar** para milhões de usuários sem sobrecarregar a blockchain (via modelo L2 off-chain).
+- **Distribute $CLAIM** from your own wallet to the people using your faucet.
+- **Be audited in public** on the Proof of Reserve board, so users can see you can pay before they earn.
+- **Serve millions of claims** without putting each one on a chain — see the off-chain model in section 7.
 
-### Como funciona o fluxo?
+### How the flow works
 
 ```
-[Seu Site/App] → Claims virtuais no seu banco de dados (instantâneo, grátis)
+[Your site or app]  -> virtual claims in your own database (instant, free)
        ↓
-[Saque do Usuário] → Sua API chama POST /api/faucethub/settle
+[User withdraws]    -> your server calls POST /api/faucethub/settle
        ↓
-[FaucetChain L1] → Transação real registrada na blockchain
+[FaucetChain L1]    -> one real transaction is recorded
        ↓
-[Usuário] → Recebe $CLAIM na sua carteira FaucetChain
+[User]              -> receives $CLAIM in their FaucetChain wallet
 ```
 
 ---
 
-## 2. Pré-requisitos
+## 2. Before you start
 
-Antes de começar, você precisa:
+Three things:
 
-| Requisito | Descrição |
+| What | Why |
 |---|---|
-| **Carteira FaucetChain** | Um endereço `0x...` com saldo de $CLAIM para distribuição. |
-| **Saldo de $CLAIM** | Sua carteira precisa ter fundos suficientes para cobrir os saques dos seus usuários. |
-| **Servidor HTTP** | Seu site/app precisa ser capaz de fazer requisições HTTP (qualquer linguagem). |
+| **A FaucetChain wallet** | A `0x...` address holding the $CLAIM you will hand out. |
+| **Enough $CLAIM in it** | Your reserve has to cover what your users withdraw. |
+| **A server that can make HTTP calls** | Any language. There is no SDK to install. |
 
-> ⚠️ **Importante:** A FaucetHub valida o saldo da sua carteira em tempo real. Se sua reserva estiver insuficiente, o settlement será rejeitado.
+> **The reserve is checked, not trusted.** FaucetHub reads your wallet balance at the moment you settle. If it does not cover the amount, the settlement is refused — which is the same guarantee your users get from the public board.
 
 ---
 
-## 3. Passo 1: Registrar sua Faucet
+## 3. Step 1: Register your faucet
 
 ### Endpoint
 
@@ -69,12 +69,12 @@ Content-Type: application/json
 
 ```json
 {
-    "name": "Minha Faucet Incrível",
+    "name": "My Faucet",
     "wallet_address": "0x84da...seu_endereco_aqui"
 }
 ```
 
-### Resposta de Sucesso (200)
+### A successful response (200)
 
 ```json
 {
@@ -85,7 +85,7 @@ Content-Type: application/json
 }
 ```
 
-### Exemplo com cURL
+### With cURL
 
 ```bash
 curl -X POST http://localhost:8000/api/faucethub/register \
@@ -93,51 +93,51 @@ curl -X POST http://localhost:8000/api/faucethub/register \
   -d '{"name": "Minha Faucet", "wallet_address": "0x84da..."}'
 ```
 
-### Exemplo com JavaScript (fetch)
+### With JavaScript (fetch)
 
 ```javascript
 const response = await fetch('http://localhost:8000/api/faucethub/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-        name: 'Minha Faucet Incrível',
+        name: 'My Faucet',
         wallet_address: '0x84da...'
     })
 });
 
 const data = await response.json();
-console.log('Sua API Key:', data.api_key);
-// SALVE ESTA CHAVE EM LOCAL SEGURO!
+console.log('Your API key:', data.api_key);
+// Store this somewhere safe. It is shown once.
 ```
 
-### Exemplo com Python (requests)
+### With Python (requests)
 
 ```python
 import requests
 
 resp = requests.post('http://localhost:8000/api/faucethub/register', json={
-    'name': 'Minha Faucet Incrível',
+    'name': 'My Faucet',
     'wallet_address': '0x84da...'
 })
 
 data = resp.json()
 print(f"API Key: {data['api_key']}")
-# SALVE ESTA CHAVE EM LOCAL SEGURO!
+# Store this somewhere safe. It is shown once.
 ```
 
-> 🔐 **ATENÇÃO:** A API Key é exibida **apenas uma vez** no momento do registro. Salve-a imediatamente em um local seguro (variável de ambiente, cofre de segredos, etc.). Se perdê-la, utilize o endpoint de rotação de chave.
+> **The API key is shown once.** It appears only in the registration response. Put it somewhere safe immediately — an environment variable or a secrets manager, never the source tree. If you lose it, rotate it with the endpoint below rather than registering again.
 
 ---
 
-## 4. Passo 2: Gerenciar sua API Key
+## 4. Step 2: Manage your API key
 
-### Consultar Informações da Chave
+### Read the key's details
 
 ```
 GET /api/faucethub/my-key/{wallet_address}
 ```
 
-**Resposta:**
+**Response:**
 
 ```json
 {
@@ -150,9 +150,9 @@ GET /api/faucethub/my-key/{wallet_address}
 }
 ```
 
-### Rotacionar Chave (Segurança)
+### Rotate the key
 
-Se sua chave for comprometida ou você desejar rotacioná-la por segurança:
+If the key leaked, or you rotate on a schedule:
 
 ```
 POST /api/faucethub/regenerate-key
@@ -165,7 +165,7 @@ Content-Type: application/json
 }
 ```
 
-**Resposta:**
+**Response:**
 
 ```json
 {
@@ -175,13 +175,13 @@ Content-Type: application/json
 }
 ```
 
-> A chave anterior será **desativada imediatamente**. Qualquer requisição usando a chave antiga retornará `401 Unauthorized`.
+> The previous key stops working **immediately**. Any request still using it gets `401 Unauthorized`, so roll the new one out before you rotate.
 
 ---
 
-## 5. Passo 3: Realizar Settlements (Liquidações)
+## 5. Step 3: Settle a withdrawal
 
-Este é o **endpoint principal** da integração. Quando um usuário da sua Faucet atinge o saldo mínimo de saque e solicita a retirada, seu servidor chama este endpoint para transferir $CLAIM da sua carteira para a carteira do usuário.
+This is the endpoint the integration exists for. When someone on your faucet asks to withdraw, your server calls it, and $CLAIM moves from your wallet to theirs.
 
 ### Endpoint
 
@@ -189,7 +189,7 @@ Este é o **endpoint principal** da integração. Quando um usuário da sua Fauc
 POST /api/faucethub/settle
 ```
 
-### Headers Obrigatórios
+### Required headers
 
 ```
 Content-Type: application/json
@@ -205,7 +205,7 @@ X-Api-Key: fch_sua_api_key_aqui
 }
 ```
 
-### Resposta de Sucesso (200)
+### A successful response (200)
 
 ```json
 {
@@ -218,7 +218,7 @@ X-Api-Key: fch_sua_api_key_aqui
 }
 ```
 
-### Exemplo com cURL
+### With cURL
 
 ```bash
 curl -X POST http://localhost:8000/api/faucethub/settle \
@@ -227,7 +227,7 @@ curl -X POST http://localhost:8000/api/faucethub/settle \
   -d '{"user_wallet": "0xEnderecoDoUsuario...", "amount": 10.0}'
 ```
 
-### Exemplo com JavaScript (Node.js)
+### With JavaScript (Node.js)
 
 ```javascript
 const API_KEY = process.env.FAUCETHUB_API_KEY; // Nunca hardcode!
@@ -259,7 +259,7 @@ async function settleUserWithdrawal(userWallet, amount) {
 await settleUserWithdrawal('0xEnderecoDoUsuario...', 10.0);
 ```
 
-### Exemplo com Python
+### With Python
 
 ```python
 import requests
@@ -269,7 +269,7 @@ API_KEY = os.environ['FAUCETHUB_API_KEY']  # Nunca hardcode!
 BASE_URL = 'http://localhost:8000'
 
 def settle_withdrawal(user_wallet: str, amount: float) -> dict:
-    """Liquida um saque de $CLAIM para o usuário na FaucetChain L1."""
+    """Settle a $CLAIM withdrawal for one user on FaucetChain L1."""
     resp = requests.post(
         f'{BASE_URL}/api/faucethub/settle',
         headers={
@@ -293,7 +293,7 @@ def settle_withdrawal(user_wallet: str, amount: float) -> dict:
 settle_withdrawal('0xEnderecoDoUsuario...', 10.0)
 ```
 
-### Exemplo com PHP
+### With PHP
 
 ```php
 <?php
@@ -338,15 +338,15 @@ settleWithdrawal('0xEnderecoDoUsuario...', 10.0);
 
 ---
 
-## 6. Passo 4: Consultar Histórico
+## 6. Step 4: Read your history
 
-### Listar Settlements da sua Faucet
+### List your settlements
 
 ```
 GET /api/faucethub/settlements/{wallet_address}?limit=50
 ```
 
-**Resposta:**
+**Response:**
 
 ```json
 [
@@ -367,49 +367,43 @@ GET /api/faucethub/settlements/{wallet_address}?limit=50
 ]
 ```
 
-### Consultar Liquidez (Proof of Reserve)
+### Check liquidity (Proof of Reserve)
 
 ```
 GET /api/faucethub/faucets
 ```
 
-Retorna todas as Faucets com liquidez, status e volume de settlements.
+Returns every registered faucet with its liquidity, status and settlement volume — the same data the public board shows.
 
 ---
 
-## 7. Arquitetura Recomendada (L2 Off-chain)
+## 7. The architecture we recommend
 
-Para escalar para milhões de usuários, **não** processe cada claim individual na blockchain. Use o modelo L2:
+To serve a lot of users, **do not** put every individual claim on a chain. Keep them in your own database and settle only what leaves:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    SEU SERVIDOR (L2)                     │
-│                                                         │
-│  ┌─────────────┐    ┌──────────────────────────────┐    │
-│  │  Usuários    │    │  Banco de Dados Local        │    │
-│  │  clamam a    │───>│  (MySQL/PostgreSQL/SQLite)    │    │
-│  │  cada 5 min  │    │                              │    │
-│  └─────────────┘    │  user_id | balance_virtual    │    │
-│                      │  user_1  | 8.50 CLAIM        │    │
-│                      │  user_2  | 12.30 CLAIM       │    │
-│                      └────────────┬─────────────────┘    │
-│                                   │                      │
-│                      Saque ≥ 10 CLAIM?                   │
-│                                   │                      │
-│                                   ▼                      │
-│                      ┌──────────────────────┐            │
-│                      │  POST /settle        │            │
-│                      │  X-Api-Key: fch_...  │            │
-│                      │  amount: 10.0        │────────────┼──> FaucetChain L1
-│                      └──────────────────────┘            │    (Transação real)
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+YOUR SERVER (L2) — nothing here touches a chain
+
+  Users claim every few minutes
+        |
+        v
+  Your own database            user_1    8.50 CLAIM
+  (MySQL / Postgres / SQLite)  user_2   12.30 CLAIM
+        |
+        |  a balance reaches your minimum, say 10 CLAIM
+        v
+  POST /api/faucethub/settle
+  X-Api-Key: fch_...
+  amount: 10.0
+        |
+        v
+FAUCETCHAIN L1 — one real transaction, for the withdrawal only
 ```
 
-### Fluxo Recomendado no seu Backend
+### What your backend should do
 
 ```python
-# Pseudocódigo — adapte para sua linguagem/framework
+# Pseudocode. Adapt it to your language and framework.
 
 @app.route('/claim', methods=['POST'])
 def user_claim():
@@ -419,13 +413,13 @@ def user_claim():
     if user.last_claim > now() - timedelta(minutes=5):
         return error("Aguarde o cooldown")
     
-    # 2. Adiciona saldo VIRTUAL (nenhuma transação on-chain)
+    # 2. Add to the VIRTUAL balance. Nothing goes on-chain here.
     claim_amount = 0.05  # $CLAIM por claim
     user.virtual_balance += claim_amount
     user.last_claim = now()
     db.save(user)
     
-    return success(f"Você clamou {claim_amount} CLAIM! Saldo: {user.virtual_balance}")
+    return success(f"You claimed {claim_amount} CLAIM. Balance: {user.virtual_balance}")
 
 
 @app.route('/withdraw', methods=['POST'])
@@ -433,18 +427,18 @@ def user_withdraw():
     user = get_authenticated_user()
     wallet = request.json['wallet_address']
     
-    MIN_WITHDRAW = 10.0  # Saque mínimo
+    MIN_WITHDRAW = 10.0  # your minimum withdrawal
     
-    # 1. Verifica saldo mínimo
+    # 1. Check the minimum
     if user.virtual_balance < MIN_WITHDRAW:
-        return error(f"Saldo mínimo para saque: {MIN_WITHDRAW} CLAIM")
+        return error(f"Minimum withdrawal is {MIN_WITHDRAW} CLAIM")
     
-    # 2. Chama o FaucetHub para liquidar na L1
+    # 2. Ask FaucetHub to settle it on L1
     amount = user.virtual_balance
     try:
-        result = settle_withdrawal(wallet, amount)  # Função do Passo 3
+        result = settle_withdrawal(wallet, amount)  # the function from step 3
         
-        # 3. Zera o saldo virtual após sucesso
+        # 3. Only now clear the virtual balance
         user.virtual_balance = 0.0
         db.save(user)
         
@@ -455,9 +449,9 @@ def user_withdraw():
 
 ---
 
-## 8. Exemplos Completos
+## 8. Complete examples
 
-### Exemplo Minimalista: Faucet em Python (Flask)
+### A minimal faucet in Python (Flask)
 
 ```python
 """
@@ -472,21 +466,21 @@ import os
 
 app = Flask(__name__)
 
-# Configuração
+# Configuration
 FAUCETHUB_URL = os.getenv('FAUCETHUB_URL', 'http://localhost:8000')
 API_KEY = os.getenv('FAUCETHUB_API_KEY', 'fch_sua_chave_aqui')
 CLAIM_AMOUNT = 0.05      # $CLAIM por claim
 COOLDOWN = 300            # 5 minutos em segundos
-MIN_WITHDRAW = 10.0       # Saque mínimo
+MIN_WITHDRAW = 10.0       # your minimum withdrawal
 
-# Banco de dados simplificado (em memória — use DB real em produção!)
+# A toy store, in memory. Use a real database in production.
 users = {}  # { "user_id": { "balance": 0.0, "last_claim": 0 } }
 
 @app.route('/claim', methods=['POST'])
 def claim():
     user_id = request.json.get('user_id')
     if not user_id:
-        return jsonify({"error": "user_id obrigatório"}), 400
+        return jsonify({"error": "user_id is required"}), 400
     
     if user_id not in users:
         users[user_id] = {"balance": 0.0, "last_claim": 0}
@@ -513,13 +507,13 @@ def withdraw():
     wallet = request.json.get('wallet_address')
     
     if not user_id or not wallet:
-        return jsonify({"error": "user_id e wallet_address obrigatórios"}), 400
+        return jsonify({"error": "user_id and wallet_address are required"}), 400
     
     user = users.get(user_id)
     if not user or user["balance"] < MIN_WITHDRAW:
-        return jsonify({"error": f"Saldo mínimo: {MIN_WITHDRAW} CLAIM"}), 400
+        return jsonify({"error": f"Minimum is {MIN_WITHDRAW} CLAIM"}), 400
     
-    # Chama o FaucetHub para liquidar na L1!
+    # Ask FaucetHub to settle it on L1
     resp = requests.post(
         f'{FAUCETHUB_URL}/api/faucethub/settle',
         headers={'Content-Type': 'application/json', 'X-Api-Key': API_KEY},
@@ -527,10 +521,10 @@ def withdraw():
     )
     
     if resp.status_code != 200:
-        return jsonify({"error": resp.json().get("detail", "Erro desconhecido")}), 500
+        return jsonify({"error": resp.json().get("detail", "Unknown error")}), 500
     
     result = resp.json()
-    user["balance"] = 0.0  # Zera após saque
+    user["balance"] = 0.0  # cleared only after a successful settle
     
     return jsonify({
         "status": "success",
@@ -548,7 +542,7 @@ if __name__ == '__main__':
     app.run(port=3001, debug=True)
 ```
 
-### Exemplo Minimalista: Faucet em Node.js (Express)
+### A minimal faucet in Node.js (Express)
 
 ```javascript
 /**
@@ -570,7 +564,7 @@ const users = new Map();
 
 app.post('/claim', (req, res) => {
     const { user_id } = req.body;
-    if (!user_id) return res.status(400).json({ error: 'user_id obrigatório' });
+    if (!user_id) return res.status(400).json({ error: 'user_id is required' });
 
     if (!users.has(user_id)) {
         users.set(user_id, { balance: 0, lastClaim: 0 });
@@ -593,12 +587,12 @@ app.post('/claim', (req, res) => {
 app.post('/withdraw', async (req, res) => {
     const { user_id, wallet_address } = req.body;
     if (!user_id || !wallet_address) {
-        return res.status(400).json({ error: 'user_id e wallet_address obrigatórios' });
+        return res.status(400).json({ error: 'user_id and wallet_address are required' });
     }
 
     const user = users.get(user_id);
     if (!user || user.balance < MIN_WITHDRAW) {
-        return res.status(400).json({ error: `Saldo mínimo: ${MIN_WITHDRAW} CLAIM` });
+        return res.status(400).json({ error: `Minimum is ${MIN_WITHDRAW} CLAIM` });
     }
 
     try {
@@ -623,32 +617,32 @@ app.listen(3001, () => console.log('🚰 Mini Faucet rodando em http://localhost
 
 ---
 
-## 9. Códigos de Erro
+## 9. Error codes
 
-| Código | Significado | Causa Comum |
+| Code | Meaning | Usual cause |
 |---|---|---|
-| `400` | Bad Request | Endereço de wallet inválido, amount ≤ 0, ou wallet já registrada |
-| `401` | Unauthorized | API Key ausente, inválida ou desativada |
-| `404` | Not Found | Wallet não registrada ou sem chave ativa |
-| `429` | Too Many Requests | Rate limit excedido (máx 100 req/min) |
-| `500` | Internal Error | Erro interno do servidor (reporte ao time FaucetChain) |
+| `400` | Bad Request | Malformed wallet address, amount <= 0, or a wallet that is already registered |
+| `401` | Unauthorized | API key missing, wrong, or deactivated |
+| `404` | Not Found | Wallet not registered, or it has no active key |
+| `429` | Too Many Requests | Rate limit exceeded (100 requests per minute) |
+| `500` | Internal Error | Something broke on our side — please report it |
 
-### Mensagens de Erro Comuns
+### Common error messages
 
 ```json
 // API Key ausente
 { "detail": "Missing X-Api-Key header" }
 
-// API Key inválida ou rotacionada
+// API key is wrong, or was rotated
 { "detail": "Invalid or inactive API key" }
 
-// Saldo insuficiente na carteira da Faucet
+// The faucet wallet cannot cover it
 { "detail": "Insufficient reserve. Faucet balance: 5.00, requested: 10.00" }
 
-// Wallet já registrada
+// That wallet is already registered
 { "detail": "Wallet address already registered" }
 
-// Endereço inválido
+// Malformed address
 { "detail": "Invalid Ethereum address length after normalization..." }
 ```
 
@@ -656,38 +650,39 @@ app.listen(3001, () => console.log('🚰 Mini Faucet rodando em http://localhost
 
 ## 10. FAQ
 
-### Preciso pagar Gas para fazer settlements?
-**Não.** A FaucetChain é gasless para operações internas. O endpoint `/settle` não cobra taxa de rede.
+### Do I pay gas to settle?
+**No.** Internal FaucetChain operations are gasless, and `/settle` charges no network fee.
 
-### Quantos settlements posso fazer por minuto?
-O rate limit padrão é de **100 requisições por minuto** por IP. Para volumes maiores, entre em contato com o time FaucetChain.
+### How many settlements per minute?
+**100 requests per minute** per IP by default. If you need more, talk to us before you need it.
 
-### O que acontece se minha reserva acabar?
-O settlement será **rejeitado** com erro `400 - Insufficient reserve`. Seus usuários continuam acumulando saldo virtual no seu site, mas não conseguirão sacar até você reabastecer a carteira.
+### What happens when my reserve runs out?
+The settlement is refused with `400 — Insufficient reserve`. Your users keep accumulating their balance on your site; they just cannot withdraw until you top the wallet up. Watch the board and refill before you hit zero.
 
-### Como reabastecer minha carteira?
-Envie $CLAIM para o endereço registrado via transferência P2P comum ou através de mineração/staking na FaucetChain.
+### How do I top up?
+Send $CLAIM to the registered address like any other transfer, or earn it through mining and staking on FaucetChain.
 
-### Posso ter mais de uma Faucet?
-Sim. Cada Faucet precisa de um **endereço de carteira diferente**. Registre cada uma separadamente.
+### Can I run more than one faucet?
+Yes. Each one needs **its own wallet address**, registered separately.
 
-### O que é o Proof of Reserve?
-É o sistema de auditoria pública da FaucetHub. Qualquer usuário pode acessar o painel e verificar se sua Faucet tem $CLAIM suficiente para honrar os pagamentos. Isso gera **confiança** e atrai mais usuários para o seu site.
+### What is Proof of Reserve?
+A public audit board. Anyone can check whether your faucet holds enough $CLAIM to honour what it owes. It is there so a user can decide to trust you before spending time earning — which is worth more to you than it costs.
 
-### Minha API Key foi comprometida. O que faço?
-Chame imediatamente `POST /api/faucethub/regenerate-key` com o endereço da sua wallet. A chave antiga será desativada instantaneamente.
+### My API key leaked. What now?
+Call `POST /api/faucethub/regenerate-key` with your wallet address right away. The old key dies instantly.
 
 ---
 
-## 🔗 Links Úteis
+## Useful links
 
-| Recurso | URL |
+| Resource | Where |
 |---|---|
-| **API Docs (Swagger)** | `http://localhost:8000/docs` |
-| **FaucetHub Dashboard** | Acesse via botão "Dapps" no Explorer |
-| **WhitePaper** | `FaucetChain_Master_WhitePaper.md` |
-| **Código-fonte da API** | `api_server.py` |
+| **API docs (Swagger)** | `http://localhost:8000/docs` |
+| **FaucetHub dashboard** | The "Dapps" button in the Explorer |
+| **Whitepaper** | `FaucetChain_Master_WhitePaper.md` |
+| **Settlement on Solana** | `ARCHITECTURE.md` — how rewards reach a Solana wallet |
+| **API source** | `api_server.py` |
 
 ---
 
-*Desenvolvido pelo FaucetChain Core Team. Para suporte técnico, abra uma issue no repositório ou entre em contato via o AI Agent integrado ao Explorer.*
+*Built by the FaucetChain core team. For support, open an issue on the repository.*
