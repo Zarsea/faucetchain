@@ -131,6 +131,14 @@ same leaf twice, change a root once published, or touch a campaign it is not the
 operator of. The sponsor cannot do any of those either, and cannot take back a
 token already inside a published root.
 
+Every limit above holds only while the deployed code is the code described here,
+and the upgrade authority is what decides that. Whoever holds it can replace the
+program, including the checks that guard the vault — it outranks the operator
+key by a wide margin. **Decided 2026-09-16: it stays with the team through the
+event, so a bug found during judging can be fixed, and the README says plainly
+that it will be revoked or moved to a multisig afterwards.** An authority that
+is documented can be reasoned about; one that is quietly held cannot.
+
 Nothing about that has to be taken on faith. `GET /api/solana/ledger/{id}`
 reads the campaign account, its vault and every published root straight from
 Solana and returns what they say — the sequencer only supplies the addresses,
@@ -179,10 +187,14 @@ These are open on purpose, not oversights:
   the address the user names, signed with their FaucetChain key. That proves who
   chose the wallet, not who controls it. A typo or a stolen session sends a
   reward to a wallet the user cannot reach, and after the root is published
-  there is no way back.
+  there is no way back. **Decided 2026-09-16: the link will require a signature
+  from the Solana wallet too.** Open until that ships.
 - **Unclaimed rewards sit in the vault forever.** `withdraw_surplus` cannot
-  touch them, by design. Whether they should expire back to the partner is a
-  product decision nobody has made.
+  touch them, by design. **Decided 2026-09-16: a claim deadline goes in the
+  whitepaper now, the on-chain expiry after the event.** Writing the policy
+  first is deliberate — the answer is what gets asked about, and shipping an
+  expiry path would mean reopening the one part that is already proven end to
+  end.
 - **Token-2022 mints with a transfer fee would break the accounting.** The vault
   would deliver less than the leaf promises while `paid` records the full
   amount. Campaigns should be restricted to plain SPL mints until this is
@@ -197,6 +209,13 @@ These are open on purpose, not oversights:
   once, which is a spending pace question rather than a hole.
 
 ## Change log
+
+**2026-09-16 — four decisions that were open.** Wallet ownership will be proved
+by a signature from the Solana wallet, not just declared. A claim deadline for
+unclaimed rewards is written as policy now and enforced on-chain after the
+event. The upgrade authority stays with the team through the event and the
+README says so. The demo runs on a test mint the team controls on devnet, so the
+script does not depend on a third party answering in time.
 
 **2026-09-16 — the ledger.** `GET /api/solana/ledger/{campaign_id}` decodes the
 campaign, vault and reward-root accounts from Solana, so what a campaign holds,
