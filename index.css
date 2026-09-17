@@ -135,7 +135,11 @@ h1, h2, h3, h4, h5, h6 {
    decorating it. Same stops as the mark in public/faucetchain-solana.svg. */
 
 .settle-text {
-  background: linear-gradient(100deg, #9945FF 0%, #5497D5 45%, #14F195 100%);
+  /* inline-block so the box hugs the text: on a block element the gradient
+     spans the full container and a short heading only ever samples the purple
+     end of it. */
+  display: inline-block;
+  background: linear-gradient(95deg, #9945FF 0%, #5497D5 50%, #14F195 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
