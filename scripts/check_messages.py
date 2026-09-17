@@ -33,7 +33,7 @@ TS_FIXED = 1789618329
 USER = "0x7dda72ad9ad56ce3d031ee6a62b5b94dd40c6ef3"
 WALLET = "75vW4HnhtMVcLuHLh3Tm8S1BuFvLVBoLqYoRxQT3SDnE"
 FAUCET = "0x1b021998f6297936986bcc34f6fdc1cd5c82af06"
-POSITION = "utxo-42"
+POSITION = 42  # a UTXO id: a number in the browser, an int on the server
 
 CASES = {
     "claim": (settlement.claim_message(USER, "7777", TS_FIXED), f"claimMessage({USER!r}, {TS_FIXED})"),
@@ -47,7 +47,7 @@ CASES = {
     ),
     "unstake": (
         settlement.unstake_message(USER, POSITION, "7777", TS_FIXED),
-        f"unstakeMessage({USER!r}, {POSITION!r}, {TS_FIXED})",
+        f"unstakeMessage({USER!r}, {POSITION}, {TS_FIXED})",
     ),
     "link": (
         settlement.link_message(USER, WALLET, "7777", TS_FIXED),

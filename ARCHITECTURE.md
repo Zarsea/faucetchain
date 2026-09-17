@@ -206,6 +206,22 @@ tampered with, the roots already on Solana still pay exactly what they promised,
 to exactly the wallets they were built for — the proofs can be rebuilt from the
 chain and any copy of the reward rows.
 
+## Who is allowed to act without signing
+
+Every action that moves value passes `require_action_signature`, which demands
+an EIP-191 signature from the wallet that owns the acting address. One group is
+exempt: **custodial accounts**, whose keys this server holds, created by
+`/api/auth/register` or `/api/auth/guest`. They are rows in `users` with a real
+`0x` address, and the exemption is sound because the server is the signer.
+
+Membership in that group is decided by `is_custodial_address`, and it is a trust
+boundary rather than a convenience. It answers True only for an address found in
+`users`. Anything that is not a well-formed address answers **False** — not an
+account at all. It used to answer True, which meant sending a string in place of
+an address skipped every check; the fake "Sign in with Google" button minted
+exactly such strings in the browser. A regression test now sends an invented
+identity and a well-formed address nobody registered, and expects 401 from both.
+
 ## Data on the appchain
 
 | Table | Purpose |
@@ -230,6 +246,8 @@ rejects.
 - `publish_root.py` — the operator's command for step 6.
 - `scripts/demo_settlement.py` — the whole flow against a running program;
   nothing mocked.
+- `scripts/check_messages.py` — transpiles `utils/actionMessage.ts` with esbuild
+  and compares all six signed sentences against the Python ones, byte for byte.
 - `scripts/build-program.sh` — carries two toolchain quirks: Agave 4 refuses
   SBPF v0, so the build targets Anchor's v3 default, and `cargo-build-sbf`
   breaks when it finds its SBF toolchain already linked.
@@ -256,22 +274,6 @@ These are open on purpose, not oversights:
   already-collected reward costs nothing to refuse. What is left is volume: a
   caller with many unclaimed leaves can still make it pay for all of them at
   once, which is a spending pace question rather than a hole.
-
-## Who is allowed to act without signing
-
-Every action that moves value passes `require_action_signature`, which demands
-an EIP-191 signature from the wallet that owns the acting address. One group is
-exempt: **custodial accounts**, whose keys this server holds, created by
-`/api/auth/register` or `/api/auth/guest`. They are rows in `users` with a real
-`0x` address, and the exemption is sound because the server is the signer.
-
-Membership in that group is decided by `is_custodial_address`, and it is a trust
-boundary rather than a convenience. It answers True only for an address found in
-`users`. Anything that is not a well-formed address answers **False** — not an
-account at all. It used to answer True, which meant sending a string in place of
-an address skipped every check; the fake "Sign in with Google" button minted
-exactly such strings in the browser. A regression test now sends an invented
-identity and a well-formed address nobody registered, and expects 401 from both.
 
 ## Change log
 

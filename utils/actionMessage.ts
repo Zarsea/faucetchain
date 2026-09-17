@@ -16,7 +16,9 @@
 
 const CHAIN_ID = '7777';
 
-type Field = [string, string];
+// A value may arrive as a number (a UTXO id, an amount). Both languages render
+// one the same way, so the template literal below is safe either way.
+type Field = [string, string | number];
 
 export function actionMessage(
     action: string,
@@ -64,7 +66,10 @@ export const stakeMessage = (user: string, amount: number, tier: string, ts: num
         ts
     );
 
-export const unstakeMessage = (user: string, position: string, ts: number): string =>
+// `position` is a UTXO id, which arrives as a number here and as an int on the
+// server. Both render it the same way, and the cross-check passes a number so
+// that stays true.
+export const unstakeMessage = (user: string, position: string | number, ts: number): string =>
     actionMessage(
         'close a staking position',
         'Signing closes the position below and credits its principal and ' +
