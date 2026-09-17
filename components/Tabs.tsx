@@ -22,6 +22,9 @@ interface TabsProps {
     activeTab: string;
     setActiveTab: (label: string) => void;
     tabs: string[];
+    /** Told when the rail widens, so the page beside it can move out of the way
+     *  instead of being covered. */
+    onExpandedChange?: (expanded: boolean) => void;
 }
 
 const TAB_ICONS: Record<string, React.ReactNode> = {
@@ -45,10 +48,17 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
     'Infra Monitor': <SignalIcon className="w-5 h-5" />,
 };
 
-export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs }) => {
+export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExpandedChange }) => {
     const { t } = useTranslation();
     const [hoveredTab, setHoveredTab] = useState<string | null>(null);
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    // Collapsed until the pointer arrives. It used to start false, so the rail
+    // opened to 240px on load and sat on top of the header logo at x=202.
+    const [isCollapsed, setIsCollapsed] = useState(true);
+
+    const setExpanded = (expanded: boolean) => {
+        setIsCollapsed(!expanded);
+        onExpandedChange?.(expanded);
+    };
 
     const getLabel = (key: string) => {
         // Removendo espaços para mapear dinamicamente para as chaves do i18n
@@ -63,8 +73,8 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs }) => 
                 glass border-r border-brand-primary/20
                 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}
             `}
-            onMouseEnter={() => setIsCollapsed(false)}
-            onMouseLeave={() => setIsCollapsed(true)}
+            onMouseEnter={() => setExpanded(true)}
+            onMouseLeave={() => setExpanded(false)}
         >
             {/* Logo / Brand */}
             <div className="px-4 py-6 border-b border-brand-border/30 flex items-center gap-3 overflow-hidden">

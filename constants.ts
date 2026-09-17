@@ -384,12 +384,12 @@ export const TRANSLATIONS = {
     },
     tokenomics: {
       title: "HVM-V3 PoC Yield Logic",
-      desc: "L1 Hybrid Proof of Claim Consensus linked with an External PoS Yield Absorber strategy.",
+      desc: "A hybrid Proof of Claim consensus, funded by staking the treasury's own capital rather than anyone else's.",
       fixedSupplyTitle: "Immutable Supply Constraint",
       fixedSupplyDesc: "Fixed 99 Million CLAIM limit. Opt-in Burn only, operating natively at $0 Internal Gas Fees.",
       decayTitle: "Hourly Block Cycles",
       decayDesc: "Mining occurs hourly. If the epoch quota is exhausted, DApps stall and enter a hiatus until the next hour starts.",
-      flowTitle: "PoS Yield Vault Architecture",
+      flowTitle: "How the treasury funds rewards",
       distTitle: "DApp Staking Connection",
       ecoFundTitle: "PoS Wealth Absorber Vault",
       ecoFundDesc: "FaucetChain acts as a giant vault, locking external inflationary PoS assets and redistributing cross-chain yields back to the network."

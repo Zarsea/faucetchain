@@ -52,6 +52,7 @@ const TABS = [
 const AppContent: React.FC = () => {
     const [activeTab, setActiveTab] = React.useState(TABS[0]);
     const [isDappsOpen, setIsDappsOpen] = React.useState(false);
+    const [sidebarExpanded, setSidebarExpanded] = React.useState(false);
 
     const renderContent = () => {
         switch (activeTab) {
@@ -111,11 +112,18 @@ const AppContent: React.FC = () => {
             
             {/* Sidebar Navigation */}
             <div className="relative z-[100]">
-                <Tabs activeTab={activeTab} setActiveTab={setActiveTab} tabs={TABS} />
+                <Tabs
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    tabs={TABS}
+                    onExpandedChange={setSidebarExpanded}
+                />
             </div>
 
-            {/* Main Content Area — shifts right to clear sidebar */}
-            <div className="ml-[72px] transition-all duration-300 relative z-10">
+            {/* Main content. The margin tracks the rail rather than staying at 72px:
+                the rail is fixed and sits above this, so a stale margin let it cover
+                the header logo whenever it opened. */}
+            <div className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] relative z-10 ${sidebarExpanded ? 'ml-[240px]' : 'ml-[72px]'}`}>
                 <Header />
                 <main className="container mx-auto px-6 py-8 max-w-7xl">
                     <div key={activeTab} className="animate-slideUpFadeIn">

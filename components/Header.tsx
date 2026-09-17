@@ -94,7 +94,7 @@ export const Header: React.FC = () => {
                             <span className="text-white">FAUCET</span>
                             <span className="text-brand-primary">CHAIN</span>
                         </h1>
-                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest hidden md:block drop-shadow-md">Consenso PoC-V3 Híbrido</span>
+                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest hidden md:block drop-shadow-md">Hybrid PoC-V3 Consensus</span>
                     </div>
                 </div>
 
