@@ -47,6 +47,7 @@ from solders.transaction import Transaction
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
+import settlement  # noqa: E402
 import solana_settlement as chain  # noqa: E402
 
 MINT_LEN = 82
@@ -127,9 +128,7 @@ def link_wallet(api: str, account, wallet: Keypair) -> None:
     message = (
         f"FaucetChain Link Solana | chain:7777 | {user} | {solana_address} | ts:{timestamp}"
     )
-    proof = (
-        f"FaucetChain Prove Wallet | chain:7777 | {user} | {solana_address} | ts:{timestamp}"
-    )
+    proof = settlement.wallet_proof_message(user, solana_address, "7777", timestamp)
     solana_signature = base64.b64encode(
         bytes(wallet.sign_message(proof.encode("utf-8")))
     ).decode()

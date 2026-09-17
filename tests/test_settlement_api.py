@@ -85,9 +85,7 @@ def link_body(account, solana_address, ts=None):
 
 
 def solana_proof(key, user, solana_address, ts):
-    message = (
-        f"FaucetChain Prove Wallet | chain:{srv.CHAIN_ID} | {user} | {solana_address} | ts:{ts}"
-    )
+    message = settlement.wallet_proof_message(user, solana_address, srv.CHAIN_ID, ts)
     return base64.b64encode(bytes(key.sign_message(message.encode("utf-8")))).decode()
 
 

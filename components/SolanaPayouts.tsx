@@ -57,6 +57,26 @@ function short(value: string): string {
     return value.length > 12 ? `${value.slice(0, 4)}…${value.slice(-4)}` : value;
 }
 
+// The wallet shows this verbatim, so it is written to be read rather than
+// parsed. The server rebuilds it byte for byte from the same fields before
+// checking the signature: keep this in step with wallet_proof_message in
+// api_server.py, which a pinned test vector guards.
+function walletProofMessage(user: string, wallet: string, ts: number): string {
+    const issued = new Date(ts * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+    return [
+        'FaucetChain: prove you control this wallet',
+        '',
+        'Signing links your FaucetChain account to this Solana wallet so ' +
+        'rewards can be paid to it. It costs nothing and authorises no ' +
+        'transaction.',
+        '',
+        `Account: ${user}`,
+        `Wallet: ${wallet}`,
+        `Chain: ${CHAIN_ID}`,
+        `Issued: ${issued}`,
+    ].join('\n');
+}
+
 export const SolanaPayouts: React.FC = () => {
     const { userAddress, isConnected, authMethod } = useAuth();
 
@@ -126,7 +146,7 @@ export const SolanaPayouts: React.FC = () => {
             // says who chose this address; only this one says who holds its key,
             // and a root already published cannot be redirected to fix a typo.
             const solana_sig_timestamp = Math.floor(Date.now() / 1000);
-            const proof = `FaucetChain Prove Wallet | chain:${CHAIN_ID} | ${userAddress.toLowerCase()} | ${wallet} | ts:${solana_sig_timestamp}`;
+            const proof = walletProofMessage(userAddress.toLowerCase(), wallet, solana_sig_timestamp);
             const signed = await solana.signMessage(new TextEncoder().encode(proof), 'utf8');
             const solana_signature = btoa(String.fromCharCode(...signed.signature));
 

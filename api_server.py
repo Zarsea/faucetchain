@@ -24,7 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
 from typing import List, Optional, Dict
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uvicorn
 import re
 import json
@@ -5246,8 +5246,9 @@ async def link_solana_wallet(req: SolanaLinkRequest):
     # for the other.
     require_solana_ownership(
         solana_address,
-        f"FaucetChain Prove Wallet | chain:{CHAIN_ID} | {user} | {solana_address} "
-        f"| ts:{req.solana_sig_timestamp}",
+        settlement.wallet_proof_message(
+            user, solana_address, CHAIN_ID, req.solana_sig_timestamp or 0
+        ),
         req.solana_signature,
         req.solana_sig_timestamp,
     )

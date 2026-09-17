@@ -19,6 +19,7 @@ Running `python settlement.py` executes the self-check, which includes the
 fixed vector the Rust test pins as well.
 """
 
+import datetime as _dt
 from typing import Dict, List, Sequence, Tuple
 
 from eth_hash.auto import keccak
@@ -108,7 +109,48 @@ def verify(root: bytes, leaf: bytes, index: int, proof: Sequence[bytes]) -> bool
     return node == root
 
 
+def wallet_proof_message(user: str, solana_address: str, chain_id, ts: int) -> str:
+    """The sentence the Solana wallet signs, written to be read inside a wallet.
+
+    Phantom renders this verbatim, and the previous one-line form wrapped into
+    four lines of pipes and hex -- approving it told the person nothing. The
+    server rebuilds this string byte for byte before checking a signature, so
+    this function and the browser must never drift:
+    test_the_wallet_proof_sentence_is_pinned holds the fixed vector.
+    """
+    issued = _dt.datetime.fromtimestamp(int(ts), tz=_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return "\n".join(
+        [
+            "FaucetChain: prove you control this wallet",
+            "",
+            "Signing links your FaucetChain account to this Solana wallet so "
+            "rewards can be paid to it. It costs nothing and authorises no "
+            "transaction.",
+            "",
+            f"Account: {user}",
+            f"Wallet: {solana_address}",
+            f"Chain: {chain_id}",
+            f"Issued: {issued}",
+        ]
+    )
+
+
 def _self_check() -> None:
+    # The sentence a wallet displays and the server rebuilds before checking a
+    # signature. Pinned, because the browser keeps its own copy in
+    # components/SolanaPayouts.tsx: one byte of drift and every link fails
+    # verification, looking for all the world like a bad signature.
+    import hashlib
+
+    pinned = wallet_proof_message(
+        "0x7dda72ad9ad56ce3d031ee6a62b5b94dd40c6ef3",
+        "75vW4HnhtMVcLuHLh3Tm8S1BuFvLVBoLqYoRxQT3SDnE",
+        "7777",
+        1789618329,
+    )
+    digest = hashlib.sha256(pinned.encode("utf-8")).hexdigest()
+    assert digest == "e48548fb093a6befddd12f6395c5b08241741b4671222a83a9c7571b83df11c0", digest
+
     # Fixed vector, identical to the `matches_the_backend_vector` test in
     # merkle.rs: if either side changes the tree rule, the two tests disagree.
     leaves = [

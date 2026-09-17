@@ -38,10 +38,32 @@ forged, mints anything.
    (`POST /api/solana/link`). This takes **two** signatures over two different
    sentences: the FaucetChain key signs `Link Solana` under the same EIP-191
    scheme every other action uses, saying which wallet was chosen, and the
-   Solana wallet signs `Prove Wallet` with ed25519, saying who holds its key.
-   Different verbs so neither signature can stand in for the other, and the
+   Solana wallet signs a second, different sentence with ed25519, saying who
+   holds its key. Neither signature can stand in for the other, and the
    wallet proof carries its own timestamp — a custodial account signs no EIP-191
    message at all and would otherwise arrive with none.
+
+   That second sentence is written to be read, not parsed, because the wallet
+   shows it verbatim to whoever is approving it:
+
+   ```
+   FaucetChain: prove you control this wallet
+
+   Signing links your FaucetChain account to this Solana wallet so rewards can
+   be paid to it. It costs nothing and authorises no transaction.
+
+   Account: 0x...
+   Wallet: ...
+   Chain: 7777
+   Issued: 2026-09-17T04:12:09Z
+   ```
+
+   `settlement.wallet_proof_message` is its only home on this side. The browser
+   keeps its own copy in `components/SolanaPayouts.tsx`, because it has to build
+   the same bytes before signing, so a fixed vector in `settlement.py`'s
+   self-check pins the sha256 of the whole sentence. Drift between the two then
+   breaks a test, rather than breaking every link with what would look like a
+   bad signature.
 5. **`POST /api/solana/batch`** closes a batch: every unbatched reward from a
    user with a linked wallet goes into one Merkle tree, summed per wallet. The
    wallet each reward was built for is written onto the row, so the batch is
