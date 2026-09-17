@@ -4955,8 +4955,13 @@ async def ai_sentinel_inference(req: AISentinelRequest):
             row = c.fetchone()
             tx_count = row[0] if row else 0
             
-            reputation = min(100, 75 + tx_count)
-            real_context = f"\n[DADOS REAIS L1 DO LEDGER] Saldo Mints: {total_claims:.2f} $CLAIM | ReputaA§A£o Sentinel Auditada: {reputation}% | Total TXs: {tx_count}\n"
+            # Was: reputation = min(100, 75 + tx_count), shown to the user as
+            # "Sentinel-audited reputation". Sentinel never saw it -- anyone
+            # with no activity scored 75%. Report what is actually counted.
+            real_context = (
+                f"\n[LEDGER L1] Claimed: {total_claims:.2f} $CLAIM | "
+                f"Transactions recorded: {tx_count}\n"
+            )
         except Exception:
             pass
         finally:

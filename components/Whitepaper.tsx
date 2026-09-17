@@ -46,14 +46,13 @@ flowchart TD
     B -- "Valid" --> C["PoC Merit Pool"]
     B -- "Sybil Detected" --> D["Reputation Penalty 0.1x"]
 
-    subgraph HVM["HVM-V2 Consensus Engine"]
-        C --> E{"Adaptive Weight Calculator"}
+    subgraph SEAL["Sealer selection"]
+        C --> E{"weight = 1 + active stake"}
         F["Staked $CLAIM (PoS)"] --> E
-        G["Network Health Metrics"] --> E
     end
 
-    E --> H["Final Consensus Weight"]
-    H --> I["VRF Leader Election"]
+    E --> H["Weights for this round"]
+    H --> I["Deterministic draw, seeded by parent hash"]
     I --> J["Block Finalization"]
     J --> K["L1 FaucetChain Consensus"]
 `;
@@ -169,14 +168,14 @@ export const Whitepaper: React.FC = () => {
                         '2. Introduction & Motivation',
                         '3. Hybrid Consensus Mechanism',
                         '4. Proof of Claim (PoC)',
-                        '5. Adaptive Weight Engine (HVM-V2)',
+                        '5. Choosing who seals the block',
                         '6. Epoch-Based Token Emission',
                         '7. Tokenomics ($CLAIM)',
                         '8. UTXO Staking Vault',
                         '9. Security & Sentinel AI',
                         '10. Network Architecture',
                         '11. The Settlement Program on Solana',
-                        '12. Governance',
+                        '12. Governance — designed, not built',
                         '13. Roadmap',
                         '14. Conclusion',
                     ].map((item, i) => (
@@ -200,8 +199,8 @@ export const Whitepaper: React.FC = () => {
                     model, augmented by an AI-driven fraud detection and incentive layer called <strong className="text-brand-secondary">Sentinel AI</strong>.
                 </p>
                 <p className="text-brand-muted leading-relaxed mt-4">
-                    The protocol introduces several key primitives: (1) an <strong className="text-brand-secondary">Adaptive Weight Engine (HVM-V2)</strong> that
-                    dynamically balances merit-based and capital-based consensus power; (2) an <strong className="text-brand-secondary">Hourly Epoch Manager</strong> that
+                    The protocol introduces several key primitives: (1) a <strong className="text-brand-secondary">stake-weighted sealer draw</strong> that
+                    any node can reproduce from the parent block hash; (2) an <strong className="text-brand-secondary">Hourly Epoch Manager</strong> that
                     controls token emission with built-in scarcity via quota-based "hiatus" mechanics; (3) a novel <strong className="text-brand-secondary">UTXO-style
                     Staking Vault</strong> that issues an individually tracked receipt for each staking position, enabling granular control over
                     timelocks and yield; and (4) a <strong className="text-brand-secondary">Community Bounty Board</strong> for decentralized
@@ -303,27 +302,27 @@ export const Whitepaper: React.FC = () => {
                 />
             </SectionCard>
 
-            {/* 5. HVM-V2 */}
-            <SectionCard title="5. Adaptive Weight Engine (HVM-V2)" icon={<CpuChipIcon className="w-5 h-5" />}>
+            {/* 5. SEALER SELECTION */}
+            <SectionCard title="5. Choosing who seals the block" icon={<CpuChipIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
-                    The Hybrid Virtual Machine V2 (HVM-V2) is the core consensus engine that dynamically calculates
-                    each validator's voting weight. It implements an <strong className="text-brand-secondary">adaptive weighting algorithm</strong> that
-                    balances merit and stake contributions based on real-time network health metrics.
+                    Each round picks one sealer from the miners currently online, weighted by stake.
+                    The draw is <strong className="text-brand-secondary">deterministic and reproducible</strong>: it is
+                    seeded by the hash of the parent block, so every node computes the same winner
+                    from data it already has, and nobody has to take the sequencer's word for it.
                 </p>
                 <FormulaBlock
-                    title="Adaptive V2 Weight Calculation"
-                    formula="W = (merit_pts × α) + (ln(stake) × β) + (ai_score × γ)"
-                    desc="Where α + β + γ = 1.0. Default: α=0.4, β=0.4, γ=0.2. Coefficients shift dynamically — during low participation, merit weight increases; during security events, stake weight increases."
-                />
-                <FormulaBlock
-                    title="Sentinel V2 Audit Score"
-                    formula="entropy = -Σ p(x) × log₂(p(x))  |  score = entropy / log₂(n)"
-                    desc="Shannon entropy analysis of behavioral history. High entropy (diverse actions) = legitimate. Low entropy (repetitive patterns) = potential Sybil. Score normalized to [0,1]."
+                    title="Weight, and the seed that picks among them"
+                    formula="weight = 1 + active_stake   ·   seed = keccak256(parent_hash)"
+                    desc="The +1 keeps a node with no stake in the draw rather than excluding it. Active stake counts unspent staking positions only. Because the seed is the parent hash, the round changes with every block and cannot be reused."
                 />
                 <p className="text-brand-muted leading-relaxed mt-4">
-                    After weight calculation, the HVM-V2 uses a <strong className="text-brand-secondary">Verifiable Random Function (VRF)</strong> for
-                    leader election. The probability of being selected as block producer is proportional to the
-                    validator's computed weight, ensuring both fairness and unpredictability.
+                    Two things this is <strong className="text-brand-secondary">not</strong>, stated because
+                    the earlier version of this paper claimed both. It is not a verifiable random
+                    function: there is no secret key and no proof, only a public hash anyone can
+                    recompute — a different property, and for this purpose a useful one. And the
+                    weight does not yet blend merit or a Sentinel score; it is linear in stake.
+                    Weighting those in is designed, not built, and sits in the roadmap rather than
+                    here.
                 </p>
             </SectionCard>
 
@@ -332,7 +331,7 @@ export const Whitepaper: React.FC = () => {
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain implements a unique <strong className="text-brand-secondary">Hourly Epoch System</strong> for
                     token emission control. Unlike continuous emission models, each hour constitutes an "epoch" with a
-                    fixed quota of mintable tokens. This creates natural scarcity and prevents inflation spikes.
+                    fixed quota of mintable tokens. The ceiling is there to cap emission and make the network expensive to farm, not to hurry anyone along.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 mb-6">
                     <div className="space-y-4">
@@ -341,9 +340,9 @@ export const Whitepaper: React.FC = () => {
                             {[
                                 { param: 'Epoch Duration', value: '1 hour' },
                                 { param: 'Tokens Per Epoch', value: '2,000 $CLAIM' },
-                                { param: 'Halving Interval', value: '2,100,000 blocks' },
-                                { param: 'Initial Block Reward', value: '500 $CLAIM' },
-                                { param: 'Treasury Split', value: '60% Ecosystem / 40% Team' },
+                                { param: 'Halving Interval', value: '2,100,000 blocks — planned' },
+                                { param: 'Initial Block Reward', value: '500 $CLAIM — planned' },
+                                { param: 'Treasury Split', value: '60% Ecosystem / 40% Team — policy' },
                             ].map((item, i) => (
                                 <div key={i} className="flex justify-between items-center p-3 bg-brand-bg/40 rounded-lg border border-brand-border/30">
                                     <span className="text-xs text-brand-muted font-bold uppercase">{item.param}</span>
@@ -360,10 +359,9 @@ export const Whitepaper: React.FC = () => {
                             multiple purposes:
                         </p>
                         <ul className="list-disc list-inside space-y-2 mt-3 text-sm text-brand-muted">
-                            <li>Prevents token flooding during high-activity periods</li>
-                            <li>Creates competitive dynamics around epoch timing</li>
-                            <li>Ensures predictable, controlled monetary policy</li>
-                            <li>Incentivizes strategic claiming behavior</li>
+                            <li>Caps what a botnet can drain in one burst</li>
+                            <li>Makes the emission schedule predictable</li>
+                            <li>Makes farming cost time rather than hardware</li>
                         </ul>
                     </div>
                 </div>
@@ -567,10 +565,17 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 12. GOVERNANCE */}
-            <SectionCard title="12. Governance" icon={<ChartBarIcon className="w-5 h-5" />}>
+            <SectionCard title="12. Governance — designed, not built" icon={<ChartBarIcon className="w-5 h-5" />}>
+                <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 text-[10px] font-black uppercase tracking-widest">
+                    Not implemented yet
+                </div>
                 <p className="text-brand-muted leading-relaxed">
-                    FaucetChain implements <strong className="text-brand-secondary">hybrid governance</strong> that mirrors its consensus
-                    philosophy — decisions require both economic weight and meritorious participation:
+                    Nothing in this section runs today: there is no proposal route, no vote table and
+                    no screen. It is here because it shapes decisions already being made, and because
+                    a paper that quietly omitted it would be describing half a plan. The model below
+                    is what FaucetChain intends — <strong className="text-brand-secondary">hybrid governance</strong> that
+                    mirrors the consensus philosophy, where decisions need both economic weight and
+                    meritorious participation:
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                     <div className="p-5 bg-brand-bg/40 rounded-xl border border-brand-border/30">
