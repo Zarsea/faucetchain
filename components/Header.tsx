@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { FaucetChainLogoIcon, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
@@ -134,10 +135,16 @@ export const Header: React.FC = () => {
                 </div>
             </div>
 
-            {isAuthModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
+            {/* Through a portal, not inline: this <header> carries `glass`, whose
+                backdrop-filter makes it the containing block for any fixed
+                descendant. Left here, `inset-0` resolved against the 107px
+                header instead of the viewport, and centring pushed the panel
+                238px above the top edge. The portal also escapes the z-10
+                stacking context App.tsx wraps the header in. */}
+            {isAuthModalOpen && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
                     <div className="absolute inset-0 bg-brand-bg/80 backdrop-blur-sm" onClick={() => { setIsAuthModalOpen(false); setAuthModalView('MAIN'); setAuthError(''); }}></div>
-                    <div className="relative glass border border-brand-primary/30 rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-scaleIn">
+                    <div className="relative glass border border-brand-primary/30 rounded-[2rem] p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-scaleIn">
                         <button onClick={() => { setIsAuthModalOpen(false); setAuthModalView('MAIN'); setAuthError(''); }} className="absolute top-6 right-6 text-brand-muted hover:text-white">
                             <XMarkIcon className="w-6 h-6" />
                         </button>
@@ -253,7 +260,8 @@ export const Header: React.FC = () => {
                             </div>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </header>
     );
