@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FaucetChainLogoIcon, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
+import { FaucetChainSolanaMark, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
@@ -88,13 +88,21 @@ export const Header: React.FC = () => {
             </div>
             <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <FaucetChainLogoIcon className="w-10 h-10 drop-shadow-[0_0_8px_rgba(0,180,255,0.8)] hover:scale-105 transition-transform" />
+                    <FaucetChainSolanaMark className="w-10 h-10 drop-shadow-[0_0_8px_rgba(0,180,255,0.8)] hover:scale-105 transition-transform" />
                     <div>
                         <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center drop-shadow-lg">
                             <span className="text-white">FAUCET</span>
                             <span className="text-brand-primary">CHAIN</span>
                         </h1>
-                        <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest hidden md:block drop-shadow-md">Hybrid PoC-V3 Consensus</span>
+                        <div className="hidden md:flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest drop-shadow-md">Hybrid PoC-V3 Consensus</span>
+                            {/* Where the money actually lands. Solana's own colours, used
+                                only for settlement, so the badge means something. */}
+                            <span className="settle-chip inline-flex items-center gap-1.5 rounded-full px-2 py-[2px] text-[9px] font-black uppercase tracking-widest">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sol-green settle-pulse"></span>
+                                Settles on Solana · devnet
+                            </span>
+                        </div>
                     </div>
                 </div>
 

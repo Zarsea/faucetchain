@@ -189,3 +189,39 @@ export const ArrowUpRightIcon: React.FC<IconProps> = ({ className }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 19.5 15-15m0 0H8.25m11.25 0v11.25" />
     </svg>
 );
+
+// The drop with Solana's mark inside it: micro-distribution on the outside,
+// settlement within. Same geometry as public/faucetchain-solana.svg — change
+// one and change the other.
+export const FaucetChainSolanaMark: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className={className} role="img" aria-label="FaucetChain, settling on Solana">
+        <defs>
+            <linearGradient id="fcsolDrop" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#00E5FF" />
+                <stop offset="50%" stopColor="#00A3FF" />
+                <stop offset="100%" stopColor="#0055CC" />
+            </linearGradient>
+            {/* One pass across all three bars, not one gradient per bar. */}
+            <linearGradient id="fcsolSol" gradientUnits="userSpaceOnUse" x1="0" y1="312" x2="398" y2="0">
+                <stop offset="0%" stopColor="#9945FF" />
+                <stop offset="20%" stopColor="#8752F3" />
+                <stop offset="40%" stopColor="#5497D5" />
+                <stop offset="60%" stopColor="#43B4CA" />
+                <stop offset="80%" stopColor="#28E0B9" />
+                <stop offset="100%" stopColor="#19FB9B" />
+            </linearGradient>
+            <path id="fcsolDropPath" d="M50 8 C50 8 18 42 18 64 C18 81.67 32.33 96 50 96 C67.67 96 82 81.67 82 64 C82 42 50 8 50 8 Z" />
+            <filter id="fcsolHalo" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3" />
+            </filter>
+        </defs>
+        <use href="#fcsolDropPath" fill="#00C2FF" filter="url(#fcsolHalo)" opacity="0.55" />
+        <use href="#fcsolDropPath" fill="url(#fcsolDrop)" />
+        <g transform="translate(28 48.75) scale(0.1106)" fill="url(#fcsolSol)"
+           stroke="#0b101a" strokeWidth="18" strokeLinejoin="round" paintOrder="stroke">
+            <path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
+            <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
+            <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" />
+        </g>
+    </svg>
+);

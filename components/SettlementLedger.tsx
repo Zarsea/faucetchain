@@ -122,7 +122,7 @@ export const SettlementLedger: React.FC = () => {
                 <div className="w-20 h-20 bg-brand-primary/10 rounded-full flex items-center justify-center mb-6">
                     <CubeIcon className="w-10 h-10 text-brand-primary opacity-50" />
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Settlement Ledger</h2>
+                <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Settlement Ledger</h2>
                 <p className="text-brand-muted mt-4 leading-relaxed">
                     No campaign has been registered on this sequencer yet. Once a partner funds a
                     vault, everything it owes and everything it has paid shows up here — read from
@@ -138,10 +138,11 @@ export const SettlementLedger: React.FC = () => {
     return (
         <div className="space-y-8 animate-fadeIn">
             <div className="bg-brand-surface border border-brand-border/50 p-8 rounded-[2.5rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full -mr-40 -mt-40 blur-3xl"></div>
+                <div className="absolute top-0 right-0 w-80 h-80 bg-sol-purple/10 rounded-full -mr-40 -mt-40 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-sol-green/10 rounded-full -ml-32 -mb-32 blur-3xl"></div>
                 <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Settlement Ledger</h2>
+                        <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Settlement Ledger</h2>
                         <p className="text-brand-muted mt-3 max-w-2xl leading-relaxed">
                             Every figure below comes from the campaign's accounts on Solana. The
                             sequencer only supplies the addresses, so you can open the explorer and
@@ -181,7 +182,7 @@ export const SettlementLedger: React.FC = () => {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         <Figure label="In the vault" value={amount(state.vault_amount)} hint="tokens held right now" />
                         <Figure label="Promised" value={amount(outstanding)} hint="published and not collected" />
-                        <Figure label="Collected" value={amount(state.paid)} hint="withdrawn by users" />
+                        <Figure label="Collected" value={amount(state.paid)} hint="withdrawn by users, read from Solana" />
                         <Figure label="Funded" value={amount(state.funded)} hint="deposited by the partner" />
                     </div>
                     <div className="mt-6 space-y-2 text-sm text-brand-muted">

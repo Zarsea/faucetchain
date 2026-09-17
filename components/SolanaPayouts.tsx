@@ -209,7 +209,7 @@ export const SolanaPayouts: React.FC = () => {
                 <div className="w-20 h-20 bg-brand-primary/10 rounded-full flex items-center justify-center mb-6">
                     <CubeIcon className="w-10 h-10 text-brand-primary opacity-50" />
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Solana Payouts</h2>
+                <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Solana Payouts</h2>
                 <p className="text-brand-muted mt-4 leading-relaxed">
                     Sign in to FaucetChain first. Your rewards are paid from a campaign vault on
                     Solana, and the account that earned them is the one that links the wallet.
@@ -221,9 +221,10 @@ export const SolanaPayouts: React.FC = () => {
     return (
         <div className="space-y-8 animate-fadeIn">
             <div className="bg-brand-surface border border-brand-border/50 p-8 rounded-[2.5rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-brand-primary/5 rounded-full -mr-40 -mt-40 blur-3xl"></div>
+                <div className="absolute top-0 right-0 w-80 h-80 bg-sol-purple/10 rounded-full -mr-40 -mt-40 blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-sol-green/10 rounded-full -ml-32 -mb-32 blur-3xl"></div>
                 <div className="relative">
-                    <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Solana Payouts</h2>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Solana Payouts</h2>
                     <p className="text-brand-muted mt-3 max-w-2xl leading-relaxed">
                         Rewards are held in a campaign vault on Solana and released against a Merkle
                         root the sequencer publishes on-chain. You withdraw by proving your leaf is

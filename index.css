@@ -127,3 +127,44 @@ h1, h2, h3, h4, h5, h6 {
 .animate-fadeIn {
   animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* ── Settlement on Solana ─────────────────────────────────────────────────
+   Cyan is the appchain: claiming, quota, distribution — free and instant.
+   This gradient is Solana: custody, roots, payouts. Used only where value
+   actually settles there, so the colour carries the architecture instead of
+   decorating it. Same stops as the mark in public/faucetchain-solana.svg. */
+
+.settle-text {
+  background: linear-gradient(100deg, #9945FF 0%, #5497D5 45%, #14F195 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.settle-border {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--settle-bg, #0D0E15), var(--settle-bg, #0D0E15)) padding-box,
+    linear-gradient(100deg, #9945FF, #5497D5, #14F195) border-box;
+}
+
+.settle-chip {
+  background: linear-gradient(100deg, rgba(153, 69, 255, 0.16), rgba(20, 241, 149, 0.16));
+  border: 1px solid rgba(84, 151, 213, 0.35);
+  color: #A8E6D0;
+}
+
+.settle-glow {
+  box-shadow: 0 0 22px -6px rgba(153, 69, 255, 0.45), 0 0 22px -6px rgba(20, 241, 149, 0.35);
+}
+
+/* A quiet pulse for the live network dot. Decorative, so it yields to the
+   reduced-motion preference rather than ignoring it. */
+@keyframes settlePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.settle-pulse { animation: settlePulse 2.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .settle-pulse { animation: none; }
+}
