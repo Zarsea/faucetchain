@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNetwork } from './NetworkContext';
-import { diagnoseNetworkError } from '../services/geminiService';
 import { SparklesIcon, LoadingIcon, ShieldCheckIcon } from './IconComponents';
 
 export const NetworkSentinel: React.FC = () => {
@@ -9,19 +8,29 @@ export const NetworkSentinel: React.FC = () => {
     const [diagnosis, setDiagnosis] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
+    // Read from the metrics rather than asked of an outside model. An anomaly
+    // is a rule that fired, so the explanation is the rule -- and it arrives
+    // instantly, works offline, and cannot invent a cause that did not happen.
     useEffect(() => {
-        if (anomaly.type !== 'NONE') {
-            const fetchDiagnosis = async () => {
-                setIsAnalyzing(true);
-                const result = await diagnoseNetworkError(metrics, anomaly);
-                setDiagnosis(result);
-                setIsAnalyzing(false);
-            };
-            fetchDiagnosis();
-        } else {
+        if (anomaly.type === 'NONE') {
             setDiagnosis(null);
+            return;
         }
-    }, [anomaly.type]);
+        setIsAnalyzing(true);
+        const reading = [
+            `Block ${metrics.blockHeight} · ${metrics.tps.toFixed(1)} TPS · ${metrics.activeValidators} validators online.`,
+            anomaly.type === 'LOW_TPS'
+                ? 'Throughput fell below the expected band. Usually few miners online, or the hourly quota already spent.'
+                : anomaly.type === 'HIGH_FEES'
+                ? 'Fees rose above the usual band, which points at congestion — a claim burst or a run of transfers.'
+                : anomaly.type === 'VALIDATOR_DROP'
+                ? 'Validators went offline. The sealer draw stays valid with whoever remains, but fewer nodes means less redundancy.'
+                : 'The metrics left their expected band.',
+            `Severity: ${anomaly.severity}.`,
+        ].join(' ');
+        setDiagnosis(reading);
+        setIsAnalyzing(false);
+    }, [anomaly.type, anomaly.severity, metrics.blockHeight, metrics.tps, metrics.activeValidators]);
 
     if (anomaly.type === 'NONE' && !diagnosis) return null;
 
@@ -40,8 +49,8 @@ export const NetworkSentinel: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="text-xl font-bold text-brand-secondary flex items-center gap-2">
-                            Gemini Network Sentinel
-                            <span className="px-2 py-0.5 bg-brand-bg/50 rounded text-[10px] uppercase tracking-widest text-brand-primary">AI Active</span>
+                            Network Sentinel
+                            <span className="px-2 py-0.5 bg-brand-bg/50 rounded text-[10px] uppercase tracking-widest text-brand-primary">Live</span>
                         </h3>
                         <p className="text-xs text-brand-muted uppercase font-bold tracking-tighter">Monitoring Layer-1 Integrity</p>
                     </div>

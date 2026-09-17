@@ -2,7 +2,6 @@
 import React from 'react';
 import { SectionCard } from './SectionCard';
 import { CodeBracketIcon, ArrowPathIcon, GlobeAltIcon, ShieldCheckIcon } from './IconComponents';
-import { GeminiExplainer } from './GeminiExplainer';
 import { useLanguage } from './LanguageContext';
 import { DIAGRAMS } from '../constants';
 import { MermaidDiagram } from './MermaidDiagram';
@@ -85,10 +84,6 @@ export const ApiDocs: React.FC = () => {
                              </pre>
                         </div>
                         <div className="mt-6 p-4 bg-brand-surface border border-brand-border rounded-lg">
-                            <GeminiExplainer 
-                                context="O farming via Hubs na FaucetChain utiliza Provas de Atividade Agregadas. O Hub atua como um validador de segundo nível (L2) que consolida a reputação de milhares de usuários e a 'liquida' na L1 da FaucetChain para receber recompensas de bloco." 
-                                prompt="Como um Hub pode maximizar seu rendimento (yield) na FaucetChain otimizando a frequência de submissão de batches e a qualidade da reputação fornecida?" 
-                            />
                         </div>
                     </SectionCard>
                 </div>

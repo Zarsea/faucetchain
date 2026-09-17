@@ -4921,84 +4921,9 @@ async def login_user(req: LoginRequest):
 # -----------------------------------
 # SENTINEL AI - CEREBRO CENTRALIZADO L1
 # -----------------------------------
-try:
-    from google import genai
-except ImportError:
-    pass # SerA instalado via requirements
-
-class AISentinelRequest(BaseModel):
-    context: str
-    prompt: str
-
-@app.post("/api/ai/sentinel")
-async def ai_sentinel_inference(req: AISentinelRequest):
-    """
-    Motor AvanA§ado de IA da FaucetChain que injeta dados do SQLite (L1)
-    para o Google Gemini, criando um contexto massivamente superior.
-    """
-    import re
-    
-    real_context = ""
-    # Tenta extrair carteira do contexto ("EndereA§o: 0x...")
-    match = re.search(r"0x[a-fA-F0-9]{40}", req.context)
-    if match:
-        user_address = match.group(0).lower()
-        conn = get_db_connection()
-        c = conn.cursor()
-        
-        try:
-            c.execute("SELECT IFNULL(SUM(amount), 0) FROM user_claims WHERE user_address = ?", (user_address,))
-            row = c.fetchone()
-            total_claims = row[0] if row else 0
-            
-            c.execute("SELECT COUNT(*) FROM transactions WHERE from_address = ? OR to_address = ?", (user_address, user_address))
-            row = c.fetchone()
-            tx_count = row[0] if row else 0
-            
-            # Was: reputation = min(100, 75 + tx_count), shown to the user as
-            # "Sentinel-audited reputation". Sentinel never saw it -- anyone
-            # with no activity scored 75%. Report what is actually counted.
-            real_context = (
-                f"\n[LEDGER L1] Claimed: {total_claims:.2f} $CLAIM | "
-                f"Transactions recorded: {tx_count}\n"
-            )
-        except Exception:
-            pass
-        finally:
-            conn.close()
-    
-    # Configurar o CA©rebro GenAI (Gemini) usando a key do test_genai ou variavel de ambiente
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="GEMINI_API_KEY not configured")
-    
-    try:
-        client = genai.Client(api_key=api_key)
-        
-        full_prompt = f"""
-        VOCAŠ A‰ A SENTINEL AI - CA‰REBRO ON-CHAIN DA FAUCETCHAIN L1.
-        
-        CONTEXTO ATUAL DE TELA:
-        {req.context}
-        {real_context}
-        
-        DCAVIDA DO USUARIO:
-        {req.prompt}
-        
-        Aja como um Arquiteto e GuardiA£o da Rede. Use OS DADOS REAIS L1 (se disponA-veis acima) na sua anAilise.
-        Responda de forma direta e tA©cnica.
-        """
-        
-        # Testado na infraestrutura local do usuario (test_genai)
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview", 
-            contents=full_prompt
-        )
-        return {"insight": response.text}
-        
-    except Exception as e:
-        print(f"GenAI Sentinel Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro de Conexão com o Cérebro IA Sentinel: {str(e)}")
+# The AI assistant answers from this project's own knowledge base and vector
+# index only. An endpoint here used to forward the user's question, plus their
+# ledger data, to Google Gemini; it was removed along with the key it needed.
 
 # --- Settlement on Solana ---------------------------------------------------
 # The appchain keeps distributing; the partner's budget sits in a vault on

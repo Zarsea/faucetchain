@@ -13,8 +13,7 @@ files_to_update = [
     "components/WalletExplorer.tsx",
     "FraudAndBonusDetector.py",
     "train_sentinel.py",
-    "VectorKnowledgeBase.py",
-    "services/geminiService.ts"
+    "VectorKnowledgeBase.py"
 ]
 
 root_dir = r"c:\Users\Administrator\Downloads\copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer"

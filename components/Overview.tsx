@@ -5,7 +5,6 @@ import { MermaidDiagram } from './MermaidDiagram';
 import { CubeIcon, ShieldCheckIcon, SignalIcon, CreditCardIcon, SparklesIcon, ChartBarIcon, CpuChipIcon, BoltIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { DIAGRAMS } from '../constants';
-import { GeminiExplainer } from './GeminiExplainer';
 import { useNetwork } from './NetworkContext';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; accent?: string }> = ({ label, value, icon, accent = "text-brand-primary" }) => (
@@ -89,10 +88,6 @@ export const Overview: React.FC = () => {
                                 }
                             </p>
                             <div className="pt-2">
-                                <GeminiExplainer 
-                                    context="PoC-V3 Evolution: Zero hardware mining. Consensus is now 40% Merit (PoC), 40% Capital (PoS), and 20% Sentinel AI Audit. Weights shift based on network congestion and health." 
-                                    prompt="Como a evolução para o consenso PoC-V3 torna a rede mais resiliente a ataques de 51% e concentração de capital?"
-                                />
                             </div>
                         </div>
                     </div>

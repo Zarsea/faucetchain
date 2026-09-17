@@ -14,7 +14,6 @@ import {
 import { useNetwork } from './NetworkContext';
 import { useLanguage } from './LanguageContext';
 import { LocalIntelligence } from './LocalIntelligence';
-import { explainWithGemini } from '../services/geminiService';
 import { API_BASE_URL } from '../apiConfig';
 
 const CONFIDENCE_THRESHOLD = 0.3;
@@ -179,22 +178,26 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                             body: JSON.stringify({ query: textToSend, top_k: 1 })
                         });
                         
+                        const notFound = lang === 'pt'
+                            ? "Não encontrei isso na base de conhecimento da FaucetChain. Pergunte sobre status da rede, consenso, cota horária, staking ou liquidação na Solana."
+                            : "That is not in FaucetChain's knowledge base. Try network status, consensus, the hourly quota, staking, or settlement on Solana.";
+
+                        // Answers come from this project's own documents. Nothing a
+                        // user types here is sent to an outside model, and when the
+                        // base has no answer the agent says so instead of inventing.
                         if (vectorRes.ok) {
                             const results = await vectorRes.json();
                             if (results && results.length > 0 && results[0].score > 0.3) {
-                                finalContent = `[Vector Knowledge Base] Achei na documentação:\n\n${results[0].content}`;
-                                source = 'local';
+                                finalContent = lang === 'pt'
+                                    ? `[Base de conhecimento] Achei na documentação:\n\n${results[0].content}`
+                                    : `[Knowledge base] Found in the documentation:\n\n${results[0].content}`;
                             } else {
-                                // Fallback to Gemini if nothing found via Vector DB
-                                const metricsContext = `Block: ${metricsSnapshot.blockHeight}, TPS: ${metricsSnapshot.tps}, Fee: ${metricsSnapshot.avgGasPrice} µCLAIM, Validators: ${metricsSnapshot.activeValidators}.`;
-                                finalContent = await explainWithGemini(metricsContext, textToSend);
-                                source = 'cloud';
+                                finalContent = notFound;
                             }
                         } else {
-                            const metricsContext = `Block: ${metricsSnapshot.blockHeight}, TPS: ${metricsSnapshot.tps}, Fee: ${metricsSnapshot.avgGasPrice} µCLAIM, Validators: ${metricsSnapshot.activeValidators}.`;
-                            finalContent = await explainWithGemini(metricsContext, textToSend);
-                            source = 'cloud';
+                            finalContent = notFound;
                         }
+                        source = 'local';
                     } catch {
                         finalContent = lang === 'pt'
                             ? "Não entendi bem. Tente perguntar sobre status da rede, consenso ou mintar tokens."

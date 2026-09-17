@@ -14,7 +14,6 @@ import {
 } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
-import { GeminiExplainer } from './GeminiExplainer';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { WalletInfo } from '../types';
 import { API_BASE_URL } from '../apiConfig';
@@ -317,10 +316,6 @@ export const WalletExplorer: React.FC = () => {
                                 </div>
                                 <h3 className="text-base font-black text-brand-secondary tracking-tight">{t('dashboard.sentinelAnalysis')}</h3>
                             </div>
-                            <GeminiExplainer
-                                context={`Address Profile: ${wallet.address}, Balance: ${wallet.balanceClaim} CLAIM, Reputation: ${wallet.reputationScore}, Role: ${wallet.isValidator ? 'Validator' : 'User'}, Transactions: ${transactions.length}`}
-                                prompt="Conduct a formal forensic audit of this address. Is this user showing patterns of decentralized contribution or suspicious sybil behavior based on the metrics?"
-                            />
                         </div>
                     </div>
 

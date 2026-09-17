@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { CodeBracketIcon } from './IconComponents';
-import { GeminiExplainer } from './GeminiExplainer';
 
 interface CodeBlockProps {
     code: string;
@@ -22,10 +21,6 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, title }) =
                 <pre className="text-sm overflow-x-auto font-mono text-brand-secondary/90 mb-4 scrollbar-thin scrollbar-thumb-brand-border scrollbar-track-transparent">
                     <code>{code.trim()}</code>
                 </pre>
-                <GeminiExplainer 
-                    context={`Code Snippet (${language}):\n${code}`} 
-                    prompt={`Analyze this ${language} code snippet for the FaucetChain protocol. Explain its logic, security implications, and how it functions within the Hybrid Consensus mechanism.`} 
-                />
             </div>
         </div>
     );

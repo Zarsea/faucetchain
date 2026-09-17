@@ -120,7 +120,6 @@ const resourcesEn = {
             close: "Close",
             error: "Error",
             success: "Success",
-            explainGemini: "Explain this with Gemini AI",
             scanning: "Scanning Blockchain..."
         },
         auth: {
@@ -285,7 +284,6 @@ const resourcesPt = {
             close: "Fechar",
             error: "Erro",
             success: "Sucesso",
-            explainGemini: "Explique isso com IA Gemini",
             scanning: "Analisando Blockchain..."
         },
         auth: {
@@ -450,7 +448,6 @@ const resourcesEs = {
             close: "Cerrar",
             error: "Error",
             success: "Éxito",
-            explainGemini: "Explica esto con IA Gemini",
             scanning: "Analizando Blockchain..."
         },
         auth: {

@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.29.0",
     "@solana/web3.js": "^1.99.0",
     "i18next": "^26.2.0",
     "mermaid": "^11.12.1",

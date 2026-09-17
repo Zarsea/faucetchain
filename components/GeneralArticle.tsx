@@ -15,7 +15,6 @@ import {
     BoltIcon
 } from './IconComponents';
 import { useLanguage } from './LanguageContext';
-import { GeminiExplainer } from './GeminiExplainer';
 import { ClaimEventSection } from './ClaimEventSection';
 import { DIAGRAMS, POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
 import { useNetwork } from './NetworkContext';
@@ -225,10 +224,6 @@ export const GeneralArticle: React.FC = () => {
                             </div>
                         </div>
                         <div className="pt-6">
-                            <GeminiExplainer 
-                                context="Claim Lifecycle PoC-V3: User Submission -> AI Audit -> Reward Minting -> 60/40 Split -> Stablecoin Swap -> Treasury Settlement." 
-                                prompt="Explain the game theory behind forcing a 60% swap to stablecoins upon reward minting. How does this prevent a death spiral compared to tokens that don't hedge their rewards?" 
-                            />
                         </div>
                     </div>
                     <div className="lg:w-2/3 h-full min-h-[500px]">
@@ -349,10 +344,6 @@ export const GeneralArticle: React.FC = () => {
                         </div>
 
                         <div className="pt-4">
-                            <GeminiExplainer 
-                                context="Weight Algorithm V3: Exponential Decay λ=0.05, Loyalty Threshold 30 epochs, Liveness minimum 95.0%." 
-                                prompt="How does this weighting model impact the distribution of rewards between early adopters and late newcomers compared to standard halving models?" 
-                            />
                         </div>
                     </div>
                     <div className="lg:w-1/2 w-full">
@@ -408,10 +399,6 @@ export const GeneralArticle: React.FC = () => {
                             </div>
 
                             <div className="pt-6">
-                                <GeminiExplainer 
-                                    context="Sentinel Audit: Deep-Chain Entropy, Graph Clustering Coefficient, Decentralized Credential Multiplexer." 
-                                    prompt="Explain why 'Social Graph Entropy' is a more reliable Sybil deterrent than standard IP address tracking in decentralized networks." 
-                                />
                             </div>
                         </div>
                         <div className="lg:w-1/2 w-full flex flex-col gap-6">

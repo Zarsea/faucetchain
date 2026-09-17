@@ -17,7 +17,6 @@ import {
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useNetwork } from './NetworkContext';
-import { GeminiExplainer } from './GeminiExplainer';
 import { fetchMultipleOraclePrices, type OraclePrice } from '../services/oracleService';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -570,10 +569,6 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                     </SectionCard>
 
                     <SectionCard title={t('dashboard.sentinelAnalysis')} icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
-                        <GeminiExplainer
-                            context={`Visualizando o dashboard do usuário na FaucetChain. Endereço: ${userAddress}. Método de Login: ${authMethod}.`}
-                            prompt={`Analise meu portfólio de mérito e sugira uma estratégia para aumentar minha reputação Sentinel baseada nos dados atuais: Reputação ${reputation}%, Saldo ${balanceClaim.toFixed(2)} $CLAIM. Mencione como a participação no Faucet impacta esses números.`}
-                        />
                     </SectionCard>
                 </div>
             </div>

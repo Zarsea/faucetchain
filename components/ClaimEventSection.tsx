@@ -4,7 +4,6 @@ import { SparklesIcon, WalletIcon, SignalIcon, ArrowPathIcon } from './IconCompo
 import { MermaidDiagram } from './MermaidDiagram';
 import { DIAGRAMS } from '../constants';
 import { useLanguage } from './LanguageContext';
-import { GeminiExplainer } from './GeminiExplainer';
 
 export const ClaimEventSection: React.FC = () => {
     const { lang } = useLanguage();
@@ -141,10 +140,6 @@ export const ClaimEventSection: React.FC = () => {
                 </div>
 
                 <div className="pt-8 border-t border-brand-border/50">
-                    <GeminiExplainer 
-                        context={t.description} 
-                        prompt="How does the 'Claim Event' cascade protect the protocol from token price crashes and ensure long-term treasury sustainability?" 
-                    />
                 </div>
             </div>
         </div>

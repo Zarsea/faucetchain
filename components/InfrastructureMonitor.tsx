@@ -263,25 +263,29 @@ export const InfrastructureMonitor: React.FC = () => {
         isAnalyzingRef.current = true;
         setIsAnalyzing(true);
         try {
-            const context = JSON.stringify({
-                infra: infraRef.current,
-                latencies: latenciesRef.current
-            }, null, 2);
-            const prompt = "Você é a Sentinel AI. Analise a saúde desta infraestrutura blockchain (nodes online, latências dos endpoints, tamanho do DB, claims pendentes e active stakes). Aponte gargalos de rede, anomalias e sugira otimizações técnicas para escalar o protocolo FaucetChain. Seja direto, técnico e focado na arquitetura L1.";
-            
-            const res = await fetch(`${API_BASE_URL}/api/ai/sentinel`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ context, prompt })
-            });
-            
-            if (res.ok) {
-                const data = await res.json();
-                setSentinelInsight(data.insight);
-                setLastAuditTime(Date.now());
-            }
+            // Read straight off the measurements. This used to post the whole
+            // infrastructure snapshot to an outside model; the findings below are
+            // thresholds, so they are reproducible and nothing leaves the network.
+            const infra = infraRef.current;
+            const lat = latenciesRef.current ?? {};
+            const slow = Object.entries(lat)
+                .filter(([, ms]) => typeof ms === 'number' && (ms as number) > 500)
+                .map(([name, ms]) => `${name} at ${Math.round(ms as number)}ms`);
+
+            const findings: string[] = [];
+            if (slow.length) findings.push(`Slow endpoints: ${slow.join(', ')}. Anything past 500ms will show up as lag in the explorer.`);
+            if (infra?.pendingClaims > 100) findings.push(`${infra.pendingClaims} claims are still pending — the hourly quota may be spent, or the sealer is behind.`);
+            if (infra?.nodesOnline !== undefined && infra.nodesOnline < 2) findings.push(`Only ${infra.nodesOnline} node online: the sealer draw still works, but there is no redundancy behind it.`);
+            if (infra?.dbSizeMb > 500) findings.push(`The database is ${infra.dbSizeMb}MB. Worth archiving old blocks before it starts costing query time.`);
+
+            setSentinelInsight(
+                findings.length
+                    ? findings.join('\n\n')
+                    : 'Nothing outside its band: endpoints responsive, claims draining, nodes reporting in.'
+            );
+            setLastAuditTime(Date.now());
         } catch (error) {
-            console.error("Sentinel Audit failed:", error);
+            console.error("Sentinel audit failed:", error);
         } finally {
             isAnalyzingRef.current = false;
             setIsAnalyzing(false);

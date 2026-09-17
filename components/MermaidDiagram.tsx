@@ -10,7 +10,6 @@ import {
     ArrowsPointingOutIcon,
     XMarkIcon
 } from './IconComponents';
-import { GeminiExplainer } from './GeminiExplainer';
 
 // Initialize mermaid with higher stability settings
 // Fix: defaultRenderer type "dagre" is not assignable to "dagre-d3" | "dagre-wrapper" | "elk"
@@ -178,10 +177,6 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
 
             {inFullscreen && (
                 <div className="mt-8 max-w-4xl mx-auto w-full pb-20 pointer-events-auto">
-                     <GeminiExplainer 
-                        context={`Diagram Logic:\n${code}`} 
-                        prompt={prompt || "Explain this consensus flow in detail."} 
-                    />
                     {/* Extra mobile close button at the bottom for better reach */}
                     <div className="md:hidden flex justify-center mt-10">
                          <button 
@@ -215,10 +210,6 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                     <DiagramViewer inFullscreen={false} />
                 </div>
 
-                <GeminiExplainer 
-                    context={`Diagram Logic:\n${code}`} 
-                    prompt={prompt || "Explain this consensus flow in detail."} 
-                />
             </div>
 
             {isFullscreen && (
