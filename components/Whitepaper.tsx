@@ -61,13 +61,13 @@ flowchart TD
 const TOKEN_FLOW_DIAGRAM = `
 flowchart LR
     subgraph Emission["Token Emission"]
-        Epoch["HourlyEpochManager"] --> Mint["mintForClaim()"]
+        Epoch["Hourly quota — 2,000/hr"] --> Mint["Claim recorded"]
         Mint --> User["User Wallet"]
     end
 
     subgraph Usage["Token Utility"]
         User --> Stake["UTXO Staking Vault"]
-        User --> DApp["DApp Registry (10K)"]
+        User --> DApp["Faucet Registry (10K stake)"]
         User --> Bounty["Bounty Board"]
         User --> Burn["Voluntary Burn"]
     end
@@ -81,17 +81,17 @@ flowchart LR
 const EPOCH_DIAGRAM = `
 sequenceDiagram
     participant U as User/Faucet
-    participant EM as HourlyEpochManager
-    participant DR as DAppStakingRegistry
-    participant CT as FaucetToken_CLAIM
+    participant EM as Hourly quota
+    participant DR as Faucet registry
+    participant CT as $CLAIM ledger
 
-    U->>EM: processClaim(wallet, amount)
-    EM->>DR: isAuthorizedFaucet(faucet)?
+    U->>EM: Claim submitted (wallet, amount)
+    EM->>DR: Is this faucet authorised?
     DR-->>EM: true (stake >= 10K)
 
     EM->>EM: Check epoch quota (2000/hr)
     alt Quota available
-        EM->>CT: mintForClaim(wallet, amount)
+        EM->>CT: credit(wallet, amount)
         CT-->>U: $CLAIM minted
     else Quota depleted
         EM-->>U: HIATO — Wait next hour
@@ -101,8 +101,8 @@ sequenceDiagram
 const UTXO_DIAGRAM = `
 flowchart LR
     subgraph Deposit["Stake (Create UTXO)"]
-        U["User"] --> |"$CLAIM"| V["UTXOStakingVault"]
-        V --> NFT["ERC-721 Receipt"]
+        U["User"] --> |"$CLAIM"| V["Staking Vault"]
+        V --> NFT["Position Receipt"]
         NFT --> |"Metadata"| Meta["Amount + Tier + Timelock"]
     end
 
@@ -113,7 +113,7 @@ flowchart LR
     end
 
     subgraph Withdraw["Unstake (Spend UTXO)"]
-        NFT --> |"After timelock"| Burn["Burn NFT"]
+        NFT --> |"After timelock"| Burn["Spend position"]
         Burn --> Pay["Principal + Yield"]
         Pay --> U
     end
@@ -123,7 +123,7 @@ const SECURITY_DIAGRAM = `
 flowchart TD
     subgraph FraudDetection["Sentinel V3 Fraud Detection"]
         Input["Claim Sequence"] --> T["Temporal Analysis"]
-        Input --> G["Gas Uniformity Check"]
+        Input --> G["Timing Uniformity Check"]
         Input --> C["Compression Pattern Match"]
         T --> Score{"Fraud Score"}
         G --> Score
@@ -145,19 +145,19 @@ export const Whitepaper: React.FC = () => {
             {/* Title Header */}
             <div className="text-center space-y-6 py-8">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-brand-primary/10 border border-brand-primary/30 rounded-full text-brand-primary text-[10px] font-black uppercase tracking-[0.3em]">
-                    <BookOpenIcon className="w-3 h-3" /> Technical Whitepaper V3.0
+                    <BookOpenIcon className="w-3 h-3" /> Technical Whitepaper V4.0
                 </div>
                 <h1 className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none">
                     FaucetChain Protocol
                 </h1>
                 <p className="text-xl text-brand-muted max-w-3xl mx-auto leading-relaxed">
-                    A Hybrid Proof-of-Claim + Proof-of-Stake Layer-1 Blockchain with
-                    AI-Driven Consensus Modulation and UTXO-Style Staking
+                    A hybrid Proof-of-Claim and Proof-of-Stake appchain for micro-distribution,
+                    settling every payout against a Merkle root published on Solana
                 </p>
                 <div className="flex flex-wrap justify-center gap-4 text-xs text-brand-muted">
-                    <span className="px-3 py-1 bg-brand-surface rounded-full border border-brand-border">Version 3.0</span>
-                    <span className="px-3 py-1 bg-brand-surface rounded-full border border-brand-border">April 2026</span>
-                    <span className="px-3 py-1 bg-brand-surface rounded-full border border-brand-border">Network: FaucetChain L1</span>
+                    <span className="px-3 py-1 bg-brand-surface rounded-full border border-brand-border">Version 4.0</span>
+                    <span className="px-3 py-1 bg-brand-surface rounded-full border border-brand-border">September 2026</span>
+                    <span className="px-3 py-1 bg-brand-surface rounded-full border border-brand-border">Settles on Solana</span>
                 </div>
             </div>
 
@@ -175,7 +175,7 @@ export const Whitepaper: React.FC = () => {
                         '8. UTXO Staking Vault',
                         '9. Security & Sentinel AI',
                         '10. Network Architecture',
-                        '11. Smart Contract Suite',
+                        '11. The Settlement Program on Solana',
                         '12. Governance',
                         '13. Roadmap',
                         '14. Conclusion',
@@ -203,7 +203,7 @@ export const Whitepaper: React.FC = () => {
                     The protocol introduces several key primitives: (1) an <strong className="text-brand-secondary">Adaptive Weight Engine (HVM-V2)</strong> that
                     dynamically balances merit-based and capital-based consensus power; (2) an <strong className="text-brand-secondary">Hourly Epoch Manager</strong> that
                     controls token emission with built-in scarcity via quota-based "hiatus" mechanics; (3) a novel <strong className="text-brand-secondary">UTXO-style
-                    Staking Vault</strong> that issues ERC-721 NFT receipts for each staking position, enabling granular control over
+                    Staking Vault</strong> that issues an individually tracked receipt for each staking position, enabling granular control over
                     timelocks and yield; and (4) a <strong className="text-brand-secondary">Community Bounty Board</strong> for decentralized
                     task coordination with escrow-protected rewards.
                 </p>
@@ -404,8 +404,8 @@ export const Whitepaper: React.FC = () => {
                             <TableRow cells={['Staking', 'Lock in UTXO Vault (3 tiers)', 'Earn 0.5-10% yield + consensus weight']} />
                             <TableRow cells={['DApp Registration', 'Stake 10,000 CLAIM', 'Authorize faucet for minting access']} />
                             <TableRow cells={['Governance', 'Weight = stake × merit', 'Vote on protocol parameters']} />
-                            <TableRow cells={['Transaction Fees', 'EIP-1559 dynamic pricing', '50% burned, 50% to validators']} />
-                            <TableRow cells={['Bounty Escrow', 'Lock in BountyBoard contract', 'Incentivize community tasks']} />
+                            <TableRow cells={['Transaction Fees', 'Dynamic, set by the appchain', '50% treasury, 50% miner pool']} />
+                            <TableRow cells={['Bounty Escrow', 'Held by the Bounty Board until approval', 'Incentivize community tasks']} />
                             <TableRow cells={['Voluntary Burn', 'Opt-in burn function', 'Deflationary pressure + gamification']} />
                         </tbody>
                     </table>
@@ -421,10 +421,11 @@ export const Whitepaper: React.FC = () => {
             {/* 8. UTXO STAKING */}
             <SectionCard title="8. UTXO Staking Vault" icon={<CubeIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
-                    FaucetChain introduces a novel <strong className="text-brand-secondary">UTXO-style staking model</strong> that bridges
-                    the granular control of Bitcoin's Unspent Transaction Outputs with the programmability of Ethereum's
-                    account model. Each staking deposit generates an <strong className="text-brand-secondary">ERC-721 NFT</strong> that
-                    acts as a "synthetic UTXO" — an individually trackable, transferable receipt of a staking position.
+                    FaucetChain uses a <strong className="text-brand-secondary">UTXO-style staking model</strong>, borrowing
+                    from Bitcoin's Unspent Transaction Outputs rather than from a running account balance.
+                    Each deposit creates a <strong className="text-brand-secondary">position with its own id</strong> — a
+                    synthetic UTXO, tracked individually and spent exactly once when it is closed.
+                    Positions are records on the appchain, not tokens on another chain.
                 </p>
                 <Quote>
                     Unlike traditional account-based staking where all deposits are pooled, UTXO staking allows users to
@@ -466,7 +467,7 @@ export const Whitepaper: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">
                     {[
                         { title: 'Temporal Analysis', desc: 'Detects claims occurring < 60 seconds apart, indicative of automated farming.' },
-                        { title: 'Gas Uniformity', desc: 'Flags sequences with < 0.5 gwei gas price variance across 5+ transactions.' },
+                        { title: 'Timing Uniformity', desc: 'Flags accounts whose claim intervals vary by less than a human plausibly can, across 5+ claims.' },
                         { title: 'Compression Matching', desc: 'Uses zlib compression ratios to detect repetitive behavioral fingerprints.' },
                     ].map((mod, i) => (
                         <div key={i} className="p-4 bg-brand-bg/40 rounded-xl border border-brand-border/30">
@@ -515,41 +516,54 @@ export const Whitepaper: React.FC = () => {
                     <table className="w-full text-left">
                         <thead><TableRow cells={['Layer', 'Components', 'Technology', 'Role']} header /></thead>
                         <tbody>
-                            <TableRow cells={['L1 Consensus', 'FaucetChain Native PoC+PoS', 'Solidity, Web3', 'Immutability & finality']} />
-                            <TableRow cells={['Smart Contracts', '6 contracts (CLAIM, Epoch, Vault...)', 'Solidity ^0.8.24, OpenZeppelin', 'On-chain logic & state']} />
+                            <TableRow cells={['Distribution', 'FaucetChain appchain (PoC + PoS)', 'Python, FastAPI, SQLite', 'Claims, hourly quota, anti-Sybil — free and fast']} />
+                            <TableRow cells={['Settlement', 'Anchor program on Solana', 'Rust, Anchor, SPL Token', 'Custody, proof of reserve, every payout']} />
+                            <TableRow cells={['Bridge between them', 'One 32-byte Merkle root', 'keccak256, identical on both sides', 'Carries a promise, never carries value']} />
                             <TableRow cells={['Native Chain', 'indexer_service.py', 'Python, SQLite', 'Sovereign chain (genesis 0, no external sync)']} />
                             <TableRow cells={['API Gateway', 'api_server.py (FastAPI)', 'Python, WebSocket, REST', 'Data serving & coordination']} />
                             <TableRow cells={['AI Engine', 'Sentinel V3, Vector KB', 'Python, ChromaDB, ML', 'Fraud detection & knowledge']} />
-                            <TableRow cells={['Frontend', 'React, TypeScript', 'Vite, ethers.js, Recharts', 'User interface & wallet']} />
+                            <TableRow cells={['Frontend', 'React, TypeScript', 'Vite, @solana/web3.js, Recharts', 'User interface & Solana wallet']} />
                         </tbody>
                     </table>
                 </div>
                 <FormulaBlock
-                    title="Target Performance Metrics"
-                    formula="Block Time: 12s | Finality: ~20min (L1) | TPS Target: 300+ | Gas: EIP-1559"
-                    desc="Soft finality is instant at the application layer. Hard finality occurs after L1 checkpoint (~every 100 blocks)."
+                    title="What each layer costs a user"
+                    formula="Claiming: 0 · Receiving: 0 · Withdrawing to Solana: one transaction, paid by the relayer"
+                    desc="A user who earned fractions of a cent holds no SOL. claim_reward takes the fee payer as a signer separate from the recipient, so the relayer covers both the fee and the account rent."
                 />
             </SectionCard>
 
-            {/* 11. SMART CONTRACTS */}
-            <SectionCard title="11. Smart Contract Suite" icon={<CubeIcon className="w-5 h-5" />}>
+            {/* 11. THE SOLANA SETTLEMENT PROGRAM */}
+            <SectionCard title="11. The Settlement Program on Solana" icon={<CubeIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed mb-4">
-                    FaucetChain's on-chain logic is distributed across seven purpose-built smart contracts:
+                    Custody of every partner budget lives in one Anchor program on Solana, at{' '}
+                    <code className="text-brand-primary text-xs">64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm</code>.
+                    It exposes six instructions, and refuses anything it was not shown a proof for.
                 </p>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                        <thead><TableRow cells={['Contract', 'Purpose', 'Key Functions']} header /></thead>
+                        <thead><TableRow cells={['Instruction', 'What it does', 'What it refuses']} header /></thead>
                         <tbody>
-                            <TableRow cells={['FaucetToken_CLAIM', 'ERC-20 native token (99M cap)', 'mintForClaim(), burn()']} />
-                            <TableRow cells={['HourlyEpochManager', 'Emission control (2K/hour)', 'processClaim(), _checkAndRolloverEpoch()']} />
-                            <TableRow cells={['DAppStakingRegistry', 'Faucet authorization (10K stake)', 'plugFaucet(), isAuthorizedFaucet()']} />
-                            <TableRow cells={['UTXOStakingVault', 'ERC-721 staking receipts (3 tiers)', 'stake(), unstake(), getPositionDetails()']} />
-                            <TableRow cells={['YieldAccumulatorVault', 'External PoS asset yield', 'stakeExternalAsset(), distributeYield()']} />
-                            <TableRow cells={['HubRegistryRoots', 'L1 Merkle root anchoring', 'registerHub(), publishEpochRoot()']} />
-                            <TableRow cells={['CommunityBountyBoard', 'Decentralized task marketplace', 'createBounty(), claimBounty(), approveBounty()']} />
+                            <TableRow cells={['create_campaign', 'Opens a campaign: sponsor, operator, mint, vault', 'A vault whose authority is anyone but the campaign itself']} />
+                            <TableRow cells={['fund_campaign', "Moves the partner's tokens into the vault", 'Debiting any account but the sponsor’s own']} />
+                            <TableRow cells={['publish_root', 'Anchors one Merkle root for a batch of rewards', 'Any root the vault does not already cover — proof of reserve']} />
+                            <TableRow cells={['claim_reward', 'Pays one leaf against a published root', 'A second attempt: the receipt account already exists']} />
+                            <TableRow cells={['withdraw_surplus', 'Returns what was never promised to the sponsor', 'Touching a token inside a published root']} />
+                            <TableRow cells={['close_campaign', 'Stops new roots without touching the vault', 'Anyone who is not the sponsor']} />
                         </tbody>
                     </table>
                 </div>
+                <p className="text-brand-muted leading-relaxed mt-4">
+                    Every account it owns is a PDA — campaign, vault, reward root and claim receipt —
+                    so nothing depends on a key somebody has to keep safe. The reserve check runs
+                    on-chain before a root is accepted, which is what makes solvency a fact rather
+                    than a report:
+                </p>
+                <FormulaBlock
+                    title="Proof of Reserve, enforced at publication"
+                    formula="vault.amount >= committed - paid + total_amount"
+                    desc="A sequencer that has over-promised cannot publish. The check does not depend on the sequencer being honest, or even being online."
+                />
             </SectionCard>
 
             {/* 12. GOVERNANCE */}
@@ -594,11 +608,11 @@ export const Whitepaper: React.FC = () => {
             <SectionCard title="13. Roadmap" icon={<BeakerIcon className="w-5 h-5" />}>
                 <div className="space-y-6 mt-2">
                     {[
-                        { phase: 'Phase 1 — Foundation', period: 'Q1 2026', status: 'COMPLETED', items: ['Core protocol design', 'Token contract (CLAIM)', 'Hourly Epoch Manager', 'FaucetChain network deployment', 'Block indexer service'] },
-                        { phase: 'Phase 2 — Intelligence', period: 'Q2 2026', status: 'COMPLETED', items: ['Sentinel V3 AI engine', 'Vector Knowledge Base (ChromaDB)', 'Hybrid Intelligence pipeline', 'Fraud detection ML module', 'DApp Staking Registry'] },
-                        { phase: 'Phase 3 — UTXO & DeFi', period: 'Q2 2026', status: 'CURRENT', items: ['UTXO Staking Vault (ERC-721)', 'Community Bounty Board', 'Yield Accumulator Vault', 'Hub Registry with Merkle anchoring', 'Full explorer with proof verification'] },
-                        { phase: 'Phase 4 — Scaling', period: 'Q3 2026', status: 'PLANNED', items: ['zkRollup integration for 10x TPS', 'Cross-chain bridges (Polygon, Arbitrum)', 'Decentralized sequencer', 'Chainlink oracle integration', 'Mobile wallet SDK'] },
-                        { phase: 'Phase 5 — Mainnet', period: 'Q4 2026', status: 'PLANNED', items: ['Mainnet genesis block', 'Token migration from testnet', 'CertiK / Trail of Bits audit', 'Bug bounty program ($100K)', 'Community governance activation'] },
+                        { phase: 'Phase 1 — Distribution', status: 'COMPLETED', items: ['Proof of Claim with rising difficulty', 'Hourly quota of 2,000 $CLAIM', 'Per-IP wallet cap', 'Block indexer service', 'Explorer and appchain API'] },
+                        { phase: 'Phase 2 — Intelligence', status: 'COMPLETED', items: ['Sentinel AI engine', 'Vector Knowledge Base (ChromaDB)', 'Fraud detection pipeline', 'Faucet staking registry'] },
+                        { phase: 'Phase 3 — Settlement on Solana', status: 'CURRENT', items: ['Campaign vaults and reward roots on Solana', 'Proof of reserve enforced before a root is accepted', 'Merkle-proof withdrawal with replay-proof receipts', 'Relayer: withdraw holding zero SOL', 'Wallet ownership proved by signature', 'Ledger read from the chain, not from the server'] },
+                        { phase: 'Phase 4 — Hardening', status: 'NEXT', items: ['Devnet deployment and a public demo campaign', 'Session authentication for custodial accounts', 'Rate limits on the relayer and the proof endpoint', 'Partner SDK for external faucets'] },
+                        { phase: 'Phase 5 — Treasury', status: 'PLANNED', items: ['Treasury staking as an operation, not a model', 'Payout choice: $CLAIM or the staked asset', 'Expiry for rewards nobody claims', 'More than one sequencer', 'Independent security audit'] },
                     ].map((phase, i) => (
                         <div key={i} className="flex gap-4">
                             <div className="flex flex-col items-center">
@@ -612,7 +626,8 @@ export const Whitepaper: React.FC = () => {
                             <div className="flex-1 pb-4">
                                 <div className="flex items-center gap-3 mb-2">
                                     <h4 className="text-sm font-black text-brand-secondary">{phase.phase}</h4>
-                                    <span className="text-[10px] text-brand-muted font-mono">{phase.period}</span>
+                                    {/* No quarter labels: the previous roadmap dated Solidity milestones
+                                        as shipped that were never deployed. Order is honest, dates were not. */}
                                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
                                         phase.status === 'COMPLETED' ? 'text-green-400 bg-green-500/10 border border-green-500/20' :
                                         phase.status === 'CURRENT' ? 'text-brand-primary bg-brand-primary/10 border border-brand-primary/20' :
@@ -645,8 +660,8 @@ export const Whitepaper: React.FC = () => {
                     an environment that is simultaneously secure, fair, and performant.
                 </p>
                 <p className="text-brand-muted leading-relaxed mt-4">
-                    The introduction of <strong className="text-brand-secondary">UTXO-style staking</strong> brings the granular asset management
-                    of Bitcoin to the programmable world of Ethereum smart contracts, while the <strong className="text-brand-secondary">Hourly Epoch
+                    <strong className="text-brand-secondary">UTXO-style staking</strong> brings the granular asset management
+                    of Bitcoin to positions that are spent exactly once, while the <strong className="text-brand-secondary">Hourly Epoch
                     System</strong> ensures controlled, predictable monetary policy. Together, these innovations establish
                     FaucetChain as a platform designed not just for the current state of blockchain technology, but for
                     the decentralized economies of tomorrow.
@@ -659,7 +674,7 @@ export const Whitepaper: React.FC = () => {
                 <div className="mt-8 p-6 bg-gradient-to-r from-brand-primary/5 to-brand-accent/5 rounded-2xl border border-brand-primary/20 text-center">
                     <p className="text-xs font-black text-brand-muted uppercase tracking-[0.2em] mb-2">Contact & Resources</p>
                     <p className="text-sm text-brand-secondary">
-                        Testnet Explorer • API Docs • Smart Contract Source • AI Sentinel Dashboard
+                        Testnet Explorer • API Docs • Anchor Program Source • AI Sentinel Dashboard
                     </p>
                     <p className="text-xs text-brand-muted mt-2">
                         © 2026 FaucetChain Protocol. Licensed under MIT.

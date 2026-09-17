@@ -13,7 +13,7 @@ FaucetChain existed as a prototype before the hackathon. Everything in the `pre-
 ## What existed before the hackathon
 
 **Concept and documentation**
-- Whitepaper in Portuguese (March 2026), FaucetHub integration guide (June 2026), maintenance and audit reports (April–July 2026), Obsidian notes in `FaucetChain-Vault/`.
+- Whitepaper in Portuguese (March 2026), FaucetHub integration guide (June 2026), maintenance and audit reports (April–July 2026), Obsidian notes, all archived in `legacy/docs/`.
 
 **Native chain prototype** (Python, FastAPI, SQLite — `api_server.py`)
 - Chain ID 7777 with its own genesis block, run by a single sequencer.

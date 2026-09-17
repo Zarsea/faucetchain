@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { CodeSection } from '../types';
-import { SOLIDITY_CODE, PYTHON_CODE } from '../constants';
+import { ANCHOR_CODE, PYTHON_CODE } from '../constants';
 import { CodeBlock } from './CodeBlock';
 
 interface CodeViewerProps {
@@ -12,11 +12,16 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ section }) => {
     if (section === 'Smart Contract') {
         return (
             <div>
-                <h2 className="text-2xl font-bold text-brand-secondary mb-4">Hybrid PoC+PoS Smart Contract</h2>
+                <h2 className="text-2xl font-bold text-brand-secondary mb-4">The Settlement Program on Solana</h2>
                 <p className="text-brand-muted mb-6">
-                    This Solidity smart contract outlines the core on-chain logic for managing validators, submitting claims with stakes, calculating hybrid weights, and applying unified slashing.
+                    This is the program that holds every partner budget, at{' '}
+                    <code className="text-brand-primary text-xs">64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm</code>.
+                    The appchain keeps doing the distributing; this holds what needs a public
+                    guarantee. A root is only accepted if the vault already covers everything
+                    promised, and a reward is only paid against an inclusion proof — so partner
+                    funds never cross a bridge, they enter here and leave here.
                 </p>
-                <CodeBlock code={SOLIDITY_CODE} language="solidity" title="HybridPoCPoS.sol" />
+                <CodeBlock code={ANCHOR_CODE} language="rust" title="programs/faucetchain/src/lib.rs" />
             </div>
         );
     }

@@ -138,8 +138,8 @@ export const NetworkStatus: React.FC = () => {
                     <MetricItem label="Total Staked" value={`${formatNumber(metrics.totalStaked, lang)} $CLAIM`} />
                     <MetricItem label="Total Transactions" value={formatNumber(metrics.totalTransactions, lang)} />
                     <MetricItem
-                        label="Avg Gas Price"
-                        value={`${metrics.avgGasPrice} Gwei`}
+                        label="Avg Network Fee"
+                        value={`${metrics.avgGasPrice} µCLAIM`}
                         trend={metrics.avgGasPrice > 4 ? 'UP' : 'NEUTRAL'}
                     />
                     <MetricItem label="Hashrate" value={`${metrics.networkHashrate} TH/s`} />

@@ -40,7 +40,7 @@ export const diagnoseNetworkError = async (metrics: any, anomaly: any): Promise<
         - TPS: ${metrics.tps}
         - Validadores Ativos: ${metrics.activeValidators}
         - Tempo de Finalização: ${metrics.avgBlockFinalizationTime}s
-        - Preço do Gás: ${metrics.avgGasPrice} Gwei
+        - Taxa média da rede: ${metrics.avgGasPrice} µCLAIM (a appchain não cobra gás do usuário)
         
         Anomalia Detectada: ${anomaly.type} - ${anomaly.description}
         
@@ -77,7 +77,7 @@ export const autonomousCodeGeneration = async (
         
         const systemPrompt = `
         VOCÊ É A SENTINEL AI: O AGENTE AUTÔNOMO "SELF-HEALING" DA FAUCETCHAIN.
-        Sua função primária e única é Engenharia de Software focada na arquitetura da FaucetChain (Node, Solidity, Python).
+        Sua função primária e única é Engenharia de Software focada na arquitetura da FaucetChain: a appchain em Python/FastAPI que distribui, e o programa Anchor em Rust na Solana que liquida. O projeto não usa Solidity; os contratos EVM estão arquivados em legacy/evm e nunca foram implantados.
         
         Sua resposta deve conter UNICAMENTE código utilizável ou patches formatados quando solicitado. Sem explicações prévias a menos que comentadas no próprio código gerado utilizando os padrões de docblocks apropriados para a linguagem. Mantenha altíssima atenção na prevenção de bugs de segurança, exploits de Smart Contracts ou travamentos de L2/Consenso.
         

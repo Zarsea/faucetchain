@@ -1,9 +1,0 @@
-[dotenv@17.3.1] injecting env (3) from .env -- tip: ≡ƒöÉ prevent building .env in docker: https://dotenvx.com/prebuild
-Error HHE15: Invalid config:
-	* Config error in config.networks.sepolia.type: Invalid discriminator value. Expected 'http' | 'edr-simulated'
-
-HardhatError: HHE15: Invalid config:
-	* Config error in config.networks.sepolia.type: Invalid discriminator value. Expected 'http' | 'edr-simulated'
-    at Function.create (C:\Users\Administrator\Downloads\copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer\node_modules\hardhat\src\internal\core\hre.ts:99:13)
-    at async main (C:\Users\Administrator\Downloads\copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer\node_modules\hardhat\src\internal\cli\main.ts:159:17)
-    at async file:///C:/Users/Administrator/Downloads/copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer/node_modules/hardhat/dist/src/cli.js:21:1

@@ -1,5 +1,0 @@
-components/AIChatAgent.tsx(89,29): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
-components/AIChatAgent.tsx(196,45): error TS2339: Property 'function' does not exist on type 'ChatCompletionMessageToolCall'.
-  Property 'function' does not exist on type 'ChatCompletionMessageCustomToolCall'.
-components/AIChatAgent.tsx(197,54): error TS2339: Property 'function' does not exist on type 'ChatCompletionMessageToolCall'.
-  Property 'function' does not exist on type 'ChatCompletionMessageCustomToolCall'.

@@ -288,6 +288,18 @@ These are open on purpose, not oversights:
 
 ## Change log
 
+**2026-09-17 — the documentation stopped saying Solidity.** A sweep found the
+EVM story surviving in places a reader meets before any markdown file: the
+in-app whitepaper called the stack "Solidity ^0.8.24, OpenZeppelin" and listed
+seven contracts; the L1 Contract tab showed a Solidity snippet as the core
+protocol logic; the staking screen claimed each deposit mints an ERC-721; the AI
+assistant's system prompt named Solidity as the architecture it advises on. All
+now describe the two layers that exist. The master whitepaper was rewritten in
+English, including how the network pays for itself. Fifteen EVM-era documents
+moved to `legacy/docs/`, and seven stray build logs that had been committed by
+accident were deleted.
+
+
 **2026-09-17 — one way in, and it is not a wallet.** Connecting an external EVM
 wallet was removed as a login method: payouts settle on Solana, so the only
 wallet the product needs is the Solana one, linked from the payouts screen.

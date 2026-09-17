@@ -206,7 +206,7 @@ export const StakingVault: React.FC = () => {
                     <div>
                         <h2 className="text-2xl font-black text-white tracking-tighter uppercase">{t('staking.vaultTitle')}</h2>
                         <p className="text-xs text-brand-muted mt-1">
-                            Cada depósito gera um NFT ERC-721 único • Coin Control ativo
+                            Every deposit becomes its own position, spent exactly once • Coin control
                         </p>
                     </div>
                 </div>

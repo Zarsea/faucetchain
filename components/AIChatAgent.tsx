@@ -81,15 +81,15 @@ export const AIChatAgent: React.FC = () => {
 
         lastMetricsAlertRef.current = now;
         const textPt = tpsLow && gasHigh
-            ? `Sentinela: TPS baixo (${metrics.tps.toFixed(1)}) e gás alto (${metrics.avgGasPrice.toFixed(0)} gwei) detectados. Pode indicar pouca atividade ou congestionamento.`
+            ? `Sentinela: TPS baixo (${metrics.tps.toFixed(1)}) e taxa alta (${metrics.avgGasPrice.toFixed(0)} µCLAIM) detectados. Pode indicar pouca atividade ou congestionamento.`
             : tpsLow
                 ? `Sentinela: TPS baixo detectado (${metrics.tps.toFixed(1)}). Pode indicar pouca atividade ou nós lentos.`
-                : `Sentinela: Gás alto detectado (${metrics.avgGasPrice.toFixed(0)} gwei). Possível congestionamento na rede.`;
+                : `Sentinela: Taxa alta detectada (${metrics.avgGasPrice.toFixed(0)} µCLAIM). Possível congestionamento na rede.`;
         const textEn = tpsLow && gasHigh
-            ? `Sentinel: Low TPS (${metrics.tps.toFixed(1)}) and high gas (${metrics.avgGasPrice.toFixed(0)} gwei) detected. May indicate low activity or congestion.`
+            ? `Sentinel: Low TPS (${metrics.tps.toFixed(1)}) and high fees (${metrics.avgGasPrice.toFixed(0)} µCLAIM) detected. May indicate low activity or congestion.`
             : tpsLow
                 ? `Sentinel: Low TPS detected (${metrics.tps.toFixed(1)}). May indicate low activity or slow nodes.`
-                : `Sentinel: High gas detected (${metrics.avgGasPrice.toFixed(0)} gwei). Possible network congestion.`;
+                : `Sentinel: High fees detected (${metrics.avgGasPrice.toFixed(0)} µCLAIM). Possible network congestion.`;
 
         const aiMsg: Message = {
             id: `metrics-alert-${now}`,
@@ -110,11 +110,11 @@ export const AIChatAgent: React.FC = () => {
 
         const baseTextPt = `Sentinela detectou uma anomalia de rede: ${anomaly.type} (severidade ${anomaly.severity}). ${anomaly.description}
 
-Bloco atual: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Gas médio: ${metrics.avgGasPrice.toFixed(2)} gwei.`;
+Bloco atual: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Taxa média: ${metrics.avgGasPrice.toFixed(2)} µCLAIM.`;
 
         const baseTextEn = `Sentinel detected a network anomaly: ${anomaly.type} (severity ${anomaly.severity}). ${anomaly.description}
 
-Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg gas: ${metrics.avgGasPrice.toFixed(2)} gwei.`;
+Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg fee: ${metrics.avgGasPrice.toFixed(2)} µCLAIM.`;
 
         const text = lang === 'pt' ? baseTextPt : baseTextEn;
 
@@ -186,12 +186,12 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                                 source = 'local';
                             } else {
                                 // Fallback to Gemini if nothing found via Vector DB
-                                const metricsContext = `Block: ${metricsSnapshot.blockHeight}, TPS: ${metricsSnapshot.tps}, Gas: ${metricsSnapshot.avgGasPrice} gwei, Validators: ${metricsSnapshot.activeValidators}.`;
+                                const metricsContext = `Block: ${metricsSnapshot.blockHeight}, TPS: ${metricsSnapshot.tps}, Fee: ${metricsSnapshot.avgGasPrice} µCLAIM, Validators: ${metricsSnapshot.activeValidators}.`;
                                 finalContent = await explainWithGemini(metricsContext, textToSend);
                                 source = 'cloud';
                             }
                         } else {
-                            const metricsContext = `Block: ${metricsSnapshot.blockHeight}, TPS: ${metricsSnapshot.tps}, Gas: ${metricsSnapshot.avgGasPrice} gwei, Validators: ${metricsSnapshot.activeValidators}.`;
+                            const metricsContext = `Block: ${metricsSnapshot.blockHeight}, TPS: ${metricsSnapshot.tps}, Fee: ${metricsSnapshot.avgGasPrice} µCLAIM, Validators: ${metricsSnapshot.activeValidators}.`;
                             finalContent = await explainWithGemini(metricsContext, textToSend);
                             source = 'cloud';
                         }

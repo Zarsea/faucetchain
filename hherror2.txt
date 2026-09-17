@@ -1,9 +1,0 @@
-[dotenv@17.3.1] injecting env (3) from .env -- tip: ≡ƒ¢á∩╕Å  run anywhere with `dotenvx run -- yourcommand`
-Error HHE15: Invalid config:
-	* Config error in config.networks.sepolia.accounts.0: Expected a hex-encoded private key or a Configuration Variable
-
-HardhatError: HHE15: Invalid config:
-	* Config error in config.networks.sepolia.accounts.0: Expected a hex-encoded private key or a Configuration Variable
-    at Function.create (C:\Users\Administrator\Downloads\copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer\node_modules\hardhat\src\internal\core\hre.ts:99:13)
-    at async main (C:\Users\Administrator\Downloads\copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer\node_modules\hardhat\src\internal\cli\main.ts:159:17)
-    at async file:///C:/Users/Administrator/Downloads/copy-of-copy-of-test-net-hybrid-poc+pos-consensus-explorer/node_modules/hardhat/dist/src/cli.js:21:1

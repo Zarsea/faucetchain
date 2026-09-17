@@ -29,7 +29,7 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Network Status Check',
         keywords: ['status', 'height', 'block', 'tps', 'gas', 'altura', 'bloco'],
         response: [
-            "The network is reporting Block #{{blockHeight}} with {{tps}} TPS. Gas prices are stable at {{gasPrice}} gwei.",
+            "The network is reporting Block #{{blockHeight}} with {{tps}} TPS. Network fees are stable at {{gasPrice}} µCLAIM.",
             "Telemetria Atual: Bloco #{{blockHeight}} confirmado. A rede opera com {{activeValidators}} validadores ativos e {{tps}} TPS."
         ]
     },
@@ -127,8 +127,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Gas and Fees',
         keywords: ['gas', 'fee', 'taxa', 'cost', 'custo', 'transaction cost'],
         response: [
-            "Current gas price: {{gasPrice}} gwei. FaucetChain uses dynamic fee adjustment based on network congestion. Base fee burns 50% of gas, remaining 50% goes to validators.",
-            "Preço atual do gás: {{gasPrice}} gwei. Usamos ajuste dinâmico de taxas baseado em congestionamento. 50% da taxa base é queimada (deflação), 50% vai para validadores."
+            "Current network fee: {{gasPrice}} µCLAIM. Claiming and receiving cost a user nothing; this fee applies to transfers. It splits 50% to the treasury and 50% to the miner pool. Withdrawing to Solana costs a Solana transaction, and the relayer pays it.",
+            "Taxa atual da rede: {{gasPrice}} µCLAIM. Clamar e receber não custam nada ao usuário; a taxa incide sobre transferências e se divide 50% tesouraria e 50% pool de mineradores. Sacar para a Solana custa uma transação, paga pelo relayer."
         ]
     },
     {
@@ -201,8 +201,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Diagnose High Gas Prices',
         keywords: ['high gas', 'gás alto', 'expensive', 'caro', 'why expensive'],
         response: [
-            "High gas ({{gasPrice}} gwei) indicates network congestion. Root causes: (1) Spam attacks, (2) Popular NFT mint, (3) MEV bot competition. Solutions: Implement EIP-1559 base fee burning + priority fee auction. Monitor mempool for anomalies.",
-            "Gás alto ({{gasPrice}} gwei) indica congestionamento. Causas: (1) Ataques spam, (2) Mint de NFT popular, (3) Competição de bots MEV. Soluções: Implementar EIP-1559 com queima de taxa base + leilão de prioridade."
+            "A high fee ({{gasPrice}} µCLAIM) points at congestion. Usual causes here: (1) a claim farm hammering the faucet, (2) the hourly quota emptying early, (3) a burst of transfers. The defences are the difficulty curve, the per-IP wallet cap and the quota itself.",
+            "Taxa alta ({{gasPrice}} µCLAIM) indica congestionamento. Causas típicas aqui: (1) fazenda de claims, (2) cota horária esgotando cedo, (3) rajada de transferências. As defesas são a curva de dificuldade, o teto por IP e a própria cota."
         ]
     },
     {
