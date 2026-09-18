@@ -439,6 +439,20 @@ RATE_LIMIT_WINDOW = timedelta(minutes=1)  # Time window
 explore_last_call: Dict[str, float] = {}
 EXPLORE_MIN_INTERVAL = 10  # minimum seconds between explore calls per node
 
+# How long the elected sealer gets before anyone may seal in their place.
+#
+# The draw is a head start, not a veto. Without this the chain halts the
+# moment an elected staker stops showing up -- and since the round is seeded
+# from the tip, which only moves when a block is sealed, the same absent
+# sealer is elected on every call afterwards. That is not a stall, it is a
+# standstill: this chain sat on block 19 from June to September behind an
+# address holding 0.1% of the stake.
+#
+# Measured from the oldest waiting claim rather than from the tip, because the
+# promise is about claims, not blocks: no claim waits longer than this for
+# somebody to be allowed to seal it.
+SEALER_GRACE_SECONDS = int(os.getenv("SEALER_GRACE_SECONDS", "60"))
+
 # Sensitive data patterns to filter
 SENSITIVE_PATTERNS = [
     r'0x[a-fA-F0-9]{64}',  # Private keys
@@ -1589,7 +1603,9 @@ class TransferRequest(BaseModel):
     receiver: str
     amount: float
     nonce: int
-    signature: str
+    # Only a wallet can sign. An account whose key nobody holds -- which is
+    # every account this product creates -- proves itself with its session.
+    signature: Optional[str] = None
 
 def normalize_address(addr: str) -> str:
     """Normalize an Ethereum address: strip whitespace, enforce 0x prefix,
@@ -2004,7 +2020,8 @@ def calculate_dynamic_fee() -> float:
 
 
 @app.post("/api/transfer")
-async def transfer_claim(req: TransferRequest, request: Request):
+async def transfer_claim(req: TransferRequest, request: Request,
+                         x_session_token: Optional[str] = Header(None)):
     client_ip = request.client.host
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
@@ -2030,16 +2047,33 @@ async def transfer_claim(req: TransferRequest, request: Request):
         conn.close()
         raise HTTPException(status_code=400, detail=f"Invalid Nonce. Expected {current_nonce + 1}, got {req.nonce}")
 
-    # 2. Signature Verification
+    # 2. Proof that the caller may spend from this account
     payload_str = f"{CHAIN_ID}:{req.nonce}:{sender_lower}:{receiver_lower}:{req.amount}"
-    try:
-        message = encode_defunct(text=payload_str)
-        recovered_addr = Account.recover_message(message, signature=req.signature).lower()
-        if recovered_addr != sender_lower:
-            raise ValueError("Signature mismatch")
-    except Exception as e:
-        conn.close()
-        raise HTTPException(status_code=401, detail=f"That signature is invalid or corrupted: {e}")
+    if is_custodial_address(sender_lower):
+        # There is no key for these accounts -- not in the browser, not here.
+        # A guest address is twenty random bytes and a wallet-derived one comes
+        # from a public key by keccak; no private key produces either. The
+        # screen used to ask for one anyway, which meant nobody could transfer
+        # and everybody was taught to paste private keys into a web page.
+        #
+        # Not routed through require_action_signature because this payload is
+        # bound by nonce rather than by timestamp, and the nonce is the stronger
+        # replay guard of the two here.
+        if session_holder(x_session_token) != sender_lower:
+            conn.close()
+            raise HTTPException(
+                status_code=401,
+                detail="Sign in again to transfer: this account acts through a session.",
+            )
+    else:
+        try:
+            message = encode_defunct(text=payload_str)
+            recovered_addr = Account.recover_message(message, signature=req.signature or "").lower()
+            if recovered_addr != sender_lower:
+                raise ValueError("Signature mismatch")
+        except Exception as e:
+            conn.close()
+            raise HTTPException(status_code=401, detail=f"That signature is invalid or corrupted: {e}")
 
     # 3. Check balance including dynamic fee
     fee = calculate_dynamic_fee()
@@ -2616,14 +2650,26 @@ async def mining_explore(req: ExploreRequest, request: Request):
             # não sela nada nesta rodada.
             tip_height, tip_hash, _tip_parent = get_chain_tip(c)
             sealer = select_block_sealer(c, tip_hash, current_ts)
-            if sealer is not None and sealer != miner_addr:
+            waiting = current_ts - pendings[0]["timestamp"]
+            if sealer is not None and sealer != miner_addr and waiting < SEALER_GRACE_SECONDS:
                 conn.close()
                 return {
                     "explored": False,
                     "miner_fee": 0,
                     "sealer": sealer,
-                    "message": f"Rodada do selador {sealer[:10]}... (sorteio ponderado por stake). Aguarde a proxima rodada."
+                    "grace_left": SEALER_GRACE_SECONDS - waiting,
+                    "message": (
+                        f"Rodada do selador {sealer[:10]}... (sorteio ponderado por stake). "
+                        f"Livre para qualquer nó em {SEALER_GRACE_SECONDS - waiting}s."
+                    ),
                 }
+            if sealer is not None and sealer != miner_addr:
+                # The grace ran out. Sealing anyway is the liveness escape, and it
+                # is worth an audit line: a sealer that keeps missing its turn is
+                # either gone or a problem.
+                audit_log("SEALER_GRACE_EXPIRED", request.client.host, {
+                    "elected": sealer, "sealed_by": miner_addr, "waited": waiting,
+                })
 
             # ── Seleção FIFO dos claims que entram no bloco ──
             # Por claim: hard cap (B4) rejeita permanentemente; quota horária

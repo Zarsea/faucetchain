@@ -136,6 +136,35 @@ def test_the_relayer_and_the_proofs_have_a_pace(client):
         srv._rate_windows.clear()
 
 
+def test_a_transfer_needs_the_session_and_not_a_private_key(client):
+    """The transfer screen asked for a private key, and no account has one.
+
+    A guest address is twenty random bytes from secrets.token_hex; a
+    wallet-derived one is keccak over a public key. No private key produces
+    either, so the form could not work for anybody — while teaching the exact
+    habit phishing depends on, and writing the key to localStorage in the clear.
+    """
+    sender = client.post("/api/auth/guest").json()
+    receiver = client.post("/api/auth/guest").json()
+    body = {"sender": sender["wallet_address"], "receiver": receiver["wallet_address"],
+            "amount": 1.0, "nonce": 1}
+
+    # No session: the address alone is not enough here either.
+    assert client.post("/api/transfer", json=body).status_code == 401
+
+    # Somebody else's session does not open this account.
+    other = client.post("/api/auth/guest").json()["session_token"]
+    assert client.post("/api/transfer", json=body,
+                       headers={"X-Session-Token": other}).status_code == 401
+
+    # The holder gets past the proof. An empty account then fails on balance,
+    # which is the next check and the one that should be deciding.
+    r = client.post("/api/transfer", json=body,
+                    headers={"X-Session-Token": sender["session_token"]})
+    assert r.status_code == 400, r.text
+    assert "aldo" in r.json()["detail"], r.json()
+
+
 def test_knowing_a_custodial_address_is_not_enough_to_act_as_it(client):
     """The sharpest hole this project had.
 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ethers } from 'ethers';
+import { sessionHeaders } from './AuthContext';
 import { SectionCard } from './SectionCard';
 import {
     WalletIcon,
@@ -62,18 +62,20 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
     const { tFn: t } = useLanguage();
     const [receiver, setReceiver] = useState('');
     const [amount, setAmount] = useState('');
-    const [privateKey, setPrivateKey] = useState(localStorage.getItem('fcn_private_key') || '');
+    // A key was asked for here once, held in state and written to localStorage in
+    // the clear. No account this product creates has one — a guest address is
+    // twenty random bytes, a wallet-derived one comes from a public key — so the
+    // form could never work, and asking taught the exact habit that phishing
+    // depends on. Anything left from then is swept on mount.
+    useEffect(() => {
+        try { localStorage.removeItem('fcn_private_key'); } catch { /* storage blocked */ }
+    }, []);
     const [status, setStatus] = useState<{type: 'idle'|'loading'|'success'|'error', msg: string}>({type: 'idle', msg: ''});
 
     const handleTransfer = async () => {
         if (!receiver || !amount) return;
         setStatus({ type: 'loading', msg: t('transfer.processing') || 'Processing signature...' });
         try {
-            if (!privateKey) {
-                setStatus({ type: 'error', msg: 'Chave Privada nativa é necessária para assinar a transação no modo L1.' });
-                return;
-            }
-
             // 1. Fetch current nonce
             const nonceRes = await fetch(`${API_BASE_URL}/api/user/${userAddress}/nonce`);
             const nonceData = await nonceRes.json();
@@ -83,36 +85,18 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
             const parsedAmount = parseFloat(amount);
             const payload = `7777:${txNonce}:${userAddress?.toLowerCase()}:${receiver.toLowerCase()}:${parsedAmount}`;
 
-            // 3. Native Wallet Signature (Sem MetaMask)
-            let wallet;
-            try {
-                wallet = new ethers.Wallet(privateKey);
-            } catch (err) {
-                setStatus({ type: 'error', msg: 'Chave Privada inválida. Verifique o formato.' });
-                return;
-            }
-            
-            const signerAddress = await wallet.getAddress();
-            if (signerAddress.toLowerCase() !== userAddress.toLowerCase()) {
-                setStatus({ type: 'error', msg: `A chave inserida pertence a ${signerAddress.substring(0,6)}..., mas você está logado como ${userAddress.substring(0,6)}...` });
-                return;
-            }
-
-            // Salvar para o usuário não precisar digitar de novo na mesma sessão
-            localStorage.setItem('fcn_private_key', privateKey);
-
-            const signature = await wallet.signMessage(payload);
+            // 3. The session says who may spend from this account. The server
+            //    holds no key for it either, so a signature would prove nothing.
 
             // 4. Send Transaction
             const res = await fetch(`${API_BASE_URL}/api/transfer`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify({
                     sender: userAddress,
                     receiver: receiver,
                     amount: parsedAmount,
                     nonce: txNonce,
-                    signature: signature
                 })
             });
             const data = await res.json();
@@ -152,16 +136,6 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
                     min="0.01"
                     step="0.01"
                     className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-2.5 text-sm text-white focus:border-brand-primary outline-none transition-all"
-                />
-            </div>
-            <div>
-                <label className="text-[10px] font-black text-brand-accent uppercase mb-1 block">Chave Privada (L1 Nativa)</label>
-                <input 
-                    type="password" 
-                    value={privateKey}
-                    onChange={(e) => setPrivateKey(e.target.value)}
-                    placeholder="Cole sua Chave Privada da FaucetChain" 
-                    className="w-full bg-brand-bg/50 border border-brand-accent/50 rounded-xl px-4 py-2.5 text-sm text-white focus:border-brand-accent outline-none transition-all font-mono"
                 />
             </div>
             
