@@ -27,12 +27,23 @@ pub mod faucetchain {
     use super::*;
 
     /// Opens a campaign and the vault that holds its budget.
+    ///
+    /// `period_cap` and `period_len` are the sponsor's ceiling on how fast the
+    /// budget may be promised. Zero on either disables it.
     pub fn create_campaign(
         ctx: Context<CreateCampaign>,
         campaign_id: u64,
         operator: Pubkey,
+        period_cap: u64,
+        period_len: i64,
     ) -> Result<()> {
-        instructions::create_campaign::handle_create_campaign(ctx, campaign_id, operator)
+        instructions::create_campaign::handle_create_campaign(
+            ctx,
+            campaign_id,
+            operator,
+            period_cap,
+            period_len,
+        )
     }
 
     /// The partner deposits tokens into the campaign vault.

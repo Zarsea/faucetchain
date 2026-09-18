@@ -22,6 +22,8 @@ pub enum ErrorCode {
     LeafOutOfRange,
     #[msg("Batch carries more leaves than a root may hold")]
     BatchTooLarge,
+    #[msg("This period has already promised everything the sponsor allowed it")]
+    PeriodCapExceeded,
     #[msg("Arithmetic overflow")]
     Overflow,
 }

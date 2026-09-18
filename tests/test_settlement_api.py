@@ -33,6 +33,10 @@ os.environ["SETTLEMENT_RELAYER_KEYPAIR"] = RELAYER_PATH
 # Nothing here talks to a chain. Pointing the RPC at a dead port makes the
 # reward-root lookup fail fast and take its "could not ask" path.
 os.environ["SOLANA_RPC_URL"] = "http://127.0.0.1:1"
+# The treasury collects its share like any other recipient, so it needs a
+# wallet. api_server reads this at import time, hence here.
+TREASURY_KEY = Keypair.from_seed(bytes([44] * 32))
+os.environ["SETTLEMENT_TREASURY_SOLANA"] = str(TREASURY_KEY.pubkey())
 
 import indexer_service  # noqa: E402
 
@@ -220,6 +224,83 @@ def test_a_click_on_a_partner_faucet_drips_the_campaign_budget(client):
                          (campaign,)).fetchone()
     conn.close()
     assert spent[0] == gross and spent[1] == gross, spent
+
+
+def test_the_treasury_share_reaches_the_batch_instead_of_the_partner(client):
+    """The 20% used to be computed, returned in the response and credited to no
+    one.
+
+    That was not merely a missing record. The root published on-chain carried
+    only the users' 80%, so `committed` grew by 80 while the appchain debited
+    100 — and withdraw_surplus, which reads surplus as anything the vault holds
+    above committed minus paid, let the partner take the difference back. The
+    treasury's share was returned to the partner who was supposed to pay it.
+
+    The fix makes the treasury an ordinary recipient: one leaf per batch, the
+    same root, the same proof. This test is the arithmetic that says the two
+    books now agree.
+    """
+    faucet = "0x" + "d4" * 20
+    api_key = client.post("/api/faucethub/register",
+                          json={"name": "Treasury Faucet", "wallet_address": faucet}
+                          ).json()["api_key"]
+
+    campaign = 90310
+    assert client.post("/api/solana/campaign",
+                       json={"campaign_id": campaign, "sponsor": WALLET_C, "mint": WALLET_B},
+                       headers=OP).status_code == 200
+    assert client.post(f"/api/solana/campaign/{campaign}/budget",
+                       json={"total_budget": 120_000_000_000, "monthly_cap": 10_000_000_000},
+                       headers=OP).status_code == 200
+    assert client.post(f"/api/solana/campaign/{campaign}/faucets",
+                       json={"faucets": [faucet]}, headers=OP).status_code == 200
+
+    # Two people click, each collecting to their own wallet. A leaf belongs to a
+    # wallet rather than to a claim, so two users on one wallet would share one
+    # leaf — which is why they get different ones here.
+    gross = owed = 0
+    for wallet in (WALLET_A, WALLET_B):
+        user = Account.create()
+        assert client.post("/api/solana/link",
+                           json=link_body(user, wallet)).status_code == 200
+        drip = client.post("/api/faucethub/microclaim",
+                           json={"user_wallet": user.address.lower(), "amount": 1.0},
+                           headers={"X-Api-Key": api_key}).json()["campaigns"][0]
+        gross += drip["amount"] + drip["treasury"]
+        owed += drip["treasury"]
+    assert owed > 0
+
+    conn = srv.get_db_connection()
+    recorded = conn.execute(
+        "SELECT spent_total, treasury_owed FROM campaign_budget WHERE campaign_id = ?",
+        (campaign,)).fetchone()
+    conn.close()
+    # The budget drains by the gross, and the treasury's part of it is now a debt
+    # on the campaign rather than a number in an HTTP response.
+    assert recorded[0] == gross, recorded
+    assert recorded[1] == owed, recorded
+
+    batch = client.post("/api/solana/batch", json={"campaign_id": campaign},
+                        headers=OP).json()
+
+    # Here is the point: the root now promises everything the budget was
+    # debited for. Before this, it promised 80% of it and the rest went home
+    # with the partner.
+    assert batch["total_amount"] == gross, batch
+    assert batch["leaf_count"] == 3, batch     # two wallets and the treasury
+
+    conn = srv.get_db_connection()
+    leaf = conn.execute(
+        "SELECT amount, solana_address FROM settlement_rewards "
+        "WHERE campaign_id = ? AND user_address = ?",
+        (campaign, srv.TREASURY_ADDRESS)).fetchone()
+    left = conn.execute("SELECT treasury_owed FROM campaign_budget WHERE campaign_id = ?",
+                        (campaign,)).fetchone()[0]
+    conn.close()
+    assert leaf and leaf[0] == owed, leaf
+    assert leaf[1] == str(TREASURY_KEY.pubkey()), leaf
+    # Paid out once, not on every batch from now on.
+    assert left == 0, left
 
 
 def test_the_budget_is_a_ceiling_not_a_suggestion(client):

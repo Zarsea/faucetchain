@@ -69,6 +69,15 @@ pub fn handle_publish_root(
         ErrorCode::InsufficientReserve
     );
 
+    // The reserve check proves the vault can pay. It says nothing about pace:
+    // one root may promise everything the vault holds and still pass. The
+    // period ceiling is what bounds that, so the worst a compromised
+    // sequencer costs the sponsor is one period rather than the whole budget.
+    require!(
+        campaign.fits_in_period(total_amount, Clock::get()?.unix_timestamp),
+        ErrorCode::PeriodCapExceeded
+    );
+
     let reward_root = &mut ctx.accounts.reward_root;
     reward_root.campaign = campaign.key();
     reward_root.index = index;

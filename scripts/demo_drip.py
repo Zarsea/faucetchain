@@ -129,6 +129,8 @@ def main() -> None:
         print(f"    reached the users      {money(paid_users)}   ({paid_users / gross * 100:.0f}%)")
         print(f"    kept by the treasury   {money(paid_treasury)}   "
               f"({paid_treasury / gross * 100:.0f}%, staked rather than sold)")
+        print("    The treasury's share is owed on the campaign and joins the next batch")
+        print("    as one leaf, under the same root and the same reserve check as a user.")
     else:
         print("    The budget could not cover a single claim, so nothing was promised.")
         print("    Refusing here is the point: a root the vault cannot cover is rejected")

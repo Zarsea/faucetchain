@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-use crate::{constants::*, state::Campaign};
+use crate::{constants::*, error::ErrorCode, state::Campaign};
 
 #[derive(Accounts)]
 #[instruction(campaign_id: u64)]
@@ -40,7 +40,10 @@ pub fn handle_create_campaign(
     ctx: Context<CreateCampaign>,
     campaign_id: u64,
     operator: Pubkey,
+    period_cap: u64,
+    period_len: i64,
 ) -> Result<()> {
+    require!(period_len >= 0, ErrorCode::AmountZero);
     let campaign = &mut ctx.accounts.campaign;
     campaign.sponsor = ctx.accounts.sponsor.key();
     campaign.operator = operator;
@@ -53,6 +56,10 @@ pub fn handle_create_campaign(
     campaign.closed = false;
     campaign.bump = ctx.bumps.campaign;
     campaign.vault_bump = ctx.bumps.vault;
+    campaign.period_cap = period_cap;
+    campaign.period_len = period_len;
+    campaign.period_start = Clock::get()?.unix_timestamp;
+    campaign.spent_period = 0;
 
     msg!("Campaign {} created by {}", campaign_id, campaign.sponsor);
     Ok(())

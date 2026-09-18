@@ -1608,6 +1608,14 @@ async def get_user_nonce(address: str):
     return {"address": addr_lower, "nonce": row[0] if row else 0}
 
 TREASURY_ADDRESS = "0xfaucetchaintreasury00000000000000000000"
+
+# Where the treasury's share of a partner budget is paid, on Solana. It takes
+# the partner's token rather than $CLAIM, because that share is staked, not
+# sold — distributing a partner's token should never mean selling it.
+#
+# Unset, the share still accumulates and simply waits: it is recorded as owed
+# from the first drip, so configuring this later pays what was already earned.
+SETTLEMENT_TREASURY_SOLANA = os.getenv("SETTLEMENT_TREASURY_SOLANA")
 MINER_POOL_ADDRESS = "0xminerrewardpool00000000000000000000000"
 
 # Hard cap (fix B4): MAX_SUPPLY (constante no topo do arquivo) espelha o
@@ -5001,9 +5009,17 @@ def init_settlement_tables():
             month_key    TEXT,
             rolled_over  INTEGER NOT NULL DEFAULT 0,
             funding      TEXT NOT NULL DEFAULT 'vault',
-            ends_at      INTEGER
+            ends_at      INTEGER,
+            -- The treasury's share of every drip, waiting for a batch. It used to
+            -- be computed, returned in the response and credited to nobody, which
+            -- meant withdraw_surplus handed it back to the partner.
+            treasury_owed INTEGER NOT NULL DEFAULT 0
         )
     ''')
+    try:
+        c.execute("ALTER TABLE campaign_budget ADD COLUMN treasury_owed INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # column already there
 
     # The campaign declares which faucets it wants to appear in. A faucet does
     # not opt itself into somebody else's budget.
@@ -5364,9 +5380,9 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None)
             (campaign_id, user_address, to_user, now),
         )
         c.execute(
-            "UPDATE campaign_budget SET spent_total = spent_total + ?, spent_month = spent_month + ? "
-            "WHERE campaign_id = ?",
-            (gross, gross, campaign_id),
+            "UPDATE campaign_budget SET spent_total = spent_total + ?, spent_month = spent_month + ?, "
+            "treasury_owed = treasury_owed + ? WHERE campaign_id = ?",
+            (gross, gross, to_treasury, campaign_id),
         )
         c.execute(
             "INSERT INTO campaign_traffic (campaign_id, day, claims, users) VALUES (?, ?, 1, 1) "
@@ -5485,6 +5501,41 @@ async def credit_settlement_reward(
     return {"status": "credited", "campaign_id": req.campaign_id, "address": user, "amount": req.amount}
 
 
+def _flush_treasury_share(c, campaign_id: int):
+    """Turn what the treasury is owed into a reward row, and return it.
+
+    Returns None when nothing is owed, or when no treasury wallet is
+    configured — in that case the debt stays on the campaign and a later batch
+    pays it, rather than being silently written off.
+    """
+    if not SETTLEMENT_TREASURY_SOLANA:
+        return None
+    c.execute("SELECT treasury_owed FROM campaign_budget WHERE campaign_id = ?", (campaign_id,))
+    row = c.fetchone()
+    owed = int(row[0]) if row and row[0] else 0
+    if owed <= 0:
+        return None
+
+    now = int(_time.time())
+    # The treasury is linked like any other recipient, so the batch query, the
+    # proof endpoint and the relayer need no special case for it.
+    c.execute(
+        "INSERT OR REPLACE INTO solana_links (user_address, solana_address, linked_at) "
+        "VALUES (?, ?, ?)",
+        (TREASURY_ADDRESS, SETTLEMENT_TREASURY_SOLANA, now),
+    )
+    c.execute(
+        "INSERT INTO settlement_rewards (campaign_id, user_address, amount, created_at) "
+        "VALUES (?, ?, ?, ?)",
+        (campaign_id, TREASURY_ADDRESS, owed, now),
+    )
+    reward_id = c.lastrowid
+    c.execute(
+        "UPDATE campaign_budget SET treasury_owed = 0 WHERE campaign_id = ?", (campaign_id,)
+    )
+    return (reward_id, SETTLEMENT_TREASURY_SOLANA, owed)
+
+
 class CloseBatchRequest(BaseModel):
     campaign_id: int
 
@@ -5505,6 +5556,15 @@ async def close_settlement_batch(
         (req.campaign_id,),
     )
     pending = c.fetchall()
+
+    # The treasury's accumulated share joins the batch as one leaf rather than
+    # one per click, which would double the tree. From here on it is an ordinary
+    # reward: same root, same proof, same bitmap, same reserve check. Nothing
+    # downstream knows it is the treasury.
+    treasury = _flush_treasury_share(c, req.campaign_id)
+    if treasury:
+        pending = list(pending) + [treasury]
+
     if not pending:
         conn.close()
         raise HTTPException(status_code=400, detail="Nothing to settle in this campaign")

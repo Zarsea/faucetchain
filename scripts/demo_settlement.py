@@ -259,7 +259,13 @@ def main() -> None:
     chain.send_and_confirm(
         rpc_url,
         [
-            chain.create_campaign(idl, sponsor.pubkey(), mint.pubkey(), args.campaign_id, operator.pubkey()),
+            chain.create_campaign(
+                idl, sponsor.pubkey(), mint.pubkey(), args.campaign_id, operator.pubkey(),
+                # The sponsor's ceiling on pace. The reserve check proves the vault
+                # can pay; this bounds how fast it may be promised away.
+                period_cap=400 * 10 ** 6,
+                period_len=chain.PERIOD_30_DAYS,
+            ),
             chain.fund_campaign(
                 idl, sponsor.pubkey(), mint.pubkey(), sponsor_tokens.pubkey(),
                 args.campaign_id, 500 * UNIT,

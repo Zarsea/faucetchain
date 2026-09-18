@@ -169,6 +169,7 @@ the key that can replace the program never has to sit on the machine running a d
 | `SETTLEMENT_OPERATOR_KEYPAIR` | Keypair that signs `publish_root` |
 | `SETTLEMENT_RELAYER_KEYPAIR` | Keypair that pays the fee and the rent of a user's withdrawal |
 | `SOLANA_RPC_URL` | Defaults to devnet |
+| `SETTLEMENT_TREASURY_SOLANA` | Wallet that collects the treasury's share of a partner budget. Unset, the share accumulates as owed and a later batch pays it |
 
 ## Hackathon
 

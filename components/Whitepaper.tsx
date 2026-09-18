@@ -542,9 +542,9 @@ export const Whitepaper: React.FC = () => {
                     <table className="w-full text-left">
                         <thead><TableRow cells={['Instruction', 'What it does', 'What it refuses']} header /></thead>
                         <tbody>
-                            <TableRow cells={['create_campaign', 'Opens a campaign: sponsor, operator, mint, vault', 'A vault whose authority is anyone but the campaign itself']} />
+                            <TableRow cells={['create_campaign', 'Opens a campaign: sponsor, operator, mint, vault, and the sponsor’s ceiling on pace', 'A vault whose authority is anyone but the campaign itself']} />
                             <TableRow cells={['fund_campaign', "Moves the partner's tokens into the vault", 'Debiting any account but the sponsor’s own']} />
-                            <TableRow cells={['publish_root', 'Anchors one Merkle root for a batch of rewards', 'Any root the vault does not already cover — proof of reserve']} />
+                            <TableRow cells={['publish_root', 'Anchors one Merkle root for a batch of rewards', 'Any root the vault does not cover — proof of reserve — or that outruns the period the sponsor set']} />
                             <TableRow cells={['claim_reward', 'Pays one leaf against a published root', 'A second attempt: the leaf’s bit is already set']} />
                             <TableRow cells={['withdraw_surplus', 'Returns what was never promised to the sponsor', 'Touching a token inside a published root']} />
                             <TableRow cells={['close_campaign', 'Stops new roots without touching the vault', 'Anyone who is not the sponsor']} />

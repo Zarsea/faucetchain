@@ -119,9 +119,23 @@ def _ix(pid: Pubkey, metas: List[AccountMeta], data: bytes) -> Instruction:
     return Instruction(pid, data, metas)
 
 
+# Thirty days. A rolling window, not a calendar month: the program has a clock,
+# not a calendar.
+PERIOD_30_DAYS = 30 * 24 * 60 * 60
+
+
 def create_campaign(
-    idl: dict, sponsor: Pubkey, mint: Pubkey, campaign_id: int, operator: Pubkey
+    idl: dict, sponsor: Pubkey, mint: Pubkey, campaign_id: int, operator: Pubkey,
+    period_cap: int = 0, period_len: int = 0
 ) -> Instruction:
+    """Opens a campaign. `period_cap` and `period_len` are the sponsor's ceiling
+    on how fast the budget may be promised; zero on either disables it.
+
+    The ceiling must sit at or above the sequencer's own monthly cap, rollover
+    included. It is a bound on the blast radius of a compromised sequencer, not
+    the distribution policy, and a ceiling set below the policy refuses honest
+    roots — which costs every user in the batch.
+    """
     pid = program_id(idl)
     campaign = campaign_pda(pid, sponsor, campaign_id)
     metas = [
@@ -136,6 +150,8 @@ def create_campaign(
         discriminator(idl, "create_campaign")
         + campaign_id.to_bytes(8, "little")
         + bytes(operator)
+        + period_cap.to_bytes(8, "little")
+        + period_len.to_bytes(8, "little", signed=True)
     )
     return _ix(pid, metas, data)
 
@@ -386,6 +402,14 @@ def _self_check() -> None:
     assert leaf_claimed(one_and_eight, 1) and leaf_claimed(one_and_eight, 8)
     assert not any(leaf_claimed(one_and_eight, i) for i in (0, 2, 7, 9, 15))
     assert not leaf_claimed(blank, 10_000)   # past the end reads as unclaimed
+
+    # The ceiling rides on create_campaign, after the operator.
+    data = create_campaign(idl, sponsor, mint, 7, sponsor, 5_000, PERIOD_30_DAYS).data
+    assert len(data) == 8 + 8 + 32 + 8 + 8, len(data)
+    assert data[48:56] == (5_000).to_bytes(8, "little")
+    assert data[56:64] == PERIOD_30_DAYS.to_bytes(8, "little", signed=True)
+    # No ceiling asked for is two zeros, not a missing field.
+    assert create_campaign(idl, sponsor, mint, 7, sponsor).data[48:64] == bytes(16)
 
     root = bytes(range(32))
     data = publish_root(idl, sponsor, sponsor, 7, 3, root, 350_000_000, 2).data

@@ -161,6 +161,10 @@ fn campaign_pays_only_what_the_published_root_proves() {
             faucetchain::instruction::CreateCampaign {
                 campaign_id: CAMPAIGN_ID,
                 operator: operator.pubkey(),
+                // 400 a period against a 500 vault: room for the honest root
+                // below, and a ceiling the last step can walk into.
+                period_cap: 400_000_000,
+                period_len: 30 * 86_400,
             }
             .data(),
         )],
@@ -316,6 +320,27 @@ fn campaign_pays_only_what_the_published_root_proves() {
             .logs
             .iter()
             .any(|l| l.contains("InsufficientReserve")),
+        "{:?}",
+        err.meta.logs
+    );
+
+    // 7a. The period ceiling: the vault could cover another 100, and the reserve
+    //     check would pass, but the sponsor allowed 400 a period and 300 is
+    //     already promised. This is what bounds a compromised sequencer to one
+    //     period instead of the whole budget.
+    let third_root = pda(&[
+        faucetchain::ROOT_SEED,
+        campaign.as_ref(),
+        &3u32.to_le_bytes(),
+    ]);
+    let err = send(
+        &mut svm,
+        &[publish(3, [8u8; 32], 100_000_001, third_root)],
+        &[&operator],
+    )
+    .unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("PeriodCapExceeded")),
         "{:?}",
         err.meta.logs
     );

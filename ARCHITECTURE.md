@@ -62,11 +62,18 @@ forged, mints anything.
 5. **`POST /api/solana/batch`** closes a batch: every unbatched reward from a
    user with a linked wallet goes into one Merkle tree, summed per wallet. The
    wallet each reward was built for is written onto the row, so the batch is
-   frozen against later relinking.
+   frozen against later relinking. Whatever the treasury is owed on that
+   campaign joins as one more leaf — one per batch, not one per click — so it
+   travels under the same root, the same proof and the same reserve check as any
+   user's reward.
 6. **`publish_root(index, root, total_amount, leaf_count)`** — the operator
    publishes the root. The program refuses it unless
    `vault.amount >= committed - paid + total_amount`. Proof of reserve is
-   enforced here, not reported by the server.
+   enforced here, not reported by the server. A second refusal covers pace:
+   the reserve check proves the vault can pay but says nothing about how fast,
+   so one root could promise everything the vault holds and still pass. If the
+   sponsor set a period ceiling, `total_amount` must fit inside what that
+   period has left.
 7. **`claim_reward(leaf_index, amount, proof)`** — the user withdraws. The
    leaf's bit is set in the root's bitmap, so a replay fails on a bit that is
    already set. `payer` is a separate signer from `recipient`, so a relayer
@@ -167,7 +174,7 @@ has to keep.
 
 | Account | Seeds | Holds |
 | --- | --- | --- |
-| Campaign | `"campaign"`, sponsor, campaign_id LE | sponsor, operator, mint, funded, paid, committed, root_count, closed |
+| Campaign | `"campaign"`, sponsor, campaign_id LE | sponsor, operator, mint, funded, paid, committed, root_count, closed, period ceiling (cap, length, start, spent) |
 | Vault | `"vault"`, campaign | the partner's tokens, authority is the campaign |
 | RewardRoot | `"root"`, campaign, index LE | root, total_amount, claimed, leaf_count, published_at, one bit per leaf |
 
@@ -394,6 +401,42 @@ script does not depend on a third party answering in time.
 campaign, vault and reward-root accounts from Solana, so what a campaign holds,
 owes and has paid can be read from the chain rather than from this server. The
 Settlement Ledger screen shows it, with every address linking to the explorer.
+
+**2026-09-18 — the treasury collects, and the sponsor sets a pace.** Two gaps
+between what the design promised and what the code did.
+
+The treasury's 20% was computed on every drip, returned in the API response
+and credited to nobody. That was worse than an omission: the root carried only
+the users' 80%, so `committed` grew by 80 while the appchain debited 100, and
+`withdraw_surplus` — which reads surplus as whatever the vault holds above
+`committed - paid` — let the partner take the difference back. The share meant
+to fund continuity was returned to the partner who was supposed to pay it. The
+treasury is now an ordinary recipient: `campaign_budget.treasury_owed`
+accumulates it and one leaf per batch pays it, to the wallet in
+`SETTLEMENT_TREASURY_SOLANA`, in the partner's token because that share is
+staked rather than sold. With the leaf inside, the on-chain `committed` and the
+off-chain `spent_total` agree for the first time.
+
+The ratio stays in the sequencer rather than the program, deliberately: it is a
+product number that may vary, and compiling it in would make every adjustment
+an upgrade of the deployed code. If it should ever be fixed, the place for it
+is a `user_share_bps` on the Campaign, set by the sponsor — by whoever put the
+money in — and checked at publication.
+
+The monthly cap was a SQLite row only this server could see, so a compromised
+sequencer could publish one root draining the whole vault and the reserve check
+would pass, because the vault did cover it. The Campaign now carries a period
+ceiling the **sponsor** sets at `create_campaign`: `period_cap` over a rolling
+`period_len`, zero on either meaning no ceiling. It is a rolling window and not
+a calendar month because the program has a clock, not a calendar. It bounds the
+blast radius to one period, which the sponsor can then stop with
+`close_campaign` — already theirs, and it blocks new roots without touching
+what is already promised.
+
+The ceiling is a backstop, not the distribution policy: it must sit at or above
+the sequencer's own monthly cap with rollover included, because a ceiling set
+below the policy refuses an honest root, and a refused root pays nobody in the
+batch.
 
 **2026-09-18 — one bit instead of one account per withdrawal.** A withdrawal
 used to create a `ClaimReceipt` PDA, and that account existing was the record

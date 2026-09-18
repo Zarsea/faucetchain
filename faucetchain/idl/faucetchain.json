@@ -272,7 +272,10 @@
     {
       "name": "create_campaign",
       "docs": [
-        "Opens a campaign and the vault that holds its budget."
+        "Opens a campaign and the vault that holds its budget.",
+        "",
+        "`period_cap` and `period_len` are the sponsor's ceiling on how fast the",
+        "budget may be promised. Zero on either disables it."
       ],
       "discriminator": [
         111,
@@ -363,6 +366,14 @@
         {
           "name": "operator",
           "type": "pubkey"
+        },
+        {
+          "name": "period_cap",
+          "type": "u64"
+        },
+        {
+          "name": "period_len",
+          "type": "i64"
         }
       ]
     },
@@ -773,6 +784,11 @@
     },
     {
       "code": 6010,
+      "name": "PeriodCapExceeded",
+      "msg": "This period has already promised everything the sponsor allowed it"
+    },
+    {
+      "code": 6011,
       "name": "Overflow",
       "msg": "Arithmetic overflow"
     }
@@ -845,6 +861,41 @@
           {
             "name": "vault_bump",
             "type": "u8"
+          },
+          {
+            "name": "period_cap",
+            "docs": [
+              "Most a single period may promise. Zero means no ceiling.",
+              "",
+              "This bounds what a compromised sequencer can do: without it, one root",
+              "can promise everything the vault holds, and the reserve check passes",
+              "because the vault does cover it. It is a backstop on the blast radius,",
+              "not the distribution policy — the sequencer's own monthly cap is the",
+              "tighter rule, and this must be set at or above it, rollover included, or",
+              "an honest root gets refused.",
+              "",
+              "The sponsor sets it, because the sponsor is who put the money in."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "period_len",
+            "docs": [
+              "How long a period lasts, in seconds. Zero means no ceiling.",
+              "",
+              "A rolling window rather than a calendar month: the program has a clock,",
+              "not a calendar, and date arithmetic on-chain would buy nothing a window",
+              "does not already give."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "period_start",
+            "type": "i64"
+          },
+          {
+            "name": "spent_period",
+            "type": "u64"
           }
         ]
       }
