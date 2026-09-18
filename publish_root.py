@@ -105,4 +105,14 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # From a terminal a failed RPC should read as one line, not a traceback.
+    # solana_settlement raises ChainError rather than SystemExit so that a server
+    # importing it can catch the thing with an ordinary `except Exception`.
+    try:
+        main()
+    except chain.ChainError as error:
+        raise SystemExit(str(error))
+    except requests.exceptions.RequestException as error:
+        # Nothing is listening. The likeliest way to run this is without the
+        # validator up, and a stack trace is a poor way to say so.
+        raise SystemExit(f"Cannot reach the node: {error}")

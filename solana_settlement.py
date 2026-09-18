@@ -43,6 +43,19 @@ ROOT_SEED = b"root"
 # --------------------------------------------------------------------------
 
 
+class ChainError(RuntimeError):
+    """Something went wrong reading the IDL or talking to the chain.
+
+    This module is a library before it is a script. It used to raise SystemExit,
+    which reads well from a command line but derives from BaseException, so an
+    ordinary `except Exception` does not catch it. In a web server that meant a
+    handler written to degrade gracefully was bypassed, the request became an
+    unhandled 500, and — since CORS headers are not applied to an unhandled
+    error — the browser reported only "Failed to fetch". Scripts that want the
+    old one-line exit turn this into SystemExit themselves.
+    """
+
+
 def load_idl(path: str = None) -> dict:
     for candidate in ([path] if path else [IDL_PATH, IDL_BUILD_PATH]):
         try:
@@ -50,7 +63,7 @@ def load_idl(path: str = None) -> dict:
                 return json.load(handle)
         except FileNotFoundError:
             continue
-    raise SystemExit(f"IDL not found at {IDL_PATH}. Run scripts/build-program.sh first.")
+    raise ChainError(f"IDL not found at {IDL_PATH}. Run scripts/build-program.sh first.")
 
 
 def program_id(idl: dict) -> Pubkey:
@@ -61,7 +74,7 @@ def discriminator(idl: dict, name: str) -> bytes:
     for instruction in idl["instructions"]:
         if instruction["name"] == name:
             return bytes(instruction["discriminator"])
-    raise SystemExit(f"Instruction {name} is not in the IDL")
+    raise ChainError(f"Instruction {name} is not in the IDL")
 
 
 # --------------------------------------------------------------------------
@@ -277,7 +290,7 @@ def rpc(url: str, method: str, params: list):
     response.raise_for_status()
     body = response.json()
     if "error" in body:
-        raise SystemExit(f"RPC {method} failed: {body['error']}")
+        raise ChainError(f"RPC {method} failed: {body['error']}")
     return body["result"]
 
 
@@ -306,11 +319,11 @@ def send_and_confirm(url: str, instructions: List[Instruction], payer: Keypair,
         status = statuses["value"][0]
         if status:
             if status.get("err"):
-                raise SystemExit(f"Transaction {signature} failed on-chain: {status['err']}")
+                raise ChainError(f"Transaction {signature} failed on-chain: {status['err']}")
             if status.get("confirmationStatus") in ("confirmed", "finalized"):
                 return signature
         time.sleep(1)
-    raise SystemExit(f"Transaction {signature} did not confirm in {timeout}s")
+    raise ChainError(f"Transaction {signature} did not confirm in {timeout}s")
 
 
 # --------------------------------------------------------------------------
@@ -429,6 +442,14 @@ def _self_check() -> None:
 
     assert len(close_campaign(idl, sponsor, 7).data) == 8
     assert len(withdraw_surplus(idl, sponsor, mint, sponsor, 7, 1).data) == 16
+    # The whole point of ChainError: a plain `except Exception` must catch it.
+    try:
+        rpc("http://127.0.0.1:1", "getHealth", [])
+    except Exception:
+        pass          # a connection error, which is an Exception already
+    assert issubclass(ChainError, Exception), "ChainError must be catchable as Exception"
+    assert not issubclass(ChainError, SystemExit)
+
     print("solana_settlement.py OK")
 
 

@@ -402,6 +402,26 @@ campaign, vault and reward-root accounts from Solana, so what a campaign holds,
 owes and has paid can be read from the chain rather than from this server. The
 Settlement Ledger screen shows it, with every address linking to the explorer.
 
+**2026-09-18 — a library stops raising SystemExit.** The Settlement Ledger
+screen showed only "Failed to fetch", which is the browser saying nothing
+useful. Two defects stacked into that.
+
+`solana_settlement` is a library before it is a script, and it raised
+`SystemExit` on a failed RPC. That reads well from a command line, but
+`SystemExit` derives from `BaseException`, so the `except Exception` written
+into the ledger endpoint precisely to degrade gracefully never fired. Reading a
+campaign whose vault does not exist on the current chain — an ordinary thing
+after switching between devnet and a local validator — became an unhandled 500.
+The server already carried three `except SystemExit` patches, which were the
+symptom. It now raises `ChainError`, an ordinary exception, and the patches are
+gone; the two scripts that want a one-line exit convert it themselves.
+
+The second defect hid the first: an unhandled exception skips the CORS
+middleware, so the response carried no `Access-Control-Allow-Origin` and the
+browser refused to read it. Any 500 looked identical to a network outage from
+the screen. A global handler now turns an unhandled exception into an ordinary
+JSON response, which the middleware then decorates.
+
 **2026-09-18 — the treasury collects, and the sponsor sets a pace.** Two gaps
 between what the design promised and what the code did.
 

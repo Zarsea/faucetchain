@@ -39,7 +39,7 @@ import logging
 import sqlite3
 from typing import Tuple
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 CHAIN_ID = "7777"
 MAX_SUPPLY = 99000000.0
@@ -94,6 +94,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# An unhandled exception skips the CORS middleware, so the browser sees an
+# opaque "Failed to fetch" and the real error never reaches the screen. This
+# turns it into an ordinary response, which the middleware then decorates.
+@app.exception_handler(Exception)
+async def unhandled_exception(request: Request, exc: Exception):
+    audit_logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc!r}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
+
 
 # Initialize Vector DB
 kb = None
@@ -5714,7 +5726,7 @@ async def get_campaign_ledger(campaign_id: int):
         import solana_settlement as chain
 
         idl = chain.load_idl()
-    except (ImportError, SystemExit):
+    except Exception:
         return result
 
     from solders.pubkey import Pubkey
@@ -5815,7 +5827,7 @@ def _mark_claimed(c, proofs: list) -> None:
         import solana_settlement as chain
 
         idl = chain.load_idl()
-    except (ImportError, SystemExit):
+    except Exception:
         return
 
     from solders.pubkey import Pubkey
@@ -5870,9 +5882,12 @@ def _relayer():
 
 def _rpc_or_503(chain, method: str, params: list):
     """An unreachable chain is a 503 with a reason, not a stack trace."""
+    import solana_settlement as _chain
+
     try:
         return chain.rpc(chain.default_rpc_url(), method, params)
-    except SystemExit as e:
+    except _chain.ChainError as e:
+        # The chain answered and said no: that is the node's verdict, not an outage.
         raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Solana is unreachable: {e}")
