@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FaucetChainSolanaMark, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
+import { FaucetChainSolanaMark, FaucetChainSolanaMarkSmall, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
@@ -233,7 +233,7 @@ export const Header: React.FC = () => {
                                     disabled={isWalletLoading}
                                     className="w-full flex items-center justify-center gap-4 bg-brand-surface border border-brand-accent/40 p-4 rounded-2xl font-bold text-white hover:border-brand-accent transition-all disabled:opacity-40"
                                 >
-                                    <FaucetChainSolanaMark className="w-5 h-5" />
+                                    <FaucetChainSolanaMarkSmall className="w-5 h-5" />
                                     {isWalletLoading ? t('auth.walletWaiting') : t('auth.solana')}
                                 </button>
                                 <button

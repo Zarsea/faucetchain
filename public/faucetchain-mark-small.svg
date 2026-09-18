@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img"
+     aria-label="FaucetChain, settling on Solana">
+  <!-- The small mark, for a browser tab. Silhouette and one transition: cyan is
+       the appchain, purple through green is settlement on Solana, top to bottom
+       because that is the direction a drip falls. The full mark carries Solana's
+       three bars, which silt into a smudge at this size. -->
+  <defs>
+    <linearGradient id="fcsolSmall" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="45%" stop-color="#0091FF"/>
+      <stop offset="72%" stop-color="#9945FF"/>
+      <stop offset="100%" stop-color="#19FB9B"/>
+    </linearGradient>
+  </defs>
+  <path d="M50 8 C50 8 18 42 18 64 C18 81.67 32.33 96 50 96 C67.67 96 82 81.67 82 64 C82 42 50 8 50 8 Z"
+        fill="url(#fcsolSmall)"/>
+</svg>

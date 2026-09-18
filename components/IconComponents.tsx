@@ -193,6 +193,37 @@ export const ArrowUpRightIcon: React.FC<IconProps> = ({ className }) => (
 // The drop with Solana's mark inside it: micro-distribution on the outside,
 // settlement within. Same geometry as public/faucetchain-solana.svg — change
 // one and change the other.
+/**
+ * The mark at sizes where the full one stops working.
+ *
+ * The large mark carries Solana's three bars inside the drop, drawn with an
+ * 18-unit stroke scaled to a tenth. Below roughly 24px that stroke is wider
+ * than the bar it outlines and the whole thing silts up into a smudge. A small
+ * mark can hold a silhouette and one transition of colour, and nothing else.
+ *
+ * So this keeps the drop, and spends its one transition on the thing the
+ * colours already mean everywhere else in the product: cyan is the appchain,
+ * purple through green is settlement on Solana. Top to bottom, which is the
+ * direction a drip falls and the direction value travels — earned on the
+ * appchain, settled underneath.
+ */
+export const FaucetChainSolanaMarkSmall: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className={className}
+         role="img" aria-label="FaucetChain, settling on Solana">
+        <defs>
+            <linearGradient id="fcsolSmall" x1="50%" y1="0%" x2="50%" y2="100%">
+                <stop offset="0%" stopColor="#00E5FF" />
+                <stop offset="45%" stopColor="#0091FF" />
+                <stop offset="72%" stopColor="#9945FF" />
+                <stop offset="100%" stopColor="#19FB9B" />
+            </linearGradient>
+        </defs>
+        {/* The same drop as the full mark, so the two read as one thing. */}
+        <path d="M50 8 C50 8 18 42 18 64 C18 81.67 32.33 96 50 96 C67.67 96 82 81.67 82 64 C82 42 50 8 50 8 Z"
+              fill="url(#fcsolSmall)" />
+    </svg>
+);
+
 export const FaucetChainSolanaMark: React.FC<IconProps> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" className={className} role="img" aria-label="FaucetChain, settling on Solana">
         <defs>
