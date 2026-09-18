@@ -48,6 +48,9 @@ def db():
     return srv.get_db_connection()
 
 
+SESSIONS = {}
+
+
 def custodial_account(client):
     """A real server-side account, which is what "custodial" is allowed to mean.
 
@@ -55,10 +58,21 @@ def custodial_account(client):
     relying on is_custodial_address waving through anything that was not an 0x
     address. That hole is closed, and it was the same one the old fake Google
     button walked through.
+
+    The session comes back with it. An account of this kind cannot sign, so the
+    session is the only thing that says the caller may act as it — the address
+    alone stopped being enough, which is the whole point of having one.
     """
     r = client.post("/api/auth/guest")
     assert r.status_code == 200, r.text
-    return r.json()["wallet_address"]
+    body = r.json()
+    SESSIONS[body["wallet_address"]] = body["session_token"]
+    return body["wallet_address"]
+
+
+def session(user):
+    """The headers that let a custodial account act."""
+    return {"X-Session-Token": SESSIONS[user]}
 
 
 def test_claim_amount_is_defined_by_server(client):
@@ -66,7 +80,7 @@ def test_claim_amount_is_defined_by_server(client):
         user = custodial_account(client)  # a real custodial account signs nothing
         body = {"user_address": user, "amount": fake_amount, "block_height": 0,
                 "tx_hash": f"0xtest{i}", **solve_proof(client, user)}
-        r = client.post("/api/claim", json=body)
+        r = client.post("/api/claim", json=body, headers=session(user))
         assert r.status_code == 200, r.text
         conn = db()
         stored = conn.execute("SELECT amount FROM pending_claims WHERE tx_hash = ?", (f"0xtest{i}",)).fetchone()[0]
@@ -125,7 +139,7 @@ def test_ip_cap_blocks_wallet_farm(client):
             user = custodial_account(client)
             body = {"user_address": user, "block_height": 0,
                     "tx_hash": f"0xfarm{i}", **solve_proof(client, user)}
-            codes.append(client.post("/api/claim", json=body).status_code)
+            codes.append(client.post("/api/claim", json=body, headers=session(user)).status_code)
         assert codes == [200, 200, 200, 429], codes
     finally:
         srv.CLAIM_IP_HOURLY_WALLETS = original_cap

@@ -10,7 +10,7 @@ import {
     ArrowUpRightIcon,
     ChartBarIcon,
 } from './IconComponents';
-import { useAuth } from './AuthContext';
+import { useAuth , sessionHeaders } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
 import { signAction } from '../utils/actionSignature';import { stakeMessage, unstakeMessage } from '../utils/actionMessage';
@@ -125,7 +125,7 @@ export const StakingVault: React.FC = () => {
             );
             const res = await fetch(`${API_BASE}/api/staking/stake`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify({ staker_address: userAddress, amount, tier: selectedTier, signature, sig_timestamp }),
             });
             const data = await res.json();
@@ -155,7 +155,7 @@ export const StakingVault: React.FC = () => {
             );
             const res = await fetch(`${API_BASE}/api/staking/unstake`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify({ staker_address: userAddress, token_id: tokenId, signature, sig_timestamp }),
             });
             const data = await res.json();

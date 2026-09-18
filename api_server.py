@@ -33,6 +33,7 @@ import re
 import json
 import math
 import secrets
+import hashlib
 from eth_account.messages import encode_defunct
 from eth_account import Account
 import logging
@@ -1203,7 +1204,7 @@ class MicroClaimWithdrawRequest(BaseModel):
     sig_timestamp: Optional[int] = None
 
 @app.post("/api/faucethub/microclaim/withdraw")
-async def withdraw_microclaim(req: MicroClaimWithdrawRequest):
+async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: Optional[str] = Header(None)):
     """
     L2 -> L1 Withdrawal: Converts virtual balance into a real on-chain
     settlement transaction. The faucet's institutional wallet sends $CLAIM
@@ -1219,7 +1220,7 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest):
     require_action_signature(
         user_lower,
         settlement.withdraw_message(user_lower, faucet_lower, CHAIN_ID, req.sig_timestamp or 0),
-        req.signature, req.sig_timestamp
+        req.signature, req.sig_timestamp, x_session_token
     )
 
     conn = get_db_connection()
@@ -1709,6 +1710,55 @@ def record_epoch_mint(c, epoch_id: int, amount: float):
 SIGNATURE_MAX_AGE = 300  # validade (s) de uma assinatura de ação
 
 
+# --- Sessions for accounts that cannot sign -----------------------------------
+# A wallet proves each action with a signature. An account whose key this
+# server holds cannot, and until now it proved nothing at all: knowing a
+# custodial address was enough to spend from it, and enough to repoint where
+# its rewards get paid. A session is what those accounts have instead.
+#
+# The token is stored hashed. A leak of this table then yields no live session,
+# the same reason a password table stores hashes.
+
+SESSION_TTL = 7 * 24 * 60 * 60
+
+
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def issue_session(address: str) -> dict:
+    """A new session for an account. Returned once; only its hash is kept."""
+    token = secrets.token_urlsafe(32)
+    now = int(_time.time())
+    expires = now + SESSION_TTL
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO sessions (token_hash, address, created_at, expires_at) VALUES (?, ?, ?, ?)",
+        (_hash_token(token), address.strip().lower(), now, expires),
+    )
+    # Expired rows are of no use to anyone and this is the natural moment.
+    c.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
+    conn.commit()
+    conn.close()
+    return {"session_token": token, "session_expires_at": expires}
+
+
+def session_holder(token: Optional[str]) -> Optional[str]:
+    """The address this token belongs to, or None."""
+    if not token:
+        return None
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT address, expires_at FROM sessions WHERE token_hash = ?",
+        (_hash_token(token.strip()),),
+    ).fetchone()
+    conn.close()
+    if not row or row[1] < int(_time.time()):
+        return None
+    return row[0]
+
+
 def is_custodial_address(addr: str) -> bool:
     """True for accounts this server holds the key of, so they sign nothing.
 
@@ -1731,18 +1781,35 @@ def is_custodial_address(addr: str) -> bool:
     return bool(row)
 
 
-def require_action_signature(address: str, message: str, signature, sig_timestamp):
-    """Demands the EIP-191 signature of the wallet that owns `address`.
+def require_action_signature(address: str, message: str, signature, sig_timestamp,
+                            session_token: Optional[str] = None):
+    """Demands proof that the caller may act as `address`.
 
+    For a wallet, the EIP-191 signature of that wallet:
     - Recovers the signer and requires it to be the address acting
     - A validity window (SIGNATURE_MAX_AGE) against a late replay
     - Dedup in used_signatures against an immediate one
-    Custodial accounts pass straight through: the server holds their key.
+
+    For an account whose key this server holds, a session token instead. It
+    used to be nothing at all — the function returned here — so knowing a
+    custodial address was enough to spend from it and to repoint where its
+    rewards are paid. An address is public by design; it was never a secret and
+    could never have served as one.
+
     Raises HTTPException(401) on failure.
     """
     addr_lower = address.strip().lower()
     if is_custodial_address(addr_lower):
-        return  # custodial: the server holds this account's key
+        holder = session_holder(session_token)
+        if holder == addr_lower:
+            return
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "This account acts through a session. Sign in again: knowing the "
+                "address is not enough, and never was."
+            ),
+        )
 
     if not signature or not sig_timestamp:
         # The server cannot tell a read-only session from a wallet that simply
@@ -2417,7 +2484,7 @@ async def get_total_circulating_supply():
     return claims + mining
 
 @app.post("/api/claim")
-async def submit_claim(req: ClaimRequest, request: Request):
+async def submit_claim(req: ClaimRequest, request: Request, x_session_token: Optional[str] = Header(None)):
     client_ip = request.client.host
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
@@ -2429,7 +2496,7 @@ async def submit_claim(req: ClaimRequest, request: Request):
     require_action_signature(
         addr_lower,
         settlement.claim_message(addr_lower, CHAIN_ID, req.sig_timestamp or 0),
-        req.signature, req.sig_timestamp
+        req.signature, req.sig_timestamp, x_session_token
     )
 
     conn = get_db_connection()
@@ -2800,7 +2867,7 @@ async def get_staking_positions(address: str):
 
 
 @app.post("/api/staking/stake")
-async def create_stake(req: StakeRequest, request: Request):
+async def create_stake(req: StakeRequest, request: Request, x_session_token: Optional[str] = Header(None)):
     """Create a new UTXO staking position.
 
     CRITICAL: This operation MUST debit the staker's balance atomically.
@@ -2822,7 +2889,7 @@ async def create_stake(req: StakeRequest, request: Request):
     require_action_signature(
         staker_lower,
         settlement.stake_message(staker_lower, req.amount, req.tier, CHAIN_ID, req.sig_timestamp or 0),
-        req.signature, req.sig_timestamp
+        req.signature, req.sig_timestamp, x_session_token
     )
 
     # ── STEP 1: Verify the user has sufficient balance BEFORE staking ──────
@@ -2896,7 +2963,7 @@ async def create_stake(req: StakeRequest, request: Request):
 
 
 @app.post("/api/staking/unstake")
-async def unstake_position(req: UnstakeRequest):
+async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] = Header(None)):
     """Spend (burn) a UTXO staking position and credit principal + yield back.
 
     CRITICAL: After spending the UTXO, the principal AND yield MUST be credited
@@ -2909,7 +2976,7 @@ async def unstake_position(req: UnstakeRequest):
     require_action_signature(
         staker_lower,
         settlement.unstake_message(staker_lower, req.token_id, CHAIN_ID, req.sig_timestamp or 0),
-        req.signature, req.sig_timestamp
+        req.signature, req.sig_timestamp, x_session_token
     )
 
     conn = get_db_connection()
@@ -4896,7 +4963,8 @@ async def register_user(req: RegisterRequest):
         raise HTTPException(status_code=400, detail="That email is already registered.")
         
     conn.close()
-    return {"status": "success", "wallet_address": wallet_address, "email": email}
+    return {"status": "success", "wallet_address": wallet_address, "email": email,
+            **issue_session(wallet_address)}
 
 @app.post("/api/auth/guest")
 async def create_guest_account():
@@ -4924,7 +4992,8 @@ async def create_guest_account():
         conn.commit()
     finally:
         conn.close()
-    return {"status": "success", "wallet_address": wallet_address, "guest": True}
+    return {"status": "success", "wallet_address": wallet_address, "guest": True,
+            **issue_session(wallet_address)}
 
 
 @app.post("/api/auth/login")
@@ -4942,7 +5011,8 @@ async def login_user(req: LoginRequest):
     if not row:
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
         
-    return {"status": "success", "wallet_address": row[0], "email": email}
+    return {"status": "success", "wallet_address": row[0], "email": email,
+            **issue_session(row[0])}
 
 # -----------------------------------
 # SENTINEL AI - CEREBRO CENTRALIZADO L1
@@ -4964,6 +5034,15 @@ SETTLEMENT_OPERATOR_TOKEN = os.getenv("SETTLEMENT_OPERATOR_TOKEN")
 def init_settlement_tables():
     conn = get_db_connection()
     c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            token_hash TEXT PRIMARY KEY,
+            address    TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_sessions_address ON sessions(address)')
     c.execute('''
         CREATE TABLE IF NOT EXISTS solana_links (
             user_address TEXT PRIMARY KEY,
@@ -5348,11 +5427,12 @@ async def sign_in_with_solana(req: SolanaAuthRequest):
     )
     conn.commit()
     conn.close()
-    return {"status": "success", "wallet_address": account, "solana_address": solana_address}
+    return {"status": "success", "wallet_address": account, "solana_address": solana_address,
+            **issue_session(account)}
 
 
 @app.post("/api/solana/link")
-async def link_solana_wallet(req: SolanaLinkRequest):
+async def link_solana_wallet(req: SolanaLinkRequest, x_session_token: Optional[str] = Header(None)):
     """Links a FaucetChain account to the wallet that will withdraw on Solana."""
     user = req.address.strip().lower()
     if not re.fullmatch(r"0x[0-9a-f]{40}", user):
@@ -5368,6 +5448,7 @@ async def link_solana_wallet(req: SolanaLinkRequest):
         settlement.link_message(user, solana_address, CHAIN_ID, req.sig_timestamp or 0),
         req.signature,
         req.sig_timestamp,
+        x_session_token,
     )
     # A second, separate proof: the first says who chose this wallet, this one
     # says who holds its key. A different verb so neither signature can stand in

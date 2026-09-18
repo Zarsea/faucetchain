@@ -402,6 +402,34 @@ campaign, vault and reward-root accounts from Solana, so what a campaign holds,
 owes and has paid can be read from the chain rather than from this server. The
 Settlement Ledger screen shows it, with every address linking to the explorer.
 
+**2026-09-18 — an address stops being a password.** The sharpest hole this
+project had, and it was one line: `require_action_signature` returned
+immediately for an account whose key this server holds, because such an
+account cannot sign. That meant it proved nothing at all.
+
+An address is public by design. It is printed on screen, it is in the
+explorer, it is the thing you hand somebody so they can pay you. It was never
+a secret and could not serve as one — yet it was everything standing between
+a stranger and five actions: claiming, staking, unstaking, withdrawing, and
+linking the wallet that receives payouts. The last is the worst of them. It
+moves nothing on the way through, and afterwards every reward that account
+earns is paid to somebody else.
+
+Those accounts now act through a session. `POST /api/auth/guest`, `/login`,
+`/register` and `/solana` each return a token, which travels in
+`X-Session-Token` and is checked against the address acting. The token is
+stored hashed, for the same reason a password table stores hashes: a copy of
+the table should not be a set of live sessions. Sessions expire after a week
+and expired rows are swept when the next one is issued.
+
+A session that pasted an address rather than signing in still has no token,
+and now gets a 401 that says so. That session is read-only, which it always
+was in intent.
+
+Two security tests broke on this, and broke for the right reason: they were
+leaning on the hole to act as custodial accounts without proof. They hold
+sessions now.
+
 **2026-09-18 — sign in with a Solana wallet.** The access modal offered a guest
 account and an email, both of which this server holds the keys to. A wallet is
 now the third way in, and the only one where the account belongs to the person

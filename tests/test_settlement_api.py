@@ -93,6 +93,81 @@ def solana_proof(key, user, solana_address, ts):
     return base64.b64encode(bytes(key.sign_message(message.encode("utf-8")))).decode()
 
 
+def test_knowing_a_custodial_address_is_not_enough_to_act_as_it(client):
+    """The sharpest hole this project had.
+
+    An account whose key the server holds cannot sign, so the signature check
+    used to return immediately for it — proving nothing. An address is public
+    by design: it is printed on screen, it appears in the explorer, it is what
+    you hand someone to be paid. It was never a secret and could not serve as
+    one, yet it was the only thing standing between a stranger and the account.
+
+    Linking is the attack worth showing rather than the withdrawal. It moves no
+    money on the way through, and afterwards every reward that account earns is
+    paid to the thief's wallet.
+    """
+    guest = client.post("/api/auth/guest").json()
+    victim = guest["wallet_address"]
+    assert guest.get("session_token"), guest
+
+    thief_wallet = str(KEY_A.pubkey())
+    ts = int(time.time())
+    steal = {
+        "address": victim,
+        "solana_address": thief_wallet,
+        # The thief holds this wallet and can prove it. That was never the
+        # problem: the question is what lets them speak for the victim.
+        "solana_signature": solana_proof(KEY_A, victim, thief_wallet, ts),
+        "solana_sig_timestamp": ts,
+    }
+
+    r = client.post("/api/solana/link", json=steal)
+    assert r.status_code == 401, f"the address alone still works: {r.text}"
+
+    # A session belonging to somebody else does not help either.
+    other = client.post("/api/auth/guest").json()["session_token"]
+    r = client.post("/api/solana/link", json=steal,
+                    headers={"X-Session-Token": other})
+    assert r.status_code == 401, f"another account's session worked: {r.text}"
+
+    # Nothing was linked while all that was being refused.
+    conn = srv.get_db_connection()
+    linked = conn.execute("SELECT 1 FROM solana_links WHERE user_address = ?",
+                          (victim,)).fetchone()
+    conn.close()
+    assert linked is None, "a refused link still wrote a row"
+
+    # The account holder, with their own session, can.
+    r = client.post("/api/solana/link", json=steal,
+                    headers={"X-Session-Token": guest["session_token"]})
+    assert r.status_code == 200, r.text
+
+
+def test_a_session_expires(client):
+    """A token that outlives its welcome is a password that never rotates."""
+    guest = client.post("/api/auth/guest").json()
+    token = guest["session_token"]
+    assert srv.session_holder(token) == guest["wallet_address"]
+
+    conn = srv.get_db_connection()
+    conn.execute("UPDATE sessions SET expires_at = ? WHERE address = ?",
+                 (int(time.time()) - 1, guest["wallet_address"]))
+    conn.commit()
+    conn.close()
+    assert srv.session_holder(token) is None, "an expired session still opened"
+
+
+def test_the_session_table_holds_no_usable_token(client):
+    """Hashed, for the same reason a password table is: a copy of this table
+    should not be a set of live sessions."""
+    token = client.post("/api/auth/guest").json()["session_token"]
+    conn = srv.get_db_connection()
+    rows = [r[0] for r in conn.execute("SELECT token_hash FROM sessions").fetchall()]
+    conn.close()
+    assert token not in rows, "the token itself is stored"
+    assert srv._hash_token(token) in rows
+
+
 def test_a_phantom_wallet_creates_its_own_account(client):
     """The wallet is the account.
 

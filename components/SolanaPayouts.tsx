@@ -8,7 +8,7 @@ import {
     LoadingIcon,
     ShieldCheckIcon,
 } from './IconComponents';
-import { useAuth } from './AuthContext';
+import { useAuth, sessionHeaders } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 import { signAction } from '../utils/actionSignature';
 import { linkMessage, walletProofMessage } from '../utils/actionMessage';
@@ -117,7 +117,7 @@ export const SolanaPayouts: React.FC = () => {
 
             const response = await fetch(`${API_BASE_URL}/api/solana/link`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify({
                     address: userAddress,
                     solana_address: wallet,

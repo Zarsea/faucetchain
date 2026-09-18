@@ -41,7 +41,7 @@ export const Header: React.FC = () => {
                 setAuthError(data.detail || t('auth.authError'));
                 return;
             }
-            login(data.wallet_address, 'EMAIL');
+            login(data.wallet_address, 'EMAIL', data.session_token);
             setIsAuthModalOpen(false);
             setAuthModalView('MAIN');
         } catch (error) {
@@ -66,7 +66,7 @@ export const Header: React.FC = () => {
                 const res = await fetch(`${API_BASE_URL}/api/auth/guest`, { method: 'POST' });
                 if (!res.ok) throw new Error(String(res.status));
                 const data = await res.json();
-                login(data.wallet_address, 'GUEST');
+                login(data.wallet_address, 'GUEST', data.session_token);
                 setIsAuthModalOpen(false);
             } catch {
                 setAuthError(t('auth.connError'));
@@ -126,7 +126,7 @@ export const Header: React.FC = () => {
                 setAuthError(data.detail || t('auth.authError'));
                 return;
             }
-            login(data.wallet_address, 'SOLANA');
+            login(data.wallet_address, 'SOLANA', data.session_token);
             setIsAuthModalOpen(false);
         } catch (error) {
             // Declining the signature in the wallet lands here, and is not an error

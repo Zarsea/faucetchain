@@ -5,7 +5,7 @@ import { SectionCard } from './SectionCard';
 import { WalletIcon, LoadingIcon, CheckCircleIcon, InformationCircleIcon, CubeIcon, BoltIcon, SignalIcon, SparklesIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { useNetwork } from './NetworkContext';
-import { useAuth } from './AuthContext';
+import { useAuth , sessionHeaders } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { solvePocChallenge } from '../utils/poc';import { claimMessage as buildClaimMessage } from '../utils/actionMessage';
@@ -149,7 +149,7 @@ export const Faucet: React.FC = () => {
 
             const verifyRes = await fetch(`${API_BASE_URL}/api/claim`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify({
                     user_address: userAddress,
                     block_height: metrics.blockHeight,
