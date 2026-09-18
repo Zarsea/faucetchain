@@ -5,12 +5,15 @@ import { FaucetChainSolanaMark, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } 
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
+import { solanaProvider, encodeSignature, accountFromWallet } from '../utils/solanaWallet';
+import { walletProofMessage } from '../utils/actionMessage';
 
 export const Header: React.FC = () => {
     const { tFn: t, lang, setLang } = useLanguage();
     const { isConnected, userAddress, authMethod, login, logout } = useAuth();
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
+    const [isWalletLoading, setIsWalletLoading] = useState(false);
     const [authModalView, setAuthModalView] = useState<'MAIN' | 'EMAIL'>('MAIN');
     const [emailInput, setEmailInput] = useState('');
     const [passwordInput, setPasswordInput] = useState('');
@@ -71,6 +74,55 @@ export const Header: React.FC = () => {
             } finally {
                 setIsGuestLoading(false);
             }
+        }
+    };
+
+    // The wallet is the account: its address is derived from the public key the
+    // same way the server derives it, so the same Phantom reaches the same
+    // account anywhere, with no password to lose.
+    //
+    // The sentence signed here is the one that already links a wallet, unchanged.
+    // It names the account and the wallet, and since the account comes from the
+    // wallet, signing it says exactly what is about to happen.
+    const handleSolanaConnect = async () => {
+        setAuthError('');
+        const wallet = solanaProvider();
+        if (!wallet) {
+            setAuthError(t('auth.noWallet'));
+            return;
+        }
+        setIsWalletLoading(true);
+        try {
+            const { publicKey } = await wallet.connect();
+            const solanaAddress = publicKey.toString();
+            const derived = accountFromWallet(solanaAddress);
+
+            const sigTimestamp = Math.floor(Date.now() / 1000);
+            const sentence = walletProofMessage(derived, solanaAddress, sigTimestamp);
+            const signed = await wallet.signMessage(new TextEncoder().encode(sentence), 'utf8');
+
+            const res = await fetch(`${API_BASE_URL}/api/auth/solana`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    solana_address: solanaAddress,
+                    signature: encodeSignature(signed.signature),
+                    sig_timestamp: sigTimestamp,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setAuthError(data.detail || t('auth.authError'));
+                return;
+            }
+            login(data.wallet_address, 'SOLANA');
+            setIsAuthModalOpen(false);
+        } catch (error) {
+            // Declining the signature in the wallet lands here, and is not an error
+            // worth shouting about.
+            setAuthError(t('auth.walletDenied') + (error instanceof Error ? error.message : ''));
+        } finally {
+            setIsWalletLoading(false);
         }
     };
 
@@ -165,6 +217,14 @@ export const Header: React.FC = () => {
                                 {/* The guest button can fail too, so the banner cannot live
                                     only in the email view where it started. */}
                                 {authError && <div className="p-3 bg-brand-error/20 text-brand-error text-sm rounded-xl text-center border border-brand-error/30">{authError}</div>}
+                                <button
+                                    onClick={handleSolanaConnect}
+                                    disabled={isWalletLoading}
+                                    className="w-full flex items-center justify-center gap-4 bg-brand-surface border border-brand-accent/40 p-4 rounded-2xl font-bold text-white hover:border-brand-accent transition-all disabled:opacity-40"
+                                >
+                                    <FaucetChainSolanaMark className="w-5 h-5" />
+                                    {isWalletLoading ? t('auth.walletWaiting') : t('auth.solana')}
+                                </button>
                                 <button
                                     onClick={() => handleConnect('GUEST')}
                                     disabled={isGuestLoading}

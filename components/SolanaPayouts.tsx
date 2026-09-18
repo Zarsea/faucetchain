@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Transaction } from '@solana/web3.js';
+import { solanaProvider, encodeSignature } from '../utils/solanaWallet';
 import { SectionCard } from './SectionCard';
 import {
     ArrowUpRightIcon,
@@ -27,20 +28,6 @@ interface Proof {
     claimed: boolean | null;
 }
 
-// Phantom and Solflare both inject a provider that speaks this much.
-interface SolanaProvider {
-    publicKey?: { toString(): string };
-    connect(): Promise<{ publicKey: { toString(): string } }>;
-    signTransaction(transaction: Transaction): Promise<Transaction>;
-    signMessage(message: Uint8Array, display?: string): Promise<{ signature: Uint8Array }>;
-}
-
-declare global {
-    interface Window {
-        solana?: SolanaProvider & { isPhantom?: boolean };
-        solflare?: SolanaProvider;
-    }
-}
 
 const EXPLORER = 'https://explorer.solana.com';
 
@@ -49,9 +36,6 @@ function explorerUrl(signature: string): string {
     return `${EXPLORER}/tx/${signature}?cluster=devnet`;
 }
 
-function provider(): SolanaProvider | null {
-    return window.solana ?? window.solflare ?? null;
-}
 
 function short(value: string): string {
     return value.length > 12 ? `${value.slice(0, 4)}…${value.slice(-4)}` : value;
@@ -95,7 +79,7 @@ export const SolanaPayouts: React.FC = () => {
     }, [loadLinkAndProofs]);
 
     const connectWallet = async () => {
-        const solana = provider();
+        const solana = solanaProvider();
         if (!solana) {
             setError('No Solana wallet found. Install Phantom or Solflare and reload.');
             return;
@@ -113,7 +97,7 @@ export const SolanaPayouts: React.FC = () => {
     };
 
     const linkWallet = async () => {
-        const solana = provider();
+        const solana = solanaProvider();
         if (!wallet || !userAddress || !solana) return;
         setError(null);
         setBusy('link');
@@ -129,7 +113,7 @@ export const SolanaPayouts: React.FC = () => {
             const solana_sig_timestamp = Math.floor(Date.now() / 1000);
             const proof = walletProofMessage(userAddress.toLowerCase(), wallet, solana_sig_timestamp);
             const signed = await solana.signMessage(new TextEncoder().encode(proof), 'utf8');
-            const solana_signature = btoa(String.fromCharCode(...signed.signature));
+            const solana_signature = encodeSignature(signed.signature);
 
             const response = await fetch(`${API_BASE_URL}/api/solana/link`, {
                 method: 'POST',
@@ -158,7 +142,7 @@ export const SolanaPayouts: React.FC = () => {
     // The user signs a withdrawal the sequencer built and pays for. Their own
     // balance is never touched — that is the whole point of the relayer.
     const withdraw = async (batchId: number) => {
-        const solana = provider();
+        const solana = solanaProvider();
         if (!solana || !userAddress) return;
         setError(null);
         setBusy(`claim-${batchId}`);

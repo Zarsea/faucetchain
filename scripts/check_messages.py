@@ -6,6 +6,10 @@ the server answers "invalid signature" — which sends you looking at keys and
 encodings instead of at a typo. Nothing else in the test suite can catch that,
 because each side is self-consistent.
 
+The address a Solana wallet signs in as is derived on both sides too, and a
+disagreement there is the same failure wearing a different hat: the browser
+signs for one account, the server checks another.
+
 So this runs the real TypeScript, transpiled by the esbuild that already ships
 with the frontend, against the real Python, and compares byte for byte.
 
@@ -25,7 +29,17 @@ sys.path.insert(0, ROOT)
 import settlement  # noqa: E402
 
 TS = os.path.join(ROOT, "utils", "actionMessage.ts")
+TS_WALLET = os.path.join(ROOT, "utils", "solanaWallet.ts")
 ESBUILD = os.path.join(ROOT, "node_modules", ".bin", "esbuild.cmd" if os.name == "nt" else "esbuild")
+
+def _derived_account(wallet: str) -> str:
+    """Imported lazily: api_server pulls in the whole server, and this script is
+    run from a shell where that should not be a prerequisite for checking a
+    string format."""
+    import api_server
+
+    return api_server.address_from_solana_wallet(wallet)
+
 
 # One fixed input per sentence. The values are arbitrary but frozen, so a
 # failure points at the format rather than at whatever the caller passed.
@@ -57,6 +71,11 @@ CASES = {
         settlement.wallet_proof_message(USER, WALLET, "7777", TS_FIXED),
         f"walletProofMessage({USER!r}, {WALLET!r}, {TS_FIXED})",
     ),
+    # Not a sentence: the account a wallet signs in as. Same failure mode.
+    "derived_account": (
+        _derived_account(WALLET),
+        f"accountFromWallet({WALLET!r})",
+    ),
 }
 
 
@@ -66,8 +85,14 @@ def run_typescript() -> dict:
 
     with tempfile.TemporaryDirectory() as tmp:
         bundle = os.path.join(tmp, "messages.mjs")
+        entry = os.path.join(tmp, "entry.ts")
+        # One entry point re-exporting both, so a single bundle carries the
+        # sentences and the address derivation.
+        with open(entry, "w", encoding="utf-8") as fh:
+            for source in (TS, TS_WALLET):
+                fh.write(f"export * from {json.dumps(Path(source).as_posix())};\n")
         subprocess.run(
-            [ESBUILD, TS, "--bundle", "--format=esm", f"--outfile={bundle}"],
+            [ESBUILD, entry, "--bundle", "--format=esm", f"--outfile={bundle}"],
             check=True,
             capture_output=True,
         )

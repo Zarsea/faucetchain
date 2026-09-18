@@ -402,6 +402,32 @@ campaign, vault and reward-root accounts from Solana, so what a campaign holds,
 owes and has paid can be read from the chain rather than from this server. The
 Settlement Ledger screen shows it, with every address linking to the explorer.
 
+**2026-09-18 — sign in with a Solana wallet.** The access modal offered a guest
+account and an email, both of which this server holds the keys to. A wallet is
+now the third way in, and the only one where the account belongs to the person
+rather than to us.
+
+The FaucetChain address is derived from the public key — the last 20 bytes of
+keccak256 over it, the way Ethereum derives an address from one — so the wallet
+is the account. The same Phantom reaches the same account on any machine, with
+no password to lose and no recovery flow to build.
+
+The sentence signed at sign-in is `wallet_proof_message`, unchanged: it already
+names an account and a wallet, and here the account comes from the wallet, so
+it says exactly what happens. No new vocabulary, and nothing new for a reader
+to understand before signing. `scripts/check_messages.py` now also compares the
+derivation across the two languages, because a disagreement there fails exactly
+like a mismatched sentence: the browser signs for one account and the server
+checks another, and the error mentions signatures while the cause is arithmetic.
+
+A wallet already linked to some other account signs in to **that** account, not
+to its derived one. Someone who linked Phantom from the payouts screen and
+later signs in with it expects the balance they earned.
+
+The link is written at sign-up, which removes a step that could be skipped: an
+account used to be created with no wallet, and a reward earned before the visit
+to the payouts screen had nowhere to go.
+
 **2026-09-18 — a library stops raising SystemExit.** The Settlement Ledger
 screen showed only "Failed to fetch", which is the browser saying nothing
 useful. Two defects stacked into that.

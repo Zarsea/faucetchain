@@ -5228,6 +5228,95 @@ def require_solana_ownership(
         )
 
 
+def address_from_solana_wallet(solana_address: str) -> str:
+    """The FaucetChain address that belongs to a Solana wallet.
+
+    Derived rather than stored: the last 20 bytes of keccak256 over the public
+    key, which is how Ethereum derives an address from one. The wallet is the
+    account, so the same Phantom reaches the same account on any machine, with
+    no password to lose and nothing to recover.
+    """
+    from Crypto.Hash import keccak as _keccak
+
+    digest = _keccak.new(digest_bits=256)
+    digest.update(settlement.decode_pubkey(solana_address))
+    return "0x" + digest.hexdigest()[-40:]
+
+
+class SolanaAuthRequest(BaseModel):
+    solana_address: str
+    signature: str
+    sig_timestamp: int
+
+
+@app.post("/api/auth/solana")
+async def sign_in_with_solana(req: SolanaAuthRequest):
+    """Create or reach an account by proving you hold a Solana wallet.
+
+    The signed sentence is the one already used to link a wallet, unchanged, so
+    there is no second vocabulary for a user to read and no new entry for
+    scripts/check_messages.py to keep in step. It names both the account and the
+    wallet, and here the account is derived from the wallet, so signing it says
+    exactly what happens.
+
+    A wallet already linked to some other account signs in to that account
+    instead of to its derived one. Someone who linked Phantom from the payouts
+    screen and later signs in with it expects the balance they earned, not an
+    empty account that happens to share their key.
+    """
+    solana_address = req.solana_address.strip()
+    try:
+        settlement.decode_pubkey(solana_address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    derived = address_from_solana_wallet(solana_address)
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT user_address FROM solana_links WHERE solana_address = ? ORDER BY linked_at LIMIT 1",
+        (solana_address,),
+    )
+    existing = c.fetchone()
+    account = existing[0] if existing else derived
+
+    # The proof names the account it is for, so a signature meant for one
+    # account cannot be replayed to reach another.
+    try:
+        require_solana_ownership(
+            solana_address,
+            settlement.wallet_proof_message(account, solana_address, CHAIN_ID, req.sig_timestamp),
+            req.signature,
+            req.sig_timestamp,
+        )
+    except HTTPException:
+        conn.close()
+        raise
+
+    now = int(_time.time())
+    c.execute("SELECT 1 FROM users WHERE wallet_address = ?", (account,))
+    if not c.fetchone():
+        # The columns cannot be null, and nobody should reach this account with a
+        # password: the wallet is the only way in.
+        c.execute(
+            "INSERT INTO users (email, password_hash, wallet_address, created_at) VALUES (?, ?, ?, ?)",
+            (f"solana_{solana_address}@wallet.faucetchain.local",
+             hash_password(secrets.token_hex(32)), account, now),
+        )
+    # Linked at sign-up, so a reward earned here can be paid without a second
+    # trip to the payouts screen.
+    c.execute(
+        """INSERT INTO solana_links (user_address, solana_address, linked_at)
+           VALUES (?, ?, ?)
+           ON CONFLICT(user_address) DO UPDATE SET solana_address = excluded.solana_address,
+                                                   linked_at = excluded.linked_at""",
+        (account, solana_address, now),
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "success", "wallet_address": account, "solana_address": solana_address}
+
+
 @app.post("/api/solana/link")
 async def link_solana_wallet(req: SolanaLinkRequest):
     """Links a FaucetChain account to the wallet that will withdraw on Solana."""

@@ -93,6 +93,101 @@ def solana_proof(key, user, solana_address, ts):
     return base64.b64encode(bytes(key.sign_message(message.encode("utf-8")))).decode()
 
 
+def test_a_phantom_wallet_creates_its_own_account(client):
+    """The wallet is the account.
+
+    Its address is derived from the public key, so the same Phantom reaches the
+    same account on any machine: nothing to store, no password to lose, no
+    recovery flow to build. The link is written at sign-up too, because an
+    account that earns a reward it cannot be paid is worse than no account.
+    """
+    key = Keypair.from_seed(bytes([55] * 32))
+    wallet = str(key.pubkey())
+    expected = srv.address_from_solana_wallet(wallet)
+
+    ts = int(time.time())
+    body = {
+        "solana_address": wallet,
+        "signature": solana_proof(key, expected, wallet, ts),
+        "sig_timestamp": ts,
+    }
+    r = client.post("/api/auth/solana", json=body)
+    assert r.status_code == 200, r.text
+    assert r.json()["wallet_address"] == expected, r.json()
+
+    # Signing in again reaches the same account rather than making another.
+    ts2 = int(time.time())
+    again = client.post("/api/auth/solana", json={
+        "solana_address": wallet,
+        "signature": solana_proof(key, expected, wallet, ts2),
+        "sig_timestamp": ts2,
+    })
+    assert again.status_code == 200, again.text
+    assert again.json()["wallet_address"] == expected
+
+    conn = srv.get_db_connection()
+    users = conn.execute("SELECT COUNT(*) FROM users WHERE wallet_address = ?",
+                         (expected,)).fetchone()[0]
+    link = conn.execute("SELECT solana_address FROM solana_links WHERE user_address = ?",
+                        (expected,)).fetchone()
+    conn.close()
+    assert users == 1, users
+    assert link and link[0] == wallet, link
+
+
+def test_signing_in_reaches_the_account_the_wallet_is_already_linked_to(client):
+    """Someone who linked Phantom from the payouts screen and later signs in with
+    it expects the balance they earned, not an empty account that happens to
+    share their key."""
+    key = Keypair.from_seed(bytes([66] * 32))
+    wallet = str(key.pubkey())
+    WALLETS[wallet] = key
+
+    older = Account.create()
+    assert client.post("/api/solana/link",
+                       json=link_body(older, wallet)).status_code == 200
+
+    ts = int(time.time())
+    # The proof names the existing account, which is what the browser is told to
+    # sign for; a proof naming the derived account is for a different account and
+    # must not open this one.
+    r = client.post("/api/auth/solana", json={
+        "solana_address": wallet,
+        "signature": solana_proof(key, older.address.lower(), wallet, ts),
+        "sig_timestamp": ts,
+    })
+    assert r.status_code == 200, r.text
+    assert r.json()["wallet_address"] == older.address.lower(), r.json()
+    assert r.json()["wallet_address"] != srv.address_from_solana_wallet(wallet)
+
+
+def test_signing_in_needs_the_wallet_key(client):
+    """Knowing an address is not holding it."""
+    key = Keypair.from_seed(bytes([77] * 32))
+    wallet = str(key.pubkey())
+    derived = srv.address_from_solana_wallet(wallet)
+    ts = int(time.time())
+
+    assert client.post("/api/auth/solana", json={
+        "solana_address": wallet, "signature": "", "sig_timestamp": ts,
+    }).status_code == 401
+
+    # A signature from a different wallet over the same sentence.
+    impostor = Keypair.from_seed(bytes([88] * 32))
+    assert client.post("/api/auth/solana", json={
+        "solana_address": wallet,
+        "signature": solana_proof(impostor, derived, wallet, ts),
+        "sig_timestamp": ts,
+    }).status_code == 401
+
+    # And nothing was created on the way out.
+    conn = srv.get_db_connection()
+    rows = conn.execute("SELECT COUNT(*) FROM users WHERE wallet_address = ?",
+                        (derived,)).fetchone()[0]
+    conn.close()
+    assert rows == 0, rows
+
+
 def test_link_requires_a_real_solana_address(client):
     account = Account.create()
     body = link_body(account, "not-a-wallet")
