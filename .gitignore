@@ -39,3 +39,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Solana keypairs — private keys, never committed
+relayer.json
+funder.json
+*-keypair.json
+id.json

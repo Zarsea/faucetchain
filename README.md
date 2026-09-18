@@ -58,10 +58,11 @@ judging can then be fixed instead of standing as a broken submission. It will be
 revoked or moved to a multisig afterwards, before any real value is involved.
 
 Two more things that are true today and would not be acceptable on mainnet. The
-same key is the deploy payer, the upgrade authority and the wallet that funds the
-demo — three jobs that belong to three keys. And the network is devnet, where
-tokens are free, so the worst an attacker could do with it is break this
-demonstration.
+deploy payer and the upgrade authority are still the same key — two jobs that
+belong to two keys; the demo funder has been split off, so running a
+demonstration no longer puts the authority's key on the machine driving it. And
+the network is devnet, where tokens are free, so the worst an attacker could do
+with that key is break this demonstration.
 
 ## Layout
 
@@ -135,6 +136,27 @@ publishes its root on-chain and has both users withdraw with the proof the
 sequencer serves — while holding no SOL. Nothing in it is mocked: if the tree
 the backend builds were not the tree the program verifies, it would fail.
 
+**The same thing on devnet.** There is nothing to open — devnet is public and the
+program is already deployed there, so only three things change. Point `--rpc` at it,
+pass a `--funder` keypair because `requestAirdrop` is rate limited, and start the API
+with a relayer key, since on devnet somebody has to really pay the fees.
+
+```bash
+SETTLEMENT_OPERATOR_TOKEN=secret SETTLEMENT_RELAYER_KEYPAIR=relayer.json \
+  SOLANA_RPC_URL=https://api.devnet.solana.com python api_server.py
+
+SETTLEMENT_OPERATOR_TOKEN=secret python scripts/demo_settlement.py \
+  --rpc https://api.devnet.solana.com --funder funder.json --fund-sol 0.25
+```
+
+A full run costs roughly **0.5 SOL**, most of it rent for the mint, the vault and the
+receipt accounts the demo leaves behind. Devnet SOL is slow to collect, so iterate
+against `solana-test-validator`, which is free and resets, and spend devnet only on
+the run someone else is going to watch.
+
+Keep the funder and the relayer as their own throwaway keypairs — both are in
+`.gitignore`. Funding them from the upgrade authority costs one transfer and means
+the key that can replace the program never has to sit on the machine running a demo.
 ### Environment
 
 | Variable | Used for |
