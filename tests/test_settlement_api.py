@@ -161,6 +161,31 @@ def test_signing_in_reaches_the_account_the_wallet_is_already_linked_to(client):
     assert r.json()["wallet_address"] != srv.address_from_solana_wallet(wallet)
 
 
+def test_the_browser_is_told_which_account_to_sign_for(client):
+    """The sentence names the account, so the browser has to know which one
+    before it signs. Signing the wrong one produces a valid signature over the
+    wrong words, which the server can only read as a forgery — this lookup is
+    what stops that."""
+    fresh = Keypair.from_seed(bytes([101] * 32))
+    wallet = str(fresh.pubkey())
+    r = client.get(f"/api/auth/solana/{wallet}")
+    assert r.status_code == 200, r.text
+    assert r.json() == {"account": srv.address_from_solana_wallet(wallet),
+                        "existing": False}, r.json()
+
+    # Once the wallet is linked somewhere, that is the answer instead.
+    linked = Keypair.from_seed(bytes([102] * 32))
+    wallet2 = str(linked.pubkey())
+    WALLETS[wallet2] = linked
+    account = Account.create()
+    assert client.post("/api/solana/link",
+                       json=link_body(account, wallet2)).status_code == 200
+    body = client.get(f"/api/auth/solana/{wallet2}").json()
+    assert body == {"account": account.address.lower(), "existing": True}, body
+
+    assert client.get("/api/auth/solana/not-a-wallet").status_code == 400
+
+
 def test_signing_in_needs_the_wallet_key(client):
     """Knowing an address is not holding it."""
     key = Keypair.from_seed(bytes([77] * 32))

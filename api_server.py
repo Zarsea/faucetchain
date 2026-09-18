@@ -5222,6 +5222,12 @@ def require_solana_ownership(
         raise HTTPException(status_code=400, detail="Malformed Solana signature")
 
     if not parsed.verify(owner, message.encode("utf-8")):
+        # Worth a line: it is either someone forging, or the two sides built
+        # different sentences — and the second is invisible without this.
+        audit_logger.warning(
+            f"Wallet proof rejected for {solana_address}: signed sentence was "
+            f"{message!r}"
+        )
         raise HTTPException(
             status_code=401,
             detail="That signature does not come from the wallet being linked.",
@@ -5247,6 +5253,34 @@ class SolanaAuthRequest(BaseModel):
     solana_address: str
     signature: str
     sig_timestamp: int
+
+
+@app.get("/api/auth/solana/{solana_address}")
+async def account_for_wallet(solana_address: str):
+    """Which account this wallet signs in as.
+
+    Usually the derived one, but a wallet already linked somewhere signs in
+    there instead. The browser cannot guess which, and it has to know before it
+    signs: the sentence names the account, so signing the wrong one produces a
+    valid signature over the wrong words and the server rejects it as forged.
+
+    Nothing here is secret. The derivation is public arithmetic over a public
+    key, and the link is already readable through /api/solana/link.
+    """
+    wallet = solana_address.strip()
+    try:
+        settlement.decode_pubkey(wallet)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    conn = get_db_connection()
+    row = conn.execute(
+        "SELECT user_address FROM solana_links WHERE solana_address = ? ORDER BY linked_at LIMIT 1",
+        (wallet,),
+    ).fetchone()
+    conn.close()
+    account = row[0] if row else address_from_solana_wallet(wallet)
+    return {"account": account, "existing": bool(row)}
 
 
 @app.post("/api/auth/solana")

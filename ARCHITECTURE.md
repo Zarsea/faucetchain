@@ -420,6 +420,14 @@ derivation across the two languages, because a disagreement there fails exactly
 like a mismatched sentence: the browser signs for one account and the server
 checks another, and the error mentions signatures while the cause is arithmetic.
 
+The browser asks `GET /api/auth/solana/{wallet}` which account it is signing for
+before it signs. It cannot derive the answer: a wallet already linked somewhere
+signs in there instead, and the sentence names the account, so signing the wrong
+one produces a valid signature over the wrong words — which the server can only
+read as a forgery. A rejected wallet proof is now an audit line carrying the
+sentence the server built, because that failure is otherwise invisible from
+either side.
+
 A wallet already linked to some other account signs in to **that** account, not
 to its derived one. Someone who linked Phantom from the payouts screen and
 later signs in with it expects the balance they earned.

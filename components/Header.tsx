@@ -5,7 +5,7 @@ import { FaucetChainSolanaMark, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } 
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
-import { solanaProvider, encodeSignature, accountFromWallet } from '../utils/solanaWallet';
+import { solanaProvider, encodeSignature } from '../utils/solanaWallet';
 import { walletProofMessage } from '../utils/actionMessage';
 
 export const Header: React.FC = () => {
@@ -95,10 +95,21 @@ export const Header: React.FC = () => {
         try {
             const { publicKey } = await wallet.connect();
             const solanaAddress = publicKey.toString();
-            const derived = accountFromWallet(solanaAddress);
+
+            // Ask which account this wallet signs in as before signing. It is
+            // usually accountFromWallet(solanaAddress), but a wallet already linked
+            // somewhere signs in there instead, and the sentence names the account:
+            // signing the wrong one produces a valid signature over the wrong words,
+            // which the server can only read as a forgery.
+            const whoRes = await fetch(`${API_BASE_URL}/api/auth/solana/${solanaAddress}`);
+            if (!whoRes.ok) {
+                setAuthError(t('auth.authError'));
+                return;
+            }
+            const account: string = (await whoRes.json()).account;
 
             const sigTimestamp = Math.floor(Date.now() / 1000);
-            const sentence = walletProofMessage(derived, solanaAddress, sigTimestamp);
+            const sentence = walletProofMessage(account, solanaAddress, sigTimestamp);
             const signed = await wallet.signMessage(new TextEncoder().encode(sentence), 'utf8');
 
             const res = await fetch(`${API_BASE_URL}/api/auth/solana`, {

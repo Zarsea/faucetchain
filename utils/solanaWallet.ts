@@ -36,6 +36,11 @@ export function encodeSignature(signature: Uint8Array): string {
  * one. The wallet is the account, so the same Phantom reaches the same account
  * anywhere, with no password to lose.
  *
+ * The browser asks the server which account a wallet signs in as rather than
+ * deriving it, because a wallet already linked elsewhere signs in there instead.
+ * This stays as the readable statement of the rule, and as the half that
+ * scripts/check_messages.py compares against the server's.
+ *
  * api_server.address_from_solana_wallet is the other half of this, and
  * scripts/check_messages.py compares them. If the two ever disagree, the browser
  * signs for one account and the server checks another, and sign-in fails with a
