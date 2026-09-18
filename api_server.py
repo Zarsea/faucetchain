@@ -20,6 +20,8 @@ try:
 except ImportError:  # the appchain still starts; PASSWORD_SALT must then be exported
     pass
 
+import calendar
+import distribution  # how much one click of a campaign budget is worth
 import settlement  # the sentences wallets sign live here, shared with the browser
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
@@ -1012,6 +1014,10 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
 
     try:
         result = _credit_microclaim(conn, faucet_wallet, user_lower, req.amount)
+        # The same click that mints $CLAIM also draws from every campaign this
+        # faucet carries. One action, paid twice: the network's own token for
+        # the work, and the partner's token from the budget they committed.
+        result["campaigns"] = _campaign_drip(conn, faucet_wallet, user_lower)
         conn.execute('''
             UPDATE faucet_api_keys SET total_requests = total_requests + 1, last_used = ?
             WHERE api_key = ?
@@ -4981,6 +4987,47 @@ def init_settlement_tables():
         c.execute("ALTER TABLE settlement_rewards ADD COLUMN solana_address TEXT")
     except sqlite3.OperationalError:
         pass  # column already there
+
+    # What a campaign committed and how fast it may be spent. The budget is a
+    # ceiling checked when a reward is credited: publishing a root the vault
+    # cannot cover is refused on-chain, and a refused root pays nobody.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS campaign_budget (
+            campaign_id  INTEGER PRIMARY KEY,
+            total_budget INTEGER NOT NULL,
+            monthly_cap  INTEGER NOT NULL,
+            spent_total  INTEGER NOT NULL DEFAULT 0,
+            spent_month  INTEGER NOT NULL DEFAULT 0,
+            month_key    TEXT,
+            rolled_over  INTEGER NOT NULL DEFAULT 0,
+            funding      TEXT NOT NULL DEFAULT 'vault',
+            ends_at      INTEGER
+        )
+    ''')
+
+    # The campaign declares which faucets it wants to appear in. A faucet does
+    # not opt itself into somebody else's budget.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS campaign_faucets (
+            campaign_id   INTEGER NOT NULL,
+            faucet_wallet TEXT NOT NULL,
+            enrolled_at   INTEGER NOT NULL,
+            PRIMARY KEY (campaign_id, faucet_wallet)
+        )
+    ''')
+
+    # One row per day per campaign, so participation is measured from real
+    # traffic instead of assumed. The first day runs on the default and
+    # corrects itself from the second.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS campaign_traffic (
+            campaign_id INTEGER NOT NULL,
+            day         TEXT NOT NULL,
+            claims      INTEGER NOT NULL DEFAULT 0,
+            users       INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (campaign_id, day)
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -5210,6 +5257,206 @@ async def get_solana_link(address: str):
     if not row:
         raise HTTPException(status_code=404, detail="No Solana wallet linked to this address")
     return {"address": user, "solana_address": row[0], "linked_at": row[1]}
+
+
+# --- The join: a click on a partner faucet drips a campaign budget ----------
+# Until now a micro-claim credited $CLAIM on the appchain and stopped there,
+# while rewards on Solana existed only because the demo inserted them by hand.
+# This is what connects the two: the same click that mints $CLAIM also draws
+# from whatever campaigns that faucet is enrolled in.
+#
+# The rate comes from distribution.py, which holds the arithmetic and pins it
+# with a self-check. Everything here is bookkeeping around it.
+
+
+def _month_key(now: int) -> str:
+    return _time.strftime("%Y-%m", _time.gmtime(now))
+
+
+def _days_left_in_month(now: int) -> int:
+    t = _time.gmtime(now)
+    last = calendar.monthrange(t.tm_year, t.tm_mon)[1]
+    return max(1, last - t.tm_mday + 1)
+
+
+def _roll_month_if_needed(c, row, now: int):
+    """A month that ends unspent carries its remainder into the next one.
+
+    A budget that expires pushes an operator to inflate clicks on the last day.
+    A budget that accumulates does not.
+    """
+    key = _month_key(now)
+    if row["month_key"] == key:
+        return row["rolled_over"], row["spent_month"]
+
+    allowance = row["monthly_cap"] + row["rolled_over"]
+    carried = max(0, allowance - row["spent_month"])
+    c.execute(
+        "UPDATE campaign_budget SET month_key = ?, rolled_over = ?, spent_month = 0 "
+        "WHERE campaign_id = ?",
+        (key, carried, row["campaign_id"]),
+    )
+    return carried, 0
+
+
+def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None):
+    """Credit every campaign this faucet carries. Returns what was credited.
+
+    Never credits past the budget: publishing a root the vault cannot cover is
+    refused on-chain, and that refusal costs everyone in the batch, not only
+    whoever tipped it over.
+    """
+    now = now or int(_time.time())
+    c = conn.cursor()
+    c.execute(
+        "SELECT campaign_id FROM campaign_faucets WHERE faucet_wallet = ? ORDER BY campaign_id",
+        (faucet_wallet.lower(),),
+    )
+    campaigns = [r[0] for r in c.fetchall()]
+    credited = []
+
+    for campaign_id in campaigns:
+        c.execute("SELECT * FROM campaign_budget WHERE campaign_id = ?", (campaign_id,))
+        row = c.fetchone()
+        if not row:
+            continue
+        if row["ends_at"] and now > row["ends_at"]:
+            continue  # the testnet window closed
+
+        rolled, spent_month = _roll_month_if_needed(c, row, now)
+
+        total_left = row["total_budget"] - row["spent_total"]
+        if total_left <= 0:
+            continue
+        allowance = distribution.month_budget(total_left, row["monthly_cap"], rolled)
+        month_left = max(0, allowance - spent_month)
+        if month_left <= 0:
+            continue
+
+        # Participation and active users come from yesterday's traffic, so the
+        # rate answers to what people actually did rather than to a guess.
+        day = _time.strftime("%Y-%m-%d", _time.gmtime(now))
+        prev = _time.strftime("%Y-%m-%d", _time.gmtime(now - 86400))
+        c.execute("SELECT claims, users FROM campaign_traffic WHERE campaign_id = ? AND day = ?",
+                  (campaign_id, prev))
+        y = c.fetchone()
+        rate_part = distribution.participation(y["claims"], y["users"]) if y else distribution.DEFAULT_PARTICIPATION
+
+        c.execute(
+            "SELECT COUNT(DISTINCT user_address) FROM settlement_rewards "
+            "WHERE campaign_id = ? AND created_at >= ?",
+            (campaign_id, now - 86400),
+        )
+        active = c.fetchone()[0] or 0
+
+        gross = distribution.per_click(month_left, _days_left_in_month(now), active, rate_part)
+        gross = distribution.credit(gross, month_left)
+        if gross <= 0:
+            continue
+
+        to_user, to_treasury = distribution.split(gross)
+        if to_user <= 0:
+            continue
+
+        c.execute(
+            "INSERT INTO settlement_rewards (campaign_id, user_address, amount, created_at) "
+            "VALUES (?, ?, ?, ?)",
+            (campaign_id, user_address, to_user, now),
+        )
+        c.execute(
+            "UPDATE campaign_budget SET spent_total = spent_total + ?, spent_month = spent_month + ? "
+            "WHERE campaign_id = ?",
+            (gross, gross, campaign_id),
+        )
+        c.execute(
+            "INSERT INTO campaign_traffic (campaign_id, day, claims, users) VALUES (?, ?, 1, 1) "
+            "ON CONFLICT(campaign_id, day) DO UPDATE SET claims = claims + 1",
+            (campaign_id, day),
+        )
+        credited.append({
+            "campaign_id": campaign_id,
+            "amount": to_user,
+            "treasury": to_treasury,
+            "funding": row["funding"],
+        })
+
+    return credited
+
+
+class CampaignBudgetRequest(BaseModel):
+    total_budget: int
+    monthly_cap: int
+    # 'vault'    — funded up front, the user can withdraw today
+    # 'deferred' — the project settles at mainnet; the user holds a record of
+    #              work, not money. These two must never look alike on screen.
+    funding: str = "vault"
+    ends_at: Optional[int] = None
+
+
+@app.post("/api/solana/campaign/{campaign_id}/budget")
+async def set_campaign_budget(
+    campaign_id: int, req: CampaignBudgetRequest, x_operator_token: Optional[str] = Header(None)
+):
+    """How much a campaign may spend, how fast, and whether it is really funded."""
+    require_operator(x_operator_token)
+    if req.total_budget <= 0 or req.monthly_cap <= 0:
+        raise HTTPException(status_code=400, detail="Budget and monthly cap must be positive")
+    if req.funding not in ("vault", "deferred"):
+        raise HTTPException(status_code=400, detail="funding must be 'vault' or 'deferred'")
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM settlement_campaigns WHERE campaign_id = ?", (campaign_id,))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="That campaign is not registered here")
+
+    c.execute(
+        "INSERT INTO campaign_budget (campaign_id, total_budget, monthly_cap, month_key, funding, ends_at) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(campaign_id) DO UPDATE SET total_budget = excluded.total_budget, "
+        "monthly_cap = excluded.monthly_cap, funding = excluded.funding, ends_at = excluded.ends_at",
+        (campaign_id, req.total_budget, req.monthly_cap, _month_key(int(_time.time())),
+         req.funding, req.ends_at),
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "set", "campaign_id": campaign_id, "funding": req.funding}
+
+
+class CampaignFaucetsRequest(BaseModel):
+    faucets: List[str]
+
+
+@app.post("/api/solana/campaign/{campaign_id}/faucets")
+async def enroll_campaign_faucets(
+    campaign_id: int, req: CampaignFaucetsRequest, x_operator_token: Optional[str] = Header(None)
+):
+    """The campaign declares where it wants to appear.
+
+    Enrollment is the campaign's call, not the faucet's: a faucet cannot opt
+    itself into somebody else's budget.
+    """
+    require_operator(x_operator_token)
+    conn = get_db_connection()
+    c = conn.cursor()
+    now = int(_time.time())
+    added = []
+    for wallet in req.faucets:
+        w = wallet.strip().lower()
+        c.execute("SELECT 1 FROM faucet_api_keys WHERE faucet_wallet = ? AND is_active = 1", (w,))
+        if not c.fetchone():
+            conn.close()
+            raise HTTPException(status_code=400, detail=f"{w} is not a registered faucet")
+        c.execute(
+            "INSERT OR IGNORE INTO campaign_faucets (campaign_id, faucet_wallet, enrolled_at) "
+            "VALUES (?, ?, ?)",
+            (campaign_id, w, now),
+        )
+        added.append(w)
+    conn.commit()
+    conn.close()
+    return {"status": "enrolled", "campaign_id": campaign_id, "faucets": added}
 
 
 class RewardCreditRequest(BaseModel):

@@ -165,6 +165,111 @@ def test_link_requires_the_wallet_to_prove_it_holds_the_key(client):
     assert client.post("/api/solana/link", json=body).status_code == 200
 
 
+def test_a_click_on_a_partner_faucet_drips_the_campaign_budget(client):
+    """The join: one click pays twice.
+
+    Until this existed, a micro-claim credited $CLAIM and stopped, while the
+    rewards on Solana only appeared because the demo inserted them by hand.
+    """
+    import distribution
+
+    faucet = "0x" + "c1" * 20
+    reg = client.post("/api/faucethub/register",
+                      json={"name": "Partner Faucet", "wallet_address": faucet})
+    assert reg.status_code == 200, reg.text
+    api_key = reg.json()["api_key"]
+
+    campaign = 90210
+    assert client.post("/api/solana/campaign",
+                       json={"campaign_id": campaign, "sponsor": WALLET_C, "mint": WALLET_B},
+                       headers=OP).status_code == 200
+
+    budget, cap = 120_000_000_000, 10_000_000_000      # 120k and 10k, six decimals
+    assert client.post(f"/api/solana/campaign/{campaign}/budget",
+                       json={"total_budget": budget, "monthly_cap": cap, "funding": "vault"},
+                       headers=OP).status_code == 200
+    assert client.post(f"/api/solana/campaign/{campaign}/faucets",
+                       json={"faucets": [faucet]}, headers=OP).status_code == 200
+
+    user = Account.create().address.lower()
+    r = client.post("/api/faucethub/microclaim",
+                    json={"user_wallet": user, "amount": 1.0},
+                    headers={"X-Api-Key": api_key})
+    assert r.status_code == 200, r.text
+
+    dripped = r.json().get("campaigns") or []
+    assert len(dripped) == 1, dripped
+    assert dripped[0]["campaign_id"] == campaign
+
+    # The user gets 80%, the treasury 20% — the cut that funds continuity.
+    gross = dripped[0]["amount"] + dripped[0]["treasury"]
+    user_share, treasury_share = distribution.split(gross)
+    assert (dripped[0]["amount"], dripped[0]["treasury"]) == (user_share, treasury_share), dripped[0]
+    # 80/20, give or take the rounding that integer division owes
+    assert abs(dripped[0]["amount"] / gross - 0.80) < 0.0001, dripped[0]
+
+    # It reached the ledger the batch is built from.
+    conn = srv.get_db_connection()
+    row = conn.execute(
+        "SELECT amount FROM settlement_rewards WHERE campaign_id = ? AND user_address = ?",
+        (campaign, user)).fetchone()
+    assert row and row[0] == dripped[0]["amount"], row
+
+    # And the budget was debited by the gross, not by the user's share.
+    spent = conn.execute("SELECT spent_total, spent_month FROM campaign_budget WHERE campaign_id = ?",
+                         (campaign,)).fetchone()
+    conn.close()
+    assert spent[0] == gross and spent[1] == gross, spent
+
+
+def test_the_budget_is_a_ceiling_not_a_suggestion(client):
+    """A root the vault cannot cover is refused on-chain, and that refusal costs
+    everyone in the batch. So the budget stops the credit, not the publish."""
+    faucet = "0x" + "c2" * 20
+    api_key = client.post("/api/faucethub/register",
+                          json={"name": "Nearly Empty", "wallet_address": faucet}).json()["api_key"]
+    campaign = 90211
+    client.post("/api/solana/campaign",
+                json={"campaign_id": campaign, "sponsor": WALLET_C, "mint": WALLET_B}, headers=OP)
+    # A budget so small that one claim would exhaust it many times over
+    client.post(f"/api/solana/campaign/{campaign}/budget",
+                json={"total_budget": 10, "monthly_cap": 10, "funding": "vault"}, headers=OP)
+    client.post(f"/api/solana/campaign/{campaign}/faucets",
+                json={"faucets": [faucet]}, headers=OP)
+
+    total = 0
+    for _ in range(5):
+        user = Account.create().address.lower()
+        r = client.post("/api/faucethub/microclaim", json={"user_wallet": user, "amount": 1.0},
+                        headers={"X-Api-Key": api_key})
+        assert r.status_code == 200, r.text
+        for d in (r.json().get("campaigns") or []):
+            total += d["amount"] + d["treasury"]
+
+    conn = srv.get_db_connection()
+    spent = conn.execute("SELECT spent_total, total_budget FROM campaign_budget WHERE campaign_id = ?",
+                         (campaign,)).fetchone()
+    conn.close()
+    assert spent[0] <= spent[1], spent          # never past what was committed
+    assert total <= 10, total
+
+
+def test_a_faucet_cannot_enrol_itself_in_someone_elses_budget(client):
+    """The campaign declares where it appears. A faucet does not opt in."""
+    faucet = "0x" + "c3" * 20
+    client.post("/api/faucethub/register", json={"name": "Opportunist", "wallet_address": faucet})
+    campaign = 90212
+    client.post("/api/solana/campaign",
+                json={"campaign_id": campaign, "sponsor": WALLET_C, "mint": WALLET_B}, headers=OP)
+
+    # No operator token: the enrolment is refused
+    assert client.post(f"/api/solana/campaign/{campaign}/faucets",
+                       json={"faucets": [faucet]}).status_code == 401
+    # And a wallet that is not a registered faucet cannot be enrolled at all
+    assert client.post(f"/api/solana/campaign/{campaign}/faucets",
+                       json={"faucets": ["0x" + "ff" * 20]}, headers=OP).status_code == 400
+
+
 def test_only_the_operator_credits_and_closes(client):
     reward = {"campaign_id": 1, "address": "0x" + "ab" * 20, "amount": 10}
     assert client.post("/api/solana/reward", json=reward).status_code == 401

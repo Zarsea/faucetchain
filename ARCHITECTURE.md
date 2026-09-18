@@ -286,7 +286,51 @@ These are open on purpose, not oversights:
   caller with many unclaimed leaves can still make it pay for all of them at
   once, which is a spending pace question rather than a hole.
 
+## How a partner budget is dripped
+
+A partner project funds a campaign and the budget is spread through the faucets
+on the network instead of dropped at once. An airdrop is a single event, which
+is why people farm it and leave; a drip is a reason to come back. The same click
+pays twice — `$CLAIM` for the work, and the partner's token from their budget.
+
+`distribution.py` holds the arithmetic and nothing else: no database, no clock
+beyond what the caller passes. Three rules carry it.
+
+**The floor.** The rate is computed against at least 100 users however few are
+present. Without it a new faucet with five users hands each a fifth of the
+month, which ruins the partner and draws anyone farming an empty faucet.
+
+**The rollover.** What a month does not spend joins the next. A budget that
+expires pushes an operator to inflate clicks on the last day.
+
+**The ceiling binds at credit time, not at publication.** The program refuses a
+root the vault cannot cover, and a refused root pays nobody in the batch. So
+`credit()` never returns more than the budget still holds.
+
+Participation — the share of possible claims people actually make — is measured
+from yesterday's traffic rather than assumed, because a campaign whose users
+claim twice a day and one whose users claim hourly cannot share a constant.
+
+Enrolment belongs to the campaign: `POST /api/solana/campaign/{id}/faucets`
+declares where it wants to appear. A faucet cannot opt itself into somebody
+else's budget.
+
+**A funded campaign and a deferred one are different things.** `funding` is
+either `vault`, meaning the money is already there and withdrawable, or
+`deferred`, meaning the project settles at mainnet and the user holds a record
+of work rather than money. The second is the failure mode this project exists to
+fix, so the two must never be presented alike.
+
 ## Change log
+
+**2026-09-18 — a click draws the campaign budget.** `distribution.py` prices a
+claim from the budget, the days left, the active users and measured
+participation, with the 100-user floor and month rollover. `_campaign_drip`
+credits every campaign the faucet is enrolled in, splitting 80/20 between the
+user and the treasury, which stakes its share rather than selling it. The two
+halves that had never met — micro-claims on the appchain, rewards on Solana —
+are now joined at the click.
+
 
 **2026-09-17 — the documentation stopped saying Solidity.** A sweep found the
 EVM story surviving in places a reader meets before any markdown file: the
