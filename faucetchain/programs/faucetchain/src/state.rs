@@ -25,8 +25,18 @@ pub struct Campaign {
 
 /// A batch of rewards. FaucetChain closes the batch off-chain and publishes
 /// only its root here; each user withdraws by proving their leaf is in it.
+///
+/// `claimed_bits` holds one bit per leaf, and a set bit is what stops a leaf
+/// from being withdrawn twice. That job used to belong to one rent-paying
+/// account per withdrawal, which costs 0.001118 SOL — on a network whose whole
+/// premise is claims worth fractions of a cent, the record of a payment cost
+/// more than the payment. A batch of ten thousand leaves needed 11.18 SOL in
+/// rent; the same batch as a bitmap needs 0.0070.
+///
+/// It also shortens the withdrawal itself: one account fewer in the
+/// transaction, and a sequencer that wants to know what is still owed reads one
+/// account instead of one per leaf.
 #[account]
-#[derive(InitSpace)]
 pub struct RewardRoot {
     pub campaign: Pubkey,
     pub index: u32,
@@ -35,16 +45,102 @@ pub struct RewardRoot {
     pub claimed: u64,
     pub leaf_count: u32,
     pub published_at: i64,
+    /// One bit per leaf, least significant bit first. Sized from `leaf_count`
+    /// when the root is published and never resized.
+    pub claimed_bits: Vec<u8>,
 }
 
-/// Marks a leaf as spent. This account existing is what stops the same reward
-/// from being withdrawn twice.
-#[account]
-#[derive(InitSpace)]
-pub struct ClaimReceipt {
-    pub root: Pubkey,
-    pub recipient: Pubkey,
-    pub leaf_index: u32,
-    pub amount: u64,
-    pub claimed_at: i64,
+impl RewardRoot {
+    /// Every fixed field, plus the four bytes Borsh spends on the vector length.
+    pub const FIXED: usize = 32 + 4 + 32 + 8 + 8 + 4 + 8 + 4;
+
+    pub fn bitmap_len(leaf_count: u32) -> usize {
+        (leaf_count as usize).div_ceil(8)
+    }
+
+    /// Discriminator, fixed fields, and one bit per leaf.
+    pub fn space(leaf_count: u32) -> usize {
+        8 + Self::FIXED + Self::bitmap_len(leaf_count)
+    }
+
+    pub fn is_claimed(&self, leaf_index: u32) -> bool {
+        let (byte, bit) = Self::position(leaf_index);
+        self.claimed_bits.get(byte).is_some_and(|b| b & bit != 0)
+    }
+
+    /// Sets the leaf's bit. Returns false if it was already set, which is the
+    /// double-withdrawal the caller must refuse.
+    pub fn mark_claimed(&mut self, leaf_index: u32) -> bool {
+        let (byte, bit) = Self::position(leaf_index);
+        match self.claimed_bits.get_mut(byte) {
+            Some(cell) if *cell & bit == 0 => {
+                *cell |= bit;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    fn position(leaf_index: u32) -> (usize, u8) {
+        ((leaf_index / 8) as usize, 1u8 << (leaf_index % 8))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RewardRoot;
+
+    fn root(leaf_count: u32) -> RewardRoot {
+        RewardRoot {
+            campaign: Default::default(),
+            index: 0,
+            root: [0u8; 32],
+            total_amount: 0,
+            claimed: 0,
+            leaf_count,
+            published_at: 0,
+            claimed_bits: vec![0u8; RewardRoot::bitmap_len(leaf_count)],
+        }
+    }
+
+    #[test]
+    fn a_leaf_is_marked_once_and_only_once() {
+        let mut r = root(20);
+        assert!(!r.is_claimed(7));
+        assert!(r.mark_claimed(7));
+        assert!(r.is_claimed(7));
+        // The second attempt is the double withdrawal the program refuses.
+        assert!(!r.mark_claimed(7));
+    }
+
+    #[test]
+    fn neighbouring_leaves_do_not_share_a_bit() {
+        let mut r = root(20);
+        assert!(r.mark_claimed(8));
+        // 8 and 9 live in the same byte; 0 and 16 in others.
+        for other in [0, 7, 9, 15, 16, 19] {
+            assert!(!r.is_claimed(other), "leaf {other} moved with leaf 8");
+        }
+    }
+
+    #[test]
+    fn a_leaf_past_the_bitmap_cannot_be_marked() {
+        let mut r = root(8);
+        assert!(!r.mark_claimed(8), "leaf 8 is outside a batch of 8");
+        assert!(!r.is_claimed(8));
+        assert!(!r.mark_claimed(u32::MAX));
+    }
+
+    #[test]
+    fn the_bitmap_rounds_up_to_whole_bytes() {
+        assert_eq!(RewardRoot::bitmap_len(0), 0);
+        assert_eq!(RewardRoot::bitmap_len(1), 1);
+        assert_eq!(RewardRoot::bitmap_len(8), 1);
+        assert_eq!(RewardRoot::bitmap_len(9), 2);
+        assert_eq!(RewardRoot::bitmap_len(8192), 1024);
+        // Every leaf in a full batch has a bit to sit in.
+        let mut r = root(8192);
+        assert!(r.mark_claimed(8191));
+        assert!(!r.mark_claimed(8192));
+    }
 }

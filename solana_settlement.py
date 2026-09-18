@@ -36,7 +36,6 @@ ASSOCIATED_TOKEN_PROGRAM = Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25e
 CAMPAIGN_SEED = b"campaign"
 VAULT_SEED = b"vault"
 ROOT_SEED = b"root"
-RECEIPT_SEED = b"receipt"
 
 
 # --------------------------------------------------------------------------
@@ -86,10 +85,23 @@ def root_pda(pid: Pubkey, campaign: Pubkey, index: int) -> Pubkey:
     )[0]
 
 
-def receipt_pda(pid: Pubkey, reward_root: Pubkey, leaf_index: int) -> Pubkey:
-    return Pubkey.find_program_address(
-        [RECEIPT_SEED, bytes(reward_root), leaf_index.to_bytes(4, "little")], pid
-    )[0]
+# A RewardRoot account, byte for byte: the Anchor discriminator, the fixed
+# fields, then the four bytes Borsh spends on the bitmap length. The bits
+# themselves start here, one per leaf, least significant bit first.
+REWARD_ROOT_BITS_OFFSET = 8 + 32 + 4 + 32 + 8 + 8 + 4 + 8 + 4
+
+
+def leaf_claimed(account_data: bytes, leaf_index: int) -> bool:
+    """Whether that leaf has already been withdrawn, read from the root account.
+
+    This used to be a question about whether a receipt account existed. One bit
+    replaced that account, so the whole batch is now one read instead of one
+    read per leaf.
+    """
+    byte = REWARD_ROOT_BITS_OFFSET + leaf_index // 8
+    if byte >= len(account_data):
+        return False      # outside the bitmap: the program refuses it anyway
+    return bool(account_data[byte] & (1 << (leaf_index % 8)))
 
 
 def associated_token_address(owner: Pubkey, mint: Pubkey) -> Pubkey:
@@ -184,7 +196,6 @@ def claim_reward(
         AccountMeta(payer, True, True),
         AccountMeta(campaign, False, True),
         AccountMeta(reward_root, False, True),
-        AccountMeta(receipt_pda(pid, reward_root, leaf_index), False, True),
         AccountMeta(mint, False, False),
         AccountMeta(vault_pda(pid, campaign), False, True),
         AccountMeta(associated_token_address(recipient, mint), False, True),
@@ -364,7 +375,17 @@ def _self_check() -> None:
     assert campaign != campaign_pda(pid, sponsor, 8)
     assert root_pda(pid, campaign, 0) != root_pda(pid, campaign, 1)
     root0 = root_pda(pid, campaign, 0)
-    assert receipt_pda(pid, root0, 0) != receipt_pda(pid, root0, 1)
+
+    # One bit per leaf, and no leaf shares a bit with another. Byte 0 of the
+    # bitmap carries leaves 0-7, so leaf 8 must land in byte 1.
+    blank = bytes(REWARD_ROOT_BITS_OFFSET + 2)
+    assert not leaf_claimed(blank, 0)
+    one_and_eight = bytearray(blank)
+    one_and_eight[REWARD_ROOT_BITS_OFFSET] = 0b0000_0010        # leaf 1
+    one_and_eight[REWARD_ROOT_BITS_OFFSET + 1] = 0b0000_0001    # leaf 8
+    assert leaf_claimed(one_and_eight, 1) and leaf_claimed(one_and_eight, 8)
+    assert not any(leaf_claimed(one_and_eight, i) for i in (0, 2, 7, 9, 15))
+    assert not leaf_claimed(blank, 10_000)   # past the end reads as unclaimed
 
     root = bytes(range(32))
     data = publish_root(idl, sponsor, sponsor, 7, 3, root, 350_000_000, 2).data

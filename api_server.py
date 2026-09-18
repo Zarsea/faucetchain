@@ -5761,7 +5761,7 @@ def _mark_claimed(c, proofs: list) -> None:
     from solders.pubkey import Pubkey
 
     pid = chain.program_id(idl)
-    receipts = {}
+    roots = {}
     for proof in proofs:
         c.execute(
             "SELECT sponsor FROM settlement_campaigns WHERE campaign_id = ?", (proof["campaign_id"],)
@@ -5770,18 +5770,17 @@ def _mark_claimed(c, proofs: list) -> None:
         if not row:
             continue
         campaign = chain.campaign_pda(pid, Pubkey.from_string(row[0]), proof["campaign_id"])
-        reward_root = chain.root_pda(pid, campaign, proof["root_index"])
-        receipts[proof["batch_id"]] = str(
-            chain.receipt_pda(pid, reward_root, proof["leaf_index"])
-        )
+        roots[proof["batch_id"]] = str(chain.root_pda(pid, campaign, proof["root_index"]))
 
-    claimed = _receipts_claimed(chain, sorted(set(receipts.values())))
-    if claimed is None:
+    # Every leaf of a batch lives in the same account, so a user asking about
+    # twenty rewards costs twenty bits, not twenty account reads.
+    bitmaps = _root_bitmaps(chain, sorted(set(roots.values())))
+    if bitmaps is None:
         return
     for proof in proofs:
-        address = receipts.get(proof["batch_id"])
-        if address:
-            proof["claimed"] = address in claimed
+        data = bitmaps.get(roots.get(proof["batch_id"]))
+        if data is not None:
+            proof["claimed"] = chain.leaf_claimed(data, proof["leaf_index"])
 
 
 # --- The relayer -------------------------------------------------------------
@@ -5819,27 +5818,33 @@ def _rpc_or_503(chain, method: str, params: list):
         raise HTTPException(status_code=503, detail=f"Solana is unreachable: {e}")
 
 
-def _receipts_claimed(chain, receipts: List[str]) -> Optional[set]:
-    """Which of these receipt accounts already exist on Solana.
+def _root_bitmaps(chain, roots: List[str]) -> Optional[dict]:
+    """The withdrawal bitmap of each reward root, keyed by its address.
 
-    A receipt exists once its leaf has been withdrawn, and the program refuses
-    the second attempt. Asking first is what stops the relayer from paying the
-    fee to find that out. Returns None when the chain cannot be reached: the
+    A set bit means that leaf has been withdrawn and the program refuses the
+    second attempt. Asking first is what stops the relayer from paying the fee
+    to find that out. Returns None when the chain cannot be reached: the
     program is still the real guard, so an unreachable RPC costs a wasted fee
     at worst and must not block anyone's withdrawal.
     """
-    if not receipts:
-        return set()
+    import base64
+
+    if not roots:
+        return {}
     try:
         accounts = chain.rpc(
             chain.default_rpc_url(),
             "getMultipleAccounts",
-            [receipts, {"commitment": "confirmed", "encoding": "base64"}],
+            [roots, {"commitment": "confirmed", "encoding": "base64"}],
         )["value"]
     except Exception as e:
-        audit_logger.warning(f"Could not read receipt accounts, letting the withdrawal through: {e}")
+        audit_logger.warning(f"Could not read reward roots, letting the withdrawal through: {e}")
         return None
-    return {address for address, account in zip(receipts, accounts) if account}
+    found = {}
+    for address, account in zip(roots, accounts):
+        if account:
+            found[address] = base64.b64decode(account["data"][0])
+    return found
 
 
 def _claim_instruction(c, chain, relayer, user: str, batch_id: int):
@@ -5888,12 +5893,14 @@ def _claim_instruction(c, chain, relayer, user: str, batch_id: int):
         [bytes.fromhex(s[2:]) for s in claim["proof"]],
     )
 
-    # Account 4 is the receipt, per the IDL. If it is already there the leaf was
-    # withdrawn, and signing would only pay for a transaction the program
-    # rejects.
-    receipt = str(instruction.accounts[4].pubkey)
-    if _receipts_claimed(chain, [receipt]) == {receipt}:
-        raise HTTPException(status_code=409, detail="That reward has already been withdrawn")
+    # Account 3 is the reward root, per the IDL. Its bitmap says whether this
+    # leaf was already withdrawn; if it was, signing would only pay for a
+    # transaction the program rejects.
+    root_address = str(instruction.accounts[3].pubkey)
+    bitmaps = _root_bitmaps(chain, [root_address])
+    if bitmaps and root_address in bitmaps:
+        if chain.leaf_claimed(bitmaps[root_address], claim["leaf_index"]):
+            raise HTTPException(status_code=409, detail="That reward has already been withdrawn")
 
     return instruction, claim, paid_to
 

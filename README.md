@@ -34,9 +34,9 @@ users. The only thing that moves between the layers is a 32-byte root.
    program rejects it if the vault does not cover everything already promised
    and not yet withdrawn.
 6. The user reads their proof (`GET /api/solana/proof/{address}`) and calls
-   `claim_reward`. A receipt account is created for that leaf, so the same
+   `claim_reward`. The leaf's bit is set in the root's bitmap, so the same
    reward cannot be withdrawn twice. The fee payer is a separate signer, so a
-   relayer can pay the fee and the rent for a user holding no SOL.
+   relayer can pay the fee for a user holding no SOL.
 
 The leaf is `keccak256(recipient ‖ amount LE ‖ leaf_index LE)` and the parent is
 `keccak256(left ‖ right)`, with the direction taken from the index bit and odd
@@ -150,7 +150,7 @@ SETTLEMENT_OPERATOR_TOKEN=secret python scripts/demo_settlement.py \
 ```
 
 A full run costs roughly **0.5 SOL**, most of it rent for the mint, the vault and the
-receipt accounts the demo leaves behind. Devnet SOL is slow to collect, so iterate
+accounts the demo leaves behind. Devnet SOL is slow to collect, so iterate
 against `solana-test-validator`, which is free and resets, and spend devnet only on
 the run someone else is going to watch.
 

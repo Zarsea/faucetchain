@@ -229,18 +229,12 @@ fn campaign_pays_only_what_the_published_root_proves() {
 
     // 4. Alice withdraws by proving her leaf; the relayer pays everything that costs SOL.
     let alice_tokens = associated_token::get_associated_token_address(&alice.pubkey(), &mint);
-    let receipt = pda(&[
-        faucetchain::RECEIPT_SEED,
-        reward_root.as_ref(),
-        &0u32.to_le_bytes(),
-    ]);
     let claim = ix(
         faucetchain::accounts::ClaimReward {
             recipient: alice.pubkey(),
             payer: relayer.pubkey(),
             campaign,
             reward_root,
-            receipt,
             mint,
             vault,
             recipient_token_account: alice_tokens,
@@ -262,9 +256,14 @@ fn campaign_pays_only_what_the_published_root_proves() {
     // Alice spent nothing: her account on the network never even came to exist.
     assert_eq!(svm.get_balance(&alice.pubkey()).unwrap_or(0), 0);
 
-    // 5. Repeating the same withdrawal runs into the receipt that already exists.
+    // 5. Repeating the same withdrawal runs into the bit already set for that leaf.
     svm.expire_blockhash();
-    assert!(send(&mut svm, &[claim], &[&relayer, &alice]).is_err());
+    let err = send(&mut svm, &[claim], &[&relayer, &alice]).unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("AlreadyClaimed")),
+        "{:?}",
+        err.meta.logs
+    );
     assert_eq!(token_balance(&svm, &alice_tokens), 200_000_000);
 
     // 6. A lie about the amount in the leaf does not add up to the root.
@@ -274,11 +273,6 @@ fn campaign_pays_only_what_the_published_root_proves() {
             payer: relayer.pubkey(),
             campaign,
             reward_root,
-            receipt: pda(&[
-                faucetchain::RECEIPT_SEED,
-                reward_root.as_ref(),
-                &1u32.to_le_bytes(),
-            ]),
             mint,
             vault,
             recipient_token_account: associated_token::get_associated_token_address(
@@ -326,6 +320,37 @@ fn campaign_pays_only_what_the_published_root_proves() {
         err.meta.logs
     );
 
+    // 7b. A batch bigger than a root can hold is refused at the door. The cap is
+    //     what keeps the bitmap inside the size limit for an account created
+    //     through a CPI; a busier campaign closes more batches instead.
+    let oversized = ix(
+        faucetchain::accounts::PublishRoot {
+            operator: operator.pubkey(),
+            campaign,
+            reward_root: pda(&[
+                faucetchain::ROOT_SEED,
+                campaign.as_ref(),
+                &2u32.to_le_bytes(),
+            ]),
+            vault,
+            system_program: system_program::ID,
+        }
+        .to_account_metas(None),
+        faucetchain::instruction::PublishRoot {
+            index: 2,
+            root: [7u8; 32],
+            total_amount: 1,
+            leaf_count: faucetchain::MAX_LEAVES_PER_BATCH + 1,
+        }
+        .data(),
+    );
+    let err = send(&mut svm, &[oversized], &[&operator]).unwrap_err();
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("BatchTooLarge")),
+        "{:?}",
+        err.meta.logs
+    );
+
     // 8. The partner takes back the surplus, and not one token more. Of the 300
     //    in the vault, 100 are still promised to Bob.
     let withdraw = |amount: u64| {
@@ -366,11 +391,6 @@ fn campaign_pays_only_what_the_published_root_proves() {
                 payer: relayer.pubkey(),
                 campaign,
                 reward_root,
-                receipt: pda(&[
-                    faucetchain::RECEIPT_SEED,
-                    reward_root.as_ref(),
-                    &1u32.to_le_bytes(),
-                ]),
                 mint,
                 vault,
                 recipient_token_account: bob_tokens,

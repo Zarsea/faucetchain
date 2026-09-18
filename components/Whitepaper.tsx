@@ -545,14 +545,14 @@ export const Whitepaper: React.FC = () => {
                             <TableRow cells={['create_campaign', 'Opens a campaign: sponsor, operator, mint, vault', 'A vault whose authority is anyone but the campaign itself']} />
                             <TableRow cells={['fund_campaign', "Moves the partner's tokens into the vault", 'Debiting any account but the sponsor’s own']} />
                             <TableRow cells={['publish_root', 'Anchors one Merkle root for a batch of rewards', 'Any root the vault does not already cover — proof of reserve']} />
-                            <TableRow cells={['claim_reward', 'Pays one leaf against a published root', 'A second attempt: the receipt account already exists']} />
+                            <TableRow cells={['claim_reward', 'Pays one leaf against a published root', 'A second attempt: the leaf’s bit is already set']} />
                             <TableRow cells={['withdraw_surplus', 'Returns what was never promised to the sponsor', 'Touching a token inside a published root']} />
                             <TableRow cells={['close_campaign', 'Stops new roots without touching the vault', 'Anyone who is not the sponsor']} />
                         </tbody>
                     </table>
                 </div>
                 <p className="text-brand-muted leading-relaxed mt-4">
-                    Every account it owns is a PDA — campaign, vault, reward root and claim receipt —
+                    Every account it owns is a PDA — campaign, vault and reward root —
                     so nothing depends on a key somebody has to keep safe. The reserve check runs
                     on-chain before a root is accepted, which is what makes solvency a fact rather
                     than a report:
@@ -615,7 +615,7 @@ export const Whitepaper: React.FC = () => {
                     {[
                         { phase: 'Phase 1 — Distribution', status: 'COMPLETED', items: ['Proof of Claim with rising difficulty', 'Hourly quota of 2,000 $CLAIM', 'Per-IP wallet cap', 'Block indexer service', 'Explorer and appchain API'] },
                         { phase: 'Phase 2 — Intelligence', status: 'COMPLETED', items: ['Sentinel AI engine', 'Vector Knowledge Base (ChromaDB)', 'Fraud detection pipeline', 'Faucet staking registry'] },
-                        { phase: 'Phase 3 — Settlement on Solana', status: 'CURRENT', items: ['Campaign vaults and reward roots on Solana', 'Proof of reserve enforced before a root is accepted', 'Merkle-proof withdrawal with replay-proof receipts', 'Relayer: withdraw holding zero SOL', 'Wallet ownership proved by signature', 'Ledger read from the chain, not from the server'] },
+                        { phase: 'Phase 3 — Settlement on Solana', status: 'CURRENT', items: ['Campaign vaults and reward roots on Solana', 'Proof of reserve enforced before a root is accepted', 'Merkle-proof withdrawal, replay stopped by one bit per leaf', 'Relayer: withdraw holding zero SOL', 'Wallet ownership proved by signature', 'Ledger read from the chain, not from the server'] },
                         { phase: 'Phase 4 — Hardening', status: 'NEXT', items: ['Devnet deployment and a public demo campaign', 'Session authentication for custodial accounts', 'Rate limits on the relayer and the proof endpoint', 'Partner SDK for external faucets'] },
                         { phase: 'Phase 5 — Treasury', status: 'PLANNED', items: ['Treasury staking as an operation, not a model', 'Payout choice: $CLAIM or the staked asset', 'Expiry for rewards nobody claims', 'More than one sequencer', 'Independent security audit'] },
                     ].map((phase, i) => (

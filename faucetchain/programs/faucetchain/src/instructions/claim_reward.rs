@@ -8,11 +8,10 @@ use crate::{
     constants::*,
     error::ErrorCode,
     merkle::{leaf_hash, verify_proof},
-    state::{Campaign, ClaimReceipt, RewardRoot},
+    state::{Campaign, RewardRoot},
 };
 
 #[derive(Accounts)]
-#[instruction(leaf_index: u32)]
 pub struct ClaimReward<'info> {
     /// Owner of the reward. Signs, but needs no SOL: the fee and the rent for
     /// any new account are paid by `payer` — a relayer, in practice.
@@ -36,16 +35,6 @@ pub struct ClaimReward<'info> {
         constraint = reward_root.campaign == campaign.key() @ ErrorCode::InvalidProof
     )]
     pub reward_root: Account<'info, RewardRoot>,
-
-    /// This account existing is the record that the leaf has been paid.
-    #[account(
-        init,
-        payer = payer,
-        space = 8 + ClaimReceipt::INIT_SPACE,
-        seeds = [RECEIPT_SEED, reward_root.key().as_ref(), &leaf_index.to_le_bytes()],
-        bump
-    )]
-    pub receipt: Account<'info, ClaimReceipt>,
 
     pub mint: InterfaceAccount<'info, Mint>,
 
@@ -87,11 +76,22 @@ pub fn handle_claim_reward(
     );
 
     let reward_root = &mut ctx.accounts.reward_root;
+    require!(
+        leaf_index < reward_root.leaf_count,
+        ErrorCode::LeafOutOfRange
+    );
+    // Setting the bit is what stops a second withdrawal of the same leaf. It
+    // fails when the bit is already set, which is exactly that second attempt.
+    require!(
+        reward_root.mark_claimed(leaf_index),
+        ErrorCode::AlreadyClaimed
+    );
     let claimed = reward_root
         .claimed
         .checked_add(amount)
         .ok_or(ErrorCode::Overflow)?;
     require!(claimed <= reward_root.total_amount, ErrorCode::RootExhausted);
+    reward_root.claimed = claimed;
 
     let campaign_key = ctx.accounts.campaign.key();
     let sponsor = ctx.accounts.campaign.sponsor;
@@ -113,15 +113,6 @@ pub fn handle_claim_reward(
         amount,
         ctx.accounts.mint.decimals,
     )?;
-
-    reward_root.claimed = claimed;
-
-    let receipt = &mut ctx.accounts.receipt;
-    receipt.root = reward_root.key();
-    receipt.recipient = recipient;
-    receipt.leaf_index = leaf_index;
-    receipt.amount = amount;
-    receipt.claimed_at = Clock::get()?.unix_timestamp;
 
     let campaign = &mut ctx.accounts.campaign;
     campaign.paid = campaign.paid.checked_add(amount).ok_or(ErrorCode::Overflow)?;

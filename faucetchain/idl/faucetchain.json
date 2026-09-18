@@ -10,7 +10,7 @@
     {
       "name": "claim_reward",
       "docs": [
-        "O usuário saca seu prêmio com a prova de inclusão na raiz publicada."
+        "The user withdraws their reward with an inclusion proof for the published root."
       ],
       "discriminator": [
         149,
@@ -26,8 +26,8 @@
         {
           "name": "recipient",
           "docs": [
-            "Dono do prêmio. Assina, mas não precisa ter SOL: quem paga a taxa e o",
-            "rent das contas novas é o `payer` (o relayer Kora, na prática)."
+            "Owner of the reward. Signs, but needs no SOL: the fee and the rent for",
+            "any new account are paid by `payer` — a relayer, in practice."
           ],
           "signer": true
         },
@@ -89,37 +89,6 @@
                 "kind": "account",
                 "path": "reward_root.index",
                 "account": "RewardRoot"
-              }
-            ]
-          }
-        },
-        {
-          "name": "receipt",
-          "docs": [
-            "A existência desta conta é o registro de que a folha já foi paga."
-          ],
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  114,
-                  101,
-                  99,
-                  101,
-                  105,
-                  112,
-                  116
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "reward_root"
-              },
-              {
-                "kind": "arg",
-                "path": "leaf_index"
               }
             ]
           }
@@ -246,7 +215,7 @@
     {
       "name": "close_campaign",
       "docs": [
-        "Encerra a campanha: nenhuma raiz nova, mas o prometido continua sacável."
+        "Closes the campaign: no new roots, but what was promised stays withdrawable."
       ],
       "discriminator": [
         65,
@@ -303,7 +272,7 @@
     {
       "name": "create_campaign",
       "docs": [
-        "Abre uma campanha e o cofre que guarda o orçamento dela."
+        "Opens a campaign and the vault that holds its budget."
       ],
       "discriminator": [
         111,
@@ -356,7 +325,7 @@
         {
           "name": "vault",
           "docs": [
-            "Cofre da campanha: conta de token cuja autoridade é a própria campanha."
+            "The campaign vault: a token account whose authority is the campaign itself."
           ],
           "writable": true,
           "pda": {
@@ -400,7 +369,7 @@
     {
       "name": "fund_campaign",
       "docs": [
-        "O parceiro deposita tokens no cofre da campanha."
+        "The partner deposits tokens into the campaign vault."
       ],
       "discriminator": [
         109,
@@ -495,8 +464,8 @@
     {
       "name": "publish_root",
       "docs": [
-        "A FaucetChain publica a raiz de um lote de prêmios. Só passa se o cofre",
-        "cobrir tudo que já foi prometido e ainda não sacado."
+        "FaucetChain publishes the root of a reward batch. It only goes through if",
+        "the vault covers everything already promised and not yet withdrawn."
       ],
       "discriminator": [
         50,
@@ -547,6 +516,10 @@
         },
         {
           "name": "reward_root",
+          "docs": [
+            "Sized from `leaf_count`: the fixed fields plus one bit per leaf. A batch",
+            "of two leaves pays rent for two bits, not for a bitmap it will never use."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -623,7 +596,7 @@
     {
       "name": "withdraw_surplus",
       "docs": [
-        "Devolve ao parceiro o que sobrou no cofre além do já prometido."
+        "Returns to the partner whatever the vault holds above what is owed."
       ],
       "discriminator": [
         150,
@@ -734,19 +707,6 @@
       ]
     },
     {
-      "name": "ClaimReceipt",
-      "discriminator": [
-        223,
-        233,
-        11,
-        229,
-        124,
-        165,
-        207,
-        28
-      ]
-    },
-    {
       "name": "RewardRoot",
       "discriminator": [
         237,
@@ -798,6 +758,21 @@
     },
     {
       "code": 6007,
+      "name": "AlreadyClaimed",
+      "msg": "This leaf has already been withdrawn"
+    },
+    {
+      "code": 6008,
+      "name": "LeafOutOfRange",
+      "msg": "Leaf index is outside this batch"
+    },
+    {
+      "code": 6009,
+      "name": "BatchTooLarge",
+      "msg": "Batch carries more leaves than a root may hold"
+    },
+    {
+      "code": 6010,
       "name": "Overflow",
       "msg": "Arithmetic overflow"
     }
@@ -806,8 +781,8 @@
     {
       "name": "Campaign",
       "docs": [
-        "Campanha de um projeto parceiro: o orçamento fica num cofre nesta rede e só",
-        "sai contra uma raiz de prêmios publicada pela FaucetChain."
+        "A partner project's campaign: the budget sits in a vault on this network",
+        "and only leaves it against a reward root published by FaucetChain."
       ],
       "type": {
         "kind": "struct",
@@ -815,14 +790,14 @@
           {
             "name": "sponsor",
             "docs": [
-              "Quem financia (deposita no cofre)."
+              "Who funds it, by depositing into the vault."
             ],
             "type": "pubkey"
           },
           {
             "name": "operator",
             "docs": [
-              "Quem publica as raízes de prêmios (o sequenciador da FaucetChain)."
+              "Who publishes reward roots: the FaucetChain sequencer."
             ],
             "type": "pubkey"
           },
@@ -837,21 +812,21 @@
           {
             "name": "funded",
             "docs": [
-              "Total já depositado no cofre."
+              "Everything ever deposited into the vault."
             ],
             "type": "u64"
           },
           {
             "name": "paid",
             "docs": [
-              "Total já sacado por usuários."
+              "Everything users have withdrawn."
             ],
             "type": "u64"
           },
           {
             "name": "committed",
             "docs": [
-              "Soma dos totais de todas as raízes publicadas."
+              "Sum of the totals of every published root."
             ],
             "type": "u64"
           },
@@ -875,42 +850,21 @@
       }
     },
     {
-      "name": "ClaimReceipt",
-      "docs": [
-        "Marca uma folha como gasta. A existência desta conta é o que impede sacar",
-        "duas vezes o mesmo prêmio."
-      ],
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "root",
-            "type": "pubkey"
-          },
-          {
-            "name": "recipient",
-            "type": "pubkey"
-          },
-          {
-            "name": "leaf_index",
-            "type": "u32"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "claimed_at",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
       "name": "RewardRoot",
       "docs": [
-        "Um lote de prêmios: a FaucetChain fecha o lote fora da cadeia e publica aqui",
-        "só a raiz. Cada usuário saca provando que sua folha está nessa árvore."
+        "A batch of rewards. FaucetChain closes the batch off-chain and publishes",
+        "only its root here; each user withdraws by proving their leaf is in it.",
+        "",
+        "`claimed_bits` holds one bit per leaf, and a set bit is what stops a leaf",
+        "from being withdrawn twice. That job used to belong to one rent-paying",
+        "account per withdrawal, which costs 0.001118 SOL — on a network whose whole",
+        "premise is claims worth fractions of a cent, the record of a payment cost",
+        "more than the payment. A batch of ten thousand leaves needed 11.18 SOL in",
+        "rent; the same batch as a bitmap needs 0.0070.",
+        "",
+        "It also shortens the withdrawal itself: one account fewer in the",
+        "transaction, and a sequencer that wants to know what is still owed reads one",
+        "account instead of one per leaf."
       ],
       "type": {
         "kind": "struct",
@@ -947,6 +901,14 @@
           {
             "name": "published_at",
             "type": "i64"
+          },
+          {
+            "name": "claimed_bits",
+            "docs": [
+              "One bit per leaf, least significant bit first. Sized from `leaf_count`",
+              "when the root is published and never resized."
+            ],
+            "type": "bytes"
           }
         ]
       }
@@ -957,11 +919,6 @@
       "name": "CAMPAIGN_SEED",
       "type": "bytes",
       "value": "[99, 97, 109, 112, 97, 105, 103, 110]"
-    },
-    {
-      "name": "RECEIPT_SEED",
-      "type": "bytes",
-      "value": "[114, 101, 99, 101, 105, 112, 116]"
     },
     {
       "name": "ROOT_SEED",

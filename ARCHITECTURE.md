@@ -67,10 +67,10 @@ forged, mints anything.
    publishes the root. The program refuses it unless
    `vault.amount >= committed - paid + total_amount`. Proof of reserve is
    enforced here, not reported by the server.
-7. **`claim_reward(leaf_index, amount, proof)`** — the user withdraws. A receipt
-   PDA is created for that leaf, so a replay fails on the account already
-   existing. `payer` is a separate signer from `recipient`, so a relayer covers
-   the fee and the rent for a user holding no SOL.
+7. **`claim_reward(leaf_index, amount, proof)`** — the user withdraws. The
+   leaf's bit is set in the root's bitmap, so a replay fails on a bit that is
+   already set. `payer` is a separate signer from `recipient`, so a relayer
+   covers the fee for a user holding no SOL.
 8. **`withdraw_surplus(amount)`** — the partner takes back what the vault holds
    above `committed - paid`. A reward inside a published root was never part of
    the surplus. **`close_campaign()`** stops new roots without touching the
@@ -126,9 +126,9 @@ It only ever signs a transaction it built itself:
    for this program, this data, these accounts, this fee payer — and compares
    byte for byte before adding its own signature.
 
-Before either step, it asks the chain whether the receipt account for that leaf
-already exists. If it does, the reward was collected and the program would
-reject the transaction — refusing here means not paying a fee to be told so. The
+Before either step, it reads the reward root and tests that leaf's bit. If it is
+set, the reward was collected and the program would reject the transaction —
+refusing here means not paying a fee to be told so. The
 same answer is what tells the screen a reward reads as collected. When the chain
 cannot be reached the withdrawal goes through anyway: the program is the real
 guard, so an unreachable RPC costs a wasted fee at worst and must not stop
@@ -169,8 +169,7 @@ has to keep.
 | --- | --- | --- |
 | Campaign | `"campaign"`, sponsor, campaign_id LE | sponsor, operator, mint, funded, paid, committed, root_count, closed |
 | Vault | `"vault"`, campaign | the partner's tokens, authority is the campaign |
-| RewardRoot | `"root"`, campaign, index LE | root, total_amount, claimed, leaf_count, published_at |
-| ClaimReceipt | `"receipt"`, reward_root, leaf_index LE | root, recipient, amount, claimed_at |
+| RewardRoot | `"root"`, campaign, index LE | root, total_amount, claimed, leaf_count, published_at, one bit per leaf |
 
 ## What the operator can and cannot do
 
@@ -283,7 +282,7 @@ These are open on purpose, not oversights:
   but the first request on a large batch still costs real CPU — about 0.7s for
   ten thousand leaves.
 - **The relayer has no rate limit.** It refuses to sign anything but a
-  withdrawal it built, and it now checks the receipt account first so an
+  withdrawal it built, and it checks the leaf's bit first so an
   already-collected reward costs nothing to refuse. What is left is volume: a
   caller with many unclaimed leaves can still make it pay for all of them at
   once, which is a spending pace question rather than a hole.
@@ -395,6 +394,19 @@ script does not depend on a third party answering in time.
 campaign, vault and reward-root accounts from Solana, so what a campaign holds,
 owes and has paid can be read from the chain rather than from this server. The
 Settlement Ledger screen shows it, with every address linking to the explorer.
+
+**2026-09-18 — one bit instead of one account per withdrawal.** A withdrawal
+used to create a `ClaimReceipt` PDA, and that account existing was the record
+that the leaf had been paid. It cost 0.001118 SOL in rent, charged to the
+relayer — on a network whose premise is claims worth fractions of a cent, the
+receipt for a payment cost more than the payment, and a batch of ten thousand
+leaves needed 11.18 SOL. `RewardRoot` now carries one bit per leaf, sized from
+`leaf_count` when the root is published: the same batch costs 0.0070 SOL. The
+withdrawal carries one account fewer, and the sequencer reads one account per
+batch rather than one per leaf. The bitmap is what caps a batch at
+`MAX_LEAVES_PER_BATCH` (8192, or 1024 bytes, inside the 10240-byte limit on an
+account created through a CPI), which in turn caps a proof at 13 levels. A
+busier campaign closes more batches rather than larger ones.
 
 **2026-09-16 — the receipt check.** The relayer asks whether a leaf's receipt
 account exists before signing, so a reward already collected is refused without

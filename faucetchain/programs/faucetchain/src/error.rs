@@ -16,6 +16,12 @@ pub enum ErrorCode {
     InvalidProof,
     #[msg("This root has already paid its published total")]
     RootExhausted,
+    #[msg("This leaf has already been withdrawn")]
+    AlreadyClaimed,
+    #[msg("Leaf index is outside this batch")]
+    LeafOutOfRange,
+    #[msg("Batch carries more leaves than a root may hold")]
+    BatchTooLarge,
     #[msg("Arithmetic overflow")]
     Overflow,
 }

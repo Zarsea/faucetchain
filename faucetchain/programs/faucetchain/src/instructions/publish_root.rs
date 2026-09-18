@@ -4,7 +4,7 @@ use anchor_spl::token_interface::TokenAccount;
 use crate::{constants::*, error::ErrorCode, state::{Campaign, RewardRoot}};
 
 #[derive(Accounts)]
-#[instruction(index: u32)]
+#[instruction(index: u32, root: [u8; 32], total_amount: u64, leaf_count: u32)]
 pub struct PublishRoot<'info> {
     #[account(mut)]
     pub operator: Signer<'info>,
@@ -16,10 +16,12 @@ pub struct PublishRoot<'info> {
     )]
     pub campaign: Account<'info, Campaign>,
 
+    /// Sized from `leaf_count`: the fixed fields plus one bit per leaf. A batch
+    /// of two leaves pays rent for two bits, not for a bitmap it will never use.
     #[account(
         init,
         payer = operator,
-        space = 8 + RewardRoot::INIT_SPACE,
+        space = RewardRoot::space(leaf_count),
         seeds = [ROOT_SEED, campaign.key().as_ref(), &index.to_le_bytes()],
         bump
     )]
@@ -49,6 +51,10 @@ pub fn handle_publish_root(
     );
     require!(!campaign.closed, ErrorCode::CampaignClosed);
     require!(total_amount > 0 && leaf_count > 0, ErrorCode::AmountZero);
+    require!(
+        leaf_count <= MAX_LEAVES_PER_BATCH,
+        ErrorCode::BatchTooLarge
+    );
 
     // Proof of reserve inside the instruction itself: a campaign cannot promise
     // more than the vault covers, counting everything published and not yet paid.
@@ -71,6 +77,8 @@ pub fn handle_publish_root(
     reward_root.claimed = 0;
     reward_root.leaf_count = leaf_count;
     reward_root.published_at = Clock::get()?.unix_timestamp;
+    // Every leaf starts unclaimed. The account was allocated to fit exactly this.
+    reward_root.claimed_bits = vec![0u8; RewardRoot::bitmap_len(leaf_count)];
 
     campaign.committed = campaign
         .committed
