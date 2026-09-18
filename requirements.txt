@@ -1,0 +1,24 @@
+# What the sequencer and its tests need.
+#
+# Pinned to the versions the project is actually run and tested against, so a
+# clone installs what was tested rather than whatever pip resolves that day.
+# The frontend's dependencies live in package.json; this file is Python only.
+
+fastapi==0.135.1
+uvicorn==0.42.0
+pydantic==2.12.5
+
+# The appchain's signatures: EIP-191 over the sentences in settlement.py.
+eth-account==0.13.7
+# keccak256, for the Merkle tree and for deriving an account from a Solana
+# wallet. pycryptodome is the backend eth-hash uses, and api_server imports it
+# directly as well.
+eth-hash[pycryptodome]==0.8.0
+pycryptodome==3.23.0
+
+# Solana: keypairs, ed25519 verification, transaction encoding.
+solders==0.29.0
+
+requests==2.32.5
+httpx==0.28.1        # the test client FastAPI's TestClient is built on
+python-dotenv==1.2.2

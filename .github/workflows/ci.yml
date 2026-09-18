@@ -18,7 +18,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install fastapi uvicorn httpx eth-account eth-hash[pycryptodome] solders requests
+        run: pip install -r requirements.txt
 
       - name: Reward batches match the tree the program verifies
         run: python settlement.py
