@@ -105,6 +105,20 @@ cd faucetchain
 cargo test -p faucetchain       # unit tests plus the end-to-end flow on LiteSVM
 ```
 
+**A partner budget dripping through a faucet:**
+
+```bash
+SETTLEMENT_OPERATOR_TOKEN=secret python api_server.py    # terminal 1
+SETTLEMENT_OPERATOR_TOKEN=secret python scripts/demo_drip.py
+```
+
+A faucet joins, a project commits a budget and names where it wants to appear,
+then people click. Each click draws from the budget at a rate the network
+computes: held down by the 100-user floor while the faucet is small, falling as
+more people share it, and refusing to promise past what was committed. This one
+needs no validator — the drip is appchain arithmetic and only reaches Solana
+when a batch closes.
+
 **The whole payout, against a running program:**
 
 ```bash

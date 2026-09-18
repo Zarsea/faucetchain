@@ -246,6 +246,8 @@ rejects.
 - `publish_root.py` — the operator's command for step 6.
 - `scripts/demo_settlement.py` — the whole flow against a running program;
   nothing mocked.
+- `scripts/demo_drip.py` — the half in front of it: a partner budget draining
+  through a faucet as people click. Appchain only, so it needs no validator.
 - `scripts/check_messages.py` — transpiles `utils/actionMessage.ts` with esbuild
   and compares all six signed sentences against the Python ones, byte for byte.
 - `scripts/build-program.sh` — carries two toolchain quirks: Agave 4 refuses
