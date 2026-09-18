@@ -1,10 +1,13 @@
 """
 FaucetChain — Native Chain Service (Modo Soberano)
 
-A FaucetChain foi desvinculada da Sepolia (ver desvincular_sepolia.py).
+A FaucetChain foi desvinculada da Sepolia: o banco de produção misturava
+mais de 10 milhões de transações reais da Sepolia, em ETH, com os saldos de
+$CLAIM. Elas foram expurgadas de uma vez, e o que sobrou foi renumerado e
+re-encadeado a partir de um genesis próprio (altura 0, Chain ID 7777).
+
 Não há mais indexação de blockchain externa: os blocos são gerados
-nativamente pelo api_server.py (/api/mining/explore) a partir do genesis
-próprio (altura 0, Chain ID 7777).
+nativamente pelo api_server.py (/api/mining/explore).
 
 Este módulo permanece apenas para:
   - Inicializar o schema das tabelas de cadeia em instalações novas
