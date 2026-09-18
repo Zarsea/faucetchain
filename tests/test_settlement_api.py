@@ -93,6 +93,49 @@ def solana_proof(key, user, solana_address, ts):
     return base64.b64encode(bytes(key.sign_message(message.encode("utf-8")))).decode()
 
 
+def test_the_relayer_and_the_proofs_have_a_pace(client):
+    """Neither endpoint had a ceiling, and both cost something real.
+
+    The relayer pays SOL for every withdrawal it signs, so a caller holding
+    many unclaimed leaves could make it pay for all of them at once. The proof
+    endpoint reads Solana on each call, so anyone at all could make the
+    sequencer read the chain in a loop. Neither is a hole; both are a rate.
+    """
+    user, batch = _settled_batch(client, 41)
+    body = {"address": user.address.lower(), "batch_id": batch["batch_id"]}
+
+    original = srv.RELAY_HOURLY_PER_ADDRESS
+    srv.RELAY_HOURLY_PER_ADDRESS = 2
+    srv._rate_windows.clear()
+    try:
+        codes = [client.post("/api/solana/relay/prepare", json=body).status_code
+                 for _ in range(3)]
+        # 503 is the chain being unreachable in these tests, which is how far
+        # the first two get. The third never reaches the chain at all.
+        assert codes == [503, 503, 429], codes
+
+        # A different account has its own ceiling: one caller cannot lock out
+        # everybody by spending their own.
+        other, other_batch = _settled_batch(client, 42, wallet=WALLET_B)
+        r = client.post("/api/solana/relay/prepare", json={
+            "address": other.address.lower(), "batch_id": other_batch["batch_id"]})
+        assert r.status_code == 503, r.text
+    finally:
+        srv.RELAY_HOURLY_PER_ADDRESS = original
+        srv._rate_windows.clear()
+
+    original = srv.PROOF_HOURLY_PER_IP
+    srv.PROOF_HOURLY_PER_IP = 3
+    srv._rate_windows.clear()
+    try:
+        codes = [client.get(f"/api/solana/proof/{user.address.lower()}").status_code
+                 for _ in range(4)]
+        assert codes == [200, 200, 200, 429], codes
+    finally:
+        srv.PROOF_HOURLY_PER_IP = original
+        srv._rate_windows.clear()
+
+
 def test_knowing_a_custodial_address_is_not_enough_to_act_as_it(client):
     """The sharpest hole this project had.
 

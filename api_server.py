@@ -5964,9 +5964,46 @@ async def get_campaign_ledger(campaign_id: int):
     return result
 
 
+# --- Pace limits on the two endpoints that cost something ---------------------
+# Neither of these is a hole. Both are a rate. The relayer pays real SOL for
+# every withdrawal it signs, and the proof endpoint reads Solana on each call.
+# A caller holding many unclaimed leaves could make the relayer pay for all of
+# them in one burst, and anyone at all could make the sequencer read the chain
+# in a loop. A ceiling per window turns both into a cost the caller carries.
+#
+# ponytail: in-memory, so it resets on restart and does not span processes.
+# Move to the database or a shared cache if the sequencer is ever run more
+# than once at a time.
+
+RELAY_HOURLY_PER_ADDRESS = int(os.getenv("RELAY_HOURLY_PER_ADDRESS", "12"))
+PROOF_HOURLY_PER_IP = int(os.getenv("PROOF_HOURLY_PER_IP", "120"))
+
+_rate_windows = defaultdict(lambda: defaultdict(list))
+
+
+def within_rate(bucket: str, key: str, ceiling: int, window: int = 3600) -> bool:
+    """False once `key` has spent its ceiling for this window.
+
+    Same shape as the per-IP wallet cap on claiming: a list of timestamps,
+    pruned when it is read, so nothing has to sweep it on a timer.
+    """
+    now = _time.time()
+    hits = _rate_windows[bucket][key]
+    hits[:] = [t for t in hits if now - t < window]
+    if len(hits) >= ceiling:
+        return False
+    hits.append(now)
+    return True
+
+
 @app.get("/api/solana/proof/{address}")
-async def get_settlement_proofs(address: str):
+async def get_settlement_proofs(address: str, request: Request):
     """A user's proofs, one per batch they were part of."""
+    if not within_rate("proof", request.client.host, PROOF_HOURLY_PER_IP):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many proof requests from this address. Wait a little.",
+        )
     user = address.strip().lower()
     conn = get_db_connection()
     c = conn.cursor()
@@ -6192,6 +6229,13 @@ class RelayPrepareRequest(BaseModel):
 @app.post("/api/solana/relay/prepare")
 async def prepare_relayed_claim(req: RelayPrepareRequest):
     """Builds the withdrawal. The user only has to sign it."""
+    # Per address, not per IP: the relayer's SOL is spent on behalf of an
+    # account, and that is the thing worth pacing.
+    if not within_rate("relay", req.address.strip().lower(), RELAY_HOURLY_PER_ADDRESS):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many withdrawals from this account this hour. Try later.",
+        )
     chain, relayer = _relayer()
     conn = get_db_connection()
     c = conn.cursor()
@@ -6230,6 +6274,13 @@ class RelaySubmitRequest(BaseModel):
 @app.post("/api/solana/relay/submit")
 async def submit_relayed_claim(req: RelaySubmitRequest):
     """Signs as fee payer and sends — but only the withdrawal we built."""
+    # Per address, not per IP: the relayer's SOL is spent on behalf of an
+    # account, and that is the thing worth pacing.
+    if not within_rate("relay", req.address.strip().lower(), RELAY_HOURLY_PER_ADDRESS):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many withdrawals from this account this hour. Try later.",
+        )
     chain, relayer = _relayer()
     conn = get_db_connection()
     c = conn.cursor()
