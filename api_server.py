@@ -1006,6 +1006,31 @@ async def get_settlements(wallet: str, limit: int = 50):
 MICROCLAIM_COOLDOWN = 300  # 5 minutes between claims
 MIN_WITHDRAW_AMOUNT = 10.0  # Minimum $CLAIM to withdraw to L1
 
+def faucet_user_address(given: str) -> str:
+    """The FaucetChain address for whatever a partner faucet calls its user.
+
+    A faucet may send an 0x address, or the Solana address its user handed it
+    to be paid. The second is the useful case: that user signs in here with
+    the same wallet and lands in exactly this account, with the rewards
+    already in it. Nothing has to be shared between us and the faucet beyond
+    a public key.
+
+    Doing the derivation here rather than in their code is deliberate. It is
+    a keccak over a decoded base58 key, and a faucet running PHP on shared
+    hosting should not have to acquire either to integrate.
+    """
+    candidate = given.strip()
+    if re.fullmatch(r"(0x)?[0-9a-fA-F]{40}", candidate):
+        return normalize_address(candidate)
+    try:
+        settlement.decode_pubkey(candidate)
+    except ValueError:
+        raise ValueError(
+            "user_wallet must be a FaucetChain address or a Solana address"
+        )
+    return address_from_solana_wallet(candidate)
+
+
 class MicroClaimRequest(BaseModel):
     user_wallet: str
     amount: float
@@ -1034,7 +1059,7 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
     faucet_wallet = key_row["faucet_wallet"]
 
     try:
-        user_lower = normalize_address(req.user_wallet)
+        user_lower = faucet_user_address(req.user_wallet)
     except ValueError as e:
         conn.close()
         raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
@@ -1052,6 +1077,10 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
         conn.commit()
     finally:
         conn.close()
+    # The faucet sent whatever it calls its user; this is where that landed.
+    # Saying so lets a partner show it, and turns a wrong address into
+    # something visible instead of a reward quietly going somewhere else.
+    result["user_address"] = user_lower
     return result
 
 
@@ -1155,6 +1184,12 @@ async def internal_microclaim(req: InternalMicroClaimRequest, request: Request):
         verify_claim_proof(conn.cursor(), user_lower, req.poc_epoch_id, req.poc_parent_hash,
                            req.poc_nonce, now_ts)
         result = _credit_microclaim(conn, faucet_wallet, user_lower, INTERNAL_MICROCLAIM_AMOUNT)
+        # The internal faucet is a faucet on this network like any other: it has a
+        # wallet and a row in faucet_api_keys. A campaign that names it should pay
+        # through it. Without this the same click paid differently depending on
+        # which door it came through, which is not a rule anyone could explain.
+        result["campaigns"] = _campaign_drip(conn, faucet_wallet, user_lower)
+        conn.commit()
     finally:
         conn.close()
 

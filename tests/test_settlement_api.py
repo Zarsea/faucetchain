@@ -570,6 +570,44 @@ def test_the_treasury_share_reaches_the_batch_instead_of_the_partner(client):
     assert left == 0, left
 
 
+def test_a_faucet_may_name_its_user_by_solana_address(client):
+    """A partner faucet sends whatever it calls its user.
+
+    The useful case is the Solana address the user already gave it to be paid:
+    that user then signs in here with the same wallet and lands in exactly the
+    account the rewards went to. Deriving it is a keccak over a decoded base58
+    key, and a faucet running PHP on shared hosting should not have to acquire
+    either to integrate — so the derivation happens here.
+    """
+    faucet = "0x" + "e7" * 20
+    api_key = client.post("/api/faucethub/register",
+                          json={"name": "Parceiro", "wallet_address": faucet}
+                          ).json()["api_key"]
+
+    # A wallet untouched by the rest of this file: one already linked somewhere
+    # signs in to that account instead, which is its own test above.
+    wallet = str(Keypair.from_seed(bytes([201] * 32)).pubkey())
+    expected = srv.address_from_solana_wallet(wallet)
+
+    r = client.post("/api/faucethub/microclaim",
+                    json={"user_wallet": wallet, "amount": 1.0},
+                    headers={"X-Api-Key": api_key})
+    assert r.status_code == 200, r.text
+    # The response says where it landed, so a wrong address is visible rather
+    # than a reward quietly going somewhere else.
+    assert r.json()["user_address"] == expected, r.json()
+
+    # And it is the same account the wallet signs in to.
+    who = client.get(f"/api/auth/solana/{wallet}").json()
+    assert who["account"] == expected, who
+
+    # Nonsense is refused rather than normalised into some address.
+    bad = client.post("/api/faucethub/microclaim",
+                      json={"user_wallet": "nao-e-endereco", "amount": 1.0},
+                      headers={"X-Api-Key": api_key})
+    assert bad.status_code == 400, bad.text
+
+
 def test_the_budget_is_a_ceiling_not_a_suggestion(client):
     """A root the vault cannot cover is refused on-chain, and that refusal costs
     everyone in the batch. So the budget stops the credit, not the publish."""

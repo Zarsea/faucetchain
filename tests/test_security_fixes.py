@@ -234,6 +234,42 @@ def test_cyberdrip_profile_rejects_partial_addresses(client):
     assert client.get("/api/cyberdrip/profile/0x" + "cd" * 20).status_code == 200
 
 
+def test_the_internal_faucet_drips_like_any_other(client):
+    """A campaign that names the internal faucet pays through it.
+
+    It is a faucet on this network like any other — its own wallet, its own row
+    in faucet_api_keys. It simply did not drip, so the same click paid
+    differently depending on which door it came through. That is not a rule
+    anybody could explain to a partner.
+    """
+    import os
+
+    faucet = "0x" + "fa" * 20
+    os.environ["INTERNAL_FAUCET_WALLET"] = faucet
+    conn = db()
+    conn.execute(
+        "INSERT OR IGNORE INTO faucet_api_keys (faucet_wallet, api_key, created_at, is_active) "
+        "VALUES (?, ?, 0, 1)", (faucet, "test-internal-key"))
+    campaign = 90410
+    conn.execute("INSERT OR REPLACE INTO settlement_campaigns (campaign_id, sponsor, mint, "
+                 "registered_at) VALUES (?, ?, ?, 0)", (campaign, "S", "M"))
+    conn.execute("INSERT OR REPLACE INTO campaign_budget (campaign_id, total_budget, "
+                 "monthly_cap, month_key, funding) VALUES (?, ?, ?, ?, 'vault')",
+                 (campaign, 120_000_000_000, 10_000_000_000, srv._month_key(int(srv._time.time()))))
+    conn.execute("INSERT OR IGNORE INTO campaign_faucets (campaign_id, faucet_wallet, "
+                 "enrolled_at) VALUES (?, ?, 0)", (campaign, faucet))
+    conn.commit(); conn.close()
+
+    user = "0x" + "b7" * 20
+    r = client.post("/api/faucethub/internal/microclaim",
+                    json={"user_wallet": user, **solve_proof(client, user)})
+    assert r.status_code == 200, r.text
+    dripped = r.json().get("campaigns")
+    assert dripped, f"the internal faucet did not drip: {r.json()}"
+    assert dripped[0]["campaign_id"] == campaign, dripped
+    assert dripped[0]["amount"] > 0, dripped
+
+
 def test_a_stake_larger_than_the_token_is_refused(client):
     """Between April and June the staking endpoint took any number it was
     given. One identity minted by the old browser login locked 777,877,877
