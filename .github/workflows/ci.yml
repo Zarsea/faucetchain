@@ -23,6 +23,9 @@ jobs:
       - name: Reward batches match the tree the program verifies
         run: python settlement.py
 
+      - name: Every invariant catches the defect it was written for
+        run: python reconcile.py --self-check
+
       - name: Settlement API
         run: python tests/test_settlement_api.py
 

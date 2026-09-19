@@ -916,6 +916,22 @@ def test_proofs_say_what_was_already_withdrawn(client):
         srv._root_bitmaps = original
 
 
+def test_zz_the_books_close_after_everything_above(client):
+    """Run last, on purpose.
+
+    Every test above moved value: claims, drips, batches, transfers, stakes.
+    This asks whether the ledger they left behind still adds up — the question
+    no individual test asks, and the one both the ghost stake and the vanishing
+    treasury share slipped through for months by never being asked.
+    """
+    import reconcile
+
+    conn = srv.get_db_connection()
+    findings = reconcile.reconcile(conn)
+    conn.close()
+    assert not findings, "the books do not close: " + "; ".join(str(f) for f in findings)
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failures = 0
