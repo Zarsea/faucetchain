@@ -2935,6 +2935,17 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount deve ser > 0")
 
+    # A position larger than the whole token is nonsense, and saying so here is
+    # free. The balance check below already covers it — but that check did not
+    # always exist, and while it did not, this table took 777,877,877 $CLAIM
+    # from an account that had ever earned 6.26. Two independent reasons to
+    # refuse cost one line and would have stopped it at the door.
+    if req.amount > MAX_SUPPLY:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Amount acima do supply total ({MAX_SUPPLY:,.0f} $CLAIM).",
+        )
+
     staker_lower = req.staker_address.strip().lower()
 
     # ── STEP 0: Autenticação da ação (fix B6) ──────────────────────────────
@@ -3056,6 +3067,19 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
 
     yield_paid = round(pos["deposit_amount"] * pos["yield_basis_points"] / 10000, 4)
     payout = round(pos["deposit_amount"] + yield_paid, 4)
+
+    # A position written before the balance check existed can be larger than the
+    # token. Paying it out would mint past MAX_SUPPLY from a row nobody audited,
+    # so the payout is refused and the position is left for a human to look at.
+    if payout > MAX_SUPPLY:
+        conn.close()
+        audit_log("UNSTAKE_ABOVE_SUPPLY", "-", {
+            "token_id": req.token_id, "staker": staker_lower, "payout": payout,
+        })
+        raise HTTPException(
+            status_code=400,
+            detail="Esta posição é maior que o supply total e não pode ser paga.",
+        )
 
     # ── STEP 1: Mark UTXO as spent ──────────────────────────────────────────
     VAULT_ADDRESS = "0x537461b696e675661756c740000000000000000"
@@ -5155,6 +5179,14 @@ def init_settlement_tables():
             solana_address TEXT
         )
     ''')
+    # A position voided because it was created by a defect is not the same as one
+    # the owner spent. is_spent takes it out of every weight and sum; this says
+    # why, so nobody later reads it as a withdrawal that happened.
+    try:
+        c.execute("ALTER TABLE staking_positions ADD COLUMN voided_reason TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     # The sealing path writes these two, and the table is created in
     # indexer_service.py without them. A database made before they were added
     # accepts claims and then fails to seal, which reads as the chain simply

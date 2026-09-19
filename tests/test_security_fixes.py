@@ -234,6 +234,53 @@ def test_cyberdrip_profile_rejects_partial_addresses(client):
     assert client.get("/api/cyberdrip/profile/0x" + "cd" * 20).status_code == 200
 
 
+def test_a_stake_larger_than_the_token_is_refused(client):
+    """Between April and June the staking endpoint took any number it was
+    given. One identity minted by the old browser login locked 777,877,877
+    $CLAIM having ever earned 6.26, against a supply of 99,000,000.
+
+    The balance check that closed it is the real guard. This is the second
+    one, and it is worth a line by itself: a position larger than the whole
+    token is nonsense whatever the balance says, and two independent reasons
+    to refuse is what the first version of this endpoint lacked."""
+    user = custodial_account(client)
+    r = client.post("/api/staking/stake", json={
+        "staker_address": user, "amount": srv.MAX_SUPPLY + 1, "tier": 0,
+    }, headers=session(user))
+    assert r.status_code == 400, r.text
+    assert "supply" in r.json()["detail"].lower(), r.json()
+
+    conn = db()
+    n = conn.execute("SELECT COUNT(*) FROM staking_positions WHERE staker_address = ?",
+                     (user,)).fetchone()[0]
+    conn.close()
+    assert n == 0, "a refused stake still wrote a position"
+
+
+def test_a_position_larger_than_the_token_cannot_be_paid_out(client):
+    """Rows written before the balance check existed are still in the table.
+    Paying one would mint past MAX_SUPPLY out of a row nobody audited, so the
+    payout is refused and the position is left for a person to look at."""
+    user = custodial_account(client)
+    conn = db()
+    conn.execute(
+        "INSERT INTO staking_positions (token_id, staker_address, deposit_amount, "
+        "deposit_timestamp, lock_duration, yield_basis_points, tier, is_spent, yield_paid) "
+        "VALUES (9901, ?, ?, 1, 0, 50, 0, 0, 0)",
+        (user, srv.MAX_SUPPLY * 8))
+    conn.commit(); conn.close()
+
+    r = client.post("/api/staking/unstake", json={
+        "staker_address": user, "token_id": 9901,
+    }, headers=session(user))
+    assert r.status_code == 400, r.text
+
+    conn = db()
+    spent = conn.execute("SELECT is_spent FROM staking_positions WHERE token_id = 9901").fetchone()[0]
+    conn.close()
+    assert spent == 0, "a refused payout still burned the position"
+
+
 def test_claims_sealed_together_keep_the_times_they_were_made(client):
     """A block carries up to MAX_CLAIMS_PER_BLOCK claims, and sealing used to
     stamp every one of them with the moment the block closed.
