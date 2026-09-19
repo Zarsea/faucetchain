@@ -2754,10 +2754,17 @@ async def mining_explore(req: ExploreRequest, request: Request):
                 miner_fee = p['amount'] * 0.20
                 total_miner_fee += miner_fee
 
+                # The claim's own timestamp, not the moment it was sealed. A block
+                # carries up to MAX_CLAIMS_PER_BLOCK of them, so sealing time gave
+                # every claim in a block the same instant -- and the Sybil detector
+                # reads these intervals to decide whether somebody is claiming too
+                # fast. Two claims in one block looked like two claims in zero
+                # seconds, which is a pattern no honest user can avoid producing.
+                # When the claim landed is already recorded, in block_height.
                 c.execute('''
                     INSERT INTO user_claims (user_address, amount, timestamp, tx_hash, block_height, source_platform)
                     VALUES (?, ?, ?, ?, ?, ?)
-                ''', (p['user_address'], user_reward, current_ts, p['tx_hash'], new_block_height, p.get('source_platform', 'WEB3')))
+                ''', (p['user_address'], user_reward, p['timestamp'], p['tx_hash'], new_block_height, p.get('source_platform', 'WEB3')))
 
                 c.execute('''
                     INSERT INTO transactions (hash, block_height, from_address, to_address, value, gas_price, timestamp, tx_type, source_platform)
@@ -5148,6 +5155,16 @@ def init_settlement_tables():
             solana_address TEXT
         )
     ''')
+    # The sealing path writes these two, and the table is created in
+    # indexer_service.py without them. A database made before they were added
+    # accepts claims and then fails to seal, which reads as the chain simply
+    # not moving.
+    for column, decl in (("tx_type", "TEXT"), ("source_platform", "TEXT")):
+        try:
+            c.execute(f"ALTER TABLE transactions ADD COLUMN {column} {decl}")
+        except sqlite3.OperationalError:
+            pass  # already there, or the indexer has not made the table yet
+
     try:
         c.execute("ALTER TABLE settlement_rewards ADD COLUMN solana_address TEXT")
     except sqlite3.OperationalError:

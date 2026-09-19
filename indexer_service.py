@@ -62,6 +62,10 @@ def init_db():
             value REAL,
             gas_price INTEGER,
             timestamp INTEGER,
+            -- Written by the sealing path in api_server.py. Without them a fresh
+            -- install accepts claims and then cannot seal a single block.
+            tx_type TEXT,
+            source_platform TEXT,
             FOREIGN KEY(block_height) REFERENCES blocks(height)
         )
     ''')

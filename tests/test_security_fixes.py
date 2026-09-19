@@ -234,6 +234,47 @@ def test_cyberdrip_profile_rejects_partial_addresses(client):
     assert client.get("/api/cyberdrip/profile/0x" + "cd" * 20).status_code == 200
 
 
+def test_claims_sealed_together_keep_the_times_they_were_made(client):
+    """A block carries up to MAX_CLAIMS_PER_BLOCK claims, and sealing used to
+    stamp every one of them with the moment the block closed.
+
+    Claims made hours apart can still be sealed together — that is exactly what
+    happens when a chain has been stalled and then starts again. The Sybil
+    detector reads the intervals between a user's claims to decide whether they
+    are claiming too fast; sealing them together showed intervals of zero, and
+    the account was then blocked from claiming at all. It is a pattern no honest
+    user can avoid producing, and the block a claim landed in is already
+    recorded in block_height.
+    """
+    user = custodial_account(client)
+    made = [1789600000, 1789603600, 1789610800]      # três horas de intervalo
+
+    conn = db()
+    # Earlier tests in this file spend the hour's quota; this one is about
+    # timestamps, not emission, so it starts the hour clean.
+    conn.execute("UPDATE hourly_epochs SET tokens_mined = 0, is_depleted = 0")
+    for i, ts in enumerate(made):
+        conn.execute(
+            "INSERT INTO pending_claims (user_address, amount, timestamp, tx_hash, "
+            "block_height, status, source_platform) VALUES (?, ?, ?, ?, 0, 'pending', 'TESTE')",
+            (user, 1.0, ts, f"0xpreso{i}"))
+    conn.commit(); conn.close()
+
+    r = client.post("/api/mining/explore",
+                    json={"miner_address": user, "node_id": "fcn-selagem"})
+    assert r.status_code == 200 and r.json()["explored"], r.text
+
+    conn = db()
+    sealed = sorted(row[0] for row in conn.execute(
+        "SELECT timestamp FROM user_claims WHERE user_address = ?", (user,)))
+    conn.close()
+    assert sealed == made, f"sealing overwrote the claim times: {sealed}"
+
+    # And so the detector sees three hours between them, not zero seconds.
+    intervals = [sealed[i+1] - sealed[i] for i in range(len(sealed) - 1)]
+    assert min(intervals) >= 3600, intervals
+
+
 def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
     """A node id lives in a file next to the miner, so the same machine
     reconnects under the same id after its payout address changes. The server
