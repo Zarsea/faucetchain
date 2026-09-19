@@ -26,6 +26,7 @@ Against devnet, pass --rpc and expect the airdrops to be rate limited.
 
 import argparse
 import base64
+import calendar
 import json
 import os
 import subprocess
@@ -48,12 +49,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 import settlement  # noqa: E402
+import distribution  # noqa: E402
 import solana_settlement as chain  # noqa: E402
 
 MINT_LEN = 82
 TOKEN_ACCOUNT_LEN = 165
 DECIMALS = 6
 UNIT = 10**DECIMALS
+# What a click should be worth on screen. The budget is derived from this,
+# not the other way round, so the demo reads the same in any month.
+PER_CLICK_TARGET = 25 * 10**DECIMALS
 LAMPORT = 10**9
 
 
@@ -293,18 +298,54 @@ def main() -> None:
     print(f"    {alice_eth.address.lower()} -> {alice_sol.pubkey()}")
     print(f"    {bob_eth.address.lower()} -> {bob_sol.pubkey()}")
 
-    step(5, "The sequencer credits rewards and closes the batch")
-    for address, amount in (
-        (alice_eth.address.lower(), 200 * UNIT),
-        (alice_eth.address.lower(), 50 * UNIT),
-        (bob_eth.address.lower(), 100 * UNIT),
+    step(5, "A partner faucet joins, and two people click it")
+    # The join, and the reason this is one story instead of two. What the batch
+    # below carries is not inserted by an operator: it is what the network
+    # computed a click to be worth, at a rate nobody typed in.
+    faucet = Account.create().address.lower()
+    api_key = requests.post(
+        f"{api}/api/faucethub/register",
+        json={"name": "Demo Partner Faucet", "wallet_address": faucet},
+        timeout=30,
+    ).json()["api_key"]
+
+    # Size the campaign so a click is worth something legible today. The rate is
+    # budget over days over expected claims, so this asks the engine what budget
+    # puts a click near the target, instead of a number that only reads well in
+    # the month somebody typed it.
+    now = time.gmtime()
+    days_left = calendar.monthrange(now.tm_year, now.tm_mon)[1] - now.tm_mday + 1
+    expected = (distribution.FLOOR_USERS * distribution.CLAIMS_PER_USER_DAY
+                * distribution.DEFAULT_PARTICIPATION)
+    monthly_cap = int(PER_CLICK_TARGET * expected * max(days_left, 1))
+
+    for path, body in (
+        ("budget", {"total_budget": monthly_cap * 12, "monthly_cap": monthly_cap,
+                    "funding": "vault"}),
+        ("faucets", {"faucets": [faucet]}),
     ):
         requests.post(
-            f"{api}/api/solana/reward",
-            json={"campaign_id": args.campaign_id, "address": address, "amount": amount},
-            headers={"x-operator-token": token},
-            timeout=30,
+            f"{api}/api/solana/campaign/{args.campaign_id}/{path}",
+            json=body, headers={"x-operator-token": token}, timeout=30,
         ).raise_for_status()
+    print(f"    faucet {faucet}")
+    print(f"    the campaign commits {monthly_cap / UNIT:,.0f} a month and names this faucet")
+
+    gross = to_users = 0
+    for who, account in (("alice", alice_eth), ("bob", bob_eth)):
+        drip = requests.post(
+            f"{api}/api/faucethub/microclaim",
+            json={"user_wallet": account.address.lower(), "amount": 1.0},
+            headers={"X-Api-Key": api_key},
+            timeout=30,
+        ).json()["campaigns"][0]
+        gross += drip["amount"] + drip["treasury"]
+        to_users += drip["amount"]
+        print(f"    {who} clicked once and earned {drip['amount'] / UNIT:,.2f}"
+              f"  ({drip['treasury'] / UNIT:,.2f} to the treasury)")
+    print(f"    {gross / UNIT:,.2f} drawn from the budget, at a rate nobody typed in")
+
+    step(6, "The sequencer closes the batch")
     batch = requests.post(
         f"{api}/api/solana/batch",
         json={"campaign_id": args.campaign_id},
@@ -314,7 +355,7 @@ def main() -> None:
     print(f"    batch {batch['batch_id']} root {batch['root']}")
     print(f"    {batch['leaf_count']} leaves, {batch['total_amount'] / UNIT:.2f} promised")
 
-    step(6, "Publishing the root on-chain with publish_root.py")
+    step(7, "Publishing the root on-chain with publish_root.py")
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
         json.dump(list(bytes(operator)), handle)
         operator_path = handle.name
@@ -338,7 +379,7 @@ def main() -> None:
     finally:
         os.unlink(operator_path)
 
-    step(7, "Users withdraw through the relayer, signing but paying nothing")
+    step(8, "Users withdraw through the relayer, signing but paying nothing")
     for eth_account, sol_keypair, name in (
         (alice_eth, alice_sol, "alice"),
         (bob_eth, bob_sol, "bob"),
@@ -407,9 +448,16 @@ def main() -> None:
         assert listed["claimed"] is True, listed
         print(f"    {name}: a second withdrawal is refused, and the reward reads as collected")
 
-    step(8, "The partner takes back what was never promised")
+    step(9, "The partner takes back what was never promised")
+    # Not the whole vault. The treasury leaf in this batch has not been
+    # collected, and what a published root still owes is not the partner's to
+    # take back -- the program refuses it, which is the point of the reserve.
+    on_chain = requests.get(
+        f"{api}/api/solana/ledger/{args.campaign_id}", timeout=30).json()["on_chain"]
+    outstanding = on_chain["committed"] - on_chain["paid"]
     before = chain.token_balance(rpc_url, sponsor_tokens.pubkey())
-    surplus = chain.token_balance(rpc_url, vault)
+    held = chain.token_balance(rpc_url, vault)
+    surplus = held - outstanding
     chain.send_and_confirm(
         rpc_url,
         [chain.withdraw_surplus(
@@ -421,10 +469,27 @@ def main() -> None:
     )
     after = chain.token_balance(rpc_url, sponsor_tokens.pubkey())
     print(f"    vault returned {surplus / UNIT:.2f}; partner now holds {after / UNIT:.2f}")
+    print(f"    {outstanding / UNIT:.2f} stays behind: the treasury's leaf is promised"
+          f" and not yet collected")
     assert after == before + surplus
-    assert chain.token_balance(rpc_url, vault) == 0
+    # And the program refuses to give back a lamport of what is still owed.
+    if outstanding:
+        try:
+            chain.send_and_confirm(
+                rpc_url,
+                [chain.withdraw_surplus(
+                    idl, sponsor.pubkey(), mint.pubkey(), sponsor_tokens.pubkey(),
+                    args.campaign_id, 1,
+                )],
+                sponsor,
+                [sponsor],
+            )
+            raise SystemExit("the vault gave back money it still owed")
+        except chain.ChainError:
+            print("    and one unit more is refused, because that money is spoken for")
+    assert chain.token_balance(rpc_url, vault) == outstanding
 
-    step(9, "The ledger, read from Solana rather than from this script")
+    step(10, "The ledger, read from Solana rather than from this script")
     ledger = requests.get(f"{api}/api/solana/ledger/{args.campaign_id}", timeout=30).json()
     chain_state = ledger["on_chain"]
     assert chain_state is not None, "the sequencer could not read the chain"
@@ -435,15 +500,19 @@ def main() -> None:
     print(f"    root {root_state['index']}: {root_state['claimed'] / UNIT:.2f} of "
           f"{root_state['total_amount'] / UNIT:.2f} collected across "
           f"{root_state['leaf_count']} leaves")
+    # Relationships, not round numbers: the rate is computed per click, so the
+    # totals are whatever the network decided a click was worth today. What has
+    # to hold is that the chain agrees with the clicks.
     assert chain_state["funded"] == 500 * UNIT, chain_state
-    assert chain_state["committed"] == 350 * UNIT, chain_state
-    assert chain_state["paid"] == 350 * UNIT, chain_state
-    assert chain_state["vault_amount"] == 0, chain_state
-    assert root_state["claimed"] == root_state["total_amount"] == 350 * UNIT, root_state
+    assert chain_state["committed"] == gross, (chain_state["committed"], gross)
+    assert chain_state["paid"] == to_users, (chain_state["paid"], to_users)
+    assert chain_state["vault_amount"] == gross - to_users, chain_state
+    assert root_state["total_amount"] == gross, root_state
+    assert root_state["claimed"] == to_users, root_state
     assert root_state["root"] == batch["root"], (root_state["root"], batch["root"])
 
-    print("\nDone. 350 tokens left the vault against one published root,")
-    print("and neither user ever held a lamport of their own.")
+    print("\nDone. Two clicks on a partner faucet became one root on Solana,")
+    print(f"{to_users / UNIT:.2f} tokens reached them, and neither held a lamport.")
 
 
 if __name__ == "__main__":

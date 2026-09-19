@@ -131,10 +131,18 @@ SETTLEMENT_OPERATOR_TOKEN=secret \
   python scripts/demo_settlement.py --rpc http://127.0.0.1:8899 # terminal 3
 ```
 
-That script opens a campaign, funds a vault, links two wallets, closes a batch,
-publishes its root on-chain and has both users withdraw with the proof the
-sequencer serves — while holding no SOL. Nothing in it is mocked: if the tree
-the backend builds were not the tree the program verifies, it would fail.
+That script is the whole product in one run: a partner faucet joins, a campaign
+commits a budget and names that faucet, two people click it, and what they earn
+is settled on Solana. The rewards are not inserted by an operator — they are
+what the network computed a click to be worth, at a rate nobody typed in. Then
+the batch closes, its root goes on-chain, and both users withdraw with the proof
+the sequencer serves, holding no SOL.
+
+Nothing in it is mocked. If the tree the backend builds were not the tree the
+program verifies, it would fail. And the vault does not empty at the end: the
+treasury's leaf in that batch is promised and uncollected, so the reserve check
+refuses to give it back to the partner — which is the guarantee, demonstrated
+rather than described.
 
 **The same thing on devnet.** There is nothing to open — devnet is public and the
 program is already deployed there, so only three things change. Point `--rpc` at it,
