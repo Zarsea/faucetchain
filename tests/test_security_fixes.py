@@ -234,6 +234,49 @@ def test_cyberdrip_profile_rejects_partial_addresses(client):
     assert client.get("/api/cyberdrip/profile/0x" + "cd" * 20).status_code == 200
 
 
+def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
+    """A node id lives in a file next to the miner, so the same machine
+    reconnects under the same id after its payout address changes. The server
+    used to keep the address it saw first: it answered "reconnected" and the
+    node mined for a stranger, with nothing on screen to say so."""
+    node = "fcn-test-rotacao"
+    first = "0x" + "a1" * 20
+    second = "0x" + "b2" * 20
+
+    def register(wallet):
+        return client.post("/api/mining/register", json={
+            "node_id": node, "wallet_address": wallet,
+            "node_name": "teste", "version": "1.0.0",
+        })
+
+    assert register(first).status_code == 200
+    assert wallet_of(node) == first
+
+    # Uptime accrued for the first address.
+    conn = db()
+    conn.execute("UPDATE active_miners SET epoch_uptime_seconds = 600 WHERE node_id = ?", (node,))
+    conn.commit(); conn.close()
+
+    r = register(second)
+    assert r.status_code == 200, r.text
+    assert wallet_of(node) == second, "the node kept paying the old address"
+
+    # And the presence earned by the old address does not follow the node.
+    conn = db()
+    uptime = conn.execute("SELECT epoch_uptime_seconds FROM active_miners WHERE node_id = ?",
+                          (node,)).fetchone()[0]
+    conn.close()
+    assert uptime == 0, uptime
+
+
+def wallet_of(node_id):
+    conn = db()
+    row = conn.execute("SELECT wallet_address FROM active_miners WHERE node_id = ?",
+                       (node_id,)).fetchone()
+    conn.close()
+    return row[0] if row else None
+
+
 if __name__ == "__main__":
     tests = [v for k, v in list(globals().items()) if k.startswith("test_")]
     failures = 0

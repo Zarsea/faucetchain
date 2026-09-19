@@ -3536,16 +3536,36 @@ async def register_miner(req: MiningRegisterRequest, request: Request):
 
     # Check if node_id already exists
     c.execute("SELECT node_id FROM active_miners WHERE node_id = ?", (req.node_id,))
-    if c.fetchone():
-        # Reconnect existing node
+    row = c.fetchone()
+    if row:
+        # Reconnect existing node.
+        #
+        # The wallet is updated here, and it was not before. A node id lives in a
+        # file next to the miner, so a machine that changes its payout address
+        # reconnects under the same id — and used to keep paying whoever was
+        # registered first. It said "reconnected" and mined for a stranger.
         current_ts = int(datetime.now().timestamp())
+        wallet = req.wallet_address.strip().lower()
+        c.execute("SELECT wallet_address FROM active_miners WHERE node_id = ?", (req.node_id,))
+        previous = c.fetchone()[0]
+        if previous != wallet:
+            # Uptime earned for the old address does not follow the node to the
+            # new one: the epoch pays for presence, and that presence was theirs.
+            audit_log("MINER_WALLET_CHANGED", "-", {
+                "node_id": req.node_id, "from": previous, "to": wallet,
+            })
+            c.execute(
+                "UPDATE active_miners SET wallet_address = ?, epoch_uptime_seconds = 0 "
+                "WHERE node_id = ?",
+                (wallet, req.node_id),
+            )
         c.execute(
             "UPDATE active_miners SET is_online = 1, last_heartbeat = ?, version = ? WHERE node_id = ?",
             (current_ts, req.version, req.node_id)
         )
         conn.commit()
         conn.close()
-        return {"status": "reconnected", "node_id": req.node_id}
+        return {"status": "reconnected", "node_id": req.node_id, "wallet_address": wallet}
 
     current_ts = int(datetime.now().timestamp())
     c.execute('''
