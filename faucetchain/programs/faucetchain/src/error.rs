@@ -26,4 +26,6 @@ pub enum ErrorCode {
     PeriodCapExceeded,
     #[msg("Arithmetic overflow")]
     Overflow,
+    #[msg("Campaigns take classic SPL mints only: a transfer fee would deliver less than the leaf promises")]
+    UnsupportedTokenProgram,
 }

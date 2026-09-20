@@ -238,6 +238,39 @@ def _books(rows=()):
     return conn
 
 
+def asset_solvency(rows):
+    """Solvency one asset at a time, and a verdict that refuses to average.
+
+    A reserve only answers for obligations in its own denomination. The report
+    used to add every faucet's $CLAIM together, compare it against $CLAIM
+    micro-claims, and publish one `systemSolvent` -- which said nothing at all
+    about the campaign tokens users are actually owed, while looking like it
+    had. A surplus of $CLAIM does not pay a shortfall of somebody's SPL mint,
+    and no single boolean can mean both.
+
+    `rows` are dicts with `asset`, `reserve` and `obligations`; a reserve of
+    None means it could not be read, which is not the same as zero and must not
+    resolve to solvent.
+
+    Returns (rows_with_verdict, all_solvent) where all_solvent is None when any
+    asset could not be evaluated: unknown is its own answer.
+    """
+    out, unknown, insolvent = [], False, False
+    for row in rows:
+        reserve, owed = row.get("reserve"), row.get("obligations") or 0
+        if reserve is None:
+            solvent = None
+            unknown = True
+        else:
+            solvent = reserve + TOLERANCE >= owed
+            insolvent = insolvent or not solvent
+        out.append({**row, "solvent": solvent,
+                    "shortfall": None if reserve is None else max(0.0, owed - reserve)})
+    if insolvent:
+        return out, False
+    return out, (None if unknown else True)
+
+
 def _self_check() -> None:
     # A ledger with one honest claim and nothing else closes.
     assert reconcile(_books()) == [], "a clean ledger was reported broken"
@@ -316,6 +349,34 @@ def main() -> None:
     if not findings:
         print(f"  {len(CHECKS)}/{len(CHECKS)} invariants hold. The books close.")
     sys.exit(1 if findings else 0)
+
+    # Solvencia nao se soma entre ativos. Um excedente grande de $CLAIM ao lado
+    # de um deficit num token de campanha era publicado como "solvente".
+    rows, verdict = asset_solvency([
+        {"asset": "CLAIM", "reserve": 1_000_000.0, "obligations": 10.0},
+        {"asset": "So1ana...mint", "reserve": 1.0, "obligations": 500.0},
+    ])
+    assert verdict is False, "a shortfall in one asset was covered by another"
+    assert rows[0]["solvent"] is True and rows[1]["solvent"] is False
+    assert rows[1]["shortfall"] == 499.0
+
+    # Nao conseguir ler uma reserva nao e o mesmo que ela ser zero, e nao pode
+    # virar "solvente" nem "insolvente".
+    rows, verdict = asset_solvency([
+        {"asset": "CLAIM", "reserve": 10.0, "obligations": 1.0},
+        {"asset": "unreadable", "reserve": None, "obligations": 5.0},
+    ])
+    assert verdict is None, f"unknown resolved to {verdict}"
+    assert rows[1]["solvent"] is None and rows[1]["shortfall"] is None
+
+    # Um deficit conhecido decide, mesmo com outro ativo ilegivel ao lado.
+    _, verdict = asset_solvency([
+        {"asset": "a", "reserve": 0.0, "obligations": 5.0},
+        {"asset": "b", "reserve": None, "obligations": 5.0},
+    ])
+    assert verdict is False
+
+    assert asset_solvency([]) == ([], True)
 
 
 if __name__ == "__main__":

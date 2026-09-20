@@ -351,7 +351,21 @@
           }
         },
         {
-          "name": "token_program"
+          "name": "token_program",
+          "docs": [
+            "Classic SPL Token only, pinned here rather than left to the interface.",
+            "",
+            "TokenInterface accepts Token-2022, and a Token-2022 mint may carry a",
+            "TransferFee. The vault would be debited what the leaf says while the",
+            "recipient receives less -- and the leaf is the promise this whole",
+            "program exists to keep. A root that pays 98 where it published 100 is",
+            "not a rounding problem, it is the guarantee failing quietly.",
+            "",
+            "The vault is created under this program and never changes program",
+            "afterwards, so pinning it at creation is enough: a Token-2022 mint can",
+            "never reach claim_reward."
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         },
         {
           "name": "system_program",
@@ -791,6 +805,11 @@
       "code": 6011,
       "name": "Overflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6012,
+      "name": "UnsupportedTokenProgram",
+      "msg": "Campaigns take classic SPL mints only: a transfer fee would deliver less than the leaf promises"
     }
   ],
   "types": [

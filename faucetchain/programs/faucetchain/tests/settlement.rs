@@ -461,3 +461,98 @@ fn campaign_pays_only_what_the_published_root_proves() {
     svm.expire_blockhash();
     assert!(send(&mut svm, &[close], &[&sponsor]).is_err());
 }
+
+
+/// Token-2022 is refused at the door, so a transfer fee can never reach a leaf.
+///
+/// TokenInterface accepts both token programs, and a Token-2022 mint may carry
+/// a TransferFee extension. The vault would be debited exactly what the leaf
+/// published while the recipient received less than that -- and the leaf is the
+/// promise the whole program exists to keep. A root that pays 98 where it said
+/// 100 is not rounding; it is the guarantee failing without saying so.
+///
+/// The vault is created under whichever token program opened the campaign and
+/// never changes program afterwards, so refusing here is enough: no Token-2022
+/// mint can reach claim_reward.
+#[test]
+fn a_campaign_cannot_open_under_token_2022() {
+    let mut svm = LiteSVM::new();
+    svm.add_program_from_file(
+        faucetchain::ID,
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../target/deploy/faucetchain.so"
+        ),
+    )
+    .expect("run scripts/build-program.sh before the test");
+
+    // The well-known Token-2022 program id, written out rather than pulled in
+    // as a dependency for one constant.
+    let token_2022: Pubkey = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+        .parse()
+        .unwrap();
+
+    let sponsor = Keypair::new();
+    svm.airdrop(&sponsor.pubkey(), 10 * SOL).unwrap();
+    let mint = create_mint(&mut svm, &sponsor);
+
+    let campaign = pda(&[
+        faucetchain::CAMPAIGN_SEED,
+        sponsor.pubkey().as_ref(),
+        &CAMPAIGN_ID.to_le_bytes(),
+    ]);
+    let vault = pda(&[faucetchain::VAULT_SEED, campaign.as_ref()]);
+
+    let result = send(
+        &mut svm,
+        &[ix(
+            faucetchain::accounts::CreateCampaign {
+                sponsor: sponsor.pubkey(),
+                campaign,
+                mint,
+                vault,
+                token_program: token_2022,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::CreateCampaign {
+                campaign_id: CAMPAIGN_ID,
+                operator: sponsor.pubkey(),
+                period_cap: 0,
+                period_len: 0,
+            }
+            .data(),
+        )],
+        &[&sponsor],
+    );
+    assert!(
+        result.is_err(),
+        "a campaign opened under Token-2022; a transfer fee would then be able          to deliver less than a published leaf promises"
+    );
+
+    // And the classic program still opens one, so the constraint refuses the
+    // right thing rather than everything.
+    send(
+        &mut svm,
+        &[ix(
+            faucetchain::accounts::CreateCampaign {
+                sponsor: sponsor.pubkey(),
+                campaign,
+                mint,
+                vault,
+                token_program: spl_token::ID,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::CreateCampaign {
+                campaign_id: CAMPAIGN_ID,
+                operator: sponsor.pubkey(),
+                period_cap: 0,
+                period_len: 0,
+            }
+            .data(),
+        )],
+        &[&sponsor],
+    )
+    .unwrap();
+}

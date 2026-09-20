@@ -65,6 +65,11 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const [registerError, setRegisterError] = useState("");
     const [generatedKey, setGeneratedKey] = useState<string | null>(null);
     const [selectedFaucet, setSelectedFaucet] = useState<string | null>(null);
+    // A reserva vem do servidor. Este painel mostrava "100%" escrito no
+    // codigo, sob a frase "Todas as reservas verificadas on-chain" -- numa tela
+    // chamada Proof of Reserve. Nada era lido, e o numero nao podia estar
+    // errado porque nao era medido.
+    const [por, setPor] = useState<any | null>(null);
     const [keyInfo, setKeyInfo] = useState<ApiKeyInfo | null>(null);
     // Fica so nesta tela, ate trocar de torneira. Nao vai para o estado global
     // nem para o storage: uma chave na aba aberta ja e exposicao suficiente.
@@ -127,6 +132,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
 
     useEffect(() => {
         fetchFaucets();
+        fetchProofOfReserve();
         fetchL2Stats();
         fetchLeaderboard();
         fetchActivityLinks();
@@ -196,6 +202,15 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             fetchFaucets();
         } catch (e: any) {
             setRegisterError(e.message);
+        }
+    };
+
+    const fetchProofOfReserve = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/faucethub/proof-of-reserve`);
+            setPor(res.ok ? await res.json() : null);
+        } catch (e) {
+            setPor(null);
         }
     };
 
@@ -641,20 +656,56 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                     
                                     <div className="w-24 h-24 rounded-full border-[3px] border-purple-500/50 border-t-purple-400 border-b-purple-400 animate-spin-slow flex items-center justify-center relative z-10 shadow-[0_0_25px_rgba(168,85,247,0.4)]">
                                         <div className="w-[72px] h-[72px] rounded-full border border-purple-300/30 bg-purple-900/80 flex items-center justify-center backdrop-blur-sm animate-none">
-                                            <span className="text-2xl font-bold text-purple-200">{loading ? "..." : "100%"}</span>
+                                            <span className="text-xl font-bold text-purple-200">
+                                                {!por ? "—"
+                                                    : por.allSolvent === true ? "OK"
+                                                    : por.allSolvent === false ? "DÉFICIT"
+                                                    : "PARCIAL"}
+                                            </span>
                                         </div>
                                     </div>
-                                    <div className="mt-4 text-center relative z-10">
-                                        <p className="text-purple-200 font-bold tracking-widest uppercase text-xs">Auditoria Criptográfica</p>
-                                        <p className="text-purple-400 text-[10px] mt-1">Todas as reservas verificadas on-chain</p>
+                                    <div className="mt-4 text-center relative z-10 px-4">
+                                        <p className="text-purple-200 font-bold tracking-widest uppercase text-xs">Solvência por ativo</p>
+                                        <p className="text-purple-400 text-[10px] mt-1">
+                                            {!por ? 'Sem leitura do servidor.'
+                                                : por.allSolvent === null
+                                                    ? 'Um ou mais ativos não puderam ser lidos. Não saber não é o mesmo que estar coberto.'
+                                                    : `${(por.assets || []).length} ativo(s). Cada reserva responde só pela dívida na própria moeda.`}
+                                        </p>
                                     </div>
                                 </div>
                                 
-                                <button 
-                                    onClick={() => fetchFaucets()}
+                                {por && (por.assets || []).length > 0 && (
+                                    <div className="mt-4 space-y-2 max-h-56 overflow-y-auto pr-1">
+                                        {por.assets.map((a: any) => (
+                                            <div key={`${a.asset}-${a.campaignId ?? 'claim'}`}
+                                                 className="flex items-center justify-between gap-2 p-2.5 bg-purple-950/20 border border-purple-500/15 rounded-lg">
+                                                <div className="min-w-0">
+                                                    <p className="text-[11px] font-bold text-purple-100 truncate">
+                                                        {a.asset === 'CLAIM' ? '$CLAIM' : `${a.asset.slice(0, 6)}…${a.asset.slice(-4)}`}
+                                                    </p>
+                                                    <p className="text-[9px] text-purple-400/80">
+                                                        {a.verifiedOnChain ? 'lido da Solana' : 'livro do sequenciador'}
+                                                        {a.obligations != null && ` · deve ${Number(a.obligations).toLocaleString()}`}
+                                                    </p>
+                                                </div>
+                                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex-shrink-0 ${
+                                                    a.solvent === true ? 'text-green-300 border-green-500/40 bg-green-900/20'
+                                                    : a.solvent === false ? 'text-red-300 border-red-500/40 bg-red-900/20'
+                                                    : 'text-yellow-300 border-yellow-500/40 bg-yellow-900/20'
+                                                }`}>
+                                                    {a.solvent === true ? 'coberto' : a.solvent === false ? `falta ${Number(a.shortfall).toLocaleString()}` : 'não lido'}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => { fetchFaucets(); fetchProofOfReserve(); }}
                                     className="w-full mt-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(168,85,247,0.2)]"
                                 >
-                                    Forçar Auditoria Global
+                                    Reler reservas
                                 </button>
                             </div>
                         </div>

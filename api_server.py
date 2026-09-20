@@ -2555,18 +2555,29 @@ async def get_anchor_roots():
 
 @app.get("/api/faucethub/proof-of-reserve")
 async def proof_of_reserve():
-    """Proof of Reserve REAL (Fase C): para cada faucet registrada, confronta
-    a reserva no ledger canônico com as obrigações pendentes (virtual_balance
-    dos micro-claims ainda não sacados). Solvente = reserva >= obrigações."""
+    """Solvency for each asset separately, because one does not pay for another.
+
+    This used to add every faucet's $CLAIM together, compare it with the $CLAIM
+    owed in micro-claims, and publish one `systemSolvent`. That number was true
+    about $CLAIM and silent about everything else -- while looking like it
+    covered the lot. What a campaign owes is denominated in that campaign's
+    mint, sitting in that campaign's vault on Solana, and a million spare
+    $CLAIM does not settle a shortfall of somebody's SPL token.
+
+    So every row names its asset, and the verdict is per asset. `allSolvent` is
+    null when any row could not be read: not knowing is its own answer, and
+    rounding it to "solvent" is how a reserve report becomes a liability.
+    """
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT name, wallet_address FROM faucet_registry")
     faucets = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT campaign_id, sponsor, mint FROM settlement_campaigns ORDER BY campaign_id")
+    campaigns = [dict(r) for r in c.fetchall()]
     conn.close()
 
-    report = []
-    total_reserves = 0.0
-    total_obligations = 0.0
+    # --- $CLAIM: the appchain's own ledger, both sides in the same unit ------
+    faucet_rows, claim_reserve, claim_owed = [], 0.0, 0.0
     for f in faucets:
         wallet = f["wallet_address"].strip().lower()
         balance_info = await get_user_balance(wallet)
@@ -2580,24 +2591,78 @@ async def proof_of_reserve():
         obligations = c.fetchone()[0]
         conn.close()
 
-        ratio = (reserve / obligations) if obligations > 0 else None
-        total_reserves += reserve
-        total_obligations += obligations
-        report.append({
+        claim_reserve += reserve
+        claim_owed += obligations
+        faucet_rows.append({
             "name": f["name"],
             "wallet": wallet,
             "reserve": round(reserve, 6),
             "obligations": round(obligations, 6),
-            "coverageRatio": round(ratio, 4) if ratio is not None else None,
+            "coverageRatio": round(reserve / obligations, 4) if obligations > 0 else None,
             "solvent": reserve + 1e-9 >= obligations,
         })
 
+    rows = [{
+        "asset": "CLAIM",
+        "scope": "micro-claims on the appchain",
+        "verifiedOnChain": False,
+        "reserve": claim_reserve,
+        "obligations": claim_owed,
+        "faucets": faucet_rows,
+    }]
+
+    # --- campaign assets: what the vault holds against what roots promised ---
+    for camp in campaigns:
+        row = {
+            "asset": camp["mint"],
+            "campaignId": camp["campaign_id"],
+            "scope": "campaign rewards settled on Solana",
+            "verifiedOnChain": False,
+            "reserve": None,
+            "obligations": None,
+        }
+        try:
+            chain_view = await get_campaign_ledger(camp["campaign_id"])
+            on_chain = chain_view.get("on_chain")
+        except Exception:
+            on_chain = None
+        if on_chain:
+            # vault_amount e o saldo; "vault" e o endereco dele.
+            committed = on_chain.get("committed")
+            paid = on_chain.get("paid")
+            vault_amount = on_chain.get("vault_amount")
+            if committed is not None and paid is not None and vault_amount is not None:
+                row["verifiedOnChain"] = True
+                row["vault"] = on_chain.get("vault")
+                row["reserve"] = float(vault_amount)
+                # O que as raizes publicadas prometeram e ninguem sacou ainda.
+                row["obligations"] = float(committed) - float(paid)
+        if not row["verifiedOnChain"]:
+            # The promise is known from the roots this server published; what
+            # backs it is not, so the reserve stays None rather than becoming a
+            # number nobody checked.
+            conn = get_db_connection()
+            c = conn.cursor()
+            c.execute("SELECT COALESCE(SUM(total_amount), 0) FROM settlement_batches WHERE campaign_id = ?",
+                      (camp["campaign_id"],))
+            row["obligations"] = float(c.fetchone()[0])
+            conn.close()
+        rows.append(row)
+
+    import reconcile as books
+    priced, all_solvent = books.asset_solvency(rows)
+
     return {
         "generatedAt": int(datetime.now().timestamp()),
-        "totalReserves": round(total_reserves, 6),
-        "totalObligations": round(total_obligations, 6),
-        "systemSolvent": all(f["solvent"] for f in report) if report else True,
-        "faucets": report,
+        "assets": priced,
+        "solventPerAsset": {r["asset"]: r["solvent"] for r in priced},
+        "allSolvent": all_solvent,
+        # Mantidos para quem ja lia a forma antiga; sao a linha do $CLAIM, e
+        # agora dizem de qual ativo falam.
+        "totalReserves": round(claim_reserve, 6),
+        "totalObligations": round(claim_owed, 6),
+        "totalsAsset": "CLAIM",
+        "faucets": faucet_rows,
     }
 
 

@@ -32,6 +32,18 @@ pub struct CreateCampaign<'info> {
     )]
     pub vault: InterfaceAccount<'info, TokenAccount>,
 
+    /// Classic SPL Token only, pinned here rather than left to the interface.
+    ///
+    /// TokenInterface accepts Token-2022, and a Token-2022 mint may carry a
+    /// TransferFee. The vault would be debited what the leaf says while the
+    /// recipient receives less -- and the leaf is the promise this whole
+    /// program exists to keep. A root that pays 98 where it published 100 is
+    /// not a rounding problem, it is the guarantee failing quietly.
+    ///
+    /// The vault is created under this program and never changes program
+    /// afterwards, so pinning it at creation is enough: a Token-2022 mint can
+    /// never reach claim_reward.
+    #[account(address = anchor_spl::token::ID @ ErrorCode::UnsupportedTokenProgram)]
     pub token_program: Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
 }

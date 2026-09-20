@@ -425,7 +425,46 @@ Signing it ends crediting the bonus to a wallet that never played, which anybody
 could do to anybody; it does not make the score true. Server-side game state is
 the real fix, and it is a feature rather than a patch.
 
+## Solvency is per asset
+
+A reserve answers only for debts in its own denomination. `proof-of-reserve`
+used to add every faucet's $CLAIM, compare it with the $CLAIM owed in
+micro-claims, and publish one `systemSolvent`. That number was true about
+$CLAIM and silent about everything else, while looking like it covered the
+lot -- and what a campaign owes is denominated in that campaign's mint, sitting
+in that campaign's vault on Solana. A million spare $CLAIM settles none of it.
+
+So the report names an asset per row and gives a verdict per row.
+`reconcile.asset_solvency` refuses to average them, and `allSolvent` is `null`
+when any row could not be read: not knowing is its own answer, and rounding it
+to "solvent" is how a reserve report becomes a liability. The panel in
+FaucetHub reads that endpoint. It used to print `100%` as a literal under the
+words "todas as reservas verificadas on-chain", on a screen titled Proof of
+Reserve -- a number that could not be wrong because nothing measured it.
+
+Each row also says whether it was read from Solana or from the sequencer's own
+book, because those are different claims and only one of them is a proof.
+
 ## Change log
+
+**2026-09-20 — campaigns take classic SPL mints only.** `TokenInterface`
+accepts Token-2022, and a Token-2022 mint may carry a TransferFee: the vault
+would be debited exactly what the leaf published while the recipient received
+less. A root that pays 98 where it said 100 is not rounding, it is the
+guarantee failing quietly, and the guarantee is the product. `create_campaign`
+now pins the token program, and `a_campaign_cannot_open_under_token_2022`
+proves it on the SVM -- along with the classic program still opening one, so
+the constraint refuses the right thing rather than everything. The vault never
+changes program after creation, so refusing at the door is enough.
+
+**2026-09-20 — the external hub stopped being a browser variable.** Clicking
+"travar 10k $CLAIM" subtracted 10,000 from the local copy of the balance and
+lit a label. Nothing was locked, and the next page load undid both -- but until
+then the screen told the user they had committed 10,000 $CLAIM. Hub status is
+now read from the server: whoever has a registered faucet runs a hub. Whether
+registering one should cost a real stake is a question about the economics, and
+it is still open.
+
 
 **2026-09-20 — the second staking system was removed, because it never was
 one.** `/api/defi/stake` debited no balance: it added to a table of its own,

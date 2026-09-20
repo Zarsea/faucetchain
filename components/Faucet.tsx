@@ -45,8 +45,23 @@ export const Faucet: React.FC = () => {
         }
     };
 
+    // Quem opera um hub e quem tem torneira registrada, e isso o servidor sabe.
+    // Antes, este estado nascia de um clique: o botao decrementava a copia local
+    // do saldo em 10.000 e acendia o rotulo. Nada era travado, e o proximo
+    // carregamento desfazia os dois -- mas ate la a tela afirmava que o usuario
+    // tinha comprometido 10.000 $CLAIM.
+    const fetchHubStatus = async () => {
+        if (!userAddress) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/faucethub/my-key/${userAddress}`);
+            setIsHubActive(res.ok);
+        } catch (e) {
+            setIsHubActive(false);
+        }
+    };
+
     useEffect(() => {
-        if (isConnected && userAddress) fetchBalance();
+        if (isConnected && userAddress) { fetchBalance(); fetchHubStatus(); }
     }, [isConnected, userAddress]);
 
     useEffect(() => {
@@ -188,17 +203,7 @@ export const Faucet: React.FC = () => {
         }
     };
 
-    const activateExternalHub = () => {
-        if (userBalance >= 10000) {
-            setUserBalance(prev => prev - 10000);
-            setIsHubActive(true);
-        } else {
-            const msg = lang === 'pt'
-                ? "Saldo insuficiente! Você precisa travar 10.000 CLAIM para ativar um Hub Externo."
-                : "Insufficient balance! You need to lock 10,000 CLAIM to activate an External Hub.";
-            alert(msg);
-        }
-    };
+
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -296,12 +301,11 @@ export const Faucet: React.FC = () => {
                                     {isHubActive ? 'HUB EXTERNO ATIVO' : 'NÓ PASSIVO'}
                                 </p>
                                 {!isHubActive && isConnected && (
-                                    <button
-                                        onClick={activateExternalHub}
-                                        className="mt-3 text-[10px] font-black bg-brand-primary/10 text-brand-primary border border-brand-primary/30 px-3 py-1.5 rounded-lg hover:bg-brand-primary hover:text-brand-bg transition-all"
-                                    >
-                                        ATIVAR REDE DERIVADA (TRAVAR 10K $CLAIM)
-                                    </button>
+                                    <p className="mt-3 text-[10px] text-brand-muted leading-relaxed">
+                                        {lang === 'pt'
+                                            ? 'Registre uma torneira no FaucetHub para operar um hub. O registro devolve a chave de API que sua torneira usa para distribuir.'
+                                            : 'Register a faucet in FaucetHub to run a hub. Registration returns the API key your faucet uses to distribute.'}
+                                    </p>
                                 )}
                             </div>
 
