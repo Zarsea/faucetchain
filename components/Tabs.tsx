@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import {
     CubeIcon,
     SparklesIcon,
-    ShieldCheckIcon,
     SignalIcon,
     CreditCardIcon,
     CodeBracketIcon,
@@ -78,9 +77,13 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
         >
             {/* Logo / Brand */}
             <div className="px-4 py-6 border-b border-brand-border/30 flex items-center gap-3 overflow-hidden">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand-primary/20">
-                    <ShieldCheckIcon className="w-5 h-5 text-brand-bg" />
-                </div>
+                {/* A logo, nao um icone generico dentro de um quadrado colorido.
+                    Ela se anima sozinha no SVG, entao nao ha estado aqui; quem
+                    pediu menos movimento recebe a versao parada pelo proprio
+                    arquivo. */}
+                <img src="/faucetchain-logo-animated.svg" alt="FaucetChain"
+                     width={24} height={36}
+                     className="h-9 w-auto flex-shrink-0" />
                 <div className={`transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
                     <h1 className="text-sm font-black text-white tracking-tight leading-none">FaucetChain</h1>
                     <span className="text-[9px] font-bold text-brand-primary uppercase tracking-[0.2em]">Explorer V3</span>

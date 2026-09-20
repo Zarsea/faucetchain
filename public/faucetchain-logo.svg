@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="315 125 600 990" role="img"
+     aria-label="FaucetChain">
+  <!-- Redesenhada a partir da logo oficial. Cada parte e um elemento com id,
+       porque um tracado automatico vira um borrao de pontos sem nome e nao se
+       anima. Coordenadas no espaco de pixels do original (1254x1254): os
+       contornos foram medidos linha a linha, nao estimados no olho. -->
+  <defs>
+    <linearGradient id="fcDrop" x1="14%" y1="6%" x2="88%" y2="94%">
+      <stop offset="0%"   stop-color="#2FB2F4"/>
+      <stop offset="26%"  stop-color="#0A8AEA"/>
+      <stop offset="58%"  stop-color="#0063C6"/>
+      <stop offset="100%" stop-color="#013A88"/>
+    </linearGradient>
+    <linearGradient id="fcGleam" x1="90%" y1="4%" x2="30%" y2="70%">
+      <stop offset="0%"   stop-color="#8FEBFF" stop-opacity=".95"/>
+      <stop offset="55%"  stop-color="#33C4FF" stop-opacity=".45"/>
+      <stop offset="100%" stop-color="#33C4FF" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Cromado: as faixas claras e escuras sao o que faz metal parecer metal.
+         Um gradiente suave vira plastico cinza. -->
+    <linearGradient id="fcChrome" x1="8%" y1="0%" x2="92%" y2="100%">
+      <stop offset="0%"   stop-color="#FDFEFF"/>
+      <stop offset="14%"  stop-color="#C2D1E1"/>
+      <stop offset="31%"  stop-color="#63768C"/>
+      <stop offset="45%"  stop-color="#EDF4FA"/>
+      <stop offset="60%"  stop-color="#7B8EA4"/>
+      <stop offset="78%"  stop-color="#DCE7F2"/>
+      <stop offset="100%" stop-color="#4E6178"/>
+    </linearGradient>
+
+    <!-- Ancorado na regiao da corrente: preso ao bounding box de um retangulo
+         grande, o metal pega so uma faixa clara e vira plastico cinza. -->
+    <linearGradient id="fcArc" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%"   stop-color="#9FB3C7"/>
+      <stop offset="38%"  stop-color="#E8F1F9"/>
+      <stop offset="70%"  stop-color="#FBFDFF"/>
+      <stop offset="100%" stop-color="#7C90A6"/>
+    </linearGradient>
+    <linearGradient id="fcChromeChain" gradientUnits="userSpaceOnUse"
+                    x1="529" y1="848" x2="677" y2="1012">
+      <stop offset="0%"   stop-color="#F7FBFF"/>
+      <stop offset="13%"  stop-color="#8195AB"/>
+      <stop offset="28%"  stop-color="#24374C"/>
+      <stop offset="44%"  stop-color="#E4EEF7"/>
+      <stop offset="60%"  stop-color="#44586F"/>
+      <stop offset="77%"  stop-color="#BACCDD"/>
+      <stop offset="100%" stop-color="#1B2C3E"/>
+    </linearGradient>
+
+    <!-- Os elos sao aneis: o furo e recortado, nao pintado por cima. O tracado
+         fino preto abre o furo; ele para antes das pontas para nao abri-las. -->
+  </defs>
+
+  <!-- A lamina que passa por tras, a direita. -->
+  <path id="fc-blade"
+        d="M866 546 C900 648 898 756 846 836 C800 908 706 962 612 992
+           C688 946 762 892 806 820 C850 746 866 650 866 546 Z"
+        fill="url(#fcChrome)"/>
+
+  <g id="fc-drop">
+    <path id="fc-drop-body"
+          d="M622 140 C600 200 520 300 454 396 C400 476 330 594 326 694
+             C326 836 442 950 584 950 C726 950 840 836 840 694
+             C842 596 830 462 790 398 C726 300 646 202 622 140 Z"
+          fill="url(#fcDrop)" stroke="#3ED2FF" stroke-width="9" stroke-opacity=".5"/>
+    <!-- O brilho no ombro direito: e o que faz a gota parecer liquida. -->
+    <path id="fc-drop-gleam"
+          d="M622 190 C664 268 740 366 786 442 C812 486 822 560 820 620
+             C800 540 760 460 714 396 C672 338 640 262 622 190 Z"
+          fill="url(#fcGleam)"/>
+    <!-- O arco prateado por dentro, a esquerda. -->
+    <path id="fc-drop-arc"
+          d="M474 430 C386 552 360 720 412 820 C450 892 522 934 594 954
+             C518 898 452 848 430 778 C398 684 422 540 474 430 Z"
+          fill="url(#fcArc)"/>
+  </g>
+
+  <!-- A marca: a seta que aponta para cima desce pela esquerda e vira o tronco
+       do F. Uma fita so, dois bracos a direita. -->
+  <g id="fc-mark" fill="none" stroke-linejoin="miter" stroke-miterlimit="6"
+     stroke-linecap="butt">
+    <g stroke="#5FD8FF" stroke-width="48" opacity=".8">
+      <path d="M733 548 L718 548 L622 385 L565 505 L565 733"/>
+      <path d="M565 628 L672 628"/>
+    </g>
+    <g stroke="#0B2A5C" stroke-width="38">
+      <path id="fc-mark-body" d="M733 548 L718 548 L622 385 L565 505 L565 733"/>
+      <path id="fc-mark-arm"  d="M565 628 L672 628"/>
+    </g>
+  </g>
+
+  <!-- A corrente: dois elos travados. E o que da o nome a chain. O anel azul
+       vem primeiro e sobra como contorno, do mesmo jeito que no original. -->
+  <g id="fc-chain" fill="none" stroke-linecap="round">
+    <path id="fc-chain-a" d="M564 871 L463.8 961.4 C433.6 988.6 431.2 1035 458.4 1065.2 C485.6 1095.4 532 1097.8 562.2 1070.6 L662 980" stroke="#0A6FD4" stroke-width="72"/>
+    <path             d="M564 871 L463.8 961.4 C433.6 988.6 431.2 1035 458.4 1065.2 C485.6 1095.4 532 1097.8 562.2 1070.6 L662 980" stroke="url(#fcChromeChain)" stroke-width="58"/>
+    <path id="fc-chain-b" d="M544 883 L644.8 792.4 C675 765.2 721.4 767.6 748.6 797.8 C775.8 827.9 773.4 874.4 743.2 901.6 L643 992" stroke="#0A6FD4" stroke-width="72"/>
+    <path             d="M544 883 L644.8 792.4 C675 765.2 721.4 767.6 748.6 797.8 C775.8 827.9 773.4 874.4 743.2 901.6 L643 992" stroke="url(#fcChromeChain)" stroke-width="58"/>
+  </g>
+</svg>

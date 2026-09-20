@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FaucetChainSolanaMark, FaucetChainSolanaMarkSmall, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
+import { FaucetChainSolanaMarkSmall, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
@@ -151,7 +151,12 @@ export const Header: React.FC = () => {
             </div>
             <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    <FaucetChainSolanaMark className="w-10 h-10 drop-shadow-[0_0_8px_rgba(0,180,255,0.8)] hover:scale-105 transition-transform" />
+                    {/* A logo oficial. A historia de liquidacao na Solana ja e
+                        contada pelo chip ao lado, entao a marca aqui pode ser a
+                        marca. */}
+                    <img src="/faucetchain-logo-animated.svg" alt="FaucetChain"
+                         width={26} height={42}
+                         className="h-10 w-auto hover:scale-105 transition-transform" />
                     <div>
                         <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center drop-shadow-lg">
                             <span className="text-white">FAUCET</span>
