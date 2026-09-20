@@ -85,9 +85,10 @@ forged, mints anything.
 
 ## What a wallet asks you to sign
 
-Five actions need a signature: claim, withdraw, stake, unstake and linking a
-Solana wallet. A sixth sentence is signed by the Solana wallet itself. All six
-share one shape, because a wallet displays the message verbatim and the person
+Eight actions need a signature: claim, withdraw, stake, unstake, linking a
+Solana wallet, showing a faucet's API key, rotating one, and naming a FaucetPay
+account. A ninth sentence is signed by the Solana wallet itself. All nine share
+one shape, because a wallet displays the message verbatim and the person
 approving it deserves to know what they are agreeing to:
 
 ```
@@ -333,7 +334,54 @@ either `vault`, meaning the money is already there and withdrawable, or
 of work rather than money. The second is the failure mode this project exists to
 fix, so the two must never be presented alike.
 
+## The FaucetPay link, and what it is not
+
+A partner faucet's developer can name the FaucetPay account behind their
+faucet. `faucetpay.check_address` asks FaucetPay whether a payout address
+belongs to a registered account and gets back that account's **user hash** —
+which is the join key nothing here had before. Twenty-three API keys said
+nothing about how many people stood behind them; a hash groups them.
+
+The link has two states, and collapsing them would be the whole bug:
+
+- **Named.** check-address recognised the address. That is all it means.
+  Anybody can type anybody's payout address, so a named account proves nothing
+  and pays nobody.
+- **Proved.** A payment arrived from that account carrying an amount nothing
+  else had open, inside the window. FaucetPay has no escrow and no delegated
+  authorisation, so an incoming payment is the one thing a third party cannot
+  forge. `faucetpay_proved_at` is null until then, and `/faucetpay/devs` counts
+  only proved accounts, reporting the named ones separately.
+
+Two things this deliberately does not do:
+
+- **It never holds a developer's FaucetPay API key.** That key is a bearer
+  credential with no scope and no spending limit: it would drain their whole
+  balance, in every currency, to any address. If FaucetChain ever pays out
+  through FaucetPay, it pays from an account of its own.
+- **A FaucetPay balance is never a proof of funds.** `/balance` is read with
+  our own key, so publishing it is a self-report, and the balance is neither
+  segregated nor encumbered — it can be spent a second after it is shown. The
+  guarantee stays where it can be checked by someone else: the root on Solana,
+  which the vault refuses to publish if it cannot cover it.
+
+The one seam not yet run against the live service is the incoming payment.
+FaucetPay takes money in through merchant checkout, whose callback is not wired
+here, so `/faucetpay/prove` takes the observed payments from the operator and
+runs the same `match_proof` the callback will call. Wiring it later changes who
+supplies the list and nothing else.
+
 ## Change log
+
+**2026-09-20 — an API key stopped being public.** `GET /api/faucethub/my-key`
+returned a faucet's live API key to anyone who knew its wallet address, and
+`GET /api/faucethub/faucets` publishes that address; `POST /regenerate-key`
+issued a fresh one on the same terms, cutting the real owner off in the
+process. Both now go through `require_action_signature`, the key moved to
+`POST /reveal-key` so it never sits in a URL, and `my-key` returns counters
+only. `test_faucetpay_identity.py` fails if either gate is removed. Phase one
+of the FaucetPay work lands with it: identity, and not a cent of movement.
+
 
 **2026-09-18 — a click draws the campaign budget.** `distribution.py` prices a
 claim from the budget, the days left, the active users and measured

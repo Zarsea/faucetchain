@@ -203,6 +203,56 @@ def link_message(user, solana_address, chain_id, ts) -> str:
     )
 
 
+def api_key_reveal_message(faucet, chain_id, ts) -> str:
+    """Shown before the server hands back a faucet's API key.
+
+    The key used to come back from a GET keyed on the faucet's wallet address,
+    which is published in the faucet directory. Anyone who could read the
+    directory could read the key, and the key is what authorises distributing
+    in that faucet's name.
+    """
+    return action_message(
+        "show your API key",
+        "Signing shows the key your faucet uses to call FaucetChain. Whoever "
+        "holds that key can distribute in your name, so it goes to the wallet "
+        "that owns the faucet and to nobody else.",
+        [("Faucet", faucet)],
+        chain_id,
+        ts,
+    )
+
+
+def api_key_rotate_message(faucet, chain_id, ts) -> str:
+    return action_message(
+        "replace your API key",
+        "Signing retires the key your faucet uses now and issues a new one. "
+        "The old key stops working immediately, so your faucet will fail its "
+        "next call until you update it.",
+        [("Faucet", faucet)],
+        chain_id,
+        ts,
+    )
+
+
+def faucetpay_link_message(faucet, faucetpay_address, chain_id, ts) -> str:
+    """Names a FaucetPay account. It does not prove one.
+
+    FaucetPay's check-address confirms an address belongs to some account; it
+    says nothing about who controls that account. So this signature only
+    records the claim, and the account counts as proved when a payment arrives
+    from it.
+    """
+    return action_message(
+        "link a FaucetPay account",
+        "Signing names the FaucetPay account behind this faucet. It moves no "
+        "money and proves nothing on its own: the account counts as yours "
+        "once a payment arrives from it.",
+        [("Faucet", faucet), ("FaucetPay", faucetpay_address)],
+        chain_id,
+        ts,
+    )
+
+
 def _self_check() -> None:
     # The sentence a wallet displays and the server rebuilds before checking a
     # signature. Pinned, because the browser keeps its own copy in
@@ -218,6 +268,22 @@ def _self_check() -> None:
     )
     digest = hashlib.sha256(pinned.encode("utf-8")).hexdigest()
     assert digest == "e48548fb093a6befddd12f6395c5b08241741b4671222a83a9c7571b83df11c0", digest
+
+    # As tres sentencas novas: as duas da chave de API fecham a FC-01, e a
+    # terceira nomeia uma conta FaucetPay sem afirmar que ela foi provada.
+    FAUCET = "0x1b021998f6297936986bcc34f6fdc1cd5c82af06"
+    FP_ADDR = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"
+    for builder, args, want in (
+        (api_key_reveal_message, (FAUCET,),
+         "69e5efc150fe3fda180dd0303c0c1dfd6445516ce9071426131e47f96e30eaf2"),
+        (api_key_rotate_message, (FAUCET,),
+         "bd7d160423c8c213e2422fb19c2fd0fe55aa921e9ec8b289b30cdb14a20b6fa9"),
+        (faucetpay_link_message, (FAUCET, FP_ADDR),
+         "6d9a0067c6b831c7eb19f84484c077d8879f9cd28ca127d991e76b3bfb39f7b2"),
+    ):
+        text = builder(*args, "7777", 1789618329)
+        got = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        assert got == want, f"{builder.__name__}: {got}"
 
     # Fixed vector, identical to the `matches_the_backend_vector` test in
     # merkle.rs: if either side changes the tree rule, the two tests disagree.

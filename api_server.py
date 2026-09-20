@@ -22,6 +22,7 @@ except ImportError:  # the appchain still starts; PASSWORD_SALT must then be exp
 
 import calendar
 import distribution  # how much one click of a campaign budget is worth
+import faucetpay    # identity against FaucetPay; moves no money
 import settlement  # the sentences wallets sign live here, shared with the browser
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
@@ -212,6 +213,21 @@ def init_faucet_api_keys_table():
             api_key_used TEXT NOT NULL
         )
     ''')
+    # Fase 1 da FaucetPay: a conta do dev ao lado da torneira dele. Vira coluna
+    # e nao tabela nova porque e atributo da chave, nao entidade -- e
+    # `faucetpay_proved_at` nulo significa nomeada, nunca provada.
+    for column, decl in (
+        ("faucetpay_address", "TEXT"),
+        ("faucetpay_user_hash", "TEXT"),
+        ("faucetpay_linked_at", "INTEGER"),
+        ("faucetpay_proof_amount", "INTEGER"),
+        ("faucetpay_proved_at", "INTEGER"),
+    ):
+        try:
+            c.execute(f"ALTER TABLE faucet_api_keys ADD COLUMN {column} {decl}")
+        except sqlite3.OperationalError:
+            pass  # already there
+
     conn.commit()
     conn.close()
 
@@ -821,7 +837,17 @@ async def get_faucets():
 
 @app.get("/api/faucethub/my-key/{wallet}")
 async def get_my_api_key(wallet: str):
-    """Retrieve the active API key info for a registered faucet wallet."""
+    """Usage figures for a faucet. Deliberately no key.
+
+    This used to return `api_key` to anyone who asked, keyed on the faucet's
+    wallet address -- which GET /api/faucethub/faucets publishes. Reading the
+    directory was enough to take over any partner faucet and distribute in its
+    name. The key now comes from POST /api/faucethub/reveal-key, which makes
+    the owning wallet sign for it.
+
+    What stays here is not secret: the directory already names the faucet, and
+    these are counters against it.
+    """
     try:
         wallet_lower = normalize_address(wallet)
     except ValueError as e:
@@ -840,7 +866,6 @@ async def get_my_api_key(wallet: str):
         raise HTTPException(status_code=404, detail="No active API key found for this wallet")
     
     return {
-        "api_key": row["api_key"],
         "created_at": row["created_at"],
         "is_active": bool(row["is_active"]),
         "last_used": row["last_used"],
@@ -848,16 +873,67 @@ async def get_my_api_key(wallet: str):
         "total_settled": row["total_settled"]
     }
 
-class RegenerateKeyRequest(BaseModel):
+class RevealKeyRequest(BaseModel):
     wallet_address: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
-@app.post("/api/faucethub/regenerate-key")
-async def regenerate_api_key(req: RegenerateKeyRequest):
-    """Deactivate old key and generate a new one for a registered faucet."""
+
+@app.post("/api/faucethub/reveal-key")
+async def reveal_api_key(req: RevealKeyRequest, x_session_token: Optional[str] = Header(None)):
+    """Hands back the live API key, to the wallet that owns the faucet.
+
+    A POST rather than a GET because it carries a signature, and because a key
+    does not belong in a URL: it would sit in every proxy log and browser
+    history between here and the caller.
+    """
     try:
         wallet_lower = normalize_address(req.wallet_address)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    require_action_signature(
+        wallet_lower,
+        settlement.api_key_reveal_message(wallet_lower, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT api_key FROM faucet_api_keys
+        WHERE faucet_wallet = ? AND is_active = 1
+    ''', (wallet_lower,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="No active API key found for this wallet")
+    return {"api_key": row["api_key"], "wallet_address": wallet_lower}
+
+
+class RegenerateKeyRequest(BaseModel):
+    wallet_address: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
+
+@app.post("/api/faucethub/regenerate-key")
+async def regenerate_api_key(req: RegenerateKeyRequest, x_session_token: Optional[str] = Header(None)):
+    """Retire the current key and issue a new one, for the owning wallet only.
+
+    Unsigned, this was the sharper half of the same hole as my-key: a wallet
+    address off the public directory bought a brand new key AND cut off the
+    real owner, whose faucet then failed every call it made afterwards.
+    """
+    try:
+        wallet_lower = normalize_address(req.wallet_address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    require_action_signature(
+        wallet_lower,
+        settlement.api_key_rotate_message(wallet_lower, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
     
     conn = get_db_connection()
     c = conn.cursor()
@@ -882,6 +958,209 @@ async def regenerate_api_key(req: RegenerateKeyRequest):
     conn.close()
     
     return {"status": "success", "api_key": new_key, "wallet_address": wallet_lower}
+
+
+# ---------------------------------------------------------------------------
+# FaucetPay, fase 1: identidade. Nenhum centavo passa por aqui.
+# ---------------------------------------------------------------------------
+
+class FaucetPayLinkRequest(BaseModel):
+    wallet_address: str
+    faucetpay_address: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
+
+
+@app.post("/api/faucethub/faucetpay/link")
+async def link_faucetpay(req: FaucetPayLinkRequest, x_session_token: Optional[str] = Header(None)):
+    """Names the FaucetPay account behind a faucet, and opens the proof.
+
+    check-address only confirms the address belongs to some account, so what
+    gets written here is a claim. The response carries the amount that turns it
+    into a fact: send exactly that, from that account, and it counts.
+    """
+    try:
+        wallet_lower = normalize_address(req.wallet_address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    fp_address = (req.faucetpay_address or "").strip()
+    if not fp_address:
+        raise HTTPException(status_code=400, detail="A FaucetPay payout address is required")
+
+    require_action_signature(
+        wallet_lower,
+        settlement.faucetpay_link_message(wallet_lower, fp_address, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
+
+    try:
+        user_hash = faucetpay.check_address(fp_address)
+    except faucetpay.FaucetPayUnavailable as exc:
+        # Nao gravar nada. Um link escrito porque a rede caiu e pior do que
+        # nenhum link, porque tem a mesma aparencia de um verificado.
+        raise HTTPException(status_code=503, detail=f"FaucetPay could not be reached: {exc}")
+    if not user_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="FaucetPay does not know that address. Check it and try again.",
+        )
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT id FROM faucet_api_keys WHERE faucet_wallet = ? AND is_active = 1",
+        (wallet_lower,),
+    )
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="No active faucet for this wallet")
+
+    # Um valor que nenhum outro desafio aberto esteja esperando, senao um
+    # pagamento so satisfaz varios de uma vez.
+    c.execute(
+        "SELECT faucetpay_proof_amount FROM faucet_api_keys "
+        "WHERE faucetpay_proof_amount IS NOT NULL AND faucetpay_proved_at IS NULL "
+        "AND faucetpay_linked_at > ?",
+        (int(datetime.now().timestamp()) - faucetpay.PROOF_WINDOW_SECONDS,),
+    )
+    taken = {row["faucetpay_proof_amount"] for row in c.fetchall()}
+    amount = faucetpay.open_challenge(taken)
+    now_ts = int(datetime.now().timestamp())
+
+    c.execute(
+        "UPDATE faucet_api_keys SET faucetpay_address = ?, faucetpay_user_hash = ?, "
+        "faucetpay_linked_at = ?, faucetpay_proof_amount = ?, faucetpay_proved_at = NULL "
+        "WHERE faucet_wallet = ? AND is_active = 1",
+        (fp_address, user_hash, now_ts, amount, wallet_lower),
+    )
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "named",
+        "faucetpay_user_hash": user_hash,
+        "proved": False,
+        "proof": {
+            "amount": amount,
+            "currency": faucetpay.IDENTITY_CURRENCY,
+            "expires_at": now_ts + faucetpay.PROOF_WINDOW_SECONDS,
+            "instructions": (
+                f"Send exactly {amount} satoshi of {faucetpay.IDENTITY_CURRENCY} from "
+                "this FaucetPay account to FaucetChain. The exact amount is what "
+                "identifies you, so do not round it."
+            ),
+        },
+    }
+
+
+class FaucetPayProveRequest(BaseModel):
+    wallet_address: str
+    payments: list = []
+
+
+@app.post("/api/faucethub/faucetpay/prove")
+async def prove_faucetpay(req: FaucetPayProveRequest, x_operator_token: Optional[str] = Header(None)):
+    """Settles a pending link against payments that actually arrived.
+
+    The operator passes the observed payments, because FaucetPay takes incoming
+    money through merchant checkout and that callback is not wired here yet.
+    This is the one manual step in phase 1, and it is deliberate: the matching
+    below is the same code the callback will call, so wiring it later changes
+    who supplies the list and nothing else.
+
+    Each payment is a dict: user_hash, amount (satoshi), timestamp.
+    """
+    require_operator(x_operator_token)
+    try:
+        wallet_lower = normalize_address(req.wallet_address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT faucetpay_user_hash, faucetpay_proof_amount, faucetpay_linked_at, "
+        "faucetpay_proved_at FROM faucet_api_keys "
+        "WHERE faucet_wallet = ? AND is_active = 1",
+        (wallet_lower,),
+    )
+    row = c.fetchone()
+    if not row or not row["faucetpay_user_hash"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="No FaucetPay account named for this faucet")
+    if row["faucetpay_proved_at"]:
+        conn.close()
+        return {"status": "already proved", "proved_at": row["faucetpay_proved_at"]}
+
+    hit = faucetpay.match_proof(
+        req.payments,
+        row["faucetpay_user_hash"],
+        row["faucetpay_proof_amount"],
+        row["faucetpay_linked_at"],
+    )
+    if not hit:
+        needed = row["faucetpay_proof_amount"]
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No payment matches. It has to come from the named account, for "
+                f"exactly {needed} satoshi, inside the window."
+            ),
+        )
+
+    now_ts = int(datetime.now().timestamp())
+    c.execute(
+        "UPDATE faucet_api_keys SET faucetpay_proved_at = ? "
+        "WHERE faucet_wallet = ? AND is_active = 1",
+        (now_ts, wallet_lower),
+    )
+    conn.commit()
+    conn.close()
+    return {
+        "status": "proved",
+        "proved_at": now_ts,
+        "faucetpay_user_hash": row["faucetpay_user_hash"],
+    }
+
+
+@app.get("/api/faucethub/faucetpay/devs")
+async def faucetpay_devs():
+    """One row per proved developer, however many faucets they run.
+
+    This is the question the chain could not answer before: the API keys said
+    nothing about how many people stood behind them. A campaign cap per
+    developer needs this row, and a cap per faucet is not the same thing.
+    """
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT faucetpay_user_hash AS dev, COUNT(*) AS faucets, "
+        "GROUP_CONCAT(faucet_wallet) AS wallets, MIN(faucetpay_proved_at) AS proved_since "
+        "FROM faucet_api_keys "
+        "WHERE is_active = 1 AND faucetpay_proved_at IS NOT NULL "
+        "GROUP BY faucetpay_user_hash ORDER BY faucets DESC"
+    )
+    devs = [
+        {
+            "dev": r["dev"],
+            "faucets": r["faucets"],
+            "wallets": (r["wallets"] or "").split(","),
+            "proved_since": r["proved_since"],
+        }
+        for r in c.fetchall()
+    ]
+    c.execute(
+        "SELECT COUNT(*) AS n FROM faucet_api_keys WHERE is_active = 1 "
+        "AND faucetpay_user_hash IS NOT NULL AND faucetpay_proved_at IS NULL"
+    )
+    named_only = c.fetchone()["n"]
+    conn.close()
+    # Nomeadas mas nao provadas ficam fora da contagem e aparecem a parte:
+    # somar as duas seria dizer que valem a mesma coisa.
+    return {"developers": devs, "proved": len(devs), "named_not_proved": named_only}
+
 
 class SettlementRequest(BaseModel):
     user_wallet: str

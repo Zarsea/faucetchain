@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from './AuthContext';
-import { signAction } from '../utils/actionSignature';import { withdrawMessage } from '../utils/actionMessage';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRevealMessage, apiKeyRotateMessage } from '../utils/actionMessage';
 
 
 interface FaucetHubProps {
@@ -19,8 +19,10 @@ interface FaucetData {
     registered_at: number;
 }
 
+// Sem `api_key`: o my-key devolvia a chave a quem soubesse o endereco da
+// torneira, e o endereco esta no diretorio publico. Ela agora vem do
+// reveal-key, contra assinatura.
 interface ApiKeyInfo {
-    api_key: string;
     created_at: number;
     is_active: boolean;
     last_used: number | null;
@@ -64,6 +66,10 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const [generatedKey, setGeneratedKey] = useState<string | null>(null);
     const [selectedFaucet, setSelectedFaucet] = useState<string | null>(null);
     const [keyInfo, setKeyInfo] = useState<ApiKeyInfo | null>(null);
+    // Fica so nesta tela, ate trocar de torneira. Nao vai para o estado global
+    // nem para o storage: uma chave na aba aberta ja e exposicao suficiente.
+    const [revealedKey, setRevealedKey] = useState<string | null>(null);
+    const [keyError, setKeyError] = useState<string>("");
     const [keyLoading, setKeyLoading] = useState(false);
     const [keyCopied, setKeyCopied] = useState(false);
     
@@ -196,6 +202,8 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const fetchKeyInfo = async (wallet: string) => {
         setKeyLoading(true);
         setKeyInfo(null);
+        setRevealedKey(null);
+        setKeyError("");
         try {
             const res = await fetch(`${API_BASE_URL}/api/faucethub/my-key/${wallet}`);
             if (res.ok) {
@@ -209,19 +217,43 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
         }
     };
 
-    const handleRegenerateKey = async (wallet: string) => {
+    // Ver a chave e uma acao, nao uma leitura: quem a ve pode distribuir em
+    // nome da torneira. Por isso passa pela mesma assinatura do saque.
+    const handleRevealKey = async (wallet: string) => {
+        setKeyError("");
         try {
+            const faucet = wallet.trim().toLowerCase();
+            const sig = await signAction(authMethod, (ts) => apiKeyRevealMessage(faucet, ts));
+            const res = await fetch(`${API_BASE_URL}/api/faucethub/reveal-key`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ wallet_address: faucet, ...sig })
+            });
+            const data = await res.json();
+            if (res.ok) setRevealedKey(data.api_key);
+            else setKeyError(data.detail || "Nao foi possivel mostrar a chave.");
+        } catch (e: any) {
+            setKeyError(e.message);
+        }
+    };
+
+    const handleRegenerateKey = async (wallet: string) => {
+        setKeyError("");
+        try {
+            const faucet = wallet.trim().toLowerCase();
+            const sig = await signAction(authMethod, (ts) => apiKeyRotateMessage(faucet, ts));
             const res = await fetch(`${API_BASE_URL}/api/faucethub/regenerate-key`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ wallet_address: wallet })
+                body: JSON.stringify({ wallet_address: faucet, ...sig })
             });
             const data = await res.json();
-            if (res.ok) {
-                setKeyInfo(prev => prev ? { ...prev, api_key: data.api_key } : null);
-            }
-        } catch (e) {
-            console.error("Failed to regenerate key", e);
+            // A chave nova aparece uma vez, aqui. A anterior morreu nesta chamada,
+            // entao a torneira falha a proxima chamada ate ser atualizada.
+            if (res.ok) setRevealedKey(data.api_key);
+            else setKeyError(data.detail || "Nao foi possivel rotacionar a chave.");
+        } catch (e: any) {
+            setKeyError(e.message);
         }
     };
 
@@ -546,17 +578,30 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                             </span>
                                         </div>
                                         
-                                        <div className="bg-black/40 rounded-lg p-3 border border-purple-500/20 flex items-center justify-between">
-                                            <code className="text-green-400/90 text-[11px] font-mono break-all flex-1 mr-2">
-                                                {keyInfo.api_key.slice(0, 12)}{"•".repeat(20)}{keyInfo.api_key.slice(-8)}
-                                            </code>
-                                            <button 
-                                                onClick={() => copyToClipboard(keyInfo.api_key)}
-                                                className="px-2 py-1 bg-purple-600/30 border border-purple-500/40 rounded text-[10px] hover:bg-purple-500/30 transition-colors flex-shrink-0"
+                                        {revealedKey ? (
+                                            <div className="bg-black/40 rounded-lg p-3 border border-purple-500/20 flex items-center justify-between">
+                                                <code className="text-green-400/90 text-[11px] font-mono break-all flex-1 mr-2">
+                                                    {revealedKey.slice(0, 12)}{"•".repeat(20)}{revealedKey.slice(-8)}
+                                                </code>
+                                                <button
+                                                    onClick={() => copyToClipboard(revealedKey)}
+                                                    className="px-2 py-1 bg-purple-600/30 border border-purple-500/40 rounded text-[10px] hover:bg-purple-500/30 transition-colors flex-shrink-0"
+                                                >
+                                                    {keyCopied ? "✓" : "Copiar"}
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleRevealKey(selectedFaucet)}
+                                                className="w-full py-2 bg-purple-900/30 hover:bg-purple-800/40 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-semibold transition-colors"
                                             >
-                                                {keyCopied ? "✓" : "Copiar"}
+                                                Mostrar chave (assina com a carteira da torneira)
                                             </button>
-                                        </div>
+                                        )}
+
+                                        {keyError && (
+                                            <p className="text-red-300 text-[11px]">{keyError}</p>
+                                        )}
 
                                         <div className="grid grid-cols-2 gap-3 mt-3">
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">

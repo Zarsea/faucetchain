@@ -47,6 +47,7 @@ TS_FIXED = 1789618329
 USER = "0x7dda72ad9ad56ce3d031ee6a62b5b94dd40c6ef3"
 WALLET = "75vW4HnhtMVcLuHLh3Tm8S1BuFvLVBoLqYoRxQT3SDnE"
 FAUCET = "0x1b021998f6297936986bcc34f6fdc1cd5c82af06"
+FAUCETPAY = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"  # a FaucetPay payout address
 POSITION = 42  # a UTXO id: a number in the browser, an int on the server
 
 CASES = {
@@ -54,6 +55,18 @@ CASES = {
     "withdraw": (
         settlement.withdraw_message(USER, FAUCET, "7777", TS_FIXED),
         f"withdrawMessage({USER!r}, {FAUCET!r}, {TS_FIXED})",
+    ),
+    "apiKeyReveal": (
+        settlement.api_key_reveal_message(FAUCET, "7777", TS_FIXED),
+        f"apiKeyRevealMessage({FAUCET!r}, {TS_FIXED})",
+    ),
+    "apiKeyRotate": (
+        settlement.api_key_rotate_message(FAUCET, "7777", TS_FIXED),
+        f"apiKeyRotateMessage({FAUCET!r}, {TS_FIXED})",
+    ),
+    "faucetpayLink": (
+        settlement.faucetpay_link_message(FAUCET, FAUCETPAY, "7777", TS_FIXED),
+        f"faucetpayLinkMessage({FAUCET!r}, {FAUCETPAY!r}, {TS_FIXED})",
     ),
     "stake": (
         settlement.stake_message(USER, 1.5, "GOLD", "7777", TS_FIXED),
