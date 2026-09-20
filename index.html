@@ -16,19 +16,26 @@
       theme: {
         extend: {
           colors: {
-            'brand-bg': '#05050A',
-            'brand-surface': '#0D0E15',
-            'brand-card': '#141622',
-            'brand-border': '#222538',
-            'brand-primary': '#00F0FF',
-            'brand-secondary': '#E2E8F0',
-            'brand-muted': '#64748B',
-            'brand-accent': '#FF003C',
-            'brand-success': '#00FF66',
-            'brand-error': '#FF003C',
-            'neon-cyan': '#00F0FF',
-            'neon-purple': '#8A2BE2',
-            'neon-pink': '#FF00FF',
+            // Derivadas do logo original (public/logo.png, 15/06): #0078CF é a
+            // cor da identidade, com #0668AA e #539DD4 ao lado dela. O contraste
+            // de cada uma contra o fundo foi medido, não escolhido no olho.
+            'brand-bg': '#070F16',
+            'brand-surface': '#0C1620',
+            'brand-card': '#111E2A',
+            'brand-border': '#1C2E3D',
+            // 6.64:1 — passa em texto. A identidade clareada para interface.
+            'brand-primary': '#2B9FE8',
+            // 4.21:1 — o azul da marca, exato. Preenchimento e momentos de marca,
+            // nunca texto pequeno.
+            'brand-deep': '#0078CF',
+            'brand-mid': '#539DD4',
+            'brand-secondary': '#D6E0F6',
+            'brand-muted': '#6B8299',
+            'brand-accent': '#2B9FE8',
+            'brand-success': '#14B87A',
+            // Erro é sinal, não sotaque da marca. Vermelho sóbrio, não neon.
+            'brand-error': '#E5484D',
+            'brand-warn': '#D9A441',
             // Solana's own colours. Used only where value settles on Solana, so
             // the palette carries the architecture: cyan distributes, this pays.
             'sol-purple': '#9945FF',
@@ -39,13 +46,16 @@
             sans: ['Inter', 'system-ui', 'sans-serif'],
             mono: ['Fira Code', 'monospace']
           },
+          // Elevação no lugar de brilho. Brilho faz tudo flutuar no mesmo
+          // plano e envelheceu; sombra com direção diz o que está acima do quê,
+          // que é o que separa hierarquia de enfeite.
           boxShadow: {
-            'glow-primary': '0 0 20px -5px rgba(0, 240, 255, 0.6)',
-            'glow-accent': '0 0 20px -5px rgba(255, 0, 60, 0.6)',
-            'glow-purple': '0 0 20px -5px rgba(138, 43, 226, 0.6)',
-            'glow-success': '0 0 20px -5px rgba(0, 255, 102, 0.6)',
-            'neon': '0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3)',
-            'neon-purple': '0 0 10px rgba(138, 43, 226, 0.5), 0 0 20px rgba(138, 43, 226, 0.3)'
+            'lift-sm': '0 1px 2px rgba(0,0,0,0.4), 0 2px 8px -2px rgba(0,0,0,0.3)',
+            'lift': '0 2px 4px rgba(0,0,0,0.4), 0 8px 24px -6px rgba(0,0,0,0.45)',
+            'lift-lg': '0 4px 8px rgba(0,0,0,0.45), 0 20px 48px -12px rgba(0,0,0,0.55)',
+            // Um único halo, reservado ao momento de marca. Não para cartões.
+            'glow-primary': '0 0 32px -8px rgba(43, 159, 232, 0.55)',
+            'glow-settle': '0 0 32px -8px rgba(153, 69, 255, 0.45)'
           },
           keyframes: {
             fadeIn: {
@@ -69,9 +79,11 @@
               '0%, 100%': { transform: 'translateY(0)' },
               '50%': { transform: 'translateY(-10px)' }
             },
-            neonFlicker: {
-              '0%, 19%, 21%, 23%, 25%, 54%, 56%, 100%': { opacity: '1', filter: 'drop-shadow(0 0 8px rgba(0,240,255,0.8))' },
-              '20%, 24%, 55%': { opacity: '0.4', filter: 'none' }
+            // O piscar de neon saiu: é ruído, e prejudica quem tem sensibilidade
+            // a movimento. No lugar, uma respiração lenta do halo da marca.
+            brandBreathe: {
+              '0%, 100%': { opacity: '0.55' },
+              '50%': { opacity: '0.9' }
             }
           },
           animation: {
@@ -80,7 +92,7 @@
             pulseGlow: 'pulseGlow 3s infinite',
             liquidFlow: 'liquidFlow 8s ease infinite',
             float: 'float 6s ease-in-out infinite',
-            neonFlicker: 'neonFlicker 4s infinite alternate'
+            brandBreathe: 'brandBreathe 4s ease-in-out infinite'
           }
         }
       }
@@ -92,7 +104,7 @@
     <style>
       body {
         scrollbar-width: thin;
-        scrollbar-color: #334155 transparent;
+        scrollbar-color: #1C2E3D transparent;
       }
       ::-webkit-scrollbar {
         width: 8px;
@@ -101,13 +113,15 @@
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #334155;
+        background: #1C2E3D;
         border-radius: 10px;
       }
       .glass {
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        /* Derivado do fundo, não do slate genérico do Tailwind. */
+        background: rgba(12, 22, 32, 0.72);
+        backdrop-filter: blur(14px) saturate(120%);
+        -webkit-backdrop-filter: blur(14px) saturate(120%);
+        border-bottom: 1px solid rgba(43, 159, 232, 0.10);
       }
       .neon-border {
         position: relative;
@@ -116,10 +130,10 @@
         content: '';
         position: absolute;
         inset: -1px;
-        background: linear-gradient(45deg, #38bdf8, #818cf8, transparent);
+        background: linear-gradient(135deg, #0078CF, #539DD4, transparent);
         z-index: -1;
         border-radius: inherit;
-        opacity: 0.3;
+        opacity: 0.22;
         transition: opacity 0.3s;
       }
       .neon-border:hover::after {

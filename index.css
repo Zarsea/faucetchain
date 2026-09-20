@@ -2,14 +2,18 @@
 
 /* Global styles */
 :root {
-    --brand-primary: #00f0ff;
-    --brand-secondary: #e2e8f0;
-    --brand-bg: #05050a;
-    --brand-surface: #0d0e15;
-    --brand-border: #222538;
-    --brand-accent: #ff003c;
-    --brand-success: #00ff66;
-    --brand-muted: #64748b;
+    /* Espelha o index.html. As duas listas precisam concordar: uma cor que só
+       existe aqui aparece no lugar errado quando a outra muda. */
+    --brand-primary: #2b9fe8;
+    --brand-deep: #0078cf;
+    --brand-mid: #539dd4;
+    --brand-secondary: #d6e0f6;
+    --brand-bg: #070f16;
+    --brand-surface: #0c1620;
+    --brand-border: #1c2e3d;
+    --brand-accent: #2b9fe8;
+    --brand-success: #14b87a;
+    --brand-muted: #6b8299;
 }
 
 body {
@@ -57,19 +61,23 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulseGlow {
-    0% { box-shadow: 0 0 10px rgba(0, 240, 255, 0.2); }
-    100% { box-shadow: 0 0 40px rgba(0, 240, 255, 0.8); }
+    0%   { box-shadow: 0 0 0 0 rgba(43, 159, 232, 0.28); }
+    100% { box-shadow: 0 0 0 10px rgba(43, 159, 232, 0); }
 }
 
+/* Era um arco-íris ciano-roxo-magenta em movimento perpétuo. Agora é o azul
+   da identidade com profundidade, que é o que um gradiente deve fazer. */
 .liquid-bg {
-    background: linear-gradient(-45deg, #00f0ff, #8a2be2, #ff00ff, #00f0ff);
+    background: linear-gradient(-45deg, #0078cf, #2b9fe8, #0c1620, #0078cf);
     background-size: 400% 400%;
-    animation: liquidFlow 8s ease infinite;
+    animation: liquidFlow 14s ease infinite;
 }
 
+/* Cinco sombras empilhadas apagavam a própria letra. O nome fica porque o
+   markup usa, mas agora é peso e cor, que é como tipografia destaca. */
 .neon-text {
-    color: #fff;
-    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #00f0ff, 0 0 40px #00f0ff, 0 0 80px #00f0ff;
+    color: #d6e0f6;
+    text-shadow: 0 1px 12px rgba(43, 159, 232, 0.35);
 }
 
 .neon-border-dynamic {
@@ -79,9 +87,9 @@ h1, h2, h3, h4, h5, h6 {
     content: '';
     position: absolute;
     inset: -2px;
-    background: linear-gradient(45deg, #00f0ff, transparent, #8a2be2, transparent, #00f0ff);
+    background: linear-gradient(135deg, #0078cf, transparent, #539dd4, transparent, #0078cf);
     background-size: 200% 200%;
-    animation: liquidFlow 4s linear infinite;
+    animation: liquidFlow 10s linear infinite;
     z-index: -1;
     border-radius: inherit;
     opacity: 0;
@@ -171,4 +179,14 @@ h1, h2, h3, h4, h5, h6 {
 .settle-pulse { animation: settlePulse 2.4s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .settle-pulse { animation: none; }
+}
+
+
+/* Quem pediu menos movimento recebe menos movimento. Faltava, e é uma linha. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }
