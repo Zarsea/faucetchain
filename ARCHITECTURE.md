@@ -85,11 +85,13 @@ forged, mints anything.
 
 ## What a wallet asks you to sign
 
-Eight actions need a signature: claim, withdraw, stake, unstake, linking a
-Solana wallet, showing a faucet's API key, rotating one, and naming a FaucetPay
-account. A ninth sentence is signed by the Solana wallet itself. All nine share
-one shape, because a wallet displays the message verbatim and the person
-approving it deserves to know what they are agreeing to:
+Fourteen actions need a signature: claim, withdraw, stake, unstake, linking a
+Solana wallet, showing a faucet's API key, rotating one, naming a FaucetPay
+account, buying a booster, posting a bounty, cancelling one, taking one on,
+approving one, and claiming a minigame bonus. A fifteenth sentence is signed by
+the Solana wallet itself. All fifteen share one shape, because a wallet displays
+the message verbatim and the person approving it deserves to know what they are
+agreeing to:
 
 ```
 FaucetChain: <what this does>
@@ -371,7 +373,78 @@ here, so `/faucetpay/prove` takes the observed payments from the operator and
 runs the same `match_proof` the callback will call. Wiring it later changes who
 supplies the list and nothing else.
 
+## Every route that changes state, and what it trusts
+
+`test_endpoint_inventory.py` walks the routes the app declares and fails on any
+POST, PUT, PATCH or DELETE that trusts nothing. Fixing endpoints one at a time
+does not keep them fixed -- the next one ships open and nothing notices until
+somebody audits again -- so the inventory is the thing that stays, not the list
+of fixes.
+
+Four kinds of guard are recognised, and a route needs one of them:
+
+- **the acting wallet signs** it, through `require_action_signature`
+- **the operator token**, for actions that are nobody's in particular: sealing
+  a batch, distributing an epoch, writing to the knowledge base
+- **a partner API key**, for a faucet acting as itself
+- **a node token**, issued once at `mining/register` and carried by every later
+  call from that node
+
+A route may be open only by being named in `OPEN_BY_DESIGN` with its reason.
+That list is short and each line argues for itself: the four auth routes issue
+the session and cannot require one; faucet and node registration create the
+identity that later calls authenticate against; the two relayer routes cannot
+redirect a cent, because the relayer only signs a withdrawal it built and
+verified and that withdrawal can only pay its own leaf's recipient; the
+watchlist is a shared public list with nothing of value attached; and
+`vector-search` is a POST because the query rides in the body, but it only
+reads.
+
+Everything on that list is also paced, which is the second column the inventory
+checks. An open route carries an unsigned request all the way to the database,
+so a ceiling is the only thing between it and a loop.
+
+### The node token
+
+A `node_id` is not a secret: it rides in every heartbeat and appears in the
+public miner list. Before the token, `heartbeat`, `disconnect` and `explore`
+accepted any node id at all -- so anybody could inflate or zero another miner's
+uptime share, and that share is what divides the epoch's reward. Worse,
+registering under an existing node id *repoints where that node is paid*, which
+turned knowing an id into taking the earnings.
+
+The token is issued at registration, returned once, and stored beside the id in
+`.node_token`. Both have the same lifetime on purpose: keeping one without the
+other locks a miner out of its own node. A node that registered before tokens
+existed is issued one on its next registration rather than being shut out.
+
+### What a signature still does not fix
+
+The minigame score is computed in the browser and believed by the server.
+Signing it ends crediting the bonus to a wallet that never played, which anybody
+could do to anybody; it does not make the score true. Server-side game state is
+the real fix, and it is a feature rather than a patch.
+
 ## Change log
+
+**2026-09-20 — the second staking system was removed, because it never was
+one.** `/api/defi/stake` debited no balance: it added to a table of its own,
+invisible to `reconcile.py`, and answered "Successfully staked". The catalogue
+behind it was named `MOCK_DEFI_STRATEGIES` and presented invented treasury
+allocations in Lido, Aave and Curve as fact. Signing that would have produced an
+authenticated false number, which is worse. The table was empty, so nothing was
+lost. `patch_defi.py`, the committed script that installed it, went too -- it
+would have put the whole thing back.
+
+**2026-09-20 — the endpoint inventory replaced the endpoint list.** Twenty-two
+state-changing routes had no guard. Bounties, the minigame and the booster now
+sign; the knowledge base takes the operator token; mining takes a node token.
+The rest are named in `OPEN_BY_DESIGN` with their reasons and all of them are
+paced. `check_rate_limit` also stopped exempting 127.0.0.1 unconditionally:
+behind a reverse proxy on the same host every caller arrives as localhost, so
+that exemption switched rate limiting off for the whole internet at exactly the
+moment the API stopped being local.
+
 
 **2026-09-20 — four endpoints stopped taking the caller's word.** Buying a
 booster debited the wallet named in the request body, so anyone could spend

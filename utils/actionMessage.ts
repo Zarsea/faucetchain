@@ -168,3 +168,31 @@ export const bountyApproveMessage = (user: string, bounty: string | number, ts: 
         [['Account', user], ['Bounty', bounty]],
         ts
     );
+
+export const bountyCreateMessage = (user: string, title: string, reward: number, ts: number): string =>
+    actionMessage(
+        'post a bounty',
+        'Signing posts the bounty below and commits the reward to it. The ' +
+        'reward is yours until somebody earns it.',
+        [['Account', user], ['Title', title], ['Reward', `${reward.toFixed(6)} CLAIM`]],
+        ts
+    );
+
+export const bountyCancelMessage = (user: string, bounty: string | number, ts: number): string =>
+    actionMessage(
+        'cancel a bounty',
+        'Signing takes the bounty below off the board and returns its reward ' +
+        'to you.',
+        [['Account', user], ['Bounty', bounty]],
+        ts
+    );
+
+// Nao torna o placar verdadeiro: o navegador ainda o calcula e o servidor ainda
+// acredita. O que isto encerra e creditar o bonus a uma conta que nao jogou.
+export const minigameMessage = (user: string, score: number, ts: number): string =>
+    actionMessage(
+        'claim a minigame bonus',
+        'Signing credits the bonus for the round below to your balance.',
+        [['Account', user], ['Score', score]],
+        ts
+    );

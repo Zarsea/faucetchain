@@ -299,6 +299,45 @@ def bounty_approve_message(user, bounty, chain_id, ts) -> str:
     )
 
 
+def bounty_create_message(user, title, reward, chain_id, ts) -> str:
+    return action_message(
+        "post a bounty",
+        "Signing posts the bounty below and commits the reward to it. The "
+        "reward is yours until somebody earns it.",
+        [("Account", user), ("Title", title), ("Reward", f"{float(reward):.6f} CLAIM")],
+        chain_id,
+        ts,
+    )
+
+
+def bounty_cancel_message(user, bounty, chain_id, ts) -> str:
+    return action_message(
+        "cancel a bounty",
+        "Signing takes the bounty below off the board and returns its reward "
+        "to you.",
+        [("Account", user), ("Bounty", bounty)],
+        chain_id,
+        ts,
+    )
+
+
+def minigame_message(user, score, chain_id, ts) -> str:
+    """The wallet being credited has to be the one asking to be credited.
+
+    It does not make the score true: the browser still computes it, and the
+    server still believes it. What this ends is crediting the bonus to an
+    account that never played -- which was the part anybody could do to
+    anybody.
+    """
+    return action_message(
+        "claim a minigame bonus",
+        "Signing credits the bonus for the round below to your balance.",
+        [("Account", user), ("Score", score)],
+        chain_id,
+        ts,
+    )
+
+
 def _self_check() -> None:
     # The sentence a wallet displays and the server rebuilds before checking a
     # signature. Pinned, because the browser keeps its own copy in
@@ -332,6 +371,12 @@ def _self_check() -> None:
          "406bc82824aee12d02c92e7253b5798dc92a3691f75a838c2fd7baa178b55574"),
         (bounty_approve_message, (FAUCET, 42),
          "dd290331fc91784c29927be808a521661715623def8ed3cbda69dcd70c839747"),
+        (bounty_create_message, (FAUCET, "Fix the drip", 100.0),
+         "c4df9f22b73f2418dc899374aba2cfe53dc5cc117167b8fe3db995f7b6e23d37"),
+        (bounty_cancel_message, (FAUCET, 42),
+         "405ac59949e7d0ea876cb746ce6f63c75c1ea38514d9fa27578de75b182ceb8e"),
+        (minigame_message, (FAUCET, 12),
+         "596b137fcd238f1573e27a73f82008fa4253b3e25f316afd44399de82647f160"),
     ):
         text = builder(*args, "7777", 1789618329)
         got = hashlib.sha256(text.encode("utf-8")).hexdigest()

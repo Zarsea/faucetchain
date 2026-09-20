@@ -385,6 +385,22 @@ def init_blocks_merkle_column():
     conn.close()
 
 
+def init_users_table():
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            wallet_address TEXT UNIQUE NOT NULL,
+            created_at INTEGER
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize the knowledge base on startup (gracefully)."""
@@ -449,6 +465,15 @@ async def startup_event():
 # Rate Limiting Storage (in-memory, use Redis in production)
 rate_limit_storage = defaultdict(list)
 RATE_LIMIT_MAX_REQUESTS = 100  # Max requests per window
+# On for local development; has to be turned off when the API is reachable from
+# outside, which is the only situation where trusting 127.0.0.1 is dangerous.
+RATE_LIMIT_TRUST_LOCALHOST = os.getenv("RATE_LIMIT_TRUST_LOCALHOST", "1") != "0"
+# Hourly ceilings. A route that is open by design cannot know who is calling,
+# so the ceiling is the only thing between it and a loop.
+AUTH_HOURLY_PER_IP = int(os.getenv("AUTH_HOURLY_PER_IP", "30"))
+REGISTER_HOURLY_PER_IP = int(os.getenv("REGISTER_HOURLY_PER_IP", "10"))
+TRACKER_HOURLY_PER_IP = int(os.getenv("TRACKER_HOURLY_PER_IP", "60"))
+MINING_HOURLY_PER_NODE = int(os.getenv("MINING_HOURLY_PER_NODE", "300"))
 RATE_LIMIT_WINDOW = timedelta(minutes=1)  # Time window
 
 # Explore rate limiting (per node_id, in-memory)
@@ -513,8 +538,11 @@ def check_rate_limit(client_ip: str) -> bool:
     Returns True if allowed, False if rate limited.
     Localhost is exempt since mining node and frontend share the same IP in dev.
     """
-    # Exempt localhost/loopback — mining endpoints have their own per-node rate limits
-    if client_ip in ("127.0.0.1", "::1", "localhost"):
+    # Exempt localhost/loopback — mining endpoints have their own per-node rate
+    # limits. Opt-in, because behind a reverse proxy on the same host every
+    # caller arrives as 127.0.0.1, and this would switch rate limiting off for
+    # the whole internet at exactly the moment the API stops being local.
+    if RATE_LIMIT_TRUST_LOCALHOST and client_ip in ("127.0.0.1", "::1", "localhost"):
         return True
 
     now = datetime.now()
@@ -675,9 +703,16 @@ async def vector_search(query: SearchQuery, request: Request):
         audit_log("SEARCH_ERROR", client_ip, {"error": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
 
+# Escreve na base que o assistente le. Operador, nao usuario.
 @app.post("/api/add-document")
-async def add_document(doc: AddDocumentRequest, request: Request):
-    """Add a new document to the knowledge base."""
+async def add_document(doc: AddDocumentRequest, request: Request,
+                       x_operator_token: Optional[str] = Header(None)):
+    """Add a new document to the knowledge base.
+
+    What goes in here is what the in-app assistant later repeats as fact, so an
+    open write is a way to put words in its mouth.
+    """
+    require_operator(x_operator_token)
     if not HAS_VECTOR_DB:
         raise HTTPException(status_code=501, detail="Vector DB not available")
         
@@ -753,6 +788,10 @@ class FaucetRegisterRequest(BaseModel):
 
 @app.post("/api/faucethub/register")
 async def register_faucet(req: FaucetRegisterRequest, request: Request):
+    # Cada registro devolve uma chave de API. Sem teto, um laco fabrica
+    # torneiras e chaves ate encher a tabela.
+    if not within_rate("register", request.client.host, REGISTER_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many registrations from here this hour.")
     try:
         wallet_lower = normalize_address(req.wallet_address)
     except ValueError as e:
@@ -2934,11 +2973,15 @@ class ExploreRequest(BaseModel):
     node_id: str = None
 
 @app.post("/api/mining/explore")
-async def mining_explore(req: ExploreRequest, request: Request):
+async def mining_explore(req: ExploreRequest, request: Request,
+                         x_node_token: Optional[str] = Header(None)):
     """
     Miner exploring the network. Grabs 1 pending claim to validate.
     If no pending claims, returns immediately (uptime rewarded by epoch scheduler).
     """
+    require_node_token(req.node_id, x_node_token)
+    if not within_rate("mining", req.node_id, MINING_HOURLY_PER_NODE):
+        raise HTTPException(status_code=429, detail="Too many calls from this node this hour.")
     node_id = req.node_id or 'unknown'
     now_ts = _time.time()
 
@@ -3539,6 +3582,8 @@ class CreateBountyRequest(BaseModel):
     description: str = ""
     reward: float
     duration_hours: int = 24
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
 class ClaimBountyRequest(BaseModel):
     hunter_address: str
@@ -3552,7 +3597,8 @@ class ApproveBountyRequest(BaseModel):
 
 
 @app.post("/api/bounties/create")
-async def create_bounty(req: CreateBountyRequest, request: Request):
+async def create_bounty(req: CreateBountyRequest, request: Request,
+                        x_session_token: Optional[str] = Header(None)):
     """Create a new bounty, locking CLAIM as reward."""
     client_ip = request.client.host
     if not check_rate_limit(client_ip):
@@ -3563,6 +3609,16 @@ async def create_bounty(req: CreateBountyRequest, request: Request):
         raise HTTPException(status_code=400, detail="Título obrigatório")
     if req.duration_hours < 1:
         raise HTTPException(status_code=400, detail="Duração mínima: 1 hora")
+
+    # Depois das validacoes porque o titulo e a recompensa entram na frase
+    # assinada: quem assina ve o que esta comprometendo.
+    creator_lower = req.creator_address.strip().lower()
+    require_action_signature(
+        creator_lower,
+        settlement.bounty_create_message(creator_lower, req.title.strip(), req.reward,
+                                         CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
 
     current_ts = int(datetime.now().timestamp())
     deadline = current_ts + (req.duration_hours * 3600)
@@ -3714,8 +3770,16 @@ async def approve_bounty(bounty_id: int, req: ApproveBountyRequest,
 
 
 @app.post("/api/bounties/{bounty_id}/cancel")
-async def cancel_bounty(bounty_id: int, req: ApproveBountyRequest):
+async def cancel_bounty(bounty_id: int, req: ApproveBountyRequest,
+                        x_session_token: Optional[str] = Header(None)):
     """Creator cancels an expired bounty and reclaims the reward."""
+    creator_lower = req.creator_address.strip().lower()
+    require_action_signature(
+        creator_lower,
+        settlement.bounty_cancel_message(creator_lower, bounty_id, CHAIN_ID,
+                                         req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM bounties WHERE id = ?", (bounty_id,))
@@ -3842,7 +3906,12 @@ def init_mining_table():
             is_online INTEGER DEFAULT 1,
             cpu_load REAL DEFAULT 0,
             memory_free REAL DEFAULT 0,
-            version TEXT DEFAULT '1.0.0'
+            version TEXT DEFAULT '1.0.0',
+            -- Issued at registration, returned once. Without it, heartbeat,
+            -- disconnect and explore accepted any node_id at all: anyone could
+            -- inflate or zero another miner's uptime share, and that share is
+            -- what divides the epoch's reward.
+            node_token TEXT
         )
     ''')
     c.execute('''
@@ -3888,8 +3957,41 @@ class DisconnectRequest(BaseModel):
     wallet_address: str
 
 
+def require_node_token(node_id: str, token: Optional[str]) -> str:
+    """The wallet behind a node, proved by the token it got at registration.
+
+    A node_id is not a secret: it rides in every heartbeat and shows up in the
+    public miner list. The token is what separates the node itself from anybody
+    who has seen one.
+    """
+    if not token:
+        raise HTTPException(
+            status_code=401,
+            detail=("This node has to send the token it was given when it "
+                    "registered, in X-Node-Token."),
+        )
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT wallet_address, node_token FROM active_miners WHERE node_id = ?",
+              (node_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Unknown node")
+    if not row["node_token"]:
+        raise HTTPException(
+            status_code=401,
+            detail=("This node registered before tokens existed. Register again "
+                    "to get one."),
+        )
+    if not hmac.compare_digest(token, row["node_token"]):
+        raise HTTPException(status_code=401, detail="That token is not this node's.")
+    return row["wallet_address"]
+
+
 @app.post("/api/mining/register")
-async def register_miner(req: MiningRegisterRequest, request: Request):
+async def register_miner(req: MiningRegisterRequest, request: Request,
+                        x_node_token: Optional[str] = Header(None)):
     """Register a new mining node on the network."""
     client_ip = request.client.host
     if not check_rate_limit(client_ip):
@@ -3919,8 +4021,30 @@ async def register_miner(req: MiningRegisterRequest, request: Request):
         # registered first. It said "reconnected" and mined for a stranger.
         current_ts = int(datetime.now().timestamp())
         wallet = req.wallet_address.strip().lower()
-        c.execute("SELECT wallet_address FROM active_miners WHERE node_id = ?", (req.node_id,))
-        previous = c.fetchone()[0]
+        c.execute("SELECT wallet_address, node_token FROM active_miners WHERE node_id = ?",
+                  (req.node_id,))
+        prev_row = c.fetchone()
+        previous, existing_token = prev_row[0], prev_row[1]
+
+        # A node id is not a secret, and this branch repoints where the node is
+        # paid. Without the token, knowing somebody's node id was enough to
+        # take over their miner's earnings.
+        if existing_token:
+            if not x_node_token or not hmac.compare_digest(x_node_token, existing_token):
+                conn.close()
+                raise HTTPException(
+                    status_code=401,
+                    detail=("That node id is taken. Reconnecting to it needs the "
+                            "token it was issued (X-Node-Token)."),
+                )
+            issued_token = existing_token
+        else:
+            # Registered before tokens existed: issue one now rather than lock
+            # the miner out of its own node.
+            issued_token = generate_api_key()
+            c.execute("UPDATE active_miners SET node_token = ? WHERE node_id = ?",
+                      (issued_token, req.node_id))
+
         if previous != wallet:
             # Uptime earned for the old address does not follow the node to the
             # new one: the epoch pays for presence, and that presence was theirs.
@@ -3938,13 +4062,16 @@ async def register_miner(req: MiningRegisterRequest, request: Request):
         )
         conn.commit()
         conn.close()
-        return {"status": "reconnected", "node_id": req.node_id, "wallet_address": wallet}
+        return {"status": "reconnected", "node_id": req.node_id,
+                "wallet_address": wallet, "node_token": issued_token}
 
     current_ts = int(datetime.now().timestamp())
+    # Returned once, here. Every later call from this node carries it.
+    issued_token = generate_api_key()
     c.execute('''
-        INSERT INTO active_miners (node_id, wallet_address, node_name, registered_at, last_heartbeat, is_online, version)
-        VALUES (?, ?, ?, ?, ?, 1, ?)
-    ''', (req.node_id, req.wallet_address.strip().lower(), req.node_name, current_ts, current_ts, req.version))
+        INSERT INTO active_miners (node_id, wallet_address, node_name, registered_at, last_heartbeat, is_online, version, node_token)
+        VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    ''', (req.node_id, req.wallet_address.strip().lower(), req.node_name, current_ts, current_ts, req.version, issued_token))
     conn.commit()
     conn.close()
 
@@ -3952,6 +4079,7 @@ async def register_miner(req: MiningRegisterRequest, request: Request):
         "status": "registered",
         "node_id": req.node_id,
         "wallet": req.wallet_address,
+        "node_token": issued_token,
         "config": {
             "heartbeat_interval": MINING_CONFIG["heartbeat_interval"],
             "epoch_duration": MINING_CONFIG["epoch_duration"],
@@ -3961,8 +4089,12 @@ async def register_miner(req: MiningRegisterRequest, request: Request):
 
 
 @app.post("/api/mining/heartbeat")
-async def mining_heartbeat(req: HeartbeatRequest):
+async def mining_heartbeat(req: HeartbeatRequest,
+                           x_node_token: Optional[str] = Header(None)):
     """Process a heartbeat from a mining node — proof of presence."""
+    require_node_token(req.node_id, x_node_token)
+    if not within_rate("mining", req.node_id, MINING_HOURLY_PER_NODE):
+        raise HTTPException(status_code=429, detail="Too many calls from this node this hour.")
     conn = get_db_connection()
     c = conn.cursor()
 
@@ -4015,8 +4147,12 @@ async def mining_heartbeat(req: HeartbeatRequest):
 
 
 @app.post("/api/mining/disconnect")
-async def disconnect_miner(req: DisconnectRequest):
+async def disconnect_miner(req: DisconnectRequest,
+                           x_node_token: Optional[str] = Header(None)):
     """Gracefully disconnect a mining node."""
+    require_node_token(req.node_id, x_node_token)
+    if not within_rate("mining", req.node_id, MINING_HOURLY_PER_NODE):
+        raise HTTPException(status_code=429, detail="Too many calls from this node this hour.")
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE active_miners SET is_online = 0 WHERE node_id = ? AND wallet_address = ?",
@@ -4412,8 +4548,10 @@ async def add_tracked_address(req: AddTrackedAddressRequest, request: Request):
 
 
 @app.delete("/api/tracker/addresses/{address}")
-async def remove_tracked_address(address: str):
+async def remove_tracked_address(address: str, request: Request):
     """Remove an address from the watchlist."""
+    if not within_rate("tracker", request.client.host, TRACKER_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many watchlist changes from here this hour.")
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("DELETE FROM tracked_addresses WHERE address = ?", (address.strip().lower(),))
@@ -5044,15 +5182,28 @@ async def get_cyberdrip_leaderboard(limit: int = 10):
 class MinigameVerify(BaseModel):
     wallet: str
     score: int
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
 @app.post("/api/cyberdrip/minigame/verify")
-async def verify_minigame(req: MinigameVerify):
+async def verify_minigame(req: MinigameVerify,
+                          x_session_token: Optional[str] = Header(None)):
     """
     Verify Data Intercept (Whack-a-mole) solution.
     The frontend calculates the score (valid hits - corrupted hits).
     We award bonus based on the score. Max score ~ 15.
     """
     wallet_lower = req.wallet.strip().lower()
+
+    # The score is still the browser's word -- see Known gaps. What this ends
+    # is crediting the bonus to a wallet that never played, which anybody could
+    # do to anybody.
+    require_action_signature(
+        wallet_lower,
+        settlement.minigame_message(wallet_lower, req.score, CHAIN_ID,
+                                    req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
     now_ts = int(_time.time())
 
     # Rate limit: max 1 game per 60 seconds
@@ -5235,158 +5386,16 @@ class LoginRequest(BaseModel):
 # CROSS-CHAIN DEFI YIELD HUB
 # ==========================================
 
-def init_defi_stakes_table():
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS defi_stakes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            wallet_address TEXT NOT NULL,
-            protocol_id TEXT NOT NULL,
-            staked_amount REAL NOT NULL DEFAULT 0.0,
-            accumulated_yield REAL NOT NULL DEFAULT 0.0,
-            last_updated INTEGER NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-init_defi_stakes_table()
-
-MOCK_DEFI_STRATEGIES = [
-    {
-        "id": "lido_eth",
-        "name": "Lido Staked ETH (fETH)",
-        "protocol": "Lido",
-        "network": "Ethereum",
-        "baseApy": 3.8,
-        "treasuryAllocated": 2500000,
-        "tvl": 15400000,
-        "risk": "Low"
-    },
-    {
-        "id": "aave_usdc",
-        "name": "Aave USDC Lending",
-        "protocol": "Aave V3",
-        "network": "Ethereum",
-        "baseApy": 5.2,
-        "treasuryAllocated": 4000000,
-        "tvl": 22100000,
-        "risk": "Low"
-    },
-    {
-        "id": "curve_3pool",
-        "name": "Curve 3Pool Liquidity",
-        "protocol": "Curve Finance",
-        "network": "Ethereum",
-        "baseApy": 4.5,
-        "treasuryAllocated": 1500000,
-        "tvl": 9800000,
-        "risk": "Medium"
-    }
-]
-
-@app.get("/api/defi/strategies")
-async def get_defi_strategies(wallet: str = None):
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    user_stakes = {}
-    if wallet:
-        c.execute("SELECT protocol_id, staked_amount, accumulated_yield FROM defi_stakes WHERE wallet_address = ?", (wallet.lower(),))
-        for row in c.fetchall():
-            user_stakes[row[0]] = {
-                "staked": row[1],
-                "yield": row[2]
-            }
-            
-    conn.close()
-    
-    result = []
-    for strat in MOCK_DEFI_STRATEGIES:
-        s = strat.copy()
-        s["userStaked"] = user_stakes.get(s["id"], {}).get("staked", 0.0)
-        s["userYield"] = user_stakes.get(s["id"], {}).get("yield", 0.0)
-        result.append(s)
-        
-    return {"strategies": result}
-
-class DefiStakeRequest(BaseModel):
-    wallet_address: str
-    protocol_id: str
-    amount: float
-
-@app.post("/api/defi/stake")
-async def stake_defi(req: DefiStakeRequest):
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be > 0")
-        
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    current_ts = int(datetime.now().timestamp())
-    
-    # Upsert logic
-    c.execute("SELECT staked_amount FROM defi_stakes WHERE wallet_address = ? AND protocol_id = ?", (req.wallet_address.lower(), req.protocol_id))
-    row = c.fetchone()
-    
-    if row:
-        c.execute("UPDATE defi_stakes SET staked_amount = staked_amount + ?, last_updated = ? WHERE wallet_address = ? AND protocol_id = ?",
-                  (req.amount, current_ts, req.wallet_address.lower(), req.protocol_id))
-    else:
-        c.execute("INSERT INTO defi_stakes (wallet_address, protocol_id, staked_amount, last_updated) VALUES (?, ?, ?, ?)",
-                  (req.wallet_address.lower(), req.protocol_id, req.amount, current_ts))
-                  
-    conn.commit()
-    conn.close()
-    
-    return {"status": "success", "message": f"Successfully staked {req.amount} $CLAIM into {req.protocol_id}"}
-
-@app.post("/api/defi/unstake")
-async def unstake_defi(req: DefiStakeRequest):
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be > 0")
-        
-    conn = get_db_connection()
-    c = conn.cursor()
-    
-    c.execute("SELECT staked_amount FROM defi_stakes WHERE wallet_address = ? AND protocol_id = ?", (req.wallet_address.lower(), req.protocol_id))
-    row = c.fetchone()
-    
-    if not row or row[0] < req.amount:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Insufficient staked balance")
-        
-    current_ts = int(datetime.now().timestamp())
-    new_balance = row[0] - req.amount
-    
-    if new_balance <= 0.0001:
-        c.execute("DELETE FROM defi_stakes WHERE wallet_address = ? AND protocol_id = ?", (req.wallet_address.lower(), req.protocol_id))
-    else:
-        c.execute("UPDATE defi_stakes SET staked_amount = ?, last_updated = ? WHERE wallet_address = ? AND protocol_id = ?",
-                  (new_balance, current_ts, req.wallet_address.lower(), req.protocol_id))
-                  
-    conn.commit()
-    conn.close()
-    
-    return {"status": "success", "message": f"Successfully withdrew {req.amount} $CLAIM from {req.protocol_id}"}
-
-def init_users_table():
-
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            wallet_address TEXT UNIQUE NOT NULL,
-            created_at INTEGER
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
+# O segundo sistema de staking foi removido em 2026-09-20. Ele nunca debitou
+# saldo nenhum: /api/defi/stake somava a uma tabela propria, invisivel ao
+# reconcile.py, e devolvia "Successfully staked". O catalogo que a tela lia
+# chamava-se MOCK_DEFI_STRATEGIES e apresentava, sem ressalva, alocacoes da
+# tesouraria em Lido, Aave e Curve -- numeros inventados atribuidos a
+# protocolos reais. Assinar isso teria produzido um numero falso autenticado,
+# que e pior. A tabela estava vazia, entao nada se perdeu.
+#
+# O staking de verdade e /api/staking/stake e /api/staking/unstake: debita,
+# exige assinatura, grava posicao em staking_positions e o reconcile ve.
 @app.on_event("startup")
 def startup_users():
     init_users_table()
@@ -5398,7 +5407,9 @@ def hash_password(password: str) -> str:
     return hmac.new(salt.encode(), password.encode(), hashlib.sha256).hexdigest()
 
 @app.post("/api/auth/register")
-async def register_user(req: RegisterRequest):
+async def register_user(req: RegisterRequest, request: Request):
+    if not within_rate("auth", request.client.host, AUTH_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
     email = req.email.strip().lower()
     password = req.password
     
@@ -5427,7 +5438,7 @@ async def register_user(req: RegisterRequest):
             **issue_session(wallet_address)}
 
 @app.post("/api/auth/guest")
-async def create_guest_account():
+async def create_guest_account(request: Request):
     """A one-click account whose key this server holds.
 
     This replaces a button labelled "Sign in with Google" that spoke neither to
@@ -5436,6 +5447,8 @@ async def create_guest_account():
     every signature check was skipped. A guest is now a real row here, with a
     real custodial address, trusted exactly as much as an email account is.
     """
+    if not within_rate("auth", request.client.host, AUTH_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
     wallet_address = "0x" + secrets.token_hex(20)
     email = f"guest_{secrets.token_hex(8)}@guest.faucetchain.local"
     # The column cannot be null and no one should be able to sign in to a guest
@@ -5457,7 +5470,9 @@ async def create_guest_account():
 
 
 @app.post("/api/auth/login")
-async def login_user(req: LoginRequest):
+async def login_user(req: LoginRequest, request: Request):
+    if not within_rate("auth", request.client.host, AUTH_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
     email = req.email.strip().lower()
     password = req.password
     password_hash = hash_password(password)
@@ -5841,7 +5856,7 @@ async def account_for_wallet(solana_address: str):
 
 
 @app.post("/api/auth/solana")
-async def sign_in_with_solana(req: SolanaAuthRequest):
+async def sign_in_with_solana(req: SolanaAuthRequest, request: Request):
     """Create or reach an account by proving you hold a Solana wallet.
 
     The signed sentence is the one already used to link a wallet, unchanged, so
@@ -5855,6 +5870,8 @@ async def sign_in_with_solana(req: SolanaAuthRequest):
     screen and later signs in with it expects the balance they earned, not an
     empty account that happens to share their key.
     """
+    if not within_rate("auth", request.client.host, AUTH_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
     solana_address = req.solana_address.strip()
     try:
         settlement.decode_pubkey(solana_address)

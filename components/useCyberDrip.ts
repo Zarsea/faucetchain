@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from './AuthContext';
 import { solvePocChallenge } from '../utils/poc';
-import { signAction } from '../utils/actionSignature';import { withdrawMessage, boosterMessage } from '../utils/actionMessage';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage, boosterMessage, minigameMessage } from '../utils/actionMessage';
 
 
 export interface Mission { id: string; label: string; desc: string; reward: number; completed: boolean; available: boolean; }
@@ -158,9 +158,11 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
 
   const submitMinigame = async (finalScore: number) => {
     try {
+      const sig = await signAction(authMethod, (ts) =>
+        minigameMessage(wallet, finalScore, ts));
       const r = await fetch(`${API_BASE_URL}/api/cyberdrip/minigame/verify`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet, score: finalScore })
+        body: JSON.stringify({ wallet, score: finalScore, ...sig })
       });
       const d = await r.json();
       setMinigameResult(d.message);

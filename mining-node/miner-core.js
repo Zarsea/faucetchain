@@ -25,6 +25,11 @@ class MinerCore extends EventEmitter {
         // Persistent node ID
         this.nodeIdFile = options.nodeIdFile || path.join(__dirname, '.node_id');
         this.nodeId = this._loadOrCreateNodeId();
+        // Ao lado do node_id, porque tem o mesmo tempo de vida: o id persiste
+        // entre reinicios e o servidor so deixa reconectar a ele com o token.
+        // Guardar um sem o outro tranca o minerador fora do proprio no.
+        this.nodeTokenFile = options.nodeTokenFile || path.join(__dirname, '.node_token');
+        this.nodeToken = this._loadNodeToken();
 
         // State
         this.heartbeatInterval = 30; // seconds, updated from server
@@ -107,13 +112,37 @@ class MinerCore extends EventEmitter {
         };
     }
 
+    _loadNodeToken() {
+        try {
+            if (fs.existsSync(this.nodeTokenFile)) {
+                return fs.readFileSync(this.nodeTokenFile, 'utf8').trim() || null;
+            }
+        } catch (e) { /* sem token: o registro emite um */ }
+        return null;
+    }
+
+    _saveNodeToken(token) {
+        this.nodeToken = token;
+        try {
+            fs.writeFileSync(this.nodeTokenFile, token, { mode: 0o600 });
+        } catch (e) {
+            this.emit('error', { type: 'token', message: 'Nao consegui gravar o token do no; o proximo reinicio vai precisar dele.' });
+        }
+    }
+
     // ─── API Functions ──────────────────────────────────────────
+
+    authHeaders() {
+        const h = { 'Content-Type': 'application/json' };
+        if (this.nodeToken) h['X-Node-Token'] = this.nodeToken;
+        return h;
+    }
 
     async registerNode() {
         try {
             const res = await fetch(`${this.apiUrl}/api/mining/register`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.authHeaders(),
                 body: JSON.stringify({
                     wallet_address: this.wallet,
                     node_id: this.nodeId,
@@ -125,6 +154,10 @@ class MinerCore extends EventEmitter {
             const data = await res.json();
 
             if (res.ok) {
+                // Entregue uma vez, aqui. Toda chamada seguinte o carrega: sem
+                // ele, qualquer um que soubesse este node_id mandava heartbeat
+                // por ele, ou reconectava e desviava o pagamento.
+                if (data.node_token) this._saveNodeToken(data.node_token);
                 if (data.config) {
                     this.heartbeatInterval = data.config.heartbeat_interval || 30;
                 }
@@ -152,7 +185,7 @@ class MinerCore extends EventEmitter {
 
             const res = await fetch(`${this.apiUrl}/api/mining/heartbeat`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.authHeaders(),
                 body: JSON.stringify({
                     node_id: this.nodeId,
                     wallet_address: this.wallet,
@@ -190,7 +223,7 @@ class MinerCore extends EventEmitter {
         try {
             await fetch(`${this.apiUrl}/api/mining/disconnect`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.authHeaders(),
                 body: JSON.stringify({
                     node_id: this.nodeId,
                     wallet_address: this.wallet
@@ -288,7 +321,7 @@ class MinerCore extends EventEmitter {
         try {
             const res = await fetch(`${this.apiUrl}/api/mining/explore`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: this.authHeaders(),
                 body: JSON.stringify({ miner_address: this.wallet, node_id: this.nodeId })
             });
 

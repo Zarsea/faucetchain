@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { signAction } from '../utils/actionSignature';
+import { bountyCreateMessage } from '../utils/actionMessage';
 import { SectionCard } from './SectionCard';
 import {
     SparklesIcon,
@@ -54,7 +56,7 @@ const formatTimeRemaining = (seconds: number): string => {
 };
 
 export const BountyBoard: React.FC = () => {
-    const { userAddress, isConnected } = useAuth();
+    const { userAddress, isConnected, authMethod } = useAuth();
     const { lang } = useLanguage();
 
     const [bounties, setBounties] = useState<Bounty[]>([]);
@@ -101,15 +103,22 @@ export const BountyBoard: React.FC = () => {
         }
         setActionLoading(-1);
         try {
+            // O titulo e a recompensa entram na frase assinada, entao quem
+            // assina ve exatamente o que esta comprometendo.
+            const creator = userAddress.trim().toLowerCase();
+            const reward = parseFloat(formReward);
+            const sig = await signAction(authMethod, (ts) =>
+                bountyCreateMessage(creator, formTitle.trim(), reward, ts));
             const res = await fetch(`${API_BASE_URL}/api/bounties/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    creator_address: userAddress,
+                    creator_address: creator,
                     title: formTitle,
                     description: formDescription,
-                    reward: parseFloat(formReward),
-                    duration_hours: parseInt(formDuration)
+                    reward,
+                    duration_hours: parseInt(formDuration),
+                    ...sig
                 })
             });
             if (res.ok) {

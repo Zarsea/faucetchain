@@ -51,3 +51,7 @@ treasury.json
 # atualizacao de dependencia. Ficam em disco para reverter, nunca no historico.
 *.antes-*
 *.db.antes-*
+
+# Credencial do no, ao lado do id dele. Nunca versionada.
+.node_token
+mining-node/.node_token

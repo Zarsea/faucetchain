@@ -8,7 +8,6 @@ import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 import { useLanguage } from './LanguageContext';
 import { MermaidDiagram } from './MermaidDiagram';
 import { API_BASE_URL } from '../apiConfig';
-import { DeFiLiquidityHub } from './DeFiLiquidityHub';
 
 interface TokenomicsProps {
     onNavigate?: (tab: string) => void;
@@ -312,7 +311,6 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                 </div>
             </div>
 
-            <DeFiLiquidityHub />
         </div>
     );
 };

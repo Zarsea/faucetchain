@@ -81,6 +81,18 @@ CASES = {
         settlement.bounty_approve_message(USER, BOUNTY, "7777", TS_FIXED),
         f"bountyApproveMessage({USER!r}, {BOUNTY}, {TS_FIXED})",
     ),
+    "bountyCreate": (
+        settlement.bounty_create_message(USER, "Fix the drip", 100.0, "7777", TS_FIXED),
+        f"bountyCreateMessage({USER!r}, 'Fix the drip', 100.0, {TS_FIXED})",
+    ),
+    "bountyCancel": (
+        settlement.bounty_cancel_message(USER, BOUNTY, "7777", TS_FIXED),
+        f"bountyCancelMessage({USER!r}, {BOUNTY}, {TS_FIXED})",
+    ),
+    "minigame": (
+        settlement.minigame_message(USER, 12, "7777", TS_FIXED),
+        f"minigameMessage({USER!r}, 12, {TS_FIXED})",
+    ),
     "stake": (
         settlement.stake_message(USER, 1.5, "GOLD", "7777", TS_FIXED),
         f"stakeMessage({USER!r}, 1.5, 'GOLD', {TS_FIXED})",
