@@ -373,6 +373,31 @@ supplies the list and nothing else.
 
 ## Change log
 
+**2026-09-20 — four endpoints stopped taking the caller's word.** Buying a
+booster debited the wallet named in the request body, so anyone could spend
+anyone's balance on a booster that then belonged to their victim. Claiming a
+bounty wrote the hunter address it was handed. Approving one compared the
+creator address in the request against the one on the record -- both supplied
+by the caller, which made it a comparison of a value with itself. Triggering an
+epoch distribution asked for nothing at all. The first three now sign; the
+fourth is an operator action, because it mints for every online miner and no
+single account's permission is the right shape. `test_authorization.py` pins
+all four, and checks that an unknown booster still answers 400 while a known
+one without a signature answers 401 -- if those swap, the gate has moved behind
+the catalogue lookup.
+
+**2026-09-20 — the treasury got back what three campaigns drew.** Before
+`treasury_owed` existed, `_campaign_drip` computed the split, returned it in
+the response and credited it nowhere, while the budget drained by the gross.
+`scripts/credit_lost_treasury.py` credited 1,495,538 $CLAIM across campaigns
+710364, 710775 and 714482, deriving each amount as `spent_total` minus rewards
+already paid to users rather than assuming 80/20 -- and refusing to write at
+all unless that formula reproduces, exactly, what the nine campaigns that *did*
+record a share recorded. `reconcile.py` was reporting one of the three, because
+the check returned on its first offender; it now returns them all. A
+reconciliation that under-counts is worse than none, because it is believed.
+
+
 **2026-09-20 — an API key stopped being public.** `GET /api/faucethub/my-key`
 returned a faucet's live API key to anyone who knew its wallet address, and
 `GET /api/faucethub/faucets` publishes that address; `POST /regenerate-key`

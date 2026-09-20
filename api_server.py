@@ -3542,9 +3542,13 @@ class CreateBountyRequest(BaseModel):
 
 class ClaimBountyRequest(BaseModel):
     hunter_address: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
 class ApproveBountyRequest(BaseModel):
     creator_address: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
 
 @app.post("/api/bounties/create")
@@ -3614,8 +3618,19 @@ def list_bounties(status: Optional[str] = None, limit: int = 50):
 
 
 @app.post("/api/bounties/{bounty_id}/claim")
-async def claim_bounty(bounty_id: int, req: ClaimBountyRequest):
-    """Hunter claims (accepts) a bounty."""
+async def claim_bounty(bounty_id: int, req: ClaimBountyRequest,
+                       x_session_token: Optional[str] = Header(None)):
+    """Hunter claims (accepts) a bounty.
+
+    The hunter address came from the body and was written down unchecked, so
+    anybody could put anybody's name on a bounty.
+    """
+    hunter_lower = req.hunter_address.strip().lower()
+    require_action_signature(
+        hunter_lower,
+        settlement.bounty_claim_message(hunter_lower, bounty_id, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM bounties WHERE id = ?", (bounty_id,))
@@ -3650,8 +3665,21 @@ async def claim_bounty(bounty_id: int, req: ClaimBountyRequest):
 
 
 @app.post("/api/bounties/{bounty_id}/approve")
-async def approve_bounty(bounty_id: int, req: ApproveBountyRequest):
-    """Creator approves the hunter's work and releases the reward."""
+async def approve_bounty(bounty_id: int, req: ApproveBountyRequest,
+                         x_session_token: Optional[str] = Header(None)):
+    """Creator approves the hunter's work and releases the reward.
+
+    The check below compares the creator address in the request against the one
+    on the bounty -- which proved nothing, because both came from the caller
+    once they knew the address. The signature is what makes that comparison
+    mean something.
+    """
+    creator_lower = req.creator_address.strip().lower()
+    require_action_signature(
+        creator_lower,
+        settlement.bounty_approve_message(creator_lower, bounty_id, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT * FROM bounties WHERE id = ?", (bounty_id,))
@@ -4216,8 +4244,14 @@ async def epoch_scheduler():
 
 
 @app.post("/api/mining/distribute-epoch")
-async def distribute_epoch_rewards():
-    """Manually trigger epoch distribution (also runs automatically every hour)."""
+async def distribute_epoch_rewards(x_operator_token: Optional[str] = Header(None)):
+    """Manually trigger epoch distribution (also runs automatically every hour).
+
+    An operator action, not a user one: it mints the epoch's rewards for every
+    online miner. Open, it let anyone force distributions back to back and pull
+    the schedule forward as far as they liked.
+    """
+    require_operator(x_operator_token)
     return await _distribute_epoch()
 
 
@@ -5094,10 +5128,17 @@ async def get_cyberdrip_stats(wallet: str):
 class BoosterBuyRequest(BaseModel):
     wallet: str
     booster_type: str
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
 
 @app.post("/api/cyberdrip/booster/buy")
-async def buy_booster(req: BoosterBuyRequest):
-    """Buy a booster — debit CLAIM from L2 virtual balance, apply burn + treasury split."""
+async def buy_booster(req: BoosterBuyRequest, x_session_token: Optional[str] = Header(None)):
+    """Buy a booster — debit CLAIM from L2 virtual balance, apply burn + treasury split.
+
+    The wallet arrives in the body and gets debited, so it has to be proved.
+    Unproved, any caller could name any wallet and spend somebody else's
+    balance on a booster that then belonged to that somebody.
+    """
     wallet_lower = req.wallet.strip().lower()
     btype = req.booster_type.upper()
 
@@ -5106,6 +5147,14 @@ async def buy_booster(req: BoosterBuyRequest):
 
     catalog = BOOSTER_CATALOG[btype]
     cost = catalog["cost"]
+
+    # Depois do catalogo porque o preco entra na frase assinada: quem assina ve
+    # quanto vai sair, e a assinatura nao serve para um booster mais caro.
+    require_action_signature(
+        wallet_lower,
+        settlement.booster_message(wallet_lower, btype, cost, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
     now_ts = int(_time.time())
 
     conn = get_db_connection()

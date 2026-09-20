@@ -162,6 +162,7 @@ def treasury_share_is_accounted_for(c):
     except sqlite3.OperationalError:
         return None  # campaigns not set up on this installation
 
+    findings = []
     for campaign_id, spent, owed in rows:
         paid = _scalar(
             c,
@@ -170,11 +171,18 @@ def treasury_share_is_accounted_for(c):
             (campaign_id,),
         )
         if (owed or 0) + paid <= 0:
-            return Finding(
-                "treasury share vanished",
-                f"campaign {campaign_id} drew {spent:,.0f} and the treasury has nothing",
+            users = _scalar(
+                c,
+                "SELECT COALESCE(SUM(amount), 0) FROM settlement_rewards "
+                "WHERE campaign_id = ? AND user_address NOT LIKE '0xfaucetchaintreasury%'",
+                (campaign_id,),
             )
-    return None
+            findings.append(Finding(
+                "treasury share vanished",
+                f"campaign {campaign_id} drew {spent:,.0f}, paid users {users:,.0f}, "
+                f"and the treasury has nothing -- {spent - users:,.0f} unaccounted",
+            ))
+    return findings or None
 
 
 CHECKS = (
@@ -188,9 +196,21 @@ CHECKS = (
 
 def reconcile(conn) -> list:
     """Every broken invariant, in the order they are checked. Empty means the
-    books close."""
+    books close.
+
+    A check returns one Finding, a list of them, or None. The list matters: the
+    treasury check used to stop at the first campaign it found, which reported
+    one offender when the database held nine. A reconciliation that under-counts
+    is worse than none, because it is believed.
+    """
     c = conn.cursor()
-    return [f for f in (check(c) for check in CHECKS) if f is not None]
+    out = []
+    for check in CHECKS:
+        found = check(c)
+        if found is None:
+            continue
+        out.extend(found if isinstance(found, list) else [found])
+    return out
 
 
 SCHEMA = (
@@ -240,6 +260,22 @@ def _self_check() -> None:
     for expected, rows in cases.items():
         found = [f.check for f in reconcile(_books(rows))]
         assert expected in found, f"{expected!r} went unnoticed; got {found}"
+
+    # Every offender, not the first. The live database held nine campaigns with
+    # no treasury share and this reported one, which is how eight of them stayed
+    # invisible through a check that was passing judgement on all of them.
+    two = (
+        "INSERT INTO campaign_budget VALUES (710364, 3204651, 0)",
+        "INSERT INTO settlement_rewards VALUES (710364, '0xuser', 2563716)",
+        "INSERT INTO campaign_budget VALUES (789356, 49999276, 0)",
+        "INSERT INTO settlement_rewards VALUES (789356, '0xuser', 39999420)",
+    )
+    both = reconcile(_books(two))
+    assert len(both) == 2, f"expected both campaigns, got {[str(f) for f in both]}"
+    assert "710364" in str(both[0]) and "789356" in str(both[1])
+    # The detail carries what is missing, so the repair does not have to be
+    # worked out again by hand.
+    assert "640,935 unaccounted" in str(both[0]), str(both[0])
 
     # A voided position is recorded on purpose and is not a claim on anything.
     voided = ("INSERT INTO staking_positions VALUES (4, 'ghost@x.io', 777777777, 1)",)

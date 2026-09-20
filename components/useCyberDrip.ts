@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from './AuthContext';
 import { solvePocChallenge } from '../utils/poc';
-import { signAction } from '../utils/actionSignature';import { withdrawMessage } from '../utils/actionMessage';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage, boosterMessage } from '../utils/actionMessage';
 
 
 export interface Mission { id: string; label: string; desc: string; reward: number; completed: boolean; available: boolean; }
@@ -218,9 +218,16 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
 
   const buyBooster = async (type: string) => {
     try {
+      // O custo entra na frase assinada, entao quem assina ve quanto sai -- e a
+      // assinatura nao serve para um booster mais caro. Vem do catalogo que o
+      // servidor mandou, que e a mesma tabela que ele cobra.
+      const item = boosterCatalog.find((b: any) => b.type === type);
+      if (!item) throw new Error('Catalogo de boosters ainda nao carregou.');
+      const sig = await signAction(authMethod, (ts) =>
+        boosterMessage(wallet, type, item.cost, ts));
       const r = await fetch(`${API_BASE_URL}/api/cyberdrip/booster/buy`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet, booster_type: type })
+        body: JSON.stringify({ wallet, booster_type: type, ...sig })
       });
       const d = await r.json();
       if (r.ok) { setStatus({ text: `${d.label} ativado! ${d.multiplier}x por ${d.duration_hours}h`, type: 'success' }); fetchProfile(); fetchBalance(); setShowShop(false); }

@@ -135,3 +135,36 @@ export const faucetpayLinkMessage = (faucet: string, faucetpayAddress: string, t
         [['Faucet', faucet], ['FaucetPay', faucetpayAddress]],
         ts
     );
+
+// O endpoint tirava a carteira do corpo da requisicao e debitava. Qualquer
+// chamador podia nomear qualquer carteira e gastar o saldo de outra pessoa num
+// booster que depois pertencia a essa pessoa.
+export const boosterMessage = (user: string, booster: string, cost: number, ts: number): string =>
+    actionMessage(
+        'buy a booster',
+        'Signing spends the amount below from your balance. Part of it is ' +
+        'burned and part goes to the treasury, so it does not come back.',
+        [['Account', user], ['Booster', booster], ['Cost', `${cost.toFixed(6)} CLAIM`]],
+        ts
+    );
+
+export const bountyClaimMessage = (user: string, bounty: string | number, ts: number): string =>
+    actionMessage(
+        'take on a bounty',
+        'Signing puts your name on the bounty below as the hunter working it. ' +
+        'It pays nothing yet.',
+        [['Account', user], ['Bounty', bounty]],
+        ts
+    );
+
+// A verificacao antiga comparava o endereco do criador vindo da requisicao com
+// o gravado na bounty. Os dois saiam do mesmo lugar assim que o chamador
+// soubesse o endereco, o que fazia a checagem comparar um valor consigo mesmo.
+export const bountyApproveMessage = (user: string, bounty: string | number, ts: number): string =>
+    actionMessage(
+        'approve a bounty',
+        "Signing accepts the hunter's work and releases the reward below. It " +
+        'cannot be taken back.',
+        [['Account', user], ['Bounty', bounty]],
+        ts
+    );

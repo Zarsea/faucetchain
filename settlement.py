@@ -253,6 +253,52 @@ def faucetpay_link_message(faucet, faucetpay_address, chain_id, ts) -> str:
     )
 
 
+def booster_message(user, booster, cost, chain_id, ts) -> str:
+    """Spends the buyer's balance, so the buyer has to be the one asking.
+
+    The endpoint took the wallet out of the request body and debited it. Any
+    caller could name any wallet and spend somebody else's balance on a booster
+    that then belonged to that somebody -- which is theft that does not even
+    profit the thief, the worst kind to explain to the person it happened to.
+    """
+    return action_message(
+        "buy a booster",
+        "Signing spends the amount below from your balance. Part of it is "
+        "burned and part goes to the treasury, so it does not come back.",
+        [("Account", user), ("Booster", booster), ("Cost", f"{float(cost):.6f} CLAIM")],
+        chain_id,
+        ts,
+    )
+
+
+def bounty_claim_message(user, bounty, chain_id, ts) -> str:
+    return action_message(
+        "take on a bounty",
+        "Signing puts your name on the bounty below as the hunter working it. "
+        "It pays nothing yet.",
+        [("Account", user), ("Bounty", bounty)],
+        chain_id,
+        ts,
+    )
+
+
+def bounty_approve_message(user, bounty, chain_id, ts) -> str:
+    """Releases somebody else's reward, so the creator has to prove they are one.
+
+    The endpoint compared the creator address in the request against the one on
+    the bounty. Both came from the same place once the caller knew the address,
+    which made the check a comparison of a value with itself.
+    """
+    return action_message(
+        "approve a bounty",
+        "Signing accepts the hunter's work and releases the reward below. It "
+        "cannot be taken back.",
+        [("Account", user), ("Bounty", bounty)],
+        chain_id,
+        ts,
+    )
+
+
 def _self_check() -> None:
     # The sentence a wallet displays and the server rebuilds before checking a
     # signature. Pinned, because the browser keeps its own copy in
@@ -280,6 +326,12 @@ def _self_check() -> None:
          "bd7d160423c8c213e2422fb19c2fd0fe55aa921e9ec8b289b30cdb14a20b6fa9"),
         (faucetpay_link_message, (FAUCET, FP_ADDR),
          "6d9a0067c6b831c7eb19f84484c077d8879f9cd28ca127d991e76b3bfb39f7b2"),
+        (booster_message, (FAUCET, "TURBO", 25.0),
+         "0a21bbe949aac40a417db24ee905e066ab4aaf7fe3d23ece8d96a6dd4d661baa"),
+        (bounty_claim_message, (FAUCET, 42),
+         "406bc82824aee12d02c92e7253b5798dc92a3691f75a838c2fd7baa178b55574"),
+        (bounty_approve_message, (FAUCET, 42),
+         "dd290331fc91784c29927be808a521661715623def8ed3cbda69dcd70c839747"),
     ):
         text = builder(*args, "7777", 1789618329)
         got = hashlib.sha256(text.encode("utf-8")).hexdigest()

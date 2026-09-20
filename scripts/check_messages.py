@@ -48,6 +48,7 @@ USER = "0x7dda72ad9ad56ce3d031ee6a62b5b94dd40c6ef3"
 WALLET = "75vW4HnhtMVcLuHLh3Tm8S1BuFvLVBoLqYoRxQT3SDnE"
 FAUCET = "0x1b021998f6297936986bcc34f6fdc1cd5c82af06"
 FAUCETPAY = "1BoatSLRHtKNngkdXEeobR76b53LETtpyT"  # a FaucetPay payout address
+BOUNTY = 42    # a bounty id: a number on both sides
 POSITION = 42  # a UTXO id: a number in the browser, an int on the server
 
 CASES = {
@@ -67,6 +68,18 @@ CASES = {
     "faucetpayLink": (
         settlement.faucetpay_link_message(FAUCET, FAUCETPAY, "7777", TS_FIXED),
         f"faucetpayLinkMessage({FAUCET!r}, {FAUCETPAY!r}, {TS_FIXED})",
+    ),
+    "booster": (
+        settlement.booster_message(USER, "TURBO", 25.0, "7777", TS_FIXED),
+        f"boosterMessage({USER!r}, 'TURBO', 25.0, {TS_FIXED})",
+    ),
+    "bountyClaim": (
+        settlement.bounty_claim_message(USER, BOUNTY, "7777", TS_FIXED),
+        f"bountyClaimMessage({USER!r}, {BOUNTY}, {TS_FIXED})",
+    ),
+    "bountyApprove": (
+        settlement.bounty_approve_message(USER, BOUNTY, "7777", TS_FIXED),
+        f"bountyApproveMessage({USER!r}, {BOUNTY}, {TS_FIXED})",
     ),
     "stake": (
         settlement.stake_message(USER, 1.5, "GOLD", "7777", TS_FIXED),

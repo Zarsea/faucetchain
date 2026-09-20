@@ -46,3 +46,8 @@ funder.json
 *-keypair.json
 id.json
 treasury.json
+
+# Backups pontuais feitos antes de uma escrita no livro-razao ou numa
+# atualizacao de dependencia. Ficam em disco para reverter, nunca no historico.
+*.antes-*
+*.db.antes-*
