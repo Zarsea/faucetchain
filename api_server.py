@@ -2419,9 +2419,23 @@ async def transfer_claim(req: TransferRequest, request: Request,
                 detail="Sign in again to transfer: this account acts through a session.",
             )
     else:
+        # Sem assinatura nenhuma nao e "assinatura corrompida": e uma sessao que
+        # nao pode gastar daqui. Recuperar uma string vazia levantava IndexError,
+        # e a tela mostrava "index out of range" a quem so precisava saber que
+        # estava na conta errada.
+        if not req.signature:
+            conn.close()
+            raise HTTPException(
+                status_code=401,
+                detail=(
+                    "This address is not an account you can spend from here. If you "
+                    "signed in by pasting it, that session is read-only: sign in with "
+                    "the email that owns the balance, or connect the wallet itself."
+                ),
+            )
         try:
             message = encode_defunct(text=payload_str)
-            recovered_addr = Account.recover_message(message, signature=req.signature or "").lower()
+            recovered_addr = Account.recover_message(message, signature=req.signature).lower()
             if recovered_addr != sender_lower:
                 raise ValueError("Signature mismatch")
         except Exception as e:
