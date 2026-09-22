@@ -1,5 +1,17 @@
 # FaucetChain Vector DB - Security Features
 
+> **Scope: the knowledge base, not the chain.** This file covers the vector
+> store behind the in-app assistant — input sanitization, rate limits, audit
+> logging. The file name is broader than the contents, so it is worth saying
+> plainly.
+>
+> The chain's security model is a different thing and lives in two places:
+> [ARCHITECTURE.md](ARCHITECTURE.md) explains what a request has to prove and
+> who may act without signing, and `test_endpoint_inventory.py` enforces it —
+> it walks every route the app declares and fails on any that changes state and
+> trusts nobody. A route is allowed to be open only by being named there with
+> its reason.
+
 ## 🔒 Implemented Security Measures
 
 ### 1. **Input Sanitization**
@@ -259,7 +271,11 @@ curl -X POST http://localhost:8000/api/add-document \
 - [x] Sensitive data filtering
 - [x] CORS properly configured
 - [ ] HTTPS enforced (production only)
-- [ ] API key authentication (optional)
+- [x] Writes require the operator token (`POST /api/add-document`) — what goes
+      into the knowledge base is what the assistant later repeats as fact, so an
+      open write is a way to put words in its mouth
+- [x] Reads are open but rate limited (`POST /api/vector-search`) — a POST
+      because the query rides in the body; it reads and returns
 - [ ] Redis for distributed rate limiting (production)
 - [ ] Database encryption at rest (production)
 - [ ] Security monitoring dashboard (future)

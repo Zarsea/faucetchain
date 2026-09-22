@@ -53,18 +53,19 @@ curl -X POST http://localhost:8000/api/vector-search \
 ```
 
 #### 2. Add Document
+
+Writing needs the operator token. What goes in here is what the in-app
+assistant later repeats as fact, so an open write is a way to put words in its
+mouth.
+
 ```bash
 curl -X POST http://localhost:8000/api/add-document \
   -H "Content-Type: application/json" \
+  -H "X-Operator-Token: $SETTLEMENT_OPERATOR_TOKEN" \
   -d '{
     "content": "New information about FaucetChain...",
     "metadata": {"category": "general"}
   }'
-```
-
-#### 3. Get Stats
-```bash
-curl http://localhost:8000/api/stats
 ```
 
 ### Frontend Integration

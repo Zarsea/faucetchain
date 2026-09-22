@@ -103,6 +103,7 @@ decision somebody made in a diff rather than an oversight nobody noticed.
 | `test_endpoint_inventory.py` | Fails on any route that changes state and trusts nothing |
 | `test_authorization.py` | Pins the four endpoints that used to take the caller's word |
 | `test_faucetpay_identity.py` | Pins the API-key gates, and named-vs-proved for a FaucetPay account |
+| `test_docs_match_code.py` | Fails when a document names a route the server does not serve |
 | `verify_chain.py` | Independent auditor of the appchain, trusting no server |
 | `ARCHITECTURE.md` | How the two layers fit together, and what each one can and cannot do |
 | `legacy/evm/` | The EVM contracts the prototype used before the Solana layer |
@@ -125,6 +126,7 @@ exercise code. None needs a validator, a network or a fixture:
 python reconcile.py               # do the books close, against the live database
 python test_endpoint_inventory.py # is any state-changing route trusting nobody
 python test_authorization.py      # are the four repaired gates still shut
+python test_docs_match_code.py    # does the documentation name a route that exists
 python settlement.py              # every signed sentence, pinned by digest
 python scripts/check_messages.py  # and identical in the browser, byte for byte
 ```

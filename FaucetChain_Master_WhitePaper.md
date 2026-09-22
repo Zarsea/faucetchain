@@ -182,8 +182,8 @@ address clustering and per-IP behaviour, and scores accounts that look
 automated.
 
 It is a filter, not a gate. The limits that actually hold — the quota, the
-difficulty curve, the IP cap, and on Solana the reserve check and the receipt
-account — are arithmetic, and hold whether or not a model classifies correctly.
+difficulty curve, the IP cap, and on Solana the reserve check and the bit each
+leaf owns in its root — are arithmetic, and hold whether or not a model classifies correctly.
 Sentinel reduces load on those limits; it is not what makes them safe.
 
 ---

@@ -131,7 +131,7 @@ print(f"API Key: {data['api_key']}")
 
 ## 4. Step 2: Manage your API key
 
-### Read the key's details
+### Read the key's usage
 
 ```
 GET /api/faucethub/my-key/{wallet_address}
@@ -141,7 +141,6 @@ GET /api/faucethub/my-key/{wallet_address}
 
 ```json
 {
-    "api_key": "fch_a1b2c3...",
     "created_at": 1717372800,
     "is_active": true,
     "last_used": 1717376400,
@@ -149,6 +148,34 @@ GET /api/faucethub/my-key/{wallet_address}
     "total_settled": 1420.50
 }
 ```
+
+There is no `api_key` in that response, deliberately. It used to be there, and
+since the wallet address is published in the faucet directory, reading the
+directory was enough to take over any faucet on it. Counters are not a secret;
+the key is.
+
+### Show the key
+
+```
+POST /api/faucethub/reveal-key
+Content-Type: application/json
+```
+
+```json
+{
+    "wallet_address": "0x84da...",
+    "signature": "0x...",
+    "sig_timestamp": 1717372800
+}
+```
+
+The wallet that owns the faucet signs a sentence saying what it is asking for,
+and the server rebuilds that sentence before checking the signature. A POST
+rather than a GET because a key does not belong in a URL, where it would sit in
+every proxy log between you and us.
+
+If your account is custodial — created with an email rather than a wallet — send
+the session token in `X-Session-Token` instead of a signature.
 
 ### Rotate the key
 
@@ -161,9 +188,15 @@ Content-Type: application/json
 
 ```json
 {
-    "wallet_address": "0x84da..."
+    "wallet_address": "0x84da...",
+    "signature": "0x...",
+    "sig_timestamp": 1717372800
 }
 ```
+
+Signed for the same reason, and with more at stake: unsigned, a stranger could
+not only mint themselves a key for your faucet but cut *you* off in the same
+call, and your faucet would start failing every request it made afterwards.
 
 **Response:**
 
@@ -669,7 +702,7 @@ Yes. Each one needs **its own wallet address**, registered separately.
 A public audit board. Anyone can check whether your faucet holds enough $CLAIM to honour what it owes. It is there so a user can decide to trust you before spending time earning — which is worth more to you than it costs.
 
 ### My API key leaked. What now?
-Call `POST /api/faucethub/regenerate-key` with your wallet address right away. The old key dies instantly.
+Call `POST /api/faucethub/regenerate-key`, signed by the wallet that owns the faucet, right away. The old key dies instantly.
 
 ---
 
