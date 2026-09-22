@@ -1,0 +1,20 @@
+# Shell scripts keep LF endings on every platform.
+#
+# Without this, a checkout on Windows rewrites them to CRLF, and the \r rides
+# along into the interpreter: bash reads `set -o pipefail\r`, calls it an
+# invalid option and stops on line 13. The script is fine; the file is not.
+# Cheap to prevent, and confusing to diagnose the first time it happens --
+# nothing in the error mentions line endings.
+*.sh text eol=lf
+
+# Same reasoning: these are read by tools that do not expect a carriage return.
+*.py text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Binaries git must not touch.
+*.so binary
+*.png binary
+*.db binary
+*.mp4 binary
