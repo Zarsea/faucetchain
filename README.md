@@ -106,6 +106,7 @@ decision somebody made in a diff rather than an oversight nobody noticed.
 | `test_docs_match_code.py` | Fails when a document names a route the server does not serve |
 | `verify_chain.py` | Independent auditor of the appchain, trusting no server |
 | `ARCHITECTURE.md` | How the two layers fit together, and what each one can and cannot do |
+| `FLOW.md` | The same system drawn: the two layers, a click becoming money, who may act, who seals |
 | `legacy/evm/` | The EVM contracts the prototype used before the Solana layer |
 
 ## Running it
