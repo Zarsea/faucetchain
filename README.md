@@ -64,17 +64,45 @@ demonstration no longer puts the authority's key on the machine driving it. And
 the network is devnet, where tokens are free, so the worst an attacker could do
 with that key is break this demonstration.
 
+## What a request has to prove
+
+Every route that changes state needs a reason to trust its caller, and there are
+four:
+
+- **the acting wallet signs** the sentence describing the action, or a custodial
+  account presents its session
+- **the operator token**, for what is nobody's in particular: sealing a batch,
+  distributing an epoch, writing to the knowledge base
+- **a partner API key**, for a faucet acting as itself
+- **a node token**, issued once when a mining node registers and carried by every
+  call it makes afterwards
+
+A route may be open only by being named in `OPEN_BY_DESIGN` inside
+`test_endpoint_inventory.py`, with the reason written beside it — the four auth
+routes issue the session and cannot require one, registration creates the
+identity later calls authenticate against, and the relayer routes cannot redirect
+a cent because the relayer only signs a withdrawal it built and verified itself.
+Everything on that list is also rate-limited, which the same test checks.
+
+The list is the argument and the test is the enforcement, so opening a route is a
+decision somebody made in a diff rather than an oversight nobody noticed.
+
 ## Layout
 
 | Path | What it is |
 | --- | --- |
 | `api_server.py` | The appchain sequencer: claims, quota, FaucetHub, settlement endpoints |
-| `settlement.py` | Builds a reward batch: leaves, root and proofs |
+| `settlement.py` | Builds a reward batch: leaves, root and proofs, and every sentence a wallet signs |
+| `reconcile.py` | Asks whether the books close: five invariants over the ledger, plus solvency per asset |
+| `faucetpay.py` | Identity against FaucetPay. Moves no money |
 | `publish_root.py` | Publishes a closed batch's root on Solana |
 | `solana_settlement.py` | Instruction encoders and RPC, keyed off the built IDL |
 | `faucetchain/` | Anchor workspace with the settlement program |
 | `components/`, `services/`, `utils/` | React explorer and faucet front end |
 | `tests/` | Backend checks, each file runnable on its own with no test framework |
+| `test_endpoint_inventory.py` | Fails on any route that changes state and trusts nothing |
+| `test_authorization.py` | Pins the four endpoints that used to take the caller's word |
+| `test_faucetpay_identity.py` | Pins the API-key gates, and named-vs-proved for a FaucetPay account |
 | `verify_chain.py` | Independent auditor of the appchain, trusting no server |
 | `ARCHITECTURE.md` | How the two layers fit together, and what each one can and cannot do |
 | `legacy/evm/` | The EVM contracts the prototype used before the Solana layer |
@@ -89,6 +117,22 @@ python api_server.py            # http://localhost:8000, docs at /docs
 python tests/test_settlement_api.py
 python tests/test_security_fixes.py
 ```
+
+**The checks worth running first**, because they answer questions rather than
+exercise code. None needs a validator, a network or a fixture:
+
+```bash
+python reconcile.py               # do the books close, against the live database
+python test_endpoint_inventory.py # is any state-changing route trusting nobody
+python test_authorization.py      # are the four repaired gates still shut
+python settlement.py              # every signed sentence, pinned by digest
+python scripts/check_messages.py  # and identical in the browser, byte for byte
+```
+
+`reconcile.py` is the one to read if you only read one. It is a pure function of
+a database connection, and each invariant names the numbers that broke it rather
+than saying "failed". Two of them would have caught defects this project
+actually shipped.
 
 **Front end** (Node.js):
 
@@ -178,6 +222,12 @@ the key that can replace the program never has to sit on the machine running a d
 | `SETTLEMENT_RELAYER_KEYPAIR` | Keypair that pays the fee and the rent of a user's withdrawal |
 | `SOLANA_RPC_URL` | Defaults to devnet |
 | `SETTLEMENT_TREASURY_SOLANA` | Wallet that collects the treasury's share of a partner budget. Unset, the share accumulates as owed and a later batch pays it |
+| `INTERNAL_SECRET` | Shared secret the indexer sends when it announces a block |
+| `RATE_LIMIT_TRUST_LOCALHOST` | On by default for local work. Set to `0` before exposing the API: behind a reverse proxy on the same host every caller arrives as 127.0.0.1, and the exemption would switch rate limiting off for the whole internet |
+| `AUTH_HOURLY_PER_IP`, `REGISTER_HOURLY_PER_IP`, `TRACKER_HOURLY_PER_IP`, `MINING_HOURLY_PER_NODE` | Ceilings on the routes that are open by design |
+| `RELAY_HOURLY_PER_ADDRESS`, `PROOF_HOURLY_PER_IP` | Ceilings on the two endpoints that cost real SOL or real CPU |
+| `FAUCETPAY_API_KEY` | Enables linking a partner's FaucetPay account. Unset, that endpoint answers 503 rather than recording a link nobody verified |
+| `FAUCETPAY_IDENTITY_CURRENCY`, `FAUCETPAY_PROOF_WINDOW`, `FAUCETPAY_PROOF_MIN`, `FAUCETPAY_PROOF_MAX` | Which currency identifies an account, how long the proof stays open, and the band its amount is drawn from |
 
 ## Hackathon
 
