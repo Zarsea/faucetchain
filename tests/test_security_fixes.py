@@ -343,8 +343,18 @@ def test_claims_sealed_together_keep_the_times_they_were_made(client):
             (user, 1.0, ts, f"0xpreso{i}"))
     conn.commit(); conn.close()
 
+    # O no e registrado de verdade agora: explore exige o token emitido ali,
+    # porque um node_id viaja em todo heartbeat e nao serve como credencial.
+    reg = client.post("/api/mining/register", json={
+        "node_id": "fcn-selagem", "wallet_address": user,
+        "node_name": "selagem", "version": "1.0.0",
+    })
+    assert reg.status_code == 200, reg.text
+    token = reg.json()["node_token"]
+
     r = client.post("/api/mining/explore",
-                    json={"miner_address": user, "node_id": "fcn-selagem"})
+                    json={"miner_address": user, "node_id": "fcn-selagem"},
+                    headers={"X-Node-Token": token})
     assert r.status_code == 200 and r.json()["explored"], r.text
 
     conn = db()
@@ -367,21 +377,29 @@ def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
     first = "0x" + "a1" * 20
     second = "0x" + "b2" * 20
 
-    def register(wallet):
+    def register(wallet, token=None):
+        headers = {"X-Node-Token": token} if token else {}
         return client.post("/api/mining/register", json={
             "node_id": node, "wallet_address": wallet,
             "node_name": "teste", "version": "1.0.0",
-        })
+        }, headers=headers)
 
-    assert register(first).status_code == 200
+    first_reg = register(first)
+    assert first_reg.status_code == 200
+    token = first_reg.json()["node_token"]
     assert wallet_of(node) == first
+
+    # Sem o token, reconectar sob este node_id e recusado -- que e o ponto:
+    # saber o id de alguem deixou de ser suficiente para desviar o pagamento
+    # dele. O resto do teste prova que o dono legitimo ainda consegue mudar.
+    assert register(second).status_code == 401
 
     # Uptime accrued for the first address.
     conn = db()
     conn.execute("UPDATE active_miners SET epoch_uptime_seconds = 600 WHERE node_id = ?", (node,))
     conn.commit(); conn.close()
 
-    r = register(second)
+    r = register(second, token)
     assert r.status_code == 200, r.text
     assert wallet_of(node) == second, "the node kept paying the old address"
 
