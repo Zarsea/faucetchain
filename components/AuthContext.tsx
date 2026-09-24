@@ -3,9 +3,25 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 
 // No external EVM wallet: the only wallet the product needs is the Solana
 // one, used to sign in and to receive payouts.
-type AuthMethod = 'GUEST' | 'EMAIL' | 'SOLANA' | 'MANUAL' | null;
+type AuthMethod = 'GUEST' | 'EMAIL' | 'SOLANA' | null;
 
 const TOKEN_KEY = 'hvm_session_token';
+const ADDRESS_KEY = 'hvm_user_address';
+const CONNECTED_KEY = 'hvm_is_connected';
+const METHOD_KEY = 'hvm_auth_method';
+
+// Pasting an address stopped being a way in on 24 September. Removing the field
+// does not remove the sessions it already created: those live in this browser
+// and restore themselves on the next load, so the door would still be open for
+// everyone who had already walked through it. They are evicted here, once, at
+// import -- before any component reads the stored state.
+try {
+    if (localStorage.getItem(METHOD_KEY) === 'MANUAL') {
+        [ADDRESS_KEY, CONNECTED_KEY, METHOD_KEY, TOKEN_KEY].forEach(k => localStorage.removeItem(k));
+    }
+} catch {
+    // Storage blocked or private browsing: nothing was stored, nothing to evict.
+}
 
 interface AuthContextType {
     userAddress: string | null;
@@ -25,8 +41,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
  * The session is what stands in for a signature. Spread this into the headers of
  * any request that acts on the account's behalf.
  *
- * A session that pasted an address rather than signing in has no token, and the
- * server answers 401: that session is read-only, which is the honest outcome.
+ * A session with no token gets a 401 from the server, which is the honest
+ * outcome: it can look, not act.
  */
 export function sessionHeaders(): Record<string, string> {
     try {
@@ -39,19 +55,19 @@ export function sessionHeaders(): Record<string, string> {
 }
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [userAddress, setUserAddress] = useState<string | null>(() => localStorage.getItem('hvm_user_address'));
-    const [isConnected, setIsConnected] = useState<boolean>(() => localStorage.getItem('hvm_is_connected') === 'true');
-    const [authMethod, setAuthMethod] = useState<AuthMethod>(() => localStorage.getItem('hvm_auth_method') as AuthMethod || null);
+    const [userAddress, setUserAddress] = useState<string | null>(() => localStorage.getItem(ADDRESS_KEY));
+    const [isConnected, setIsConnected] = useState<boolean>(() => localStorage.getItem(CONNECTED_KEY) === 'true');
+    const [authMethod, setAuthMethod] = useState<AuthMethod>(() => localStorage.getItem(METHOD_KEY) as AuthMethod || null);
 
     const login = (address: string, method: AuthMethod, sessionToken?: string) => {
         setUserAddress(address);
         setIsConnected(true);
         setAuthMethod(method);
-        localStorage.setItem('hvm_user_address', address);
-        localStorage.setItem('hvm_is_connected', 'true');
-        localStorage.setItem('hvm_auth_method', method || '');
-        // Pasting an address signs nothing and gets no token, so any token left
-        // from an earlier session has to go: it belongs to a different account.
+        localStorage.setItem(ADDRESS_KEY, address);
+        localStorage.setItem(CONNECTED_KEY, 'true');
+        localStorage.setItem(METHOD_KEY, method || '');
+        // A method that issues no token has to clear any token left from an
+        // earlier session: it belongs to a different account.
         if (sessionToken) {
             localStorage.setItem(TOKEN_KEY, sessionToken);
         } else {
@@ -66,9 +82,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUserAddress(null);
         setIsConnected(false);
         setAuthMethod(null);
-        localStorage.removeItem('hvm_user_address');
-        localStorage.removeItem('hvm_is_connected');
-        localStorage.removeItem('hvm_auth_method');
+        localStorage.removeItem(ADDRESS_KEY);
+        localStorage.removeItem(CONNECTED_KEY);
+        localStorage.removeItem(METHOD_KEY);
         localStorage.removeItem(TOKEN_KEY);
 
         window.dispatchEvent(new CustomEvent('wallet_disconnected'));

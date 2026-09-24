@@ -42,6 +42,12 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       with the numbers attached are written up in ARCHITECTURE.md under Known
       gaps. Whoever picks should write down which and why, there.
 
+      The *login* was closed on 24 September -- the paste-an-address field is
+      out of the modal and stored sessions are evicted. That was a separate
+      question and it is settled. This one is about the 1,196,254 $CLAIM
+      sitting in seven addresses that are not rows in `users`, and it is still
+      open.
+
 ## Waiting on the team
 
 - [ ] **An independent review of the Solana program** (FC-13 from the audit).

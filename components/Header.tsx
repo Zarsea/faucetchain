@@ -256,41 +256,6 @@ export const Header: React.FC = () => {
                                     <GlobeAltIcon className="w-5 h-5 text-brand-primary" />
                                     {t('auth.email')}
                                 </button>
-                                <div className="flex items-center gap-4 py-2">
-                                    <div className="h-px flex-1 bg-brand-border"></div>
-                                    <span className="text-[10px] font-black text-brand-muted uppercase">{t('auth.orPasteAddress')}</span>
-                                    <div className="h-px flex-1 bg-brand-border"></div>
-                                </div>
-                                
-                                <div className="flex gap-2">
-                                    <input 
-                                        type="text" 
-                                        placeholder="0x..." 
-                                        className="flex-1 bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm text-white focus:border-brand-primary outline-none transition-all"
-                                        id="manualAddressInput"
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                const val = (e.target as HTMLInputElement).value;
-                                                if (val) {
-                                                    login(val, 'MANUAL');
-                                                    setIsAuthModalOpen(false);
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            const val = (document.getElementById('manualAddressInput') as HTMLInputElement).value;
-                                            if (val) {
-                                                login(val, 'MANUAL');
-                                                setIsAuthModalOpen(false);
-                                            }
-                                        }}
-                                        className="bg-brand-surface border border-brand-border px-4 py-3 rounded-xl font-bold text-brand-primary hover:bg-brand-primary hover:text-brand-bg transition-all"
-                                    >
-                                        {t('auth.enter')}
-                                    </button>
-                                </div>
                             </div>
                         ) : (
                             <div className="space-y-4">

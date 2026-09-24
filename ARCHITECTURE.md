@@ -274,8 +274,8 @@ These are open on purpose, not oversights:
 - **The ledger still carries the address-login era, and nobody has decided what
   to do with it.** Thirteen of the seventeen registered faucets are named "Demo
   Partner Faucet", and seven of the ten addresses holding a balance are not rows
-  in `users` — they were reachable when pasting an address was a way in, and
-  stopped being reachable when that login was dropped. Those seven hold
+  in `users` — they were reachable while pasting an address was a way in, which
+  it stopped being on 24 September. Those seven hold
   1,196,254 $CLAIM, which is most of everything ever emitted. Nothing is broken:
   the books close, and `reconcile.py` counts those balances as real because they
   are. But a visitor reading the faucet directory meets thirteen placeholders,
@@ -287,6 +287,9 @@ These are open on purpose, not oversights:
   good**, with a script that says what it removed, the way
   `scripts/void_ghost_stake.py` and `scripts/credit_lost_treasury.py` did.
   Awaiting a decision; whoever makes it should write which and why here.
+
+  Closing the door did not settle this. The login is gone; the balances it
+  created are still here, and what to do with them is still open.
 
 - **A custodial account has no per-request authentication.** Since external
   wallets were dropped as a login method, every account is custodial, and
@@ -502,6 +505,29 @@ Each row also says whether it was read from Solana or from the sequencer's own
 book, because those are different claims and only one of them is a proof.
 
 ## Change log
+
+**2026-09-24 — pasting an address stopped being a way in, which this document
+already claimed it was.** The Known gaps entry above said those balances
+"stopped being reachable when that login was dropped". The login had not been
+dropped: `Header.tsx` still offered "Or paste your address" under the Phantom
+and email buttons, and a pasted address signed nothing and proved nothing.
+
+The damage was bounded and worth stating exactly, because it explains why this
+sat so long. A pasted session never received a token, so `sessionHeaders()` sent
+nothing and every acting route answered 401 -- nobody could move a balance that
+way. What it could do is *look*: open any address and read it as though signed
+in. Read-only impersonation, in the same modal a judge opens first, next to a
+button that is a real cryptographic proof.
+
+Removing the field is not enough on its own, and that is the part worth
+remembering. The session lives in `localStorage` and restores itself on load, so
+everyone already through the door stays through it. `AuthContext.tsx` now evicts
+a stored `MANUAL` session at import, before any component reads the state. The
+`MANUAL` member is gone from `AuthMethod`, and with it the branch in
+`SolanaPayouts.tsx` that existed to explain to a pasted session why it could not
+act.
+
+The server needed no change: it never trusted any of this.
 
 **2026-09-24 — the bridge is connected, and it was in the wrong directory.**
 `faucetchain.php` had sat in the FaucetHunter tree since 19 September with

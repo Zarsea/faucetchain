@@ -231,17 +231,6 @@ export const SolanaPayouts: React.FC = () => {
                         {' '}A root already published keeps paying this wallet even if you link
                         another one later.
                     </p>
-                ) : authMethod === 'MANUAL' ? (
-                    // A pasted address is a read-only session: there is no key behind it to
-                    // sign with. Offering the buttons here would walk the user into a refusal
-                    // the server cannot explain, because from its side this looks exactly like
-                    // a real wallet that sent nothing.
-                    <p className="text-brand-muted">
-                        You signed in by typing an address, so this session can look but not act
-                        — there is no key behind it to sign with. Linking a payout wallet needs
-                        two signatures, one of them from your FaucetChain account. Sign in with
-                        the wallet itself, or with email, and this card will let you link.
-                    </p>
                 ) : (
                     <div className="space-y-4">
                         <p className="text-brand-muted">
