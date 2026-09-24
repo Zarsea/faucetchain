@@ -52,6 +52,12 @@ RETIRED = {
 }
 
 
+# A path whose last segment carries a file extension is a file on disk, not a
+# route here: "dist/api/faucetchain.php" in the partner guide is a page in
+# somebody else's tree that happens to sit under a directory called api.
+FILE_ON_DISK = re.compile(r"\.[A-Za-z0-9]{1,5}$")
+
+
 def normalise(path):
     return PARAM.sub("{}", path.rstrip("/`.,;:)"))
 
@@ -66,6 +72,8 @@ def documented():
             text = fh.read()
         for raw in re.findall(r"/api/[A-Za-z0-9/_{}.-]+", text):
             if any(bad in raw for bad in PLACEHOLDERS):
+                continue
+            if FILE_ON_DISK.search(raw.rstrip("`.,;:)")):
                 continue
             found.setdefault(normalise(raw), set()).add(name)
     return found

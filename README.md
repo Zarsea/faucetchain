@@ -108,6 +108,7 @@ decision somebody made in a diff rather than an oversight nobody noticed.
 | `test_social_login.py` | A forged Telegram payload reaches nothing, and writes nothing |
 | `verify_chain.py` | Independent auditor of the appchain, trusting no server |
 | `ARCHITECTURE.md` | How the two layers fit together, and what each one can and cannot do |
+| `PENDING.md` | What is waiting, sorted by who is blocked |
 | `FLOW.md` | The same system drawn: the two layers, a click becoming money, who may act, who seals |
 | `legacy/evm/` | The EVM contracts the prototype used before the Solana layer |
 
