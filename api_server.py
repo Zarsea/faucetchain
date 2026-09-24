@@ -23,6 +23,7 @@ except ImportError:  # the appchain still starts; PASSWORD_SALT must then be exp
 import calendar
 import distribution  # how much one click of a campaign budget is worth
 import faucetpay    # identity against FaucetPay; moves no money
+import social_auth  # signing in through a platform, proved rather than announced
 import settlement  # the sentences wallets sign live here, shared with the browser
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
@@ -389,6 +390,19 @@ def init_users_table():
 
     conn = get_db_connection()
     c = conn.cursor()
+    # Which platform identity reaches which account. The account is derived
+    # from the identity, so this table is not the source of truth for that --
+    # it exists so somebody who links Telegram to an account they already have
+    # reaches *that* account, the way a linked Solana wallet does.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS social_identities (
+            provider    TEXT NOT NULL,
+            provider_id TEXT NOT NULL,
+            address     TEXT NOT NULL,
+            verified_at INTEGER NOT NULL,
+            PRIMARY KEY (provider, provider_id)
+        )
+    ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -5898,6 +5912,76 @@ def address_from_solana_wallet(solana_address: str) -> str:
     digest = _keccak.new(digest_bits=256)
     digest.update(settlement.decode_pubkey(solana_address))
     return "0x" + digest.hexdigest()[-40:]
+
+
+class TelegramAuthRequest(BaseModel):
+    """Exactly what Telegram's Login Widget hands the browser, untouched.
+
+    It arrives as a flat map because the HMAC covers every field Telegram sent,
+    including ones this server does not read. Naming them here and dropping the
+    rest would change the string the signature is over, and an honest login
+    would stop verifying.
+    """
+    payload: dict
+
+
+@app.post("/api/auth/telegram")
+async def sign_in_with_telegram(req: TelegramAuthRequest, request: Request):
+    """Create or reach an account by proving Telegram signed for you.
+
+    Telegram keys an HMAC with the bot token, so the proof is arithmetic over
+    data this server already holds: no call out, nothing to trust in between,
+    and no window where a browser's word stands in for a platform's.
+
+    That distinction is why this endpoint exists rather than a button. The
+    previous attempt at social sign-in here minted an identity in the browser
+    and the server took it, which is how a string that was not an address
+    became an account.
+    """
+    if not within_rate("auth", request.client.host, AUTH_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
+
+    try:
+        telegram_id = social_auth.verify_telegram(req.payload)
+    except social_auth.SocialAuthError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    derived = social_auth.account_for("telegram", telegram_id)
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute(
+        "SELECT address FROM social_identities WHERE provider = ? AND provider_id = ?",
+        ("telegram", telegram_id),
+    )
+    row = c.fetchone()
+    account = row[0] if row else derived
+    now = int(_time.time())
+
+    c.execute("SELECT 1 FROM users WHERE wallet_address = ?", (account,))
+    if not c.fetchone():
+        # No password reaches this account: Telegram is the only way in, so the
+        # column holds a value no hash can ever match.
+        c.execute(
+            "INSERT INTO users (email, password_hash, wallet_address, created_at) "
+            "VALUES (?, ?, ?, ?)",
+            (f"telegram_{telegram_id}@social.faucetchain.local", "!", account, now),
+        )
+    if not row:
+        c.execute(
+            "INSERT INTO social_identities (provider, provider_id, address, verified_at) "
+            "VALUES (?, ?, ?, ?)",
+            ("telegram", telegram_id, account, now),
+        )
+    conn.commit()
+    conn.close()
+
+    session = issue_session(account)
+    return {
+        "status": "success",
+        "wallet_address": account,
+        "provider": "telegram",
+        **session,
+    }
 
 
 class SolanaAuthRequest(BaseModel):

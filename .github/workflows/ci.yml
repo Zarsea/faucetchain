@@ -38,6 +38,11 @@ jobs:
       - name: The four repaired gates are still shut
         run: python test_authorization.py
 
+      - name: A forged platform sign-in reaches nothing
+        run: |
+          python social_auth.py
+          python test_social_login.py
+
       - name: A FaucetPay account is named before it is proved
         run: python test_faucetpay_identity.py
 

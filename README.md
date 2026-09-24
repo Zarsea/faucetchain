@@ -95,6 +95,7 @@ decision somebody made in a diff rather than an oversight nobody noticed.
 | `settlement.py` | Builds a reward batch: leaves, root and proofs, and every sentence a wallet signs |
 | `reconcile.py` | Asks whether the books close: five invariants over the ledger, plus solvency per asset |
 | `faucetpay.py` | Identity against FaucetPay. Moves no money |
+| `social_auth.py` | Signing in through a platform, proved rather than announced |
 | `publish_root.py` | Publishes a closed batch's root on Solana |
 | `solana_settlement.py` | Instruction encoders and RPC, keyed off the built IDL |
 | `faucetchain/` | Anchor workspace with the settlement program |
@@ -104,6 +105,7 @@ decision somebody made in a diff rather than an oversight nobody noticed.
 | `test_authorization.py` | Pins the four endpoints that used to take the caller's word |
 | `test_faucetpay_identity.py` | Pins the API-key gates, and named-vs-proved for a FaucetPay account |
 | `test_docs_match_code.py` | Fails when a document names a route the server does not serve |
+| `test_social_login.py` | A forged Telegram payload reaches nothing, and writes nothing |
 | `verify_chain.py` | Independent auditor of the appchain, trusting no server |
 | `ARCHITECTURE.md` | How the two layers fit together, and what each one can and cannot do |
 | `FLOW.md` | The same system drawn: the two layers, a click becoming money, who may act, who seals |
@@ -128,6 +130,7 @@ python reconcile.py               # do the books close, against the live databas
 python test_endpoint_inventory.py # is any state-changing route trusting nobody
 python test_authorization.py      # are the four repaired gates still shut
 python test_docs_match_code.py    # does the documentation name a route that exists
+python test_social_login.py       # can a forged platform sign-in reach an account
 python settlement.py              # every signed sentence, pinned by digest
 python scripts/check_messages.py  # and identical in the browser, byte for byte
 ```
@@ -229,6 +232,8 @@ the key that can replace the program never has to sit on the machine running a d
 | `RATE_LIMIT_TRUST_LOCALHOST` | On by default for local work. Set to `0` before exposing the API: behind a reverse proxy on the same host every caller arrives as 127.0.0.1, and the exemption would switch rate limiting off for the whole internet |
 | `AUTH_HOURLY_PER_IP`, `REGISTER_HOURLY_PER_IP`, `TRACKER_HOURLY_PER_IP`, `MINING_HOURLY_PER_NODE` | Ceilings on the routes that are open by design |
 | `RELAY_HOURLY_PER_ADDRESS`, `PROOF_HOURLY_PER_IP` | Ceilings on the two endpoints that cost real SOL or real CPU |
+| `TELEGRAM_BOT_TOKEN` | Enables Telegram sign-in. Unset, that route refuses everything: the HMAC is keyed on this, so without it nothing can be verified |
+| `SOCIAL_AUTH_MAX_AGE` | How old a platform login payload may be, in seconds (default 300). Without a ceiling one captured payload signs its holder in forever |
 | `FAUCETPAY_API_KEY` | Enables linking a partner's FaucetPay account. Unset, that endpoint answers 503 rather than recording a link nobody verified |
 | `FAUCETPAY_IDENTITY_CURRENCY`, `FAUCETPAY_PROOF_WINDOW`, `FAUCETPAY_PROOF_MIN`, `FAUCETPAY_PROOF_MAX` | Which currency identifies an account, how long the proof stays open, and the band its amount is drawn from |
 

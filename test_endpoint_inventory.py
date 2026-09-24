@@ -54,6 +54,8 @@ OPEN_BY_DESIGN = {
     "POST /api/auth/login": "issues the session; cannot require one",
     "POST /api/auth/guest": "issues the session; cannot require one",
     "POST /api/auth/solana": "issues the session; proves itself by wallet signature",
+    "POST /api/auth/telegram": "issues the session; proves itself by Telegram's HMAC "
+                               "over the bot token, checked here before anything is written",
     # Registration creates the identity that later calls authenticate against.
     "POST /api/faucethub/register": "creates the faucet; returns its key once",
     "POST /api/mining/register": "creates the node; reconnecting to an existing "
