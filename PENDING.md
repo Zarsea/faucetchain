@@ -59,9 +59,23 @@ checking the root on Solana without asking us anything.
       `RATE_LIMIT_TRUST_LOCALHOST=0` — behind a proxy on the same host every
       caller arrives as 127.0.0.1, so leaving it on switches rate limiting off
       for the whole internet at the exact moment the API stops being local.
-- [ ] **Register FaucetHunter and enrol it in a funded campaign.** The key comes
-      back once. A micro-claim answering with an empty `campaigns` list means
-      the enrolment is missing, which is the commonest way this looks broken.
+- [x] **Register FaucetHunter.** Done 24 September against the local API; the
+      key is the one that goes into `FAUCETCHAIN_KEY` on their host. The exact
+      call the PHP makes was then made by hand: 200 with `user_address` and
+      `campaigns`, the derived account matching what that wallet reaches by
+      signing in, and a second immediate call answering 429.
+- [ ] **Enrol it in a campaign that is funded for real — a new one.** The
+      micro-claim above answered with an empty `campaigns` list, which is
+      correct: FaucetHunter is enrolled in nothing.
+
+      **Do not enrol it in one of the fourteen already in the database.** They
+      all say `funding: vault`, and not one of their vaults can be read off any
+      chain — the sequencer logs `could not find account` for every one, because
+      they were opened against a localnet ledger that no longer exists. Enrolling
+      into one would credit a reward, show a number, and be backed by nothing.
+      That is precisely the failure this project exists to fix, and it would be
+      this project doing it. A new campaign on devnet, with a mint and a vault
+      that a judge can read, is the demo.
 - [x] **Wire `claim.php` to the bridge.** Done 24 September. It needed four
       changes rather than the two the file's own comment promised -- the missing
       one was `solana_address` in the session `SELECT`, without which the call
