@@ -49,6 +49,9 @@ jobs:
       - name: The documents name routes this server serves
         run: python test_docs_match_code.py
 
+      - name: The partner's bridge still finds the fields it reads
+        run: python test_bridge_contract.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

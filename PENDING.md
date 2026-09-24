@@ -22,14 +22,22 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       `/setdomain`. Telegram will not render the Login Widget on a domain it
       does not know, and `localhost` is not one it accepts. Blocked by the
       tunnel below.
-- [ ] **A FaucetPay account and its API key** (`FAUCETPAY_API_KEY`). Phase one
-      of the FaucetPay link is identity only and moves no money, but the route
-      answers 503 until the key exists rather than recording a link nobody
-      verified.
+- [ ] **A FaucetPay API key** (`FAUCETPAY_API_KEY`). Phase one is identity only
+      and calls exactly one endpoint, `checkaddress`, so **issue a v2 key scoped
+      to read**. Their v2 keys carry scopes — read, send, manage, admin — and a
+      read-only one cannot spend anything even if this machine is compromised.
+      The route answers 503 until the key exists rather than recording a link
+      nobody verified.
 - [ ] **The Colosseum submission**: category and description. Recommended
       *Developer Infrastructure* — the customer is a developer integrating an
       API, which is what the category is for, and it is where this project's
       strengths are what gets judged.
+- [ ] **Two environment variables on the FaucetHunter host**, and the column.
+      The bridge is wired and deliberately inert until all three exist:
+      `FAUCETCHAIN_URL` (the tunnel below), `FAUCETCHAIN_KEY` (the key that
+      registration returns once), and `ALTER TABLE fh_users ADD COLUMN
+      solana_address VARCHAR(50)`. The schema file carries the ALTER. Until
+      then every claim behaves exactly as it did before, which is the point.
 - [ ] **Decide what happens to the address-login leftovers.** Three options
       with the numbers attached are written up in ARCHITECTURE.md under Known
       gaps. Whoever picks should write down which and why, there.
@@ -47,20 +55,26 @@ checking the root on Solana without asking us anything.
 
 - [x] **The program on public devnet**, carrying the Token-2022 refusal, read
       back off the chain to confirm it.
-- [ ] **A tunnel, with the localhost exemption off.** `ngrok http 8010`, and
+- [ ] **A tunnel, with the localhost exemption off.** `ngrok http 8000`, and
       `RATE_LIMIT_TRUST_LOCALHOST=0` — behind a proxy on the same host every
       caller arrives as 127.0.0.1, so leaving it on switches rate limiting off
       for the whole internet at the exact moment the API stops being local.
 - [ ] **Register FaucetHunter and enrol it in a funded campaign.** The key comes
       back once. A micro-claim answering with an empty `campaigns` list means
       the enrolment is missing, which is the commonest way this looks broken.
-- [ ] **Wire `claim.php` to the bridge.** `dist/api/faucetchain.php` has existed
-      in the FaucetHunter tree since 19 September and nothing calls it. The call
-      goes *after* `$pdo->commit()`, so the partner's own payout has already
-      happened before ours is attempted.
+- [x] **Wire `claim.php` to the bridge.** Done 24 September. It needed four
+      changes rather than the two the file's own comment promised -- the missing
+      one was `solana_address` in the session `SELECT`, without which the call
+      was a silent no-op on every claim. The bridge also moved out of
+      `dist/api/`, which Vite empties on build. `test_bridge_contract.py` keeps
+      the fields the PHP reads from being renamed out from under it.
 - [ ] **Take the sequencer down on purpose** and confirm the faucet still pays.
       The one test that is about protecting the partner rather than us, and the
       one most likely to be skipped for looking redundant.
+- [ ] **A field on FaucetHunter where the user types their Solana address.**
+      The column exists and the bridge reads it; nothing yet writes it. Without
+      this the integration is complete and pays nobody, which is the least
+      obvious way for all of the above to look finished and be useless.
 - [ ] **A real user links a Solana wallet and withdraws.** The only proof that
       matters: a click on somebody else's faucet became a token in a wallet,
       with the guarantee on chain, from a person who never held SOL.

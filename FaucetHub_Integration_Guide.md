@@ -1,7 +1,7 @@
 # FaucetHub — Integration Guide for Developers
 **Everything needed to connect your faucet to FaucetChain through the API.**
 
-**Version:** 1.1 | **Updated:** September 2026 | **Base URL:** `http://localhost:8000`
+**Version:** 1.2 | **Updated:** 24 September 2026 | **Base URL:** `http://localhost:8000`
 
 ---
 
@@ -10,35 +10,55 @@
 1. [Overview](#1-overview)
 2. [Before you start](#2-before-you-start)
 3. [Step 1: Register your faucet](#3-step-1-register-your-faucet)
-4. [Step 2: Manage your API key](#4-step-2-manage-your-api-key)
-5. [Step 3: Settle a withdrawal](#5-step-3-settle-a-withdrawal)
-6. [Step 4: Read your history](#6-step-4-read-your-history)
-7. [The architecture we recommend](#7-the-architecture-we-recommend)
-8. [Complete examples](#8-complete-examples)
-9. [Error codes](#9-error-codes)
-10. [FAQ](#10-faq)
+4. [Step 2: The bridge — one call per claim](#4-step-2-the-bridge--one-call-per-claim)
+5. [Step 3: Manage your API key](#5-step-3-manage-your-api-key)
+6. [Step 4: Settle a withdrawal](#6-step-4-settle-a-withdrawal)
+7. [Step 5: Read your history](#7-step-5-read-your-history)
+8. [The architecture we recommend](#8-the-architecture-we-recommend)
+9. [Complete examples](#9-complete-examples)
+10. [Error codes](#10-error-codes)
+11. [FAQ](#11-faq)
 
 ---
 
 ## 1. Overview
 
-**FaucetHub** is how an outside faucet connects to FaucetChain. Registering gives you an **API key**, and with it you can:
+**FaucetHub** is how an outside faucet connects to FaucetChain. Registering gives
+you an **API key**, and there are two different things you can do with it. They
+pay out of different pockets, and confusing them is the one mistake that costs
+your users money.
 
-- **Distribute $CLAIM** from your own wallet to the people using your faucet.
-- **Be audited in public** on the Proof of Reserve board, so users can see you can pay before they earn.
-- **Serve millions of claims** without putting each one on a chain — see the off-chain model in section 7.
+**The bridge (section 4).** You tell us a claim happened. Every campaign your
+faucet is enrolled in pays that user out of **the sponsor's budget**, and the
+amount owed is guaranteed by a Merkle root published on Solana — not by a row
+in anybody's database. Nothing leaves your wallet. This is the interesting one,
+it is one HTTP call, and it is what the newer sections of this guide are about.
 
-### How the flow works
+**Settlement (section 6).** You move **your own $CLAIM** to a user who earned
+it on your faucet. This is the original model and it still works exactly as it
+did.
+
+### How the bridge works
 
 ```
-[Your site or app]  -> virtual claims in your own database (instant, free)
-       ↓
-[User withdraws]    -> your server calls POST /api/faucethub/settle
-       ↓
-[FaucetChain L1]    -> one real transaction is recorded
-       ↓
-[User]              -> receives $CLAIM in their FaucetChain wallet
+[Your site]     user clicks, you credit them as you always have
+       |
+       |  after your own commit — your payout already happened
+       v
+[The bridge]    POST /api/faucethub/microclaim   { user_wallet, amount }
+       |
+       v
+[FaucetChain]   every enrolled campaign credits that user from its budget
+       |
+       v
+[Solana]        a root covering what is owed is published; the vault
+                refuses a root it cannot cover
+       |
+       v
+[User]          signs in with the same wallet, withdraws with a proof
 ```
+
+The user never held SOL to get there, and you never fronted the money.
 
 ---
 
@@ -129,7 +149,127 @@ print(f"API Key: {data['api_key']}")
 
 ---
 
-## 4. Step 2: Manage your API key
+## 4. Step 2: The bridge — one call per claim
+
+This is the whole integration. One POST, after your own database commit.
+
+### Endpoint
+
+```
+POST /api/faucethub/microclaim
+```
+
+### Required headers
+
+| Header | Value |
+|---|---|
+| `X-Api-Key` | the key from step 1 |
+| `Content-Type` | `application/json` |
+
+### Body
+
+| Field | Type | What it is |
+|---|---|---|
+| `user_wallet` | string | Your user's **Solana address**, or a FaucetChain `0x` address. The Solana one is the useful case — see *the derivation* below. |
+| `amount` | number | How much work this click represents, `0 < amount <= 100`. It is **not** what the user earns; the network computes that from the campaign budget, the days left and how many people are participating. This number only says "a click happened". |
+
+### A successful response (200)
+
+```json
+{
+  "user_address": "0x6f9b...c41e",
+  "campaigns": [
+    { "campaign_id": 990001, "amount": 4.82, "treasury": 1.2, "funding": "vault" }
+  ]
+}
+```
+
+`campaigns` is empty when your faucet is enrolled in nothing, or when every
+campaign is out of budget for the month. **An empty list is not an error** — it
+is the commonest reason an integration looks broken when it is not, and it
+almost always means the enrolment is missing.
+
+`funding` matters if you show this on screen:
+
+- **`vault`** — the money is there. The user can withdraw today.
+- **`deferred`** — the project settles at mainnet. The user holds a *record of
+  work*, not money. Do not draw these two the same way.
+
+### The derivation, which is the actual promise
+
+You send your user's Solana address. We derive their FaucetChain account from
+it — the last 20 bytes of keccak256 over the public key — and credit that. When
+that same person later signs in here with that same wallet, they land in exactly
+that account, with the rewards already in it.
+
+So nothing has to be shared between us and you beyond a public key. No user
+list, no email, no token exchange, no account-linking step. We do the derivation
+on this side on purpose: it is a keccak over a decoded base58 key, and a faucet
+running PHP on shared hosting should not have to acquire either.
+
+### The two rules that are not negotiable
+
+**1. Call it after your commit.** Your user's payout must be recorded before
+FaucetChain is even looked up. A payment cannot depend on somebody else's
+uptime.
+
+**2. Swallow the error.** If we are down, unreachable or slow, your user gets
+their claim and nobody finds out. Give the call a short timeout — four seconds
+is plenty — and let a failure log and return. **Test this by taking us offline
+on purpose.** If your faucet stops paying when ours does, the integration is
+wrong, and the person it costs is your user.
+
+`429` is not a failure: it is the five-minute per-user cooldown on this side,
+the same lock you almost certainly already have. Treat it as "nothing to do" and
+do not log an error, or your log fills with false alarms.
+
+### A working PHP implementation
+
+`dist/api/faucetchain.php` in the FaucetHunter tree is a complete one, written
+to be copied: env-var config, short timeout, swallowed errors, and the install
+steps in a comment at the bottom. About 60 lines of actual code. Four things to
+change in a faucet that already exists:
+
+```php
+// 1. a column for the wallet, optional — whoever leaves it empty keeps
+//    using your faucet exactly as they do today
+ALTER TABLE `users`
+  ADD COLUMN `solana_address` VARCHAR(50) DEFAULT NULL;
+
+// 2. fetch it wherever you load the logged-in user. An explicit SELECT
+//    list will silently not have it, and the bridge then quietly does
+//    nothing at all — this is the step that gets forgotten
+SELECT id, email, solana_address, ... FROM users WHERE ...
+
+// 3. in your claim handler, at the top
+require_once __DIR__ . '/faucetchain.php';
+
+// 4. and right after your commit, inside its own try, so a surprise
+//    here cannot turn a committed claim into a 500
+$pdo->commit();
+
+$fc = null;
+try {
+    $fc = faucetchainNotifyClaim($user['solana_address'] ?? null);
+} catch (Throwable $e) {
+    error_log('[FaucetChain] ' . $e->getMessage());
+}
+```
+
+Then add `'faucetchain' => $fc` to your JSON response if you want to show the
+user what the campaign paid.
+
+### With cURL
+
+```bash
+curl -X POST http://localhost:8000/api/faucethub/microclaim \
+  -H "X-Api-Key: fch_your_key" \
+  -H "Content-Type: application/json" \
+  -d '{"user_wallet": "EL5Hubaf...jpPAvpkmjLzA", "amount": 1.0}'
+```
+
+
+## 5. Step 3: Manage your API key
 
 ### Read the key's usage
 
@@ -212,7 +352,7 @@ call, and your faucet would start failing every request it made afterwards.
 
 ---
 
-## 5. Step 3: Settle a withdrawal
+## 6. Step 4: Settle a withdrawal
 
 This is the endpoint the integration exists for. When someone on your faucet asks to withdraw, your server calls it, and $CLAIM moves from your wallet to theirs.
 
@@ -371,7 +511,7 @@ settleWithdrawal('0xEnderecoDoUsuario...', 10.0);
 
 ---
 
-## 6. Step 4: Read your history
+## 7. Step 5: Read your history
 
 ### List your settlements
 
@@ -410,7 +550,7 @@ Returns every registered faucet with its liquidity, status and settlement volume
 
 ---
 
-## 7. The architecture we recommend
+## 8. The architecture we recommend
 
 To serve a lot of users, **do not** put every individual claim on a chain. Keep them in your own database and settle only what leaves:
 
@@ -482,7 +622,7 @@ def user_withdraw():
 
 ---
 
-## 8. Complete examples
+## 9. Complete examples
 
 ### A minimal faucet in Python (Flask)
 
@@ -650,7 +790,7 @@ app.listen(3001, () => console.log('🚰 Mini Faucet rodando em http://localhost
 
 ---
 
-## 9. Error codes
+## 10. Error codes
 
 | Code | Meaning | Usual cause |
 |---|---|---|
@@ -681,7 +821,7 @@ app.listen(3001, () => console.log('🚰 Mini Faucet rodando em http://localhost
 
 ---
 
-## 10. FAQ
+## 11. FAQ
 
 ### Do I pay gas to settle?
 **No.** Internal FaucetChain operations are gasless, and `/settle` charges no network fee.
@@ -699,7 +839,15 @@ Send $CLAIM to the registered address like any other transfer, or earn it throug
 Yes. Each one needs **its own wallet address**, registered separately.
 
 ### What is Proof of Reserve?
-A public audit board. Anyone can check whether your faucet holds enough $CLAIM to honour what it owes. It is there so a user can decide to trust you before spending time earning — which is worth more to you than it costs.
+A public board listing every registered faucet with the $CLAIM balance its
+wallet actually holds, read at request time. It is a real number and worth
+showing — a user can decide to trust you before spending time earning.
+
+Be precise about what it proves, though: it is a **balance**, not a solvency
+check. Nothing on that board knows what you owe. A faucet with a large balance
+and larger obligations looks healthy there, so do not present it to your users
+as a guarantee. The guarantee in this system is the Merkle root on Solana, and
+that one covers campaign rewards, not your own payouts.
 
 ### My API key leaked. What now?
 Call `POST /api/faucethub/regenerate-key`, signed by the wallet that owns the faucet, right away. The old key dies instantly.

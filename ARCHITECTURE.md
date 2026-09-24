@@ -353,6 +353,41 @@ either `vault`, meaning the money is already there and withdrawable, or
 of work rather than money. The second is the failure mode this project exists to
 fix, so the two must never be presented alike.
 
+## Where the bridge lives, and why that is not a detail
+
+The partner side of the drip is one HTTP call from the faucet's own claim
+handler. `faucetchainNotifyClaim()` in the FaucetHunter tree is the reference
+implementation, and the whole design of it is about what happens when we fail:
+it runs **after** the partner's `commit()`, has a four-second timeout, and
+swallows its own error. If this appchain is down, their user is paid and nobody
+finds out. A payment cannot depend on somebody else's uptime, and the partner
+took the reputational risk of integrating — they do not also get to absorb our
+outages.
+
+Two things about it were wrong until 24 September and are worth writing down,
+because both are the kind of mistake that looks like nothing.
+
+**The file was in a build output directory.** `dist/api/faucetchain.php` — and
+`dist/` is Vite's `outDir`, emptied on every `npm run build`. The bridge would
+have vanished on the partner's next deploy, silently, and the claim handler
+calling a function that no longer exists is a fatal error inside a **paid**
+claim path. It now lives in `public/api/`, which is the publicDir Vite copies
+*into* dist, so a build reproduces it instead of deleting it.
+
+**The wallet column was not in the SELECT.** `getAuthenticatedUser()` lists its
+columns explicitly, so `$user['solana_address'] ?? null` was reliably null and
+the bridge did nothing at all — no error, no log, no reward, on every claim.
+This is the failure mode to look for first in any integration that appears to
+do nothing: the guide now says so in the install steps.
+
+`test_bridge_contract.py` holds the shape the PHP depends on. It reads
+`user_address` and `campaigns` off the response, and `campaign_id`, `amount`
+and `funding` off each entry; renaming any of those here would leave the
+partner's page quietly showing nothing. The same test pins the derivation:
+`faucet_user_address()` and `/api/auth/solana` must land on the same account,
+or the reward sits somewhere the user cannot reach and nothing else in this
+repository would notice.
+
 ## The FaucetPay link, and what it is not
 
 A partner faucet's developer can name the FaucetPay account behind their
@@ -374,10 +409,14 @@ The link has two states, and collapsing them would be the whole bug:
 
 Two things this deliberately does not do:
 
-- **It never holds a developer's FaucetPay API key.** That key is a bearer
-  credential with no scope and no spending limit: it would drain their whole
-  balance, in every currency, to any address. If FaucetChain ever pays out
-  through FaucetPay, it pays from an account of its own.
+- **It never holds a developer's FaucetPay API key.** A v1 key carries no
+  scope at all: it would drain their whole balance, in every currency, to any
+  address. FaucetPay's v2 keys do carry scopes — read, send, manage, admin — so
+  a read-only one is far less dangerous than this first said, and that is worth
+  knowing when choosing our own key. It does not change the rule, because
+  holding somebody else's credential is custody whatever it is scoped to, and
+  paying on their behalf would need the send scope. If FaucetChain ever pays
+  out through FaucetPay, it pays from an account of its own.
 - **A FaucetPay balance is never a proof of funds.** `/balance` is read with
   our own key, so publishing it is a self-report, and the balance is neither
   segregated nor encumbered — it can be spent a second after it is shown. The
@@ -463,6 +502,19 @@ Each row also says whether it was read from Solana or from the sequencer's own
 book, because those are different claims and only one of them is a proof.
 
 ## Change log
+
+**2026-09-24 — the bridge is connected, and it was in the wrong directory.**
+`faucetchain.php` had sat in the FaucetHunter tree since 19 September with
+nothing calling it. Wiring it took four changes, not the two its own comment
+promised: the `require`, the call after `commit()` in its own `try` so a
+surprise cannot turn a committed claim into a 500, `solana_address` added to the
+session `SELECT` that would otherwise have made the call a silent no-op, and the
+column itself. The file also moved from `dist/api/` to `public/api/`, because
+`dist/` is a Vite build output and the next build would have deleted it. The
+partner guide gained the section describing all of this, which never existed --
+it documented `/settle` and the faucet's own $CLAIM, and said nothing about the
+call that reaches campaign money. `test_bridge_contract.py` now fails if any
+field the PHP reads is renamed, or if the two address derivations diverge.
 
 **2026-09-20 — campaigns take classic SPL mints only.** `TokenInterface`
 accepts Token-2022, and a Token-2022 mint may carry a TransferFee: the vault
