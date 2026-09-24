@@ -271,6 +271,23 @@ rejects.
 
 These are open on purpose, not oversights:
 
+- **The ledger still carries the address-login era, and nobody has decided what
+  to do with it.** Thirteen of the seventeen registered faucets are named "Demo
+  Partner Faucet", and seven of the ten addresses holding a balance are not rows
+  in `users` — they were reachable when pasting an address was a way in, and
+  stopped being reachable when that login was dropped. Those seven hold
+  1,196,254 $CLAIM, which is most of everything ever emitted. Nothing is broken:
+  the books close, and `reconcile.py` counts those balances as real because they
+  are. But a visitor reading the faucet directory meets thirteen placeholders,
+  and a visitor reading the supply meets a number almost nobody can spend.
+
+  Three ways out, none of them urgent. **Leave it**, as the honest record of a
+  system that was tested and then changed. **Branch a demonstration database**,
+  cleaned, leaving this one untouched as the record. Or **retire the rows for
+  good**, with a script that says what it removed, the way
+  `scripts/void_ghost_stake.py` and `scripts/credit_lost_treasury.py` did.
+  Awaiting a decision; whoever makes it should write which and why here.
+
 - **A custodial account has no per-request authentication.** Since external
   wallets were dropped as a login method, every account is custodial, and
   `require_action_signature` waves those through because the server holds their
