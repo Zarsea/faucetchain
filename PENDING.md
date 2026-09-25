@@ -104,6 +104,31 @@ checking the root on Solana without asking us anything.
       running two makes the draw observable and recomputable from the parent
       hash.
 
+## The consensus, now that it has been written down honestly
+
+Modelling FaucetChain against Al-awamy et al. (2025), *Hybrid Consensus
+Mechanisms in Blockchain*, produced a short list rather than a paragraph. The
+survey's own Table 5 warns that stake-weighted selection centralises when few
+participants hold most stake; this repository is the warning realised, so these
+are ordered by that.
+
+- [ ] **A cap on the stake term.** `select_block_sealer` weighs `1 + stake` with
+      no ceiling, so the largest staker wins nearly every round. Of 935,500
+      currently locked, 930,000 sat in one placeholder address. The cap is a
+      line; deciding the number is the work.
+- [ ] **Two mining nodes online.** With none, `select_block_sealer` returns None
+      and any caller may seal — the bootstrap path. There is no consensus
+      running today, and no table should say otherwise.
+- [ ] **Answer the survey's Table 8 for FaucetChain** — Sybil, double-spending,
+      Byzantine faults, unauthorised participation, reputation manipulation,
+      each with its evidence type. Three rows are already answerable from tests
+      that run: `bot_quota_attack.py` (experimental, and the answer is weak),
+      `test_endpoint_inventory.py` (experimental, in CI), and the one bit per
+      leaf on Solana. Two rows are honest zeroes.
+- [ ] **Rename or disambiguate PoC.** In that literature PoC is Proof of Credit
+      (Microchain). Ours is Proof of Claim. A reader who knows the field reads
+      the header wrong, and that reader is the one worth impressing.
+
 ## Sign-in, after Telegram
 
 Telegram went first because its proof is arithmetic this server can do alone.

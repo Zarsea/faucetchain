@@ -97,15 +97,17 @@ export const Overview: React.FC = () => {
             {/* Technical Split */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
                 <div className="lg:col-span-5 flex flex-col gap-8">
-                    <SectionCard title="PoC Adaptive Modulator" icon={<ChartBarIcon className="w-6 h-6" />}>
+                    <SectionCard title="Sealer Weight" icon={<ChartBarIcon className="w-6 h-6" />}>
                          <p className="text-lg font-medium text-brand-secondary/80">
-                             {lang === 'en' ? "Consensus weights shift dynamically to protect liveness." : "Pesos de consenso mudam dinamicamente para proteger a liveness."}
+                             {lang === 'en'
+                                ? "A proposal. Today the sealer election weighs staked capital alone."
+                                : "Uma proposta. Hoje o sorteio do selador pesa só o capital em stake."}
                         </p>
                         <div className="grid grid-cols-1 gap-4 mt-6">
                             {[
-                                { label: 'MERIT (α)', sub: 'PoC Weight', val: '40%', color: 'from-brand-primary to-blue-400', desc: 'Rewarding active decentralized participants.' },
-                                { label: 'CAPITAL (β)', sub: 'PoS Stake', val: '40%', color: 'from-brand-success to-emerald-400', desc: 'Economic security via locked assets.' },
-                                { label: 'COGNITION (γ)', sub: 'Sentinel AI', val: '20%', color: 'from-brand-accent to-purple-400', desc: 'Algorithmic reputation filter.' }
+                                { label: 'MERIT (α)', sub: 'PoC Weight', val: '0%', color: 'from-brand-primary to-blue-400', desc: 'Proposed. The sealer election carries no merit term today.' },
+                                { label: 'CAPITAL (β)', sub: 'PoS Stake', val: '100%', color: 'from-brand-success to-emerald-400', desc: 'What runs: weight = 1 + active stake, with no cap.' },
+                                { label: 'COGNITION (γ)', sub: 'Reputation', val: '0%', color: 'from-brand-accent to-purple-400', desc: 'Proposed. Nothing measures reputation here yet.' }
                             ].map((item) => (
                                 <div key={item.label} className="p-5 bg-brand-surface/40 border border-brand-border/40 rounded-[1.25rem] group transition-all hover:bg-brand-surface">
                                     <div className="flex justify-between items-center">

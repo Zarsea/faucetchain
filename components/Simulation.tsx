@@ -12,11 +12,19 @@ const HEALTH_COLORS: Record<string, string> = {
     'Malicious': '#F78166'
 };
 
+// LIVE reproduz select_block_sealer (api_server.py:2336), a unica formula que
+// sela um bloco hoje: peso = 1 + stake ativo, sem teto, entre os nos online.
+// PROPOSED e a de tres termos -- merito, capital e reputacao -- que nao esta
+// implementada. Os dois existem lado a lado de proposito: a diferenca entre
+// eles e a proposta, e esconde-la seria a mentira.
+type ConsensusMode = 'LIVE' | 'PROPOSED';
+
 const runSimulation = (
-    numValidators: number, 
-    alpha: number, 
-    beta: number, 
-    gamma: number, 
+    mode: ConsensusMode,
+    numValidators: number,
+    alpha: number,
+    beta: number,
+    gamma: number,
     blockHeight: number,
     reliability: number,
     maliciousness: number,
@@ -52,7 +60,11 @@ const runSimulation = (
             activeNodes++;
         }
         
-        const hybridWeight = ((pocWeight * alpha/100) + (posStake * beta/100) + (reputationScore * gamma/100)) * statusMultiplier;
+        // O "+1" da chance minima a um no sem stake, e e o unico freio que
+        // existe hoje contra quem trava muito: nao ha teto no termo de stake.
+        const hybridWeight = mode === 'LIVE'
+            ? (1 + posStake) * statusMultiplier
+            : ((pocWeight * alpha/100) + (posStake * beta/100) + (reputationScore * gamma/100)) * statusMultiplier;
         
         validators.push({ id: i, pocWeight, posStake, hybridWeight, status });
         totalHybridWeight += hybridWeight;
@@ -129,6 +141,7 @@ const Slider: React.FC<{label: string, value: number, setValue: (v: number) => v
 );
 
 export const Simulation: React.FC = () => {
+    const [mode, setMode] = useState<ConsensusMode>('LIVE');
     const [alpha, setAlpha] = useState(40);
     const [beta, setBeta] = useState(30);
     const [numValidators, setNumValidators] = useState(200);
@@ -154,13 +167,31 @@ export const Simulation: React.FC = () => {
     };
 
     const handleRunSimulation = useCallback(() => {
-        setResults(runSimulation(numValidators, alpha, beta, gamma, blockHeight, reliability, maliciousness, maliciousIntensity));
-    }, [numValidators, alpha, beta, gamma, blockHeight, reliability, maliciousness, maliciousIntensity]);
+        setResults(runSimulation(mode, numValidators, alpha, beta, gamma, blockHeight, reliability, maliciousness, maliciousIntensity));
+    }, [mode, numValidators, alpha, beta, gamma, blockHeight, reliability, maliciousness, maliciousIntensity]);
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 space-y-6">
                 <SectionCard title="Stress Test Config" icon={<BeakerIcon className="w-5 h-5"/>}>
+                     <div className="mb-6">
+                        <label className="text-[10px] font-black text-brand-muted uppercase mb-3 block tracking-widest">Which consensus</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { id: 'LIVE', label: 'Running today', color: 'border-brand-success' },
+                                { id: 'PROPOSED', label: 'Proposed', color: 'border-brand-accent' }
+                            ].map(m => (
+                                <button
+                                    key={m.id}
+                                    onClick={() => setMode(m.id as ConsensusMode)}
+                                    className={`px-2 py-2 text-[10px] font-bold rounded-lg border transition-all ${mode === m.id ? `${m.color} bg-brand-surface text-white` : 'border-brand-border text-brand-muted hover:border-brand-muted'}`}
+                                >
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                     </div>
+
                      <div className="mb-6">
                         <label className="text-[10px] font-black text-brand-muted uppercase mb-3 block tracking-widest">Protocol Scenario</label>
                         <div className="grid grid-cols-3 gap-2">
@@ -182,8 +213,25 @@ export const Simulation: React.FC = () => {
 
                      <Slider label="Validator Count" value={numValidators} setValue={setNumValidators} min={50} max={1000} unit=""/>
                      
-                     <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-border mb-4">
-                        <h4 className="text-[10px] font-black text-brand-primary uppercase mb-4 tracking-widest">PoC Vectors</h4>
+                     {mode === 'LIVE' ? (
+                     <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-success/30 mb-4">
+                        <h4 className="text-[10px] font-black text-brand-success uppercase mb-3 tracking-widest">Sealer weight, as it runs</h4>
+                        <p className="font-mono text-xs text-white bg-brand-bg p-3 rounded-lg border border-brand-border">weight = 1 + activeStake</p>
+                        <p className="text-[11px] text-brand-muted mt-3 leading-relaxed">
+                            One term. The draw runs among online nodes only, seeded by
+                            keccak256(parent_hash) so anyone can recompute it
+                            (<span className="font-mono">api_server.py:2336</span>). There is
+                            <span className="text-brand-error font-bold"> no cap on stake</span>,
+                            so the largest staker wins most rounds.
+                        </p>
+                     </div>
+                     ) : (
+                     <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-accent/30 mb-4">
+                        <h4 className="text-[10px] font-black text-brand-accent uppercase mb-2 tracking-widest">PoC Vectors &mdash; not implemented</h4>
+                        <p className="text-[11px] text-brand-muted mb-4 leading-relaxed">
+                            No merit or reputation term exists in the server. These sliders model
+                            a proposal, not the running chain.
+                        </p>
                         <Slider label="PoC Weight (α)" value={alpha} setValue={(v) => {
                             if (v + beta > 100) setBeta(100 - v);
                             setAlpha(v);
@@ -199,6 +247,7 @@ export const Simulation: React.FC = () => {
                             <span>{gamma}%</span>
                         </div>
                      </div>
+                     )}
 
                      <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-border">
                         <h4 className="text-[10px] font-black text-brand-error uppercase mb-4 tracking-widest">Adversarial Parameters</h4>
@@ -340,11 +389,11 @@ export const Simulation: React.FC = () => {
                         </div>
                         <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">Command Center: Simulation</h3>
                         <p className="text-brand-muted max-w-sm mt-4 leading-relaxed font-medium">
-                            Execute o simulador PoC-V3 para auditar como o mérito, capital e comportamento malicioso impactam a descentralização do ledger FaucetChain.
+                            Rode "Running today" para ver a distribuição de poder que a regra atual produz — peso = 1 + stake, sem teto. "Proposed" mostra o que mérito e reputação mudariam, e nenhum dos dois existe no servidor ainda.
                         </p>
                         <div className="mt-8 flex gap-3">
                             <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">No Hardware Mining</span>
-                            <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">AI Reputation Ready</span>
+                            <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">Stake-Weighted Sealing</span>
                         </div>
                     </div>
                 )}

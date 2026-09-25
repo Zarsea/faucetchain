@@ -506,6 +506,29 @@ book, because those are different claims and only one of them is a proof.
 
 ## Change log
 
+**2026-09-24 — the simulator now simulates the consensus that runs.** Three
+screens described a three-term sealer weight — merit, capital and reputation.
+`select_block_sealer` has one term: `1 + stake`. The simulator's `Math.random()`
+was never the problem; a Monte Carlo simulator is supposed to draw synthetic
+validators, and that one writes nothing and calls nothing. The problem was that
+it modelled a formula the server does not have, while `Overview.tsx` presented
+the same three weights as the live architecture at 40/40/20, and
+`GeneralArticle.tsx` printed a code sample titled `sentinel/reputation_engine.py`
+under a pulsing "IA Monitorando Camada L1" — a file and a directory that do not
+exist, with a live-status indicator over them.
+
+The simulator keeps both formulas and now asks which one you want: **Running
+today** reproduces `select_block_sealer` and says in the panel that there is no
+cap on stake, and **Proposed** keeps the sliders under a heading that says it is
+not implemented. The difference between the two screens *is* the proposal, so
+showing them side by side is worth more than either alone. Overview now reads
+0/100/0, which is what the server does, and the article's code sample is titled
+as a proposal.
+
+Nothing in the consensus changed. What changed is that the screens stopped
+claiming otherwise, which is the same defect as the removed DeFi staking, one
+floor up: that one lied about a user's money, this one about the architecture.
+
 **2026-09-24 — pasting an address stopped being a way in, which this document
 already claimed it was.** The Known gaps entry above said those balances
 "stopped being reachable when that login was dropped". The login had not been

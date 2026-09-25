@@ -405,12 +405,11 @@ export const GeneralArticle: React.FC = () => {
                             <CodeBlock 
                                 code={AI_REPUTATION_LOGIC_CODE} 
                                 language="python" 
-                                title="sentinel/reputation_engine.py" 
+                                title="proposta — não existe no repositório" 
                             />
-                            <div className="p-8 bg-brand-accent/5 rounded-[2rem] border border-brand-accent/20 text-center space-y-2">
-                                <div className="w-2 h-2 bg-brand-accent rounded-full animate-ping mx-auto"></div>
-                                <p className="text-xs font-black text-brand-accent uppercase tracking-[0.2em]">IA Monitorando Camada L1</p>
-                                <p className="text-[10px] text-brand-muted font-bold">Scanning for malicious entropy patterns...</p>
+                            <div className="p-8 bg-brand-surface/40 rounded-[2rem] border border-brand-border text-center space-y-2">
+                                <p className="text-xs font-black text-brand-muted uppercase tracking-[0.2em]">Desenho, não serviço</p>
+                                <p className="text-[10px] text-brand-muted font-bold">Nenhum processo lê reputação hoje. O sorteio do selador pesa 1 + stake.</p>
                             </div>
                         </div>
                     </div>
