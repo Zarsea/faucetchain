@@ -48,6 +48,24 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       sitting in seven addresses that are not rows in `users`, and it is still
       open.
 
+- [ ] **Decide what happens to the wager in FaucetHunter's Battle Arena.**
+      `src/components/NftBattleArenaView.jsx` keeps `wagerCoinId` state, picks a
+      currency, and its own comment reads *"Wager Amount in Cents /
+      Micro-fractions (No modo IA a aposta é 0 e a recompensa é fixa
+      $0.001)"* — so the structure already supports both a no-stake mode against
+      the AI and a real one between users.
+
+      This is flagged because of the standing product rule: nothing here may
+      lead users to bet. A PvP card match with money on it is the thing that
+      rule was written to exclude, and the same rule already removed a fake
+      staking screen and a browser-scored minigame bonus from FaucetChain. It is
+      a decision about someone else's product, so it is the operator's to make
+      and nobody has touched that file.
+
+      Whichever way it goes, write it down: keeping it is a considered choice
+      about FaucetHunter, not about FaucetChain, and the two can differ — but
+      then FaucetChain should not carry that part of the card system.
+
 ## Waiting on the team
 
 - [ ] **An independent review of the Solana program** (FC-13 from the audit).
@@ -149,6 +167,31 @@ nothing. Anything less is the button this project already removed once.
 
 Written down so they are decisions rather than things that quietly did not
 happen.
+
+- **NFTs as compressed NFTs on Solana**, not before the deadline and worth
+  doing after it. What exists today is not an NFT in either repository:
+  FaucetChain's `cyberdrip_nfts` holds four rows of one badge, off chain, that
+  no wallet can read and nobody can transfer; FaucetHunter has 3,914 lines of
+  card-game interface with real art in `cards/`, fed by `NFT_CARDS_DATA`, a
+  constant exported from a component. **Its schema has no NFT table at all**, so
+  ownership does not exist even in MySQL. That is the first thing to fix, and it
+  is not a chain problem.
+
+  The fit, when the time comes, is genuinely good. A compressed NFT collection
+  is a Merkle tree whose root lives on chain, with ownership proven by an
+  inclusion path — the same shape as this settlement rail, which already
+  batches, publishes a root and hands out proofs. The trees are **not**
+  interchangeable: Bubblegum has its own leaf schema over SPL Account
+  Compression, and `leaf_hash(pubkey, amount, index)` here has no asset field at
+  all, because the mint is fixed on the campaign account. What transfers is the
+  understanding and the operating pattern, not the code.
+
+  Compression is also what makes it affordable: minting ordinary NFTs for a
+  large number of very small users is not viable, and a faucet has no other
+  kind of user. The version worth building is the one where the card is the
+  receipt for the work — minted in the same batch as the claim and proven the
+  same way — so the collection is a record of who was there rather than
+  decoration.
 
 - **FaucetPay phase two**, the payout rail. The design is sound and the
   reasoning is in ARCHITECTURE.md; building it half-way is worse than
