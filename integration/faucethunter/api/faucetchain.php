@@ -23,6 +23,13 @@
  * uma integração parecer pronta e não pagar nada.
  */
 
+// Mesma trava dos outros arquivos internos da FaucetHunter: este arquivo é
+// para ser incluído, nunca aberto pela URL.
+if (basename($_SERVER['PHP_SELF'] ?? '') === 'faucetchain.php') {
+    http_response_code(403);
+    exit('Acesso direto proibido.');
+}
+
 if (!defined('FAUCETCHAIN_URL')) {
     define('FAUCETCHAIN_URL', getenv('FAUCETCHAIN_URL') ?: '');
 }

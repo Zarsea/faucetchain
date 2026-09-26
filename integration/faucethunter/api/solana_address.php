@@ -15,6 +15,11 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/db.php';
+// FAUCETCHAIN_URL é definida aqui. Sem este require a constante não existe e
+// fcResolveAccount() devolve null em silêncio -- que é exatamente o que o
+// caminho de "FaucetChain fora do ar" faz, então o bug se disfarça de
+// comportamento previsto. Foi assim que ele passou despercebido.
+require_once __DIR__ . '/faucetchain.php';
 
 sendCorsHeaders();
 
@@ -40,6 +45,10 @@ if (!$user) {
     echo json_encode(['success' => false, 'error' => 'Faça login para definir sua carteira Solana.']);
     exit();
 }
+
+// Cada chamada daqui consulta a FaucetChain pela rede. Sem teto, um laço
+// transforma este endpoint em amplificador contra a outra casa.
+requireRateLimit($pdo, 'solana', 20, 600);
 
 $action = $data['action'] ?? 'get';
 
@@ -70,7 +79,7 @@ function fcLooksLikeSolanaAddress(string $addr): bool
  * salvo assim mesmo: derrubar o cadastro porque a outra casa está fora do ar
  * seria o mesmo erro que a ponte foi escrita para não cometer.
  */
-function fcResolveAccount(string $addr): ?string
+function fcResolveAccount(string $addr): ?array
 {
     if (!defined('FAUCETCHAIN_URL') || !FAUCETCHAIN_URL) {
         return null;
@@ -89,7 +98,36 @@ function fcResolveAccount(string $addr): ?string
         return null;
     }
     $body = json_decode($raw, true);
-    return is_array($body) ? ($body['account'] ?? null) : null;
+    return is_array($body) ? $body : null;
+}
+
+
+/**
+ * A carteira já alcança uma conta que NÃO é a derivada dela?
+ *
+ * A FaucetChain devolve `account` (onde essa carteira entra) e `derived` (o que
+ * a chave pública produz sozinha). Quando diferem, alguém já vinculou essa
+ * carteira a outra conta por assinatura, e é lá que o prêmio cai. Isso é o
+ * comportamento correto — quem ligou a Phantom antes não deve acordar em outra
+ * conta —, mas o usuário precisa ver, e não descobrir na hora do saque.
+ *
+ * Devolve null quando não há o que avisar ou quando a FaucetChain não respondeu.
+ */
+function fcAlreadyLinked(?array $fc): ?array
+{
+    if (!$fc || empty($fc['account']) || empty($fc['derived'])) {
+        return null;
+    }
+    if (strtolower($fc['account']) === strtolower($fc['derived'])) {
+        return null;
+    }
+    return [
+        'account' => $fc['account'],
+        'derived' => $fc['derived'],
+        // Mais de um vínculo para a mesma carteira: o mais antigo vence. É
+        // resíduo, não estado para confiar.
+        'links'   => (int)($fc['links'] ?? 1),
+    ];
 }
 
 
@@ -99,10 +137,12 @@ try {
         $stmt->execute([':id' => $user['id']]);
         $addr = trim((string)($stmt->fetchColumn() ?: ''));
 
+        $fc = $addr !== '' ? fcResolveAccount($addr) : null;
         echo json_encode([
-            'success'        => true,
-            'solana_address' => $addr !== '' ? $addr : null,
-            'faucetchain_account' => $addr !== '' ? fcResolveAccount($addr) : null,
+            'success'             => true,
+            'solana_address'      => $addr !== '' ? $addr : null,
+            'faucetchain_account' => $fc['account'] ?? null,
+            'already_linked'      => fcAlreadyLinked($fc),
         ]);
         exit();
     }
@@ -137,7 +177,8 @@ try {
         exit();
     }
 
-    $account = fcResolveAccount($addr);
+    $fc = fcResolveAccount($addr);
+    $account = $fc['account'] ?? null;
 
     $stmt = $pdo->prepare("UPDATE fh_users SET solana_address = :addr WHERE id = :id");
     $stmt->execute([':addr' => $addr, ':id' => $user['id']]);
@@ -146,6 +187,7 @@ try {
         'success'             => true,
         'solana_address'      => $addr,
         'faucetchain_account' => $account,
+        'already_linked'      => fcAlreadyLinked($fc),
         'message' => $account
             ? 'Carteira salva. Suas recompensas de campanha vão para essa conta na FaucetChain.'
             : 'Carteira salva. Não conseguimos falar com a FaucetChain agora para confirmar a conta — isso não impede nada.',

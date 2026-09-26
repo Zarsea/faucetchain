@@ -6009,13 +6009,28 @@ async def account_for_wallet(solana_address: str):
         raise HTTPException(status_code=400, detail=str(e))
 
     conn = get_db_connection()
-    row = conn.execute(
-        "SELECT user_address FROM solana_links WHERE solana_address = ? ORDER BY linked_at LIMIT 1",
+    rows = conn.execute(
+        "SELECT user_address FROM solana_links WHERE solana_address = ? ORDER BY linked_at",
         (wallet,),
-    ).fetchone()
+    ).fetchall()
     conn.close()
-    account = row[0] if row else address_from_solana_wallet(wallet)
-    return {"account": account, "existing": bool(row)}
+    derived = address_from_solana_wallet(wallet)
+    account = rows[0][0] if rows else derived
+
+    # `derived` is here so a partner can tell the two cases apart without
+    # reimplementing keccak over base58. When it differs from `account`, this
+    # wallet was linked to some other account earlier and signs in *there* --
+    # which is deliberate, but it means a reward lands somewhere the person may
+    # not recognise. The partner should say so on screen rather than let them
+    # find out at withdrawal. `links` above 1 is worse: several accounts claim
+    # the same wallet, the oldest wins, and that is residue worth cleaning
+    # rather than a state to rely on.
+    return {
+        "account": account,
+        "existing": bool(rows),
+        "derived": derived,
+        "links": len(rows),
+    }
 
 
 @app.post("/api/auth/solana")
