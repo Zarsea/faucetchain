@@ -1360,7 +1360,11 @@ def faucet_user_address(given: str) -> str:
         raise ValueError(
             "user_wallet must be a FaucetChain address or a Solana address"
         )
-    return address_from_solana_wallet(candidate)
+    # The same resolution the sign-in uses. Deriving here instead would credit
+    # an account the wallet cannot reach whenever that wallet was linked
+    # elsewhere first -- which is what happened to ledger row 72.
+    account, _derived, _links = account_reached_by_wallet(candidate)
+    return account
 
 
 class MicroClaimRequest(BaseModel):
@@ -5990,6 +5994,30 @@ class SolanaAuthRequest(BaseModel):
     sig_timestamp: int
 
 
+def account_reached_by_wallet(wallet: str):
+    """The account this Solana wallet reaches, and the one it derives to.
+
+    One function because two used to disagree. `/api/auth/solana` honoured
+    `solana_links`; the micro-claim path derived and ignored them. So a partner
+    faucet credited the derived account while the screen told the user their
+    reward was in the linked one -- and the wallet signs in to the linked one,
+    which made the derived account unreachable. Found in production on
+    2026-09-26, ledger row 72.
+
+    Returns (account, derived, links).
+    """
+    derived = address_from_solana_wallet(wallet)
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT user_address FROM solana_links WHERE solana_address = ? ORDER BY linked_at",
+            (wallet,),
+        ).fetchall()
+    finally:
+        conn.close()
+    return (rows[0][0] if rows else derived), derived, len(rows)
+
+
 @app.get("/api/auth/solana/{solana_address}")
 async def account_for_wallet(solana_address: str):
     """Which account this wallet signs in as.
@@ -6008,14 +6036,7 @@ async def account_for_wallet(solana_address: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    conn = get_db_connection()
-    rows = conn.execute(
-        "SELECT user_address FROM solana_links WHERE solana_address = ? ORDER BY linked_at",
-        (wallet,),
-    ).fetchall()
-    conn.close()
-    derived = address_from_solana_wallet(wallet)
-    account = rows[0][0] if rows else derived
+    account, derived, links = account_reached_by_wallet(wallet)
 
     # `derived` is here so a partner can tell the two cases apart without
     # reimplementing keccak over base58. When it differs from `account`, this
@@ -6027,9 +6048,9 @@ async def account_for_wallet(solana_address: str):
     # rather than a state to rely on.
     return {
         "account": account,
-        "existing": bool(rows),
+        "existing": links > 0,
         "derived": derived,
-        "links": len(rows),
+        "links": links,
     }
 
 

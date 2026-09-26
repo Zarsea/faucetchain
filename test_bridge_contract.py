@@ -145,6 +145,33 @@ def main() -> int:
         assert r.status_code == 401, f"{label}: got {r.status_code}"
         assert reward_count() == before, f"{label}: refused, but credited a reward"
 
+    # --- a linked wallet must reach the SAME account from both sides -------
+    # The case that was missing, and it happened in production: the sign-in
+    # honoured solana_links while the micro-claim derived and ignored them, so
+    # the partner's screen promised one account and the reward landed in
+    # another -- one the wallet cannot reach, because it signs in to the linked
+    # one. Ledger row 72.
+    other_account = "0x" + "aa" * 20
+    conn = sqlite3.connect(os.path.join(workdir, "blockchain.db"))
+    conn.execute(
+        "INSERT INTO solana_links (user_address, solana_address, linked_at) VALUES (?, ?, ?)",
+        (other_account, SOLANA_WALLET, int(time.time())),
+    )
+    conn.commit()
+    conn.close()
+
+    r = client.get(f"/api/auth/solana/{SOLANA_WALLET}")
+    assert r.status_code == 200, r.text
+    shown = r.json()
+    assert shown["account"] == other_account, shown
+    assert shown["derived"] == derived, shown
+    assert shown["links"] == 1, shown
+
+    assert api_server.faucet_user_address(SOLANA_WALLET) == shown["account"], (
+        "the micro-claim credits a different account from the one the partner "
+        "shows the user; that is how ledger row 72 landed out of reach"
+    )
+
     client.close()
     os.chdir(ROOT)
     shutil.rmtree(workdir, ignore_errors=True)
