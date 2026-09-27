@@ -4011,6 +4011,14 @@ def init_mining_table():
             node_token TEXT
         )
     ''')
+    # node_token entrou no CREATE acima e ninguem escreveu esta migracao, entao
+    # todo banco que ja existia continuou sem a coluna -- e o no morria em
+    # "no such column: node_token" no proprio registro. Passou despercebido
+    # porque nenhum no rodou entre a mudanca e agora.
+    try:
+        c.execute("ALTER TABLE active_miners ADD COLUMN node_token TEXT")
+    except sqlite3.OperationalError:
+        pass  # coluna ja existe
     c.execute('''
         CREATE TABLE IF NOT EXISTS mining_rewards (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
