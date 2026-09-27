@@ -52,6 +52,9 @@ jobs:
       - name: The partner's bridge still finds the fields it reads
         run: python test_bridge_contract.py
 
+      - name: No staker can buy the block
+        run: python test_sealer_cap.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

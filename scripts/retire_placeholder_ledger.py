@@ -41,6 +41,12 @@ than money. Deleting them instead would take the seventeen published roots with
 them, and those roots are the evidence that the settlement loop ran. The honest
 move is to relabel, not to erase.
 
+A campaign is only relabelled when **its vault cannot be read on Solana**. The
+first version of this script relabelled every `vault` campaign, which would have
+marked campaign 479079 -- opened on devnet with a real SPL mint and 50,000
+tokens in the vault -- as unfunded. That is the same lie as the fourteen, told
+backwards, and the dry run caught it before anyone ran `--apply`.
+
 `defi_stakes` is dropped: it is the empty corpse of the staking system removed
 on 2026-09-20, and an empty table nobody writes to is a trap for whoever greps
 next.
@@ -126,6 +132,55 @@ def count(conn, sql, params=()):
         return 0
 
 
+def all_vault_campaigns(conn):
+    return [r[0] for r in conn.execute(
+        "SELECT campaign_id FROM campaign_budget WHERE funding = 'vault' ORDER BY campaign_id")]
+
+
+def unbacked_campaigns(conn):
+    """The ones claiming `vault` whose vault the chain does not have.
+
+    Only these get relabelled. A campaign whose vault reads is telling the
+    truth, and an unanswerable question leaves the row alone.
+    """
+    out = []
+    for cid in all_vault_campaigns(conn):
+        if vault_is_readable(conn, cid) is False:
+            out.append(cid)
+    return out
+
+
+def vault_is_readable(conn, campaign_id):
+    """Does this campaign's vault exist on the chain it claims to settle on?
+
+    The fourteen inherited campaigns were opened against a localnet ledger that
+    is gone, and two of them name the SPL Token program as sponsor and the Clock
+    sysvar as mint. Asking the chain is the only honest test; a date or a name
+    would be a guess.
+
+    Returns None when the question cannot be answered -- no RPC, no IDL, no
+    sponsor on file. An unanswerable question is not a yes, and the caller
+    leaves the row alone rather than relabelling on a network hiccup.
+    """
+    row = conn.execute(
+        "SELECT sponsor FROM settlement_campaigns WHERE campaign_id = ?", (campaign_id,)
+    ).fetchone()
+    if not row or not row[0]:
+        return None
+    try:
+        sys.path.insert(0, ROOT)
+        import solana_settlement as chain
+        from solders.pubkey import Pubkey
+
+        url = os.getenv("SOLANA_RPC_URL", "https://api.devnet.solana.com")
+        pid = chain.program_id(chain.load_idl())
+        campaign = chain.campaign_pda(pid, Pubkey.from_string(row[0]), campaign_id)
+        chain.token_balance(url, chain.vault_pda(pid, campaign))
+        return True
+    except Exception:
+        return False
+
+
 def plan(conn):
     """Every deletion this would make, as (label, sql, params, rows)."""
     addrs = sorted(component(conn))
@@ -190,8 +245,11 @@ def main():
     for label, _, _, n in steps:
         print(f"  {label:<34} {n:>7}")
     print(f"  {'defi_stakes (dropped whole)':<34} {count(conn, 'SELECT COUNT(*) FROM defi_stakes'):>7}")
-    n_vault = count(conn, "SELECT COUNT(*) FROM campaign_budget WHERE funding = 'vault'")
-    print(f"  {'campaigns relabelled vault->deferred':<34} {n_vault:>7}")
+    unbacked = unbacked_campaigns(conn)
+    print(f"  {'campaigns relabelled vault->deferred':<34} {len(unbacked):>7}")
+    backed = [c for c in all_vault_campaigns(conn) if c not in unbacked]
+    if backed:
+        print(f"  {'campaigns left alone (vault reads)':<34} {len(backed):>7}   {backed}")
 
     if not args.apply:
         print("\nNothing written. Re-run with --apply.")
@@ -199,7 +257,8 @@ def main():
 
     for _, sql, params, _ in steps:
         conn.execute(sql, params)
-    conn.execute("UPDATE campaign_budget SET funding = 'deferred' WHERE funding = 'vault'")
+    for cid in unbacked:
+        conn.execute("UPDATE campaign_budget SET funding = 'deferred' WHERE campaign_id = ?", (cid,))
     conn.execute("DROP TABLE IF EXISTS defi_stakes")
     conn.commit()
     conn.close()

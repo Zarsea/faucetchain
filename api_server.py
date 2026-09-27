@@ -2337,12 +2337,35 @@ def verify_claim_proof(c, user_addr: str, poc_epoch_id, poc_parent_hash, poc_non
 MAX_CLAIMS_PER_BLOCK = 10  # claims agrupados por bloco na selagem
 
 
+# Stake acima disto nao compra mais nada no sorteio do selador.
+#
+# Sem teto, peso = 1 + stake deixa quem trava mais selar quase sempre, e isso
+# nao e hipotese: dos 935.500 em stake ativo neste banco, 930.000 estavam numa
+# carteira so -- o alerta da Tabela 5 de Al-awamy et al. (2025) sobre PoS,
+# realizado aqui dentro.
+#
+# Teto absoluto em vez de fatia do total: uma fatia relativa se persegue, porque
+# aparar muda o total e o teto junto. Este numero e uma escolha economica, e
+# esta aqui para ser mudada quando houver nos de verdade para medir.
+SEALER_STAKE_CAP = float(os.getenv("SEALER_STAKE_CAP", "10000"))
+
+
+def sealer_weight(stake: float) -> float:
+    """O peso de um no no sorteio.
+
+    O "+1" garante chance minima a quem nao tem stake nenhum -- um no honesto
+    sem capital continua entrando. O teto para o crescimento, sem zerar o que
+    esta abaixo dele: stake ainda conta, so deixa de comprar a rodada.
+    """
+    return 1.0 + min(max(stake, 0.0), SEALER_STAKE_CAP)
+
+
 def select_block_sealer(c, parent_hash: str, now_ts: int):
     """Sorteio determinístico do selador da rodada, ponderado por stake (PoS).
 
     - Elegíveis: mineradores online (heartbeat dentro do timeout)
-    - Peso = 1 + stake ativo do wallet (staking_positions não gastas) —
-      o "+1" garante chance mínima a nós sem stake
+    - Peso = 1 + min(stake ativo, SEALER_STAKE_CAP) — o "+1" garante chance
+      mínima a nós sem stake, e o teto impede que quem trava mais sele sempre
     - Seed = keccak256(parent_hash): determinístico e verificável por qualquer
       nó; muda a cada bloco selado (a rodada é o próprio tip)
     Retorna o wallet sorteado, ou None se não há mineradores online
@@ -2367,7 +2390,7 @@ def select_block_sealer(c, parent_hash: str, now_ts: int):
             stake = c.fetchone()[0]
         except sqlite3.OperationalError:
             stake = 0.0
-        weights.append(1.0 + stake)
+        weights.append(sealer_weight(stake))
 
     total = sum(weights)
     seed = int.from_bytes(keccak256(parent_hash.encode()), 'big')
