@@ -55,3 +55,8 @@ treasury.json
 # Credencial do no, ao lado do id dele. Nunca versionada.
 .node_token
 mining-node/.node_token
+
+# Regra de permissao pessoal: libera o script de aposentadoria do ledger.
+# Nao vai para o repositorio -- liberar comando destrutivo e decisao de quem
+# opera a maquina, nao do projeto.
+.claude/settings.local.json
