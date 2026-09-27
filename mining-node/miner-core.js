@@ -14,6 +14,25 @@ const path = require('path');
 
 const VERSION = '1.0.0';
 
+// Quantas chamadas por hora este no gasta, contra o teto do servidor.
+//
+//   MINING_HOURLY_PER_NODE = 300   (api_server.py:490, por no)
+//   heartbeat a cada 30s           = 120/h
+//   explore a cada 5s              = 720/h   -> 840 num teto de 300
+//
+// Aos ~21 minutos o no estourava e TUDO virava 429, inclusive o heartbeat: o
+// servidor parava de registrar, o no caia aos 90s do timeout, e o sorteio do
+// selador ficava com um participante a menos. A 5s metade das chamadas ja
+// morria de graca, porque o servidor recusa explore abaixo de
+// EXPLORE_MIN_INTERVAL = 10s de qualquer jeito.
+//
+//   explore a cada 30s             = 120/h   -> 240 num teto de 300
+//
+// Sessenta chamadas de folga por hora, para reconexao e retentativa. Se mudar
+// um dos dois numeros, refaca esta conta.
+const HEARTBEAT_SECONDS = 30;
+const EXPLORE_SECONDS = 30;
+
 class MinerCore extends EventEmitter {
     constructor(options = {}) {
         super();
@@ -206,8 +225,16 @@ class MinerCore extends EventEmitter {
                 this.emit('heartbeat', this.getState());
                 return true;
             } else if (res.status === 429) {
-                // Rate limited, just wait
-                return true;
+                // NAO e sucesso. Tratar 429 como ok deixava o no imprimindo
+                // "MINING" enquanto o servidor ja o considerava offline: o
+                // heartbeat parava de chegar, o no caia aos 90s do timeout, e
+                // a tela nao dizia nada. Quem opera tem que ver.
+                this.emit('error', {
+                    type: 'heartbeat',
+                    message: 'Teto de chamadas atingido (429). O servidor nao esta '
+                           + 'recebendo o heartbeat; este no conta como offline.'
+                });
+                return false;
             } else {
                 const data = await res.json();
                 this.emit('error', { type: 'heartbeat', message: data.detail || 'Heartbeat rejected' });
@@ -290,7 +317,7 @@ class MinerCore extends EventEmitter {
         this._exploreTimer = setInterval(async () => {
             if (!this.isRunning) return;
             await this.exploreNetwork();
-        }, 5000);
+        }, EXPLORE_SECONDS * 1000);
 
         return true;
     }

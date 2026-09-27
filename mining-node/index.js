@@ -21,7 +21,18 @@ const { MinerCore, VERSION } = require('./miner-core');
 const miner = new MinerCore({
     apiUrl: process.env.API_URL || 'http://127.0.0.1:8000',
     walletAddress: process.env.WALLET_ADDRESS,
-    nodeName: process.env.NODE_NAME || undefined
+    nodeName: process.env.NODE_NAME || undefined,
+    // Dois nos na mesma maquina compartilhavam .node_id e .node_token, e o
+    // segundo morria em "That node id is taken" -- a trava esta certa, ela
+    // impede que alguem sequestre o id de outro no. Aponte cada no para o
+    // proprio par de arquivos e eles convivem:
+    //
+    //   NODE_ID_FILE=.node_id.2 NODE_TOKEN_FILE=.node_token.2 node index.js
+    //
+    // Os dois andam juntos: guardar um sem o outro tranca o minerador fora
+    // do proprio no.
+    nodeIdFile: process.env.NODE_ID_FILE || undefined,
+    nodeTokenFile: process.env.NODE_TOKEN_FILE || undefined
 });
 
 // ─── UI ───────────────────────────────────────────────────────────
