@@ -901,6 +901,9 @@ async def get_faucets():
             res_row = None
         reserve = res_row["amount"] if res_row else 0.0
         declared_at = res_row["declared_at"] if res_row else None
+        # O que a torneira deve de verdade. Estava no banco desde sempre, e o
+        # painel comparava o saldo contra a declaracao em vez disto.
+        owed = faucet_owed(conn, wallet)
 
         status = "Ativa" if tx_count > 0 else "Hiato"
         
@@ -910,7 +913,10 @@ async def get_faucets():
             "liquidity": balance_info["total_claim"],
             "reserve": reserve,
             "reserve_declared_at": declared_at,
-            "coverage": settlement.reserve_coverage(balance_info["total_claim"], reserve),
+            "owed": round(owed, 4),
+            # Cobertura agora e caucao sobre divida, nao saldo sobre promessa:
+            # o dinheiro que responde, contra aquilo que ele responde.
+            "coverage": settlement.reserve_coverage(reserve, owed),
             "status": status,
             "recent_txs": tx_count,
             "settlements": settle_count,
@@ -1064,17 +1070,53 @@ class ReserveRequest(BaseModel):
     sig_timestamp: Optional[int] = None
 
 
+def faucet_owed(conn, faucet_wallet: str) -> float:
+    """O que a torneira deve aos usuarios dela, medido -- nao declarado.
+
+    A soma dos saldos virtuais que os usuarios daquela torneira ainda podem
+    sacar. Este numero o sistema ja sabia desde sempre; o painel e que comparava
+    o saldo contra uma declaracao quando tinha a divida real a mao.
+    """
+    try:
+        row = conn.execute(
+            "SELECT COALESCE(SUM(virtual_balance), 0) FROM microclaims_ledger WHERE faucet_wallet = ?",
+            (faucet_wallet,)).fetchone()
+    except sqlite3.OperationalError:
+        return 0.0
+    return float(row[0] or 0.0)
+
+
+def faucet_escrow(conn, faucet_wallet: str) -> float:
+    """Quanto desta torneira esta parado na tesouraria."""
+    try:
+        row = conn.execute(
+            "SELECT amount FROM faucet_reserves WHERE faucet_wallet = ?",
+            (faucet_wallet,)).fetchone()
+    except sqlite3.OperationalError:
+        return 0.0
+    return float(row["amount"]) if row else 0.0
+
+
 @app.post("/api/faucethub/reserve")
 async def declare_reserve(req: ReserveRequest, x_session_token: Optional[str] = Header(None)):
-    """Records how much $CLAIM a faucet is holding for its users.
+    """Moves $CLAIM out of the faucet's balance and into the treasury, where it
+    answers for what that faucet owes its users.
 
-    The board showed a balance and nothing to read it against, so a faucet
-    sitting on 500 $CLAIM looked identical whether it had promised its users
-    100 or 50,000. This is the other half of that comparison, and it has to
-    come from the owner because nobody else knows it.
+    This used to be a sentence. The owner declared a number, the board printed
+    the real balance beside it, and nothing stopped the owner spending that
+    balance the next day -- so a faucet showing 100% coverage and a faucet
+    showing nothing were the same faucet with different typing.
 
-    It does not lock anything. See reserve_declare_message: the value of the
-    signature is attribution, not custody.
+    Moving the money is the isolation. There is no second ledger of "locked"
+    that could drift from the balance: the transfer to the treasury leaves the
+    faucet's wallet by the same arithmetic get_user_balance already does, so
+    what remains in the wallet is, by construction, what the faucet may still
+    spend.
+
+    Three rules hold it together. You cannot escrow what you do not have. You
+    cannot release below what you owe. And the withdrawal draws on the escrow
+    before it touches the faucet's free balance, so the guarantee is spent on
+    the people it was posted for.
     """
     try:
         wallet_lower = normalize_address(req.wallet_address)
@@ -1098,6 +1140,46 @@ async def declare_reserve(req: ReserveRequest, x_session_token: Optional[str] = 
         req.signature, req.sig_timestamp, x_session_token
     )
 
+    escrowed = faucet_escrow(conn, wallet_lower)
+    delta = round(amount - escrowed, 8)
+    now = int(datetime.now().timestamp())
+
+    if delta > 0:
+        # Travar mais. O saldo livre ja esta liquido do que foi travado antes,
+        # porque aquilo saiu da carteira numa transferencia de verdade.
+        livre = (await get_user_balance(wallet_lower))["total_claim"]
+        if livre + 1e-9 < delta:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Not enough free balance to lock. Free: {round(livre, 4)}, "
+                        f"needed to reach this reserve: {round(delta, 4)}"),
+            )
+        c.execute(
+            """INSERT INTO transactions (hash, block_height, from_address, to_address, value, gas_price, timestamp, tx_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'RESERVE_LOCK')""",
+            ("0x" + keccak256(f"RESERVE_LOCK:{now}:{wallet_lower}:{delta}".encode()).hex(),
+             0, wallet_lower, TREASURY_ADDRESS, delta, 0.0, now),
+        )
+    elif delta < 0:
+        # Destravar. O limite nao e o que a torneira quer, e o que ela deve:
+        # liberar caucao abaixo da divida transforma um saque garantido num
+        # saque que depende da boa vontade de quem ja tirou o dinheiro.
+        devido = faucet_owed(conn, wallet_lower)
+        if amount + 1e-9 < devido:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Cannot release below what this faucet owes its users. "
+                        f"Owed: {round(devido, 4)}, requested reserve: {round(amount, 4)}"),
+            )
+        c.execute(
+            """INSERT INTO transactions (hash, block_height, from_address, to_address, value, gas_price, timestamp, tx_type)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'RESERVE_RELEASE')""",
+            ("0x" + keccak256(f"RESERVE_RELEASE:{now}:{wallet_lower}:{-delta}".encode()).hex(),
+             0, TREASURY_ADDRESS, wallet_lower, -delta, 0.0, now),
+        )
+
     c.execute(
         """INSERT INTO faucet_reserves (faucet_wallet, amount, declared_at, signature)
            VALUES (?, ?, ?, ?)
@@ -1105,17 +1187,21 @@ async def declare_reserve(req: ReserveRequest, x_session_token: Optional[str] = 
                amount = excluded.amount,
                declared_at = excluded.declared_at,
                signature = excluded.signature""",
-        (wallet_lower, amount, int(datetime.now().timestamp()), req.signature),
+        (wallet_lower, amount, now, req.signature),
     )
     conn.commit()
+    devido = faucet_owed(conn, wallet_lower)
     conn.close()
 
     balance = (await get_user_balance(wallet_lower))["total_claim"]
     return {
         "wallet_address": wallet_lower,
         "reserve": amount,
+        "locked": amount,
+        "moved": delta,
         "balance": balance,
-        "coverage": settlement.reserve_coverage(balance, amount),
+        "owed": devido,
+        "coverage": settlement.reserve_coverage(amount, devido),
     }
 
 
@@ -1722,18 +1808,33 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
     
     withdraw_amount = row["virtual_balance"]
     
-    # Check faucet has real L1 reserve
-    balance_info = await get_user_balance(faucet_lower)
-    if balance_info["total_claim"] < withdraw_amount:
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail=f"Faucet reserve insufficient. Reserve: {balance_info['total_claim']}, needed: {withdraw_amount}"
-        )
+    # De onde sai o dinheiro. A caucao primeiro: foi posta exatamente para
+    # isto, e paga-la da carteira da torneira deixaria a garantia intacta
+    # enquanto o saldo livre e que some -- o contrario do que ela promete.
+    #
+    # Sem caucao que cubra, cai no saldo livre, que e como todo saque
+    # funcionou ate a caucao existir. Nao divide entre as duas fontes: uma
+    # transferencia por saque mantem o extrato legivel, e a torneira que
+    # quiser garantir o saque inteiro que caucione o suficiente.
+    escrowed = faucet_escrow(conn, faucet_lower)
+    if escrowed + 1e-9 >= withdraw_amount:
+        pagador = TREASURY_ADDRESS
+        nova_caucao = round(escrowed - withdraw_amount, 8)
+    else:
+        pagador = faucet_lower
+        nova_caucao = None
+        balance_info = await get_user_balance(faucet_lower)
+        if balance_info["total_claim"] < withdraw_amount:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Faucet cannot cover this withdrawal. Escrowed: {round(escrowed, 4)}, "
+                        f"free balance: {balance_info['total_claim']}, needed: {withdraw_amount}")
+            )
     
     # Execute L1 settlement
     timestamp = int(datetime.now().timestamp())
-    payload_str = f"L2WITHDRAW:{timestamp}:{faucet_lower}:{user_lower}:{withdraw_amount}"
+    payload_str = f"L2WITHDRAW:{timestamp}:{pagador}:{user_lower}:{withdraw_amount}"
     tx_hash = "0x" + keccak256(payload_str.encode()).hex()
     
     try:
@@ -1741,7 +1842,14 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
         c.execute('''
             INSERT INTO transactions (hash, block_height, from_address, to_address, value, gas_price, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (tx_hash, 0, faucet_lower, user_lower, withdraw_amount, 0.0, timestamp))
+        ''', (tx_hash, 0, pagador, user_lower, withdraw_amount, 0.0, timestamp))
+
+        # A caucao gasta encolhe. Sem isto a tesouraria pagaria e a torneira
+        # seguiria mostrando a garantia inteira, que e a mesma mentira que a
+        # declaracao sem trava era.
+        if nova_caucao is not None:
+            c.execute("UPDATE faucet_reserves SET amount = ? WHERE faucet_wallet = ?",
+                      (nova_caucao, faucet_lower))
         
         # Settlement log
         c.execute('''
@@ -1775,7 +1883,9 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
     return {
         "status": "success",
         "tx_hash": tx_hash,
-        "from": faucet_lower,
+        "from": pagador,
+        "faucet": faucet_lower,
+        "paid_from": "escrow" if pagador == TREASURY_ADDRESS else "faucet balance",
         "to": user_lower,
         "amount": withdraw_amount,
         "timestamp": timestamp,

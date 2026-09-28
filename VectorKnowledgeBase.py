@@ -285,7 +285,7 @@ def seed_knowledge_base():
             "metadata": {"category": "history", "tags": ["cleanup", "campaigns", "supply"], "source": "scripts/retire_placeholder_ledger.py"}
         },
         {
-            "content": "A registered faucet declares how much $CLAIM it is holding for its own users, signed by the wallet that registered it, and the FaucetHub board shows that declaration next to the balance the ledger actually holds. Coverage below 100% means the faucet promised more than it has; no declaration at all reads as undeclared, not as zero. The declaration is a statement and not an escrow: nothing freezes the balance, there is no bond and no penalty, so it is a promise others can check rather than a guarantee.",
+            "content": "A registered faucet locks $CLAIM for its own users by signing: the amount leaves the faucet's wallet and sits in the FaucetChain treasury, and that is where a withdrawal is paid from before it touches the faucet's free balance. You cannot lock what you do not hold, and you cannot release below what your users are already owed. Coverage is what is escrowed over what is owed, and the debt is measured from microclaims_ledger rather than declared. reconcile.escrow_is_actually_held fails the build if the escrow shown does not match what the treasury holds.",
             "metadata": {"category": "faucets", "tags": ["reserve", "liquidity", "faucethub"], "source": "api_server.py POST /api/faucethub/reserve"}
         },
         {

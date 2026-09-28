@@ -511,7 +511,7 @@ Reserve -- a number that could not be wrong because nothing measured it.
 Each row also says whether it was read from Solana or from the sequencer's own
 book, because those are different claims and only one of them is a proof.
 
-## What a faucet says it is holding
+## What a faucet locks for its users
 
 The liquidity board showed each faucet's $CLAIM balance and nothing to read it
 against. A faucet sitting on 500 $CLAIM looked identical whether it had promised
@@ -520,34 +520,76 @@ heading *Proof of Reserve (PoR)* with the label "$CLAIM em reservas" -- three
 words that were each wrong: nothing was proved, none of it was a reserve, and
 the sum was of balances.
 
-Only the owner knows what a faucet owes its users, so the owner declares it.
-`POST /api/faucethub/reserve` writes one row per faucet in `faucet_reserves`,
+It began as a declaration, which lasted a day. The owner typed a number, the
+board printed the real balance beside it, and nothing stopped the owner spending
+that balance -- so a faucet showing full coverage and a faucet showing none were
+the same faucet with different typing.
+
+Now the number leaves the wallet. `POST /api/faucethub/reserve` moves that much
+$CLAIM from the faucet to `TREASURY_ADDRESS` as a `RESERVE_LOCK` transfer,
 behind `require_action_signature` on the wallet that registered the faucet,
-because that wallet address is published in the faucet directory and an address
-authorises nothing. Declaring again replaces the previous number.
+because that address is published in the directory and an address authorises
+nothing.
 
-The board then shows two figures per faucet and a ratio between them: the
-balance, read from the ledger at request time, over the reserve, declared and
-signed. `settlement.reserve_coverage` computes it and returns `None` when
-nothing was declared -- undeclared is not uncovered, and rendering an undeclared
-faucet at 0% would accuse it of failing a promise it never made.
+**Moving the money is the isolation.** There is no second ledger of what is
+locked that could drift from the balance: the transfer leaves the wallet by the
+same arithmetic `get_user_balance` already does, so what remains is, by
+construction, what the faucet may still spend. The owner's dashboard reads the
+locked figure back from the public board and says where it went, because a
+balance that shrinks with nothing on screen explaining it is indistinguishable
+from a bug.
 
-What this is not: an escrow. Nothing freezes the balance, and a faucet that
-declares 50,000 and spends it the next day simply shows as short. The signature
-buys attribution, not custody, and `reserve_declare_message` says so to the
-person signing it. There is no bond, no penalty and no reputation behind the
-number -- which is the same gap the connect-a-faucet panel names, and the reason
-a sponsor still has no technical ground to trust a faucet it does not know.
+Three rules hold it together, and each exists because breaking it has a victim:
 
-None of the six faucets registered today can declare anything. Each was
-enrolled by typing an address into the old form, so none of those addresses
-belongs to an account in `users` and none has a private key anybody holds;
-`require_action_signature` therefore has nothing to accept. It is the same
-blocker that keeps FaucetHunter from rotating its own API key, and the same
-remedy: re-register through the panel that binds the faucet to the signed-in
-account.
+- **You cannot lock what you do not hold.** Otherwise the treasury shows a
+  guarantee that never arrived.
+- **You cannot release below what you owe.** Otherwise the owner withdraws the
+  guarantee the night before the user withdraws the money.
+- **A withdrawal draws on the escrow before the free balance, and the escrow
+  shrinks.** Without the second half the treasury pays while the faucet still
+  displays the whole guarantee, which is the old lie under a new name.
+
+Coverage changed with it. It used to be the faucet's balance over the number its
+owner had typed; both halves were wrong, because the balance was free to be
+spent and the typed number was not the debt. The debt was in
+`microclaims_ledger` the whole time -- the sum of what that faucet's users can
+still withdraw -- so `settlement.reserve_coverage(held, owed)` now compares
+money that is actually held against money that is actually owed. It returns
+`None` when nothing is owed: a faucet nobody has claimed from is not uncovered.
+
+`reconcile.escrow_is_actually_held` keeps the column honest. Everything shown as
+escrowed must equal what the treasury holds from reserve activity -- locks,
+minus releases, minus what has already been paid out of it. It caught its own
+case on the first run: rows written while the reserve was still a sentence kept
+their numbers when locking arrived, and one faucet showed 1,000 escrowed against
+a treasury holding nothing. Nobody withdrew, so nothing was minted from thin
+air, and the only reason is that the amounts owed were below the withdrawal
+minimum. `scripts/retire_unbacked_reserves.py` reset those rows to what had
+actually been transferred rather than converting them, because converting would
+move somebody's $CLAIM without their signature, and the signature is the only
+thing that authorises moving money here.
+
+Still missing: no bond beyond the escrow, no reputation, and no warning on the
+user's own screen when the faucet they claimed from cannot cover them. The board
+knows; the user does not.
 
 ## Change log
+
+**2026-09-28 - the reserve stopped being a sentence and became money.** Declaring
+now moves the $CLAIM out of the faucet's wallet into the treasury, the withdrawal
+is paid from there before it touches the faucet's free balance, and the escrow
+shrinks as it is spent. Coverage is escrow over the debt measured in
+`microclaims_ledger`, not balance over a number somebody typed. The signed
+sentence had to be rewritten and re-pinned: it told the signer the money stayed
+theirs, which is now the opposite of what signing does.
+
+The change broke its own history, and a new invariant caught it.
+`faucet_reserves` rows written under the old rule kept their numbers, so one
+faucet read as holding 1,000 in escrow against a treasury of nothing -- a
+withdrawal there would have minted $CLAIM and pushed the treasury negative.
+`reconcile.escrow_is_actually_held` now fails the build on any such gap, and
+`scripts/retire_unbacked_reserves.py` reset the orphan row rather than
+converting a declaration into a transfer nobody signed.
 
 **2026-09-28 - the browser was not sending the thing that stands in for a
 signature.** A custodial account -- which is every account this product creates

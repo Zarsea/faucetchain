@@ -226,9 +226,30 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
 
     const [balanceClaim, setBalanceClaim] = useState<number>(0);
     const [reputation, setReputation] = useState<number>(85);
+    // Quanto desta carteira esta travado como caucao de torneira. Zero para
+    // quem nao tem torneira, que e a maioria das contas.
+    const [lockedAsFaucet, setLockedAsFaucet] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshTick, setRefreshTick] = useState(0);
+
+    // A caucao sai do saldo: ele cai no momento da trava e nao volta sozinho.
+    // Sem este aviso o dono ve o proprio saldo encolher sem nada na tela
+    // dizendo para onde foi, que e como um bug se parece.
+    useEffect(() => {
+        if (!isConnected || !userAddress) { setLockedAsFaucet(0); return; }
+        let vivo = true;
+        fetch(`${API_BASE_URL}/api/faucethub/faucets`)
+            .then(r => r.ok ? r.json() : [])
+            .then((lista: any[]) => {
+                if (!vivo || !Array.isArray(lista)) return;
+                const minhas = lista.filter(f =>
+                    (f.wallet_address || "").toLowerCase() === userAddress.toLowerCase());
+                setLockedAsFaucet(minhas.reduce((a, f) => a + (f.reserve || 0), 0));
+            })
+            .catch(() => { /* o painel nao quebra por causa disto */ });
+        return () => { vivo = false; };
+    }, [isConnected, userAddress, refreshTick]);
 
     const fetchUserData = useCallback(async () => {
         if (!isConnected || !userAddress) return;
@@ -379,6 +400,19 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                     centavos por $CLAIM, escritos a mao. Nenhum mercado
                                     precifica este token, entao qualquer numero em dolar
                                     aqui e um numero que o usuario nao consegue realizar. */}
+                                {lockedAsFaucet > 0 && (
+                                    <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                                        <p className="text-[10px] font-black text-amber-400 uppercase tracking-wide">
+                                            {t('dashboard.lockedTitle')}
+                                        </p>
+                                        <p className="text-lg font-black text-amber-300 font-mono mt-0.5">
+                                            {lockedAsFaucet.toFixed(2)} <span className="text-[10px] font-bold">$CLAIM</span>
+                                        </p>
+                                        <p className="text-[10px] text-amber-200/80 leading-relaxed mt-1">
+                                            {t('dashboard.lockedBody')}
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="mt-4 pt-4 border-t border-brand-primary/10">
                                     <span className="text-[10px] text-brand-muted leading-relaxed block">
                                         {t('dashboard.claimNoPrice')}

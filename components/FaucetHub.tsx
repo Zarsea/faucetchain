@@ -16,9 +16,10 @@ interface FaucetData {
     // a cobre. `coverage` e null quando nada foi declarado: nao declarada nao e
     // a mesma coisa que descoberta, e mostrar 0% acusaria a torneira de algo
     // que ela nunca disse.
-    reserve: number;
+    reserve: number;               // caucionado na tesouraria
     reserve_declared_at: number | null;
-    coverage: number | null;
+    owed: number;                  // o que a torneira deve aos usuarios, medido
+    coverage: number | null;       // caucao / divida; null quando nao se deve nada
     status: string;
     recent_txs: number;
     settlements: number;
@@ -329,6 +330,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const totalDeclared = faucets.reduce((acc, f) => acc + f.reserve, 0);
     const declaredCount = faucets.filter(f => f.reserve > 0).length;
     const shortCount = faucets.filter(f => f.coverage !== null && f.coverage < 1).length;
+    const totalOwed = faucets.reduce((acc, f) => acc + f.owed, 0);
     const activeCount = faucets.filter(f => f.status === "Ativa").length;
     const totalSettlements = faucets.reduce((acc, f) => acc + f.settlements, 0);
 
@@ -491,11 +493,11 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                 {loading ? "..." : totalLiquidity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </p>
                             <p className="text-purple-400 text-xs mt-1">
-                                $CLAIM no ledger{declaredCount > 0 && <> · {totalDeclared.toLocaleString(undefined, {maximumFractionDigits: 0})} declarados por {declaredCount}</>}
+                                $CLAIM livre · {totalDeclared.toLocaleString(undefined, {maximumFractionDigits: 0})} caucionado por {declaredCount} · devem {totalOwed.toLocaleString(undefined, {maximumFractionDigits: 2})}
                             </p>
                             {shortCount > 0 && (
                                 <p className="text-yellow-400/90 text-xs mt-1">
-                                    {shortCount} {shortCount === 1 ? "torneira deve" : "torneiras devem"} mais do que {shortCount === 1 ? "tem" : "tem"}
+                                    {shortCount} {shortCount === 1 ? "torneira deve" : "torneiras devem"} mais do que {shortCount === 1 ? "caucionou" : "caucionaram"}
                                 </p>
                             )}
                         </div>
@@ -621,10 +623,10 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                             {/* Sem declaracao nao ha cobertura a mostrar, e inventar 0%
                                                 acusaria a torneira de nao honrar algo que nunca prometeu. */}
                                             {faucet.coverage === null ? (
-                                                <p className="text-purple-400/50 text-xs">reserva nao declarada</p>
+                                                <p className="text-purple-400/50 text-xs">nada devido ainda</p>
                                             ) : (
                                                 <p className={`text-xs font-semibold ${faucet.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    {(faucet.coverage * 100).toFixed(0)}% de {faucet.reserve.toLocaleString(undefined, {maximumFractionDigits: 0})} declarados
+                                                    deve {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {(faucet.coverage * 100).toFixed(0)}% caucionado
                                                 </p>
                                             )}
                                             <p className="text-purple-400/80 text-xs">{faucet.recent_txs} Txs/hr</p>
@@ -722,26 +724,35 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                 return (
                                     <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
                                         <h2 className="text-xl font-bold text-purple-200 mb-1 flex items-center">
-                                            <span className="mr-2 text-lg">📋</span> Reserva declarada
+                                            <span className="mr-2 text-lg">🔐</span> Reserva travada
                                         </h2>
                                         <p className="text-purple-400/70 text-[11px] mb-4 leading-relaxed">
-                                            Quanto desta torneira esta guardado para os usuarios dela. Assinar
-                                            registra o numero e nao tranca nada: o saldo continua seu para gastar.
-                                            O painel mostra o saldo real do ledger ao lado do que voce declarou,
-                                            e e isso que um patrocinador olha antes de matricular a torneira.
+                                            Assinar move este valor do saldo da torneira para a tesouraria da
+                                            FaucetChain, e e de la que os seus usuarios sao pagos quando sacam.
+                                            Voce deixa de poder gastar. Da para baixar depois, nunca abaixo do
+                                            que os usuarios ja tem a receber.
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-3 mb-4">
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">SALDO NO LEDGER</p>
+                                                <p className="text-purple-400 text-[10px] font-semibold">LIVRE</p>
                                                 <p className="text-lg font-black text-purple-100">
                                                     {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})}
                                                 </p>
                                             </div>
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">DECLARADO</p>
+                                                <p className="text-purple-400 text-[10px] font-semibold">TRAVADO</p>
                                                 <p className="text-lg font-black text-purple-100">
                                                     {f.reserve > 0 ? f.reserve.toLocaleString(undefined, {maximumFractionDigits: 2}) : "—"}
+                                                </p>
+                                            </div>
+                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10 col-span-2">
+                                                <p className="text-purple-400 text-[10px] font-semibold">DEVIDO AOS USUARIOS</p>
+                                                <p className="text-lg font-black text-purple-100">
+                                                    {f.owed.toLocaleString(undefined, {maximumFractionDigits: 4})}
+                                                    <span className="text-[10px] font-normal text-purple-400 ml-2">
+                                                        medido no ledger, nao declarado
+                                                    </span>
                                                 </p>
                                             </div>
                                         </div>
@@ -756,9 +767,9 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                                 </div>
                                                 <p className={`text-[11px] mt-1 ${f.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
                                                     {f.coverage >= 1
-                                                        ? `Coberta: o saldo cobre ${(f.coverage * 100).toFixed(0)}% do declarado.`
-                                                        : `Descoberta: o saldo cobre ${(f.coverage * 100).toFixed(0)}% do que foi declarado.`}
-                                                    {f.reserve_declared_at && ` Declarado em ${new Date(f.reserve_declared_at * 1000).toLocaleDateString()}.`}
+                                                        ? `Coberta: a caucao cobre ${(f.coverage * 100).toFixed(0)}% do que voce deve.`
+                                                        : `Descoberta: a caucao cobre ${(f.coverage * 100).toFixed(0)}% do que voce deve; o resto sai do saldo livre no saque, se houver.`}
+                                                    {f.reserve_declared_at && ` Travado em ${new Date(f.reserve_declared_at * 1000).toLocaleDateString()}.`}
                                                 </p>
                                             </div>
                                         )}
@@ -779,14 +790,14 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                                 disabled={reserveSaving || reserveInput.trim() === ""}
                                                 className="px-4 py-2 bg-purple-900/40 hover:bg-purple-800/50 disabled:opacity-40 disabled:cursor-not-allowed border border-purple-500/30 text-purple-200 rounded-lg text-xs font-semibold transition-colors"
                                             >
-                                                {reserveSaving ? "Assinando..." : "Declarar"}
+                                                {reserveSaving ? "Assinando..." : "Travar"}
                                             </button>
                                         </div>
                                         {reserveError && <p className="text-red-300 text-[11px] mt-2">{reserveError}</p>}
                                         <p className="text-purple-500/60 text-[10px] mt-3 leading-relaxed">
-                                            Nao existe ainda: caucao, escrow ou qualquer trava. Uma torneira que
-                                            declara 50.000 e gasta tudo no dia seguinte aparece descoberta aqui,
-                                            e nada alem disso acontece com ela.
+                                            O valor travado sai do seu saldo e aparece no seu dashboard como
+                                            indisponivel. Nao existe ainda: reputacao da torneira, nem aviso ao
+                                            usuario quando a caucao nao cobre o que ele tem a receber.
                                         </p>
                                     </div>
                                 );

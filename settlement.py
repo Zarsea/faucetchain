@@ -234,36 +234,43 @@ def api_key_rotate_message(faucet, chain_id, ts) -> str:
     )
 
 
-def reserve_coverage(balance, reserve):
-    """How much of a declared reserve the real balance actually covers.
+def reserve_coverage(held, owed):
+    """How much of what is owed the escrow actually covers.
 
-    None when nothing was declared -- undeclared is not the same as uncovered,
-    and rendering an undeclared faucet as 0% would accuse it of something it
-    never claimed. Above 1.0 is not clamped: a faucet holding twice what it
-    promised is worth seeing as such.
+    `held` is the $CLAIM sitting in the treasury for this faucet; `owed` is what
+    its users can still withdraw. Both are measured, neither is claimed.
+
+    None when nothing is owed. A faucet nobody has claimed from is not
+    uncovered, and printing 0% beside it would accuse it of failing a promise
+    that does not exist yet. Above 1.0 is not clamped: a faucet holding twice
+    what it owes is worth seeing as such.
+
+    This used to compare the faucet's balance against the number its owner had
+    typed. Both halves were wrong: the balance was free to be spent, and the
+    typed number was not the debt. The debt was in microclaims_ledger the whole
+    time.
     """
-    reserve = float(reserve)
-    if reserve <= 0:
+    owed = float(owed)
+    if owed <= 0:
         return None
-    return max(0.0, float(balance)) / reserve
+    return max(0.0, float(held)) / owed
 
 
 def reserve_declare_message(faucet, amount, chain_id, ts) -> str:
-    """Declares how much $CLAIM a faucet is holding back for its own users.
+    """Moves $CLAIM out of the faucet's wallet and into the treasury.
 
-    It is a statement, not an escrow: nothing here freezes the balance, and the
-    owner can spend it the minute after signing. What the signature buys is
-    attribution -- the number on the liquidity board came from the wallet that
-    owns the faucet, and the board compares it against the balance the ledger
-    actually shows. A faucet promising more than it holds is then visible
-    instead of merely unknown.
+    It was a statement once -- nothing froze the balance, and the owner could
+    spend it the minute after signing, so a faucet showing full coverage and a
+    faucet showing none were the same faucet with different typing. Now the
+    number leaves the wallet, which is why this sentence had to change: it told
+    the signer the opposite of what the signature does.
     """
     return action_message(
-        "declare your reserve",
-        "Signing records how much $CLAIM you are holding for your users. It "
-        "does not lock the balance -- you can still spend it -- so this is a "
-        "promise others can check, not a guarantee. The liquidity board shows "
-        "your real balance beside this number.",
+        "lock a reserve for your users",
+        "Signing moves this much $CLAIM out of your faucet's balance and into "
+        "the FaucetChain treasury, where it pays your users when they withdraw. "
+        "You stop being able to spend it. You can lower it again later, but "
+        "never below what your users are already owed.",
         [("Faucet", faucet), ("Reserve", f"{float(amount):.4f} $CLAIM")],
         chain_id,
         ts,
@@ -400,7 +407,7 @@ def _self_check() -> None:
         (api_key_rotate_message, (FAUCET,),
          "bd7d160423c8c213e2422fb19c2fd0fe55aa921e9ec8b289b30cdb14a20b6fa9"),
         (reserve_declare_message, (FAUCET, 2500.0),
-         "3f5fb24b62c733f491374ca5bd3386daa06b99dbd45133cf0f80052db263e0af"),
+         "0b5dc077e0c05a99007528273214d4293d882da6117d47037a8ed2dc6b48fc49"),
         (faucetpay_link_message, (FAUCET, FP_ADDR),
          "6d9a0067c6b831c7eb19f84484c077d8879f9cd28ca127d991e76b3bfb39f7b2"),
         (booster_message, (FAUCET, "TURBO", 25.0),
@@ -420,11 +427,12 @@ def _self_check() -> None:
         got = hashlib.sha256(text.encode("utf-8")).hexdigest()
         assert got == want, f"{builder.__name__}: {got}"
 
-    # Cobertura da reserva
-    assert reserve_coverage(500, 0) is None          # nao declarada != descoberta
-    assert reserve_coverage(500, 1000) == 0.5
+    # Cobertura: o que esta caucionado sobre o que se deve
+    assert reserve_coverage(500, 0) is None          # sem divida nao ha o que cobrir
+    assert reserve_coverage(500, 1000) == 0.5        # caucionou metade do que deve
     assert reserve_coverage(2000, 1000) == 2.0       # sem teto: o dobro se ve
-    assert reserve_coverage(-5, 1000) == 0.0         # saldo negativo nao vira credito
+    assert reserve_coverage(-5, 1000) == 0.0         # negativo nao vira credito
+    assert reserve_coverage(0, 2) == 0.0             # deve e nao caucionou nada
 
     # Fixed vector, identical to the `matches_the_backend_vector` test in
     # merkle.rs: if either side changes the tree rule, the two tests disagree.

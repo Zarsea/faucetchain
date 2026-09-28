@@ -185,12 +185,65 @@ def treasury_share_is_accounted_for(c):
     return findings or None
 
 
+def escrow_is_actually_held(c):
+    """Every $CLAIM a faucet is shown as having locked must be in the treasury.
+
+    `faucet_reserves.amount` is what the board prints as escrowed and what the
+    withdrawal spends from the treasury. The money itself arrives by one
+    RESERVE_LOCK transfer and leaves by RESERVE_RELEASE or by paying a user. If
+    the column and the transfers disagree, the board shows a guarantee that is
+    not there and a withdrawal draws on a treasury that cannot cover it --
+    which mints $CLAIM out of nothing and pushes the treasury negative.
+
+    It has happened once. The reserve began as a declaration that moved no
+    money, and when locking arrived the rows written under the old rule kept
+    their numbers: one faucet showed 1,000 escrowed against a treasury holding
+    nothing. Nobody withdrew, so nothing was minted, and the only reason is
+    that the amounts were below the withdrawal minimum.
+    """
+    try:
+        declarado = _scalar(c, "SELECT COALESCE(SUM(amount), 0) FROM faucet_reserves")
+    except sqlite3.OperationalError:
+        return None  # nenhuma torneira caucionou nesta instalacao
+
+    travado = _scalar(
+        c,
+        "SELECT COALESCE(SUM(value), 0) FROM transactions "
+        "WHERE tx_type = 'RESERVE_LOCK'",
+    )
+    devolvido = _scalar(
+        c,
+        "SELECT COALESCE(SUM(value), 0) FROM transactions "
+        "WHERE tx_type = 'RESERVE_RELEASE'",
+    )
+    # O que ja foi pago a usuarios saindo da caucao. A transferencia do saque
+    # nao carrega o id da torneira, entao a origem e quem diz: se saiu da
+    # tesouraria, saiu de uma caucao.
+    pago = _scalar(
+        c,
+        "SELECT COALESCE(SUM(t.value), 0) FROM transactions t "
+        "JOIN faucet_settlements s ON s.tx_hash = t.hash "
+        "WHERE t.from_address LIKE '0xfaucetchaintreasury%'",
+    )
+    disponivel = travado - devolvido - pago
+
+    if abs(declarado - disponivel) > 1e-6:
+        return [Finding(
+            "escrow not held",
+            f"faucets are shown as having locked {declarado:,.4f} $CLAIM, but the "
+            f"treasury holds {disponivel:,.4f} of reserve money "
+            f"(locked {travado:,.4f}, released {devolvido:,.4f}, paid out {pago:,.4f})",
+        )]
+    return None
+
+
 CHECKS = (
     supply_within_cap,
     stake_within_supply,
     no_negative_balances,
     no_claim_counted_twice,
     treasury_share_is_accounted_for,
+    escrow_is_actually_held,
 )
 
 
@@ -223,6 +276,8 @@ SCHEMA = (
     "CREATE TABLE campaign_budget (campaign_id INTEGER, spent_total INTEGER, "
     "treasury_owed INTEGER)",
     "CREATE TABLE settlement_rewards (campaign_id INTEGER, user_address TEXT, amount INTEGER)",
+    "CREATE TABLE faucet_reserves (faucet_wallet TEXT, amount REAL)",
+    "CREATE TABLE faucet_settlements (tx_hash TEXT)",
 )
 
 
@@ -289,6 +344,11 @@ def _self_check() -> None:
         "treasury share vanished": (
             "INSERT INTO campaign_budget VALUES (710364, 3204651, 0)",
             "INSERT INTO settlement_rewards VALUES (710364, '0xuser', 2563716)"),
+        # A linha escrita quando declarar reserva ainda nao movia dinheiro. O
+        # painel mostrava 1.000 caucionados contra uma tesouraria vazia, e um
+        # saque teria pago com $CLAIM que nunca existiu.
+        "escrow not held": (
+            "INSERT INTO faucet_reserves VALUES ('0xfaucet', 1000.0)",),
     }
     for expected, rows in cases.items():
         found = [f.check for f in reconcile(_books(rows))]
@@ -309,6 +369,30 @@ def _self_check() -> None:
     # The detail carries what is missing, so the repair does not have to be
     # worked out again by hand.
     assert "640,935 unaccounted" in str(both[0]), str(both[0])
+
+    # Uma caucao de verdade fecha: o valor saiu da carteira numa transferencia,
+    # e a coluna so repete o que a transferencia diz.
+    com_lastro = (
+        "INSERT INTO mining_rewards VALUES ('0xfaucet', 1000.0)",
+        "INSERT INTO faucet_reserves VALUES ('0xfaucet', 1000.0)",
+        "INSERT INTO transactions VALUES ('0xlock', '0xfaucet', "
+        "'0xfaucetchaintreasury00000000000000000000', 1000.0, 'RESERVE_LOCK')",
+    )
+    assert reconcile(_books(com_lastro)) == [], "uma caucao real foi acusada"
+
+    # E a caucao gasta num saque tambem fecha: a tesouraria pagou 400, a coluna
+    # desceu para 600, e as duas metades continuam batendo.
+    gasta = (
+        "INSERT INTO mining_rewards VALUES ('0xfaucet', 1000.0)",
+        "INSERT INTO faucet_reserves VALUES ('0xfaucet', 600.0)",
+        "INSERT INTO transactions VALUES ('0xlock', '0xfaucet', "
+        "'0xfaucetchaintreasury00000000000000000000', 1000.0, 'RESERVE_LOCK')",
+        "INSERT INTO transactions VALUES ('0xpay', "
+        "'0xfaucetchaintreasury00000000000000000000', '0xuser', 400.0, NULL)",
+        "INSERT INTO faucet_settlements VALUES ('0xpay')",
+    )
+    assert reconcile(_books(gasta)) == [], (
+        "um saque pago da caucao foi lido como caucao sumindo")
 
     # A voided position is recorded on purpose and is not a claim on anything.
     voided = ("INSERT INTO staking_positions VALUES (4, 'ghost@x.io', 777777777, 1)",)

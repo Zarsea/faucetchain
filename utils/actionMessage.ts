@@ -128,18 +128,19 @@ export const apiKeyRotateMessage = (faucet: string, ts: number): string =>
 // from its cause, which is what scripts/check_messages.py caught when this
 // sentence was first written.
 //
-// Declares how much $CLAIM a faucet holds back for its own users. A statement,
-// not an escrow: nothing freezes the balance, and the owner can spend it the
-// minute after signing. What the signature buys is attribution — the number on
-// the liquidity board came from the wallet that owns the faucet, and the board
-// puts the real balance next to it.
+// Moves $CLAIM out of the faucet's wallet and into the treasury. It was a
+// statement once — nothing froze the balance, and the owner could spend it the
+// minute after signing — so a faucet showing full coverage and a faucet showing
+// none were the same faucet with different typing. Now the number leaves the
+// wallet, and this sentence had to change with it: it was telling the signer
+// the opposite of what the signature does.
 export const reserveDeclareMessage = (faucet: string, amount: number, ts: number): string =>
     actionMessage(
-        'declare your reserve',
-        'Signing records how much $CLAIM you are holding for your users. It ' +
-        'does not lock the balance -- you can still spend it -- so this is a ' +
-        'promise others can check, not a guarantee. The liquidity board shows ' +
-        'your real balance beside this number.',
+        'lock a reserve for your users',
+        "Signing moves this much $CLAIM out of your faucet's balance and into " +
+        'the FaucetChain treasury, where it pays your users when they withdraw. ' +
+        'You stop being able to spend it. You can lower it again later, but ' +
+        'never below what your users are already owed.',
         [['Faucet', faucet], ['Reserve', `${amount.toFixed(4)} $CLAIM`]],
         ts
     );
