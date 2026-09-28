@@ -11,7 +11,7 @@ import {
     LoadingIcon,
     ChartBarIcon
 } from './IconComponents';
-import { useAuth } from './AuthContext';
+import { useAuth, sessionHeaders } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -111,7 +111,7 @@ export const BountyBoard: React.FC = () => {
                 bountyCreateMessage(creator, formTitle.trim(), reward, ts));
             const res = await fetch(`${API_BASE_URL}/api/bounties/create`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify({
                     creator_address: creator,
                     title: formTitle,
@@ -150,7 +150,7 @@ export const BountyBoard: React.FC = () => {
             };
             const res = await fetch(`${API_BASE_URL}/api/bounties/${bountyId}/${action}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...sessionHeaders() },
                 body: JSON.stringify(bodyMap[action])
             });
             if (res.ok) {

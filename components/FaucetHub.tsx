@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
-import { useAuth } from './AuthContext';
+import { useAuth, sessionHeaders } from './AuthContext';
 import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRevealMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
 
 
@@ -178,7 +178,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                 withdrawMessage(user, faucet, ts));
             const res = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/withdraw`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...sessionHeaders() },
                 body: JSON.stringify({ user_wallet: user, faucet_wallet: faucet, ...sig })
             });
             const data = await res.json();
@@ -251,7 +251,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             const sig = await signAction(authMethod, (ts) => apiKeyRevealMessage(faucet, ts));
             const res = await fetch(`${API_BASE_URL}/api/faucethub/reveal-key`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...sessionHeaders() },
                 body: JSON.stringify({ wallet_address: faucet, ...sig })
             });
             const data = await res.json();
@@ -269,7 +269,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             const sig = await signAction(authMethod, (ts) => apiKeyRotateMessage(faucet, ts));
             const res = await fetch(`${API_BASE_URL}/api/faucethub/regenerate-key`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...sessionHeaders() },
                 body: JSON.stringify({ wallet_address: faucet, ...sig })
             });
             const data = await res.json();
@@ -299,7 +299,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             const sig = await signAction(authMethod, (ts) => reserveDeclareMessage(faucet, amount, ts));
             const res = await fetch(`${API_BASE_URL}/api/faucethub/reserve`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...sessionHeaders() },
                 body: JSON.stringify({ wallet_address: faucet, amount, ...sig })
             });
             const data = await res.json();

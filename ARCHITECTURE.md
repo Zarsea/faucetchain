@@ -549,6 +549,26 @@ account.
 
 ## Change log
 
+**2026-09-28 - the browser was not sending the thing that stands in for a
+signature.** A custodial account -- which is every account this product creates
+-- cannot sign an action, so `X-Session-Token` takes the place of the signature
+and `require_action_signature` accepts it. Four calls in FaucetHub and two in
+BountyBoard never sent it. They compile, the button renders, the click leaves,
+and the server answers 401 with *"This account acts through a session. Sign in
+again"*, which sends the person hunting through their own login.
+
+It surfaced the day a faucet first belonged to an account somebody controlled:
+before that, no faucet was custodial, so the reveal and rotate paths for an API
+key had been broken since they were written without anyone reaching them.
+
+`test_session_headers.py` is the mirror of `test_endpoint_inventory.py` on the
+other side of the wire. That one proves no state-changing route trusts a caller
+for no reason; this one proves the reason arrives. It reads the routes that call
+`require_action_signature` straight out of `api_server.py`, so a new one enrols
+itself, and a call that legitimately acts for nobody has to be named in
+`SEM_SESSAO` with its reason -- the same deliberate-exception shape as the route
+inventory. It found the two BountyBoard calls on its first run.
+
 **2026-09-27 - the liquidity board got the other half of its own number.** It
 showed each faucet's $CLAIM balance with nothing to compare it to, and summed
 those balances into a tile headed "Proof of Reserve (PoR) / $CLAIM em reservas".
