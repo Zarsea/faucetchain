@@ -203,6 +203,19 @@ def init_faucet_api_keys_table():
             FOREIGN KEY (faucet_wallet) REFERENCES faucet_registry(wallet_address)
         )
     ''')
+    # Quanto uma torneira diz estar guardando para os usuarios dela. Uma linha
+    # por torneira: declarar de novo substitui a anterior, e o historico nao
+    # importa aqui -- o que o painel compara e a declaracao atual contra o
+    # saldo de agora.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS faucet_reserves (
+            faucet_wallet TEXT PRIMARY KEY,
+            amount REAL NOT NULL,
+            declared_at INTEGER NOT NULL,
+            signature TEXT,
+            FOREIGN KEY (faucet_wallet) REFERENCES faucet_registry(wallet_address)
+        )
+    ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS faucet_settlements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -859,8 +872,14 @@ async def get_faucets():
         wallet = row["wallet_address"]
         balance_info = await get_user_balance(wallet)
         
-        c.execute("SELECT COUNT(*) FROM transactions WHERE from_address = ? AND timestamp > ?", (wallet, current_time - 3600))
-        tx_count = c.fetchone()[0]
+        # 'transactions' e criada pelo indexer_service, nao por este processo:
+        # num banco novo o painel inteiro respondia 500 por causa desta linha,
+        # enquanto a consulta de settlements duas linhas abaixo ja se protegia.
+        try:
+            c.execute("SELECT COUNT(*) FROM transactions WHERE from_address = ? AND timestamp > ?", (wallet, current_time - 3600))
+            tx_count = c.fetchone()[0]
+        except sqlite3.OperationalError:
+            tx_count = 0
         
         # Check settlement count
         try:
@@ -872,12 +891,26 @@ async def get_faucets():
             settle_count = 0
             settle_volume = 0.0
         
+        # A reserva que o proprietario declarou, se declarou. Sem ela o saldo
+        # ao lado nao quer dizer nada: 500 $CLAIM e muito ou pouco depender do
+        # que a torneira prometeu, e so o proprietario sabe isso.
+        try:
+            c.execute("SELECT amount, declared_at FROM faucet_reserves WHERE faucet_wallet = ?", (wallet,))
+            res_row = c.fetchone()
+        except sqlite3.OperationalError:
+            res_row = None
+        reserve = res_row["amount"] if res_row else 0.0
+        declared_at = res_row["declared_at"] if res_row else None
+
         status = "Ativa" if tx_count > 0 else "Hiato"
         
         result.append({
             "name": row["name"],
             "wallet_address": wallet,
             "liquidity": balance_info["total_claim"],
+            "reserve": reserve,
+            "reserve_declared_at": declared_at,
+            "coverage": settlement.reserve_coverage(balance_info["total_claim"], reserve),
             "status": status,
             "recent_txs": tx_count,
             "settlements": settle_count,
@@ -1022,6 +1055,68 @@ class FaucetPayLinkRequest(BaseModel):
     faucetpay_address: str
     signature: Optional[str] = None
     sig_timestamp: Optional[int] = None
+
+
+class ReserveRequest(BaseModel):
+    wallet_address: str
+    amount: float
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
+
+
+@app.post("/api/faucethub/reserve")
+async def declare_reserve(req: ReserveRequest, x_session_token: Optional[str] = Header(None)):
+    """Records how much $CLAIM a faucet is holding for its users.
+
+    The board showed a balance and nothing to read it against, so a faucet
+    sitting on 500 $CLAIM looked identical whether it had promised its users
+    100 or 50,000. This is the other half of that comparison, and it has to
+    come from the owner because nobody else knows it.
+
+    It does not lock anything. See reserve_declare_message: the value of the
+    signature is attribution, not custody.
+    """
+    try:
+        wallet_lower = normalize_address(req.wallet_address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    amount = float(req.amount)
+    if amount < 0 or amount != amount or amount in (float("inf"), float("-inf")):
+        raise HTTPException(status_code=400, detail="Reserve must be zero or more")
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT 1 FROM faucet_registry WHERE wallet_address = ?", (wallet_lower,))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="No faucet registered to this wallet")
+
+    require_action_signature(
+        wallet_lower,
+        settlement.reserve_declare_message(wallet_lower, amount, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
+
+    c.execute(
+        """INSERT INTO faucet_reserves (faucet_wallet, amount, declared_at, signature)
+           VALUES (?, ?, ?, ?)
+           ON CONFLICT(faucet_wallet) DO UPDATE SET
+               amount = excluded.amount,
+               declared_at = excluded.declared_at,
+               signature = excluded.signature""",
+        (wallet_lower, amount, int(datetime.now().timestamp()), req.signature),
+    )
+    conn.commit()
+    conn.close()
+
+    balance = (await get_user_balance(wallet_lower))["total_claim"]
+    return {
+        "wallet_address": wallet_lower,
+        "reserve": amount,
+        "balance": balance,
+        "coverage": settlement.reserve_coverage(balance, amount),
+    }
 
 
 @app.post("/api/faucethub/faucetpay/link")

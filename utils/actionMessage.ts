@@ -123,6 +123,27 @@ export const apiKeyRotateMessage = (faucet: string, ts: number): string =>
         ts
     );
 
+// The dashes here are ASCII on purpose. A wallet signs bytes: an em dash on
+// this side against '--' in settlement.py surfaces as "invalid signature" miles
+// from its cause, which is what scripts/check_messages.py caught when this
+// sentence was first written.
+//
+// Declares how much $CLAIM a faucet holds back for its own users. A statement,
+// not an escrow: nothing freezes the balance, and the owner can spend it the
+// minute after signing. What the signature buys is attribution — the number on
+// the liquidity board came from the wallet that owns the faucet, and the board
+// puts the real balance next to it.
+export const reserveDeclareMessage = (faucet: string, amount: number, ts: number): string =>
+    actionMessage(
+        'declare your reserve',
+        'Signing records how much $CLAIM you are holding for your users. It ' +
+        'does not lock the balance -- you can still spend it -- so this is a ' +
+        'promise others can check, not a guarantee. The liquidity board shows ' +
+        'your real balance beside this number.',
+        [['Faucet', faucet], ['Reserve', `${amount.toFixed(4)} $CLAIM`]],
+        ts
+    );
+
 // Names a FaucetPay account; it does not prove one. FaucetPay's check-address
 // confirms an address belongs to some account and says nothing about who
 // controls it, so the account counts as proved only once a payment arrives.

@@ -234,6 +234,42 @@ def api_key_rotate_message(faucet, chain_id, ts) -> str:
     )
 
 
+def reserve_coverage(balance, reserve):
+    """How much of a declared reserve the real balance actually covers.
+
+    None when nothing was declared -- undeclared is not the same as uncovered,
+    and rendering an undeclared faucet as 0% would accuse it of something it
+    never claimed. Above 1.0 is not clamped: a faucet holding twice what it
+    promised is worth seeing as such.
+    """
+    reserve = float(reserve)
+    if reserve <= 0:
+        return None
+    return max(0.0, float(balance)) / reserve
+
+
+def reserve_declare_message(faucet, amount, chain_id, ts) -> str:
+    """Declares how much $CLAIM a faucet is holding back for its own users.
+
+    It is a statement, not an escrow: nothing here freezes the balance, and the
+    owner can spend it the minute after signing. What the signature buys is
+    attribution -- the number on the liquidity board came from the wallet that
+    owns the faucet, and the board compares it against the balance the ledger
+    actually shows. A faucet promising more than it holds is then visible
+    instead of merely unknown.
+    """
+    return action_message(
+        "declare your reserve",
+        "Signing records how much $CLAIM you are holding for your users. It "
+        "does not lock the balance -- you can still spend it -- so this is a "
+        "promise others can check, not a guarantee. The liquidity board shows "
+        "your real balance beside this number.",
+        [("Faucet", faucet), ("Reserve", f"{float(amount):.4f} $CLAIM")],
+        chain_id,
+        ts,
+    )
+
+
 def faucetpay_link_message(faucet, faucetpay_address, chain_id, ts) -> str:
     """Names a FaucetPay account. It does not prove one.
 
@@ -363,6 +399,8 @@ def _self_check() -> None:
          "69e5efc150fe3fda180dd0303c0c1dfd6445516ce9071426131e47f96e30eaf2"),
         (api_key_rotate_message, (FAUCET,),
          "bd7d160423c8c213e2422fb19c2fd0fe55aa921e9ec8b289b30cdb14a20b6fa9"),
+        (reserve_declare_message, (FAUCET, 2500.0),
+         "3f5fb24b62c733f491374ca5bd3386daa06b99dbd45133cf0f80052db263e0af"),
         (faucetpay_link_message, (FAUCET, FP_ADDR),
          "6d9a0067c6b831c7eb19f84484c077d8879f9cd28ca127d991e76b3bfb39f7b2"),
         (booster_message, (FAUCET, "TURBO", 25.0),
@@ -381,6 +419,12 @@ def _self_check() -> None:
         text = builder(*args, "7777", 1789618329)
         got = hashlib.sha256(text.encode("utf-8")).hexdigest()
         assert got == want, f"{builder.__name__}: {got}"
+
+    # Cobertura da reserva
+    assert reserve_coverage(500, 0) is None          # nao declarada != descoberta
+    assert reserve_coverage(500, 1000) == 0.5
+    assert reserve_coverage(2000, 1000) == 2.0       # sem teto: o dobro se ve
+    assert reserve_coverage(-5, 1000) == 0.0         # saldo negativo nao vira credito
 
     # Fixed vector, identical to the `matches_the_backend_vector` test in
     # merkle.rs: if either side changes the tree rule, the two tests disagree.

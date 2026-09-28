@@ -85,11 +85,12 @@ forged, mints anything.
 
 ## What a wallet asks you to sign
 
-Fourteen actions need a signature: claim, withdraw, stake, unstake, linking a
-Solana wallet, showing a faucet's API key, rotating one, naming a FaucetPay
-account, buying a booster, posting a bounty, cancelling one, taking one on,
-approving one, and claiming a minigame bonus. A fifteenth sentence is signed by
-the Solana wallet itself. All fifteen share one shape, because a wallet displays
+Fifteen actions need a signature: claim, withdraw, stake, unstake, linking a
+Solana wallet, showing a faucet's API key, rotating one, declaring a faucet's
+reserve, naming a FaucetPay account, buying a booster, posting a bounty,
+cancelling one, taking one on, approving one, and claiming a minigame bonus. Two
+more sentences are signed by the Solana wallet itself -- the wallet proof and
+the derived account. All seventeen share one shape, because a wallet displays
 the message verbatim and the person approving it deserves to know what they are
 agreeing to:
 
@@ -116,8 +117,14 @@ self-consistent.
 So there is one builder per side — `settlement.py` and `utils/actionMessage.ts`
 — and two guards. `settlement.py`'s self-check pins the sha256 of the wallet
 proof sentence. `scripts/check_messages.py` transpiles the real TypeScript with
-the esbuild the frontend already ships, runs it, and compares all six sentences
+the esbuild the frontend already ships, runs it, and compares all seventeen sentences
 against the Python ones byte for byte.
+
+That guard earns its keep. The reserve sentence was written with an em dash in
+TypeScript against `--` in Python, which is invisible on both screens and is
+exactly the byte disagreement described above; `check_messages.py` failed on it
+before the code was ever run. Signed sentences are ASCII on both sides for that
+reason.
 
 ## The relayer
 
@@ -504,7 +511,59 @@ Reserve -- a number that could not be wrong because nothing measured it.
 Each row also says whether it was read from Solana or from the sequencer's own
 book, because those are different claims and only one of them is a proof.
 
+## What a faucet says it is holding
+
+The liquidity board showed each faucet's $CLAIM balance and nothing to read it
+against. A faucet sitting on 500 $CLAIM looked identical whether it had promised
+its users 100 or 50,000, and the tile above it summed those balances under the
+heading *Proof of Reserve (PoR)* with the label "$CLAIM em reservas" -- three
+words that were each wrong: nothing was proved, none of it was a reserve, and
+the sum was of balances.
+
+Only the owner knows what a faucet owes its users, so the owner declares it.
+`POST /api/faucethub/reserve` writes one row per faucet in `faucet_reserves`,
+behind `require_action_signature` on the wallet that registered the faucet,
+because that wallet address is published in the faucet directory and an address
+authorises nothing. Declaring again replaces the previous number.
+
+The board then shows two figures per faucet and a ratio between them: the
+balance, read from the ledger at request time, over the reserve, declared and
+signed. `settlement.reserve_coverage` computes it and returns `None` when
+nothing was declared -- undeclared is not uncovered, and rendering an undeclared
+faucet at 0% would accuse it of failing a promise it never made.
+
+What this is not: an escrow. Nothing freezes the balance, and a faucet that
+declares 50,000 and spends it the next day simply shows as short. The signature
+buys attribution, not custody, and `reserve_declare_message` says so to the
+person signing it. There is no bond, no penalty and no reputation behind the
+number -- which is the same gap the connect-a-faucet panel names, and the reason
+a sponsor still has no technical ground to trust a faucet it does not know.
+
+None of the six faucets registered today can declare anything. Each was
+enrolled by typing an address into the old form, so none of those addresses
+belongs to an account in `users` and none has a private key anybody holds;
+`require_action_signature` therefore has nothing to accept. It is the same
+blocker that keeps FaucetHunter from rotating its own API key, and the same
+remedy: re-register through the panel that binds the faucet to the signed-in
+account.
+
 ## Change log
+
+**2026-09-27 - the liquidity board got the other half of its own number.** It
+showed each faucet's $CLAIM balance with nothing to compare it to, and summed
+those balances into a tile headed "Proof of Reserve (PoR) / $CLAIM em reservas".
+A faucet now declares what it is holding for its users, signed by the wallet
+that registered it (`POST /api/faucethub/reserve`, `faucet_reserves`), and the
+board prints balance, declaration and coverage side by side. Undeclared reads as
+undeclared, not as 0%. The declaration is a statement, not an escrow, and the
+sentence signed says so.
+
+Two things surfaced while wiring it. `GET /api/faucethub/faucets` answered 500
+on any database the indexer had not populated, because its `transactions` query
+was unguarded while the `faucet_settlements` query two lines below it was not.
+And none of the six registered faucets can use the new endpoint at all: each was
+enrolled by typing an address, so no private key and no session exists for any of
+them -- the same reason FaucetHunter cannot rotate its API key.
 
 **2026-09-27 - the header stopped promising consensus over a chain that has not
 moved since 18 September.** It read "Hybrid PoC-V3 Consensus". The consensus

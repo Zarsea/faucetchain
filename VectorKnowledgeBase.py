@@ -285,6 +285,10 @@ def seed_knowledge_base():
             "metadata": {"category": "history", "tags": ["cleanup", "campaigns", "supply"], "source": "scripts/retire_placeholder_ledger.py"}
         },
         {
+            "content": "A registered faucet declares how much $CLAIM it is holding for its own users, signed by the wallet that registered it, and the FaucetHub board shows that declaration next to the balance the ledger actually holds. Coverage below 100% means the faucet promised more than it has; no declaration at all reads as undeclared, not as zero. The declaration is a statement and not an escrow: nothing freezes the balance, there is no bond and no penalty, so it is a promise others can check rather than a guarantee.",
+            "metadata": {"category": "faucets", "tags": ["reserve", "liquidity", "faucethub"], "source": "api_server.py POST /api/faucethub/reserve"}
+        },
+        {
             "content": "Nothing in FaucetChain involves betting, wagering or games of chance. A staking screen that debited no balance and a minigame bonus scored in the browser were both removed in September 2026, along with a proof-of-reserve figure that was hardcoded to 100%.",
             "metadata": {"category": "scope", "tags": ["policy", "removed", "honesty"], "source": "ARCHITECTURE.md change log"}
         }

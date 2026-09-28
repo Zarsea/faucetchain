@@ -65,6 +65,10 @@ CASES = {
         settlement.api_key_rotate_message(FAUCET, "7777", TS_FIXED),
         f"apiKeyRotateMessage({FAUCET!r}, {TS_FIXED})",
     ),
+    "reserveDeclare": (
+        settlement.reserve_declare_message(FAUCET, 2500.0, "7777", TS_FIXED),
+        f"reserveDeclareMessage({FAUCET!r}, 2500.0, {TS_FIXED})",
+    ),
     "faucetpayLink": (
         settlement.faucetpay_link_message(FAUCET, FAUCETPAY, "7777", TS_FIXED),
         f"faucetpayLinkMessage({FAUCET!r}, {FAUCETPAY!r}, {TS_FIXED})",
