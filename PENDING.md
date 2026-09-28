@@ -135,8 +135,9 @@ checking the root on Solana without asking us anything.
       read 50/50, which is the same staging this repository spent a week
       removing.
 - [ ] **Two mining nodes online during the demo.** The sealer election is real
-      and currently has no participants, so the header says "Hybrid PoC-V3
-      Consensus" while nothing is sealing. `mining-node/` is a Node process;
+      and currently has no participants. The header said "Hybrid PoC-V3
+      Consensus" while nothing was sealing; on 27 September it started saying
+      Micro-Distribution Rail, which is what runs. `mining-node/` is a Node process;
       running two makes the draw observable and recomputable from the parent
       hash.
 

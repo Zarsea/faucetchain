@@ -33,7 +33,7 @@ export const GeneralArticle: React.FC = () => {
 
     const t = lang === 'en' ? {
         title: "L1 Architectural Protocol",
-        subtitle: "Deep-dive into the FaucetChain PoC-V3 Consensus Engine",
+        subtitle: "How a click becomes a proof, and a proof becomes a payment",
         hubTitle: "Decentralized Reputation Hubs",
         hubDesc: "External entities acting as Merit Aggregators, bridging off-chain utility into on-chain influence through verifiable proofs.",
         lifecycleTitle: "Detailed Execution Lifecycle",
@@ -61,10 +61,10 @@ export const GeneralArticle: React.FC = () => {
         modalLabelDetails: "Activity Details",
         modalPlaceholderDetails: "Describe the verifiable contribution (e.g., node uptime, governance voting, app interaction)...",
         modalSubmit: "Broadcast to Network",
-        modalSuccess: "Proof registered in Mempool. Awaiting PoC-V3 validation."
+        modalSuccess: "Proof accepted. It is credited off-chain now, and settles on Solana with the next batch."
     } : {
         title: "Protocolo de Arquitetura L1",
-        subtitle: "Imersão no Mecanismo de Consenso PoC-V3 FaucetChain",
+        subtitle: "Como um clique vira prova, e a prova vira pagamento",
         hubTitle: "Hubs de Reputação Descentralizados",
         hubDesc: "Entidades externas atuando como Agregadores de Mérito, conectando utilidade off-chain em influência on-chain via provas verificáveis.",
         lifecycleTitle: "Ciclo de Execução Detalhado",
@@ -92,7 +92,7 @@ export const GeneralArticle: React.FC = () => {
         modalLabelDetails: "Detalhes da Atividade",
         modalPlaceholderDetails: "Descreva a contribuição verificável (ex: uptime do nó, votação em governança, interação com dApp)...",
         modalSubmit: "Transmitir para a Rede",
-        modalSuccess: "Prova registrada no Mempool. Aguardando validação PoC-V3."
+        modalSuccess: "Prova aceita. É creditada fora da cadeia agora, e liquida na Solana no próximo lote."
     };
 
     const handlePoCSubmit = (e: React.FormEvent) => {

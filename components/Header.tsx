@@ -146,7 +146,7 @@ export const Header: React.FC = () => {
             <div className="bg-brand-primary/20 py-1.5 px-4 text-center border-b border-brand-primary/40 neon-border-dynamic">
                 <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] flex items-center justify-center gap-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-ping"></span>
-                    PoC-V3 Public TestNet Active • Epoch 0 Initialization
+                    Public TestNet · Settlement live on Solana devnet
                 </p>
             </div>
             <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">

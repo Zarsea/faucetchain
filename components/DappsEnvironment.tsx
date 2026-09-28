@@ -161,7 +161,7 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
                         <span className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></span>
                         FaucetChain OS v2.0
                     </span>
-                    <span className="hidden sm:inline-block">Network: Hybrid PoC+PoS</span>
+                    <span className="hidden sm:inline-block">Network: micro-distribution rail</span>
                     <span className="flex items-center">
                         <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5 shadow-[0_0_5px_#22c55e]"></div> 
                         Node Sync: Optimal

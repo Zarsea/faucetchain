@@ -199,86 +199,94 @@ def seed_knowledge_base():
     """Populate the database with initial FaucetChain documentation."""
     kb = VectorKnowledgeBase()
     
+    # Cada entrada aqui aponta para codigo que existe neste repositorio, e diz
+    # onde. O corpus anterior era inventado de ponta a ponta -- BLS, zk-SNARKs,
+    # EVM, sharding, bridges para Polygon, auditoria por CertiK e Trail of
+    # Bits. O agente respondia isso a quem perguntasse.
+    #
+    # Se voce acrescentar uma entrada, cite o arquivo. Uma afirmacao sem
+    # arquivo e uma afirmacao que ninguem pode conferir, e este assistente ja
+    # fez isso o bastante.
     documents = [
         {
-            "content": "FaucetChain uses a Hybrid Consensus mechanism combining Proof of Stake (PoS) for financial security and Proof of Carrier (PoC) for network utility validation. Validators must both stake tokens and route real network traffic to earn rewards.",
-            "metadata": {"category": "consensus", "tags": ["pos", "poc", "hybrid"]}
+            "content": "FaucetChain is a micro-distribution rail. A partner faucet reports a click, every campaign that faucet is enrolled in credits that user from the sponsor's budget, and what is owed becomes a Merkle root published on Solana. The chain's own unit, $CLAIM, is internal accounting; the campaign token is what carries value, because somebody else issued it.",
+            "metadata": {"category": "overview", "tags": ["rail", "campaigns", "claim"], "source": "ARCHITECTURE.md"}
         },
         {
-            "content": "The Merit Weight formula is: MW = ln(stake_amount) * uptime_coefficient * traffic_volume. This logarithmic approach prevents whale dominance while rewarding active network participation.",
-            "metadata": {"category": "validators", "tags": ["merit", "formula", "economics"]}
+            "content": "The guarantee is on Solana, not here. An Anchor program refuses to publish a root its campaign vault cannot cover, so a promise that is not funded never reaches the chain. A user withdraws by presenting a Merkle inclusion proof, and one bit per leaf stops a second withdrawal of the same reward.",
+            "metadata": {"category": "settlement", "tags": ["solana", "merkle", "vault"], "source": "faucetchain/programs/faucetchain/src"}
         },
         {
-            "content": "FaucetChain implements native L1 consensus with optimistic rollup-style batching. Transactions are processed on-chain every 100 blocks with a 7-day fraud proof challenge period, achieving high throughput with maximum security.",
-            "metadata": {"category": "scaling", "tags": ["layer1", "consensus", "faucetchain"]}
+            "content": "Proof of Claim prices a click. The browser solves keccak256 over a message bound to the current chain tip until the digest has 16 leading zero bits, roughly half a second to two seconds of CPU. Difficulty rises by one bit for each quarter of the hourly quota already spent. It is admission control, not chain security: measured in tests/bot_quota_attack.py, one core can solve enough proofs to drain the hour, which is why a per-IP ceiling exists beside it.",
+            "metadata": {"category": "consensus", "tags": ["poc", "keccak", "anti-bot"], "source": "api_server.py"}
         },
         {
-            "content": "$CLAIM token has a maximum supply of 21 million with halving every 210,000 blocks. Initial emission is 100 tokens per block. 50% of gas fees are burned for deflation.",
-            "metadata": {"category": "tokenomics", "tags": ["claim", "supply", "halving"]}
+            "content": "The sealer election picks who seals the next block of native claims. Eligible nodes are those online, weight is 1 + min(active stake, SEALER_STAKE_CAP), and the seed is keccak256 of the parent block hash, so anybody holding the chain recomputes the same result. With no node online the election returns nobody and any caller may seal, which is bootstrap rather than consensus.",
+            "metadata": {"category": "consensus", "tags": ["sealer", "stake", "election"], "source": "api_server.py select_block_sealer"}
         },
         {
-            "content": "The SentinelV3Engine fraud detection system uses temporal analysis, gas price uniformity detection, and compression-based pattern matching to identify Sybil attacks. Flagged nodes receive 0.1x multiplier penalty.",
-            "metadata": {"category": "security", "tags": ["fraud", "sybil", "ml"]}
+            "content": "$CLAIM has a maximum supply of 99,000,000 and no halving. Issuance is capped at 2,000 per hour across the whole network, and the minimum withdrawal is 10. It has no price: no market quotes it and nothing in the network requires it yet. Giving it a use is an open design question, not a shipped feature.",
+            "metadata": {"category": "token", "tags": ["supply", "quota", "claim"], "source": "api_server.py MAX_SUPPLY"}
         },
         {
-            "content": "Validators earn bonus multipliers from 1.0x to 2.5x based on DeFi activity: 30% liquidity provision, 20% protocol diversity, 30% transaction volume, 20% uptime.",
-            "metadata": {"category": "rewards", "tags": ["bonus", "defi", "validators"]}
+            "content": "A partner faucet integrates with one HTTP call: POST /api/faucethub/microclaim with the user's Solana address and an amount, sent after the faucet's own commit and with its error swallowed. If FaucetChain is down the faucet still pays its user. An empty campaigns list in the reply is success, not failure: it means that faucet is enrolled in nothing, or every campaign is out of budget this month.",
+            "metadata": {"category": "integration", "tags": ["bridge", "microclaim", "partners"], "source": "integration/README.md"}
         },
         {
-            "content": "FaucetChain V3 Merit Faucet allows claiming test tokens via native FaucetChain transactions. Each claim generates a verifiable hash and creates a new application block.",
-            "metadata": {"category": "faucet", "tags": ["claim", "network", "faucetchain"]}
+            "content": "A user's FaucetChain account is derived from their Solana wallet: the last 20 bytes of keccak256 over the public key. So a partner sends only a public key, nothing else is shared, and the same wallet signing in here reaches the same account. A wallet already linked to another account by signature reaches that one instead, and the lookup returns both so a partner can warn the user.",
+            "metadata": {"category": "accounts", "tags": ["derivation", "solana", "linking"], "source": "api_server.py account_reached_by_wallet"}
         },
         {
-            "content": "Block production targets 12-second intervals matching Ethereum. Soft finality is instant, hard finality occurs after L1 checkpoint (~20 minutes, every 100 blocks).",
-            "metadata": {"category": "consensus", "tags": ["blocks", "finality", "timing"]}
+            "content": "A campaign budget is dripped rather than airdropped. distribution.py computes a per-click rate from what the month still allows, the days left in it, and how many people claimed yesterday, against a floor of 100 users so a small faucet cannot hand each visitor a fifth of the month. Unspent budget rolls into the next month, and the credit never exceeds what the budget still holds.",
+            "metadata": {"category": "campaigns", "tags": ["drip", "budget", "distribution"], "source": "distribution.py"}
         },
         {
-            "content": "Gas fees use dynamic adjustment based on congestion. Base fee implements EIP-1559 with 50% burn and 50% to validators. Current network average is around 25 gwei.",
-            "metadata": {"category": "economics", "tags": ["gas", "fees", "eip1559"]}
+            "content": "A campaign declares its funding as vault or deferred. Vault means the money is in the Solana vault and the user can withdraw today. Deferred means the project settles at mainnet and the user holds a record of work rather than money. Presenting the two alike is the failure this project exists to fix.",
+            "metadata": {"category": "campaigns", "tags": ["funding", "vault", "deferred"], "source": "api_server.py CampaignBudgetRequest"}
         },
         {
-            "content": "To become a validator, stake $CLAIM tokens and maintain >99% uptime. Slashing penalty is 1% stake per hour of downtime. Minimum stake requirement is 1000 $CLAIM.",
-            "metadata": {"category": "validators", "tags": ["staking", "requirements", "slashing"]}
+            "content": "A user withdraws without ever holding SOL. A relayer builds the transaction, pays the fee and the account rent, and signs alongside the user; the withdrawal can only pay the leaf's own recipient, so the relayer cannot redirect anything. The cost of that subsidy is not yet charged to anyone, and no measurement of it exists.",
+            "metadata": {"category": "settlement", "tags": ["relayer", "gasless", "withdrawal"], "source": "api_server.py relay"}
         },
         {
-            "content": "FaucetChain supports ERC-20 token standards and is compatible with existing Ethereum tooling like MetaMask, Hardhat, and Ethers.js. Smart contracts can be deployed using Solidity or Vyper.",
-            "metadata": {"category": "development", "tags": ["erc20", "compatibility", "tools"]}
+            "content": "Signing in is by Solana wallet, by email, as a guest, or through Telegram once a bot token is configured. Telegram is verified by recomputing its HMAC over the bot token before anything is written. Pasting an address was removed on 24 September: it proved nothing, and although it could never move a balance, it let anyone read any account as though signed in.",
+            "metadata": {"category": "accounts", "tags": ["auth", "telegram", "solana"], "source": "social_auth.py"}
         },
         {
-            "content": "Network upgrades follow a governance process where validators vote on proposals. A 66% supermajority is required for protocol changes. Emergency upgrades can be fast-tracked with 80% consensus.",
-            "metadata": {"category": "governance", "tags": ["voting", "upgrades", "dao"]}
+            "content": "Every route that changes state relies on one of four things: a signature from the acting wallet, an operator token, a partner API key, or a proof of work. The few that are open by design carry a rate ceiling and are named in test_endpoint_inventory.py with the reason. That test fails the build if a new state-changing route arrives with no guard.",
+            "metadata": {"category": "security", "tags": ["authorization", "routes", "ci"], "source": "test_endpoint_inventory.py"}
         },
         {
-            "content": "Cross-chain bridges to Ethereum mainnet, Polygon, and Arbitrum are planned for Q2 2026. These will use optimistic verification with 7-day challenge periods for maximum security.",
-            "metadata": {"category": "roadmap", "tags": ["bridges", "cross-chain", "future"]}
+            "content": "No third party has audited this code. There is no bug bounty, no formal verification, and no audit engagement with any firm. An independent review of the Solana program is recorded as outstanding work in PENDING.md, and until somebody does it, nobody has checked it who did not write it.",
+            "metadata": {"category": "security", "tags": ["audit", "review", "status"], "source": "PENDING.md"}
         },
         {
-            "content": "The Proof of Claim (PoC) (PoC) aggregates validator votes using BLS signatures, reducing on-chain storage by 90%. This allows for thousands of validators without blockchain bloat.",
-            "metadata": {"category": "consensus", "tags": ["hvm", "bls", "scalability"]}
+            "content": "The books are checked by reconcile.py, which holds five invariants: nothing mints past the cap, nobody stakes more than exists, no balance goes negative, no claim is counted twice, and the treasury's share of every campaign is accounted for. It runs in CI, and it is what caught 1,495,538 $CLAIM of treasury share that had been credited to nobody.",
+            "metadata": {"category": "accounting", "tags": ["reconcile", "invariants", "ci"], "source": "reconcile.py"}
         },
         {
-            "content": "FaucetChain faucet provides 100 test $CLAIM tokens per claim with a 24-hour cooldown. The network uses zero gas fees for claims. Mainnet launch is scheduled for Q3 2026.",
-            "metadata": {"category": "faucet", "tags": ["testnet", "tokens", "mainnet"]}
+            "content": "The program on Solana devnet is 64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm. It accepts classic SPL mints only: Token-2022 allows a transfer fee, which would debit the vault exactly what the leaf published while the recipient received less, and a root that pays 98 where it said 100 is the guarantee failing quietly.",
+            "metadata": {"category": "settlement", "tags": ["devnet", "program", "token-2022"], "source": "create_campaign.rs"}
         },
         {
-            "content": "Smart contract security is ensured through mandatory audits by CertiK and Trail of Bits. All contracts undergo formal verification before deployment. Bug bounty program offers up to $100k for critical vulnerabilities.",
-            "metadata": {"category": "security", "tags": ["audits", "bounty", "verification"]}
+            "content": "A mining node keeps a machine present on the network and shares the hourly reward by uptime. It does not compute, verify or serve anything, which is worth saying plainly: it is paid for presence. Giving the sealer real work, such as closing the settlement batch and publishing its root, is recorded as design work for after the deadline.",
+            "metadata": {"category": "mining", "tags": ["nodes", "uptime", "rewards"], "source": "mining-node/"}
         },
         {
-            "content": "Transaction privacy can be enhanced using zk-SNARKs for confidential transfers. This is optional and incurs a 2x gas fee premium. Privacy pools are isolated from public transactions.",
-            "metadata": {"category": "privacy", "tags": ["zk-snarks", "confidential", "privacy"]}
+            "content": "There is no P2P network, no virtual machine and no smart contracts on this chain. State lives in SQLite, nodes talk to the sequencer over HTTP, and the only contract in the system runs on Solana. Any description of this project mentioning RocksDB, libp2p, WASM, BLS signatures or zk-SNARKs is describing something else.",
+            "metadata": {"category": "architecture", "tags": ["storage", "transport", "scope"], "source": "api_server.py"}
         },
         {
-            "content": "Validator node requirements: 4 CPU cores, 16GB RAM, 500GB SSD, 100 Mbps internet. Recommended OS: Ubuntu 22.04 LTS. Docker images are provided for easy deployment.",
-            "metadata": {"category": "infrastructure", "tags": ["requirements", "hardware", "deployment"]}
+            "content": "FaucetHunter is the first partner faucet, live in production since 26 September 2026. Its bridge calls the micro-claim after its own commit, with a four-second timeout and a circuit breaker that stops trying while FaucetChain is unreachable, so a claim on its side is paid in milliseconds whether or not this network answers.",
+            "metadata": {"category": "integration", "tags": ["faucethunter", "production", "bridge"], "source": "integration/faucethunter/"}
         },
         {
-            "content": "DeFi protocols on FaucetChain include native DEX (FaucetSwap), lending platform (MeritLend), and liquid staking (StakeClaim). Total Value Locked (TVL) currently at $5M testnet.",
-            "metadata": {"category": "defi", "tags": ["dex", "lending", "tvl"]}
+            "content": "Fourteen campaigns inherited from testing claimed vault funding while no vault of theirs existed on any chain; two of them named the SPL Token program as sponsor and the Clock sysvar as mint. They were relabelled deferred on 27 September, and the placeholder addresses behind 99% of all issuance were retired the same day, taking recorded supply from 1,208,176 to 11,934.",
+            "metadata": {"category": "history", "tags": ["cleanup", "campaigns", "supply"], "source": "scripts/retire_placeholder_ledger.py"}
         },
         {
-            "content": "MEV (Maximal Extractable Value) protection uses encrypted mempools and fair ordering via Chainlink FSS. Validators cannot reorder transactions for profit. Frontrunning is cryptographically prevented.",
-            "metadata": {"category": "security", "tags": ["mev", "fairness", "chainlink"]}
+            "content": "Nothing in FaucetChain involves betting, wagering or games of chance. A staking screen that debited no balance and a minigame bonus scored in the browser were both removed in September 2026, along with a proof-of-reserve figure that was hardcoded to 100%.",
+            "metadata": {"category": "scope", "tags": ["policy", "removed", "honesty"], "source": "ARCHITECTURE.md change log"}
         }
     ]
     

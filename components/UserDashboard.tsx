@@ -391,7 +391,7 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                     </div>
                     <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
                         <span className="text-[10px] font-black text-brand-primary uppercase block">{t('dashboard.consensus')}</span>
-                        <span className="text-xs font-bold text-white">PoC-V3</span>
+                        <span className="text-xs font-bold text-white">Proof of Claim</span>
                     </div>
                 </div>
             </div>

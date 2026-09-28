@@ -118,8 +118,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Security Model',
         keywords: ['security', 'segurança', 'attack', 'ataque', '51%', 'safe', 'seguro'],
         response: [
-            "FaucetChain uses its own native consensus for finality. The Hybrid PoC+PoS mechanism ensures that a 51% attack would require controlling both stake AND traffic routing, making it economically infeasible.",
-            "A segurança é garantida pelo consenso híbrido nativo da FaucetChain. O mecanismo PoC+PoS garante que um ataque de 51% exigiria controle simultâneo de stake E roteamento de tráfego, tornando-o economicamente inviável."
+            "Finality for anything that carries value comes from Solana, not from this chain: a batch of rewards becomes a Merkle root, the program refuses to publish a root its vault cannot cover, and a user withdraws with an inclusion proof. The native sealer election orders claim blocks and holds no money, so it is not what secures a payout.",
+            "A finalidade do que carrega valor vem da Solana, não desta cadeia: um lote de recompensas vira uma raiz de Merkle, o programa recusa publicar uma raiz que o vault não cubra, e o usuário saca com prova de inclusão. A eleição do selador ordena blocos de claim e não guarda dinheiro, então não é ela que protege um pagamento."
         ]
     },
     {
@@ -192,8 +192,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Performance Optimization',
         keywords: ['optimize', 'otimizar', 'performance', 'faster', 'mais rápido', 'throughput'],
         response: [
-            "To increase TPS from {{tps}} to 1000+: (1) Implement parallel transaction execution using sharding, (2) Use BLS signature aggregation to reduce block size by 90%, (3) Deploy state channels for micropayments. Current bottleneck: single-threaded EVM execution.",
-            "Para aumentar TPS de {{tps}} para 1000+: (1) Implementar execução paralela via sharding, (2) Usar agregação BLS para reduzir blocos em 90%, (3) Implantar state channels. Gargalo atual: execução single-thread da EVM."
+            "Throughput here is not limited by block production: a partner faucet's clicks are credited off-chain and never queue a block, and the settlement that carries value is batched into one Solana transaction per root. The real ceiling is the hourly issuance quota of 2,000 $CLAIM and the per-user cooldown of 300 seconds, both deliberate. There is no EVM, no sharding and no state channels in this system.",
+            "A vazão aqui não é limitada por produção de bloco: os cliques de uma torneira parceira são creditados fora da cadeia e nunca enfileiram bloco, e a liquidação que carrega valor vai em uma transação Solana por raiz. O teto real é a cota de emissão de 2.000 $CLAIM por hora e o cooldown de 300 segundos por usuário, ambos deliberados. Não existe EVM, sharding nem state channels neste sistema."
         ]
     },
     {

@@ -233,7 +233,7 @@ export const Whitepaper: React.FC = () => {
                     {[
                         { label: 'Problem', desc: 'PoW wastes energy. PoS concentrates wealth. Both exclude small participants.', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' },
                         { label: 'Insight', desc: 'Genuine network participation is a measurable, Sybil-resistant signal of commitment.', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20' },
-                        { label: 'Solution', desc: 'Hybrid PoC+PoS with AI modulation — earn influence through merit, secure it with stake.', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
+                        { label: 'Solution', desc: 'A partner budget dripped per click, guaranteed by a Merkle root the Solana program refuses to publish unfunded.', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20' },
                     ].map((item, i) => (
                         <div key={i} className={`p-5 rounded-xl border ${item.border} ${item.bg}`}>
                             <span className={`text-[10px] font-black uppercase tracking-widest ${item.color}`}>{item.label}</span>

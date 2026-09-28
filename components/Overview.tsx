@@ -35,7 +35,7 @@ export const Overview: React.FC = () => {
             {/* Header de Evolução V3 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
                 <StatCard 
-                    label="PoC-V3 BLOCK" 
+                    label="BLOCO" 
                     value={`#${formatNum(metrics.blockHeight)}`} 
                     icon={<CubeIcon className="w-6 h-6" />} 
                 />
@@ -77,7 +77,7 @@ export const Overview: React.FC = () => {
                         <div className="flex-1 space-y-4">
                             <div className="flex flex-wrap items-center gap-4">
                                 <h3 className="text-3xl font-black text-brand-secondary tracking-tight">
-                                    {lang === 'en' ? 'Adaptive PoC-V3 Consensus' : 'Consenso Adaptativo PoC-V3'}
+                                    {lang === 'en' ? 'Proof of Claim, priced per click' : 'Proof of Claim, precificado por clique'}
                                 </h3>
                                 <span className="px-4 py-1.5 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[10px] rounded-full uppercase font-black tracking-widest">Protocol Evolution</span>
                             </div>
@@ -130,7 +130,7 @@ export const Overview: React.FC = () => {
                     <MermaidDiagram 
                         code={DIAGRAMS[lang].MERMAID_CODE} 
                         title="V3 Consensus Evolution Flow" 
-                        prompt="Explique como o Sentinel AI Audit atua como o 'segundo fator de autenticação' para o consenso PoC+PoS nesta evolução V3."
+                        prompt="Explique por que a garantia de pagamento da FaucetChain mora no programa da Solana e não nesta cadeia, e o que o programa recusa fazer."
                     />
                 </div>
             </div>

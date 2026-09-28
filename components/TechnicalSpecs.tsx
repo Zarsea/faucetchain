@@ -28,20 +28,24 @@ const SpecTable: React.FC<{ data: { label: string, value: string }[] }> = ({ dat
 export const TechnicalSpecs: React.FC = () => {
     const { lang } = useLanguage();
 
+    // Cada linha abaixo aponta para codigo que existe. A versao anterior
+    // nomeava RocksDB, libp2p, uma VM WASM, BLAKE3, uma VRF com nome de curva
+    // e zk-SNARKs Groth16 -- nenhum deles esta neste repositorio. Se voce
+    // acrescentar uma linha aqui, cite o arquivo onde ela vive.
     const networkSpecs = [
-        { label: "Block Target Time", value: "2.1 Seconds" },
-        { label: "Max Block Size", value: "2.0 MB" },
-        { label: "Consensus Algorithm", value: "Hybrid PoC + PoS + VRF" },
-        { label: "State Storage", value: "Optimized RocksDB (LSM-Tree)" },
-        { label: "P2P Protocol", value: "libp2p (Gossipsub v1.1)" },
-        { label: "Virtual Machine", value: "FVM (Faucet VM) - WASM Core" }
+        { label: "Block Sealing", value: "On demand, up to 10 claims (MAX_CLAIMS_PER_BLOCK)" },
+        { label: "Sealer Election", value: "Stake-weighted, seeded by keccak256(parent_hash)" },
+        { label: "Admission", value: "Proof of Claim - browser keccak, 16 bits, rises with quota" },
+        { label: "State Storage", value: "SQLite (blockchain.db)" },
+        { label: "Node Transport", value: "HTTP to the sequencer - no P2P network" },
+        { label: "Smart Contracts", value: "None on this chain; settlement runs on Solana" }
     ];
 
     const cryptographySpecs = [
-        { label: "Signature Scheme", value: "Ed25519" },
-        { label: "Hashing Algorithm", value: "BLAKE3 (256-bit)" },
-        { label: "VRF Implementation", value: "ECVRF-EDWARDS25519-SHA512-ELL2" },
-        { label: "Zero-Knowledge Ready", value: "zk-SNARKs (Groth16)" }
+        { label: "Account Actions", value: "EIP-191 (secp256k1), or a session for custodial accounts" },
+        { label: "Wallet Proof", value: "Ed25519 - the Solana wallet signs a named sentence" },
+        { label: "Hashing", value: "keccak256 - claims, blocks and Merkle leaves" },
+        { label: "Settlement Proof", value: "Merkle inclusion against a root published on Solana" }
     ];
 
     return (
@@ -80,13 +84,13 @@ export const TechnicalSpecs: React.FC = () => {
                     <CodeBlock 
                         code={CORE_RUST_CODE} 
                         language="rust" 
-                        title="blockchain_core/src/state_transition.rs" 
+                        title="faucetchain/programs/faucetchain/src/instructions/publish_root.rs" 
                     />
                     
                     <CodeBlock 
                         code={P2P_SPEC_CODE} 
                         language="rust" 
-                        title="network/src/swarm_config.rs" 
+                        title="faucetchain/programs/faucetchain/src/instructions/create_campaign.rs" 
                     />
                 </div>
             </div>

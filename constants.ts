@@ -336,24 +336,39 @@ class SentinelV2Engine:
 export const YAML_CODE = `
 protocol_evolution:
   version: "2.0.0-HVM"
-  consensus: "Adaptive Hybrid PoC+PoS"
+  consensus: "Proof of Claim + stake-weighted sealing"
   security_audit: "Sentinel AI Integrated"
 `;
 
+// Trechos reais do programa Anchor publicado na devnet. Aqui havia dois
+// arquivos inventados -- um chamava verify_vrf_proof, o outro configurava
+// Gossipsub -- e nenhum dos dois caminhos existe neste repositorio.
 export const CORE_RUST_CODE = `
-pub fn apply_block_transition(state: &mut WorldState, block: &Block, header: &BlockHeader) -> Result<(), StateError> {
-    verify_vrf_proof(&header.vrf_proof, &header.proposer_pubkey)?;
-    state.recalculate_adaptive_weights()?;
-    Ok(())
-}
+// Prova de reserva dentro da propria instrucao: uma campanha nao pode
+// prometer mais do que o vault cobre, contando tudo que ja foi publicado
+// e ainda nao foi pago.
+let outstanding = campaign
+    .committed
+    .checked_sub(campaign.paid)
+    .ok_or(ErrorCode::Overflow)?
+    .checked_add(total_amount)
+    .ok_or(ErrorCode::Overflow)?;
+
+require!(
+    ctx.accounts.vault.amount >= outstanding,
+    ErrorCode::InsufficientReserve
+);
 `;
 
 export const P2P_SPEC_CODE = `
-pub fn create_swarm_config() -> SwarmConfig {
-    let mut config = SwarmConfig::default();
-    config.set_gossip_protocol(GossipProtocol::GossipsubV1_1);
-    config
-}
+// Token-2022 aceita taxa de transferencia: o vault seria debitado
+// exatamente o que a folha publicou enquanto o destinatario recebia
+// menos. Uma raiz que paga 98 onde disse 100 nao e arredondamento,
+// e a garantia falhando em silencio.
+#[account(
+    address = anchor_spl::token::ID @ ErrorCode::UnsupportedTokenProgram
+)]
+pub token_program: Interface<'info, TokenInterface>,
 `;
 
 export const TRANSLATIONS = {
