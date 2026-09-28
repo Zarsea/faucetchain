@@ -15,6 +15,8 @@ import {
     WalletIcon,
     BeakerIcon,
     GlobeAltIcon
+,
+    ShieldCheckIcon
 } from './IconComponents';
 
 interface TabsProps {
@@ -30,6 +32,7 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
     'Dashboard': <ChartBarIcon className="w-5 h-5" />,
     'Block Explorer': <CubeIcon className="w-5 h-5 text-brand-primary" />,
     'Mining Hub': <CpuChipIcon className="w-5 h-5" />,
+    'Connect a Faucet': <ShieldCheckIcon className="w-5 h-5 text-brand-success" />,
     'Address Tracker': <SignalIcon className="w-5 h-5" />,
     'Staking Vault': <CubeIcon className="w-5 h-5" />,
     'Bounty Board': <BoltIcon className="w-5 h-5" />,

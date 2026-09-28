@@ -26,11 +26,13 @@ import { DappsEnvironment, DappsFloatingButton } from './components/DappsEnviron
 import { BlockViewer } from './components/BlockViewer';
 import { SolanaPayouts } from './components/SolanaPayouts';
 import { SettlementLedger } from './components/SettlementLedger';
+import { ConnectFaucet } from './components/ConnectFaucet';
 
 const TABS = [
     'Dashboard',
     'Solana Payouts',
     'Settlement Ledger',
+    'Connect a Faucet',
     'AutoClaim Hub',
     'Address Tracker',
     'Staking Vault',
@@ -90,6 +92,8 @@ const AppContent: React.FC = () => {
                 return <Tokenomics onNavigate={setActiveTab} />;
             case 'Whitepaper':
                 return <Whitepaper />;
+            case 'Connect a Faucet':
+                return <ConnectFaucet />;
             case 'Faucet':
                 return <Faucet />;
             case 'API Docs':

@@ -9,6 +9,7 @@ const resourcesEn = {
         },
         tabs: {
             Dashboard: "Dashboard",
+            ConnectaFaucet: "Connect a Faucet",
             BlockExplorer: "Block Explorer",
             AutoClaimHub: "AutoClaim Hub",
             AddressTracker: "Address Tracker",
@@ -168,6 +169,7 @@ const resourcesPt = {
         },
         tabs: {
             Dashboard: "Painel Principal",
+            ConnectaFaucet: "Conectar Torneira",
             BlockExplorer: "Explorador de Blocos",
             AutoClaimHub: "Central PoC",
             AddressTracker: "Rastreador L1",
