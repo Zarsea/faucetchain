@@ -17,7 +17,6 @@ import {
 import { useAuth } from './AuthContext';
 import { useLanguage } from './LanguageContext';
 import { useNetwork } from './NetworkContext';
-import { fetchMultipleOraclePrices, type OraclePrice } from '../services/oracleService';
 import { API_BASE_URL } from '../apiConfig';
 
 const WatchedAddressesWidget: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
@@ -157,86 +156,6 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
     );
 };
 
-// ─── Oracle Market Prices Widget ────────────────────────────────────────────
-const ORACLE_PAIRS = ['ETH/USD', 'BTC/USD', 'BNB/USD', 'SOL/USD', 'LINK/USD'];
-
-const OracleMarketWidget: React.FC = () => {
-    const { tFn: t } = useLanguage();
-    const [prices, setPrices] = useState<OraclePrice[]>([]);
-    const [oracleLoading, setOracleLoading] = useState(true);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-    const loadPrices = useCallback(async () => {
-        try {
-            const data = await fetchMultipleOraclePrices(ORACLE_PAIRS);
-            setPrices(data);
-            setLastUpdated(new Date());
-        } catch { /* silent */ } finally {
-            setOracleLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadPrices();
-        const interval = setInterval(loadPrices, 60_000);
-        return () => clearInterval(interval);
-    }, [loadPrices]);
-
-    const coinIcons: Record<string, string> = {
-        'ETH/USD': '⟠', 'BTC/USD': '₿', 'BNB/USD': '🟡', 'SOL/USD': '◎', 'LINK/USD': '🔗'
-    };
-
-    return (
-        <div className="space-y-3">
-            {/* Chainlink Badge */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-full">
-                    <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{t('oracle.badge')}</span>
-                </div>
-                <button onClick={loadPrices} className="p-1.5 rounded-lg hover:bg-brand-surface text-brand-muted hover:text-white transition-all">
-                    <ArrowPathIcon className="w-3.5 h-3.5" />
-                </button>
-            </div>
-
-            {oracleLoading ? (
-                <div className="flex items-center justify-center py-8 gap-3 text-brand-muted">
-                    <LoadingIcon className="w-5 h-5 animate-spin" />
-                    <span className="text-xs font-bold">{t('oracle.querying')}</span>
-                </div>
-            ) : (
-                <div className="space-y-2">
-                    {prices.map((p) => (
-                        <div key={p.pair} className="flex items-center justify-between p-3 bg-brand-bg/50 border border-brand-border/30 rounded-xl hover:border-brand-primary/30 transition-all group">
-                            <div className="flex items-center gap-3">
-                                <span className="text-lg">{coinIcons[p.pair] || '🪙'}</span>
-                                <div>
-                                    <div className="text-xs font-black text-white">{p.pair.split('/')[0]}</div>
-                                    <div className="text-[9px] text-brand-muted font-mono">{p.pair}</div>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-sm font-black text-white font-mono">
-                                    ${p.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: p.price < 1 ? 4 : 2 })}
-                                </div>
-                                <div className={`text-[10px] font-bold ${p.changePercent24h >= 0 ? 'text-brand-success' : 'text-red-400'}`}>
-                                    {p.changePercent24h >= 0 ? '▲' : '▼'} {Math.abs(p.changePercent24h).toFixed(2)}%
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {lastUpdated && (
-                <p className="text-[9px] text-brand-muted text-center">
-                    Atualizado: {lastUpdated.toLocaleTimeString('pt-BR')} •
-                    <span className="text-blue-400 ml-1">CryptoCompare Data Feed</span>
-                </p>
-            )}
-        </div>
-    );
-};
 
 // ─── Staking Summary Widget ──────────────────────────────────────────────────
 const StakingSummaryWidget: React.FC<{ userAddress: string; onNavigate: (tab: string) => void }> = ({ userAddress, onNavigate }) => {
@@ -456,9 +375,14 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                     <SparklesIcon className="w-4 h-4 text-brand-primary animate-pulse" />
                                 </div>
                                 <div className="text-3xl font-black text-brand-primary font-mono">{balanceClaim.toFixed(2)} <span className="text-sm font-bold text-brand-muted">$CLAIM</span></div>
-                                <div className="mt-4 pt-4 border-t border-brand-primary/10 flex justify-between items-center">
-                                    <span className="text-[9px] font-black text-brand-muted uppercase">{t('dashboard.estimated')}</span>
-                                    <span className="text-xs font-bold text-brand-success">~${(balanceClaim * 0.12).toFixed(2)}</span>
+                                {/* Aqui ficava "~${(balanceClaim * 0.12).toFixed(2)}": doze
+                                    centavos por $CLAIM, escritos a mao. Nenhum mercado
+                                    precifica este token, entao qualquer numero em dolar
+                                    aqui e um numero que o usuario nao consegue realizar. */}
+                                <div className="mt-4 pt-4 border-t border-brand-primary/10">
+                                    <span className="text-[10px] text-brand-muted leading-relaxed block">
+                                        {t('dashboard.claimNoPrice')}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -502,10 +426,6 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
 
                 {/* Right Column: Activity & Insights */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Oracle Market Data */}
-                    <SectionCard title={t('dashboard.oracleMarket')} icon={<ChartBarIcon className="w-5 h-5 text-blue-400" />}>
-                        <OracleMarketWidget />
-                    </SectionCard>
                     <SectionCard title={t('dashboard.recentActivity')} icon={<BoltIcon className="w-5 h-5 text-brand-accent" />}>
                         <div className="space-y-3">
                             {isLoading ? (

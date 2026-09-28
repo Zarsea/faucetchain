@@ -210,8 +210,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Architectural Improvements',
         keywords: ['improve', 'melhorar', 'upgrade', 'enhance', 'v3', 'future'],
         response: [
-            "Architectural improvements for FaucetChain V3: (1) Implement zkRollups for 10x TPS boost, (2) Add cross-chain bridges to Polygon/Arbitrum, (3) Deploy decentralized sequencer to prevent censorship, (4) Integrate Chainlink oracles for real-world data.",
-            "Melhorias arquiteturais para FaucetChain V3: (1) Implementar zkRollups para 10x mais TPS, (2) Adicionar bridges cross-chain, (3) Implantar sequenciador descentralizado, (4) Integrar oráculos Chainlink."
+            "The work actually open is recorded in PENDING.md, not invented here: an independent review of the Solana program, which nobody who wrote it can do; a campaign funded for real so a partner faucet pays from a vault a judge can read; giving the sealer something to do, since today it is paid for presence and elected to seal an empty queue; and deciding what $CLAIM buys, because a token with no use and no market is neither.",
+            "O trabalho realmente aberto está no PENDING.md, não inventado aqui: uma revisão independente do programa Solana, que ninguém que o escreveu pode fazer; uma campanha financiada de verdade para uma torneira parceira pagar de um vault que um juiz consegue ler; dar trabalho ao selador, que hoje é pago por presença e eleito para selar uma fila vazia; e decidir o que o $CLAIM compra, porque um token sem uso e sem mercado não é nem uma coisa nem outra."
         ]
     },
     {

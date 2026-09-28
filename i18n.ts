@@ -47,13 +47,12 @@ const resourcesEn = {
             portfolio: "Asset Portfolio",
             nativeGas: "Native FaucetChain Gas",
             merit: "FaucetChain Merit",
-            estimated: "Estimated Equivalent",
+            claimNoPrice: "$CLAIM has no market price. It is the internal unit this network uses to measure work; what carries value to you is the campaign token, which somebody else issued.",
             p2p: "P2P Transfer",
             reputation: "Sentinel Reputation",
             reputationDesc: "Your score is based on validation frequency and node uptime.",
             myStaking: "My Staking (UTXO Vault)",
             watchedAddresses: "Watched Addresses",
-            oracleMarket: "Real-Time Oracle Market",
             recentActivity: "Recent Ledger Activity",
             syncing: "Syncing Ledger...",
             sentinelAnalysis: "Sentinel AI Analysis"
@@ -157,10 +156,6 @@ const resourcesEn = {
             connError: "Connection error with server.",
             transferBtn: "Transfer $CLAIM",
             success: "Success! TX: "
-        },
-        oracle: {
-            badge: "Powered by Chainlink Oracle",
-            querying: "Querying Oracle..."
         }
     }
 };
@@ -211,13 +206,12 @@ const resourcesPt = {
             portfolio: "Portfólio de Ativos",
             nativeGas: "Native FaucetChain Gas",
             merit: "Mérito FaucetChain",
-            estimated: "Equivalente Estimado",
+            claimNoPrice: "$CLAIM não tem preço de mercado. É a unidade interna com que esta rede mede trabalho; o que carrega valor para você é o token da campanha, que outra pessoa emitiu.",
             p2p: "Transferência P2P",
             reputation: "Reputação Sentinel",
             reputationDesc: "Sua pontuação é baseada na frequência de validações no Merit Faucet e uptime do seu nó local.",
             myStaking: "Meu Staking (UTXO Vault)",
             watchedAddresses: "Endereços Rastreados",
-            oracleMarket: "Mercado Oracle em Tempo Real",
             recentActivity: "Atividade Recente no Ledger",
             syncing: "Sincronizando Ledger...",
             sentinelAnalysis: "Análise Sentinel AI"
@@ -321,10 +315,6 @@ const resourcesPt = {
             connError: "Erro de conexão com o servidor.",
             transferBtn: "Transferir $CLAIM",
             success: "Sucesso! TX: "
-        },
-        oracle: {
-            badge: "Powered by Chainlink Oracle",
-            querying: "Consultando Oracle..."
         }
     }
 };
@@ -375,13 +365,12 @@ const resourcesEs = {
             portfolio: "Portafolio de Activos",
             nativeGas: "Native FaucetChain Gas",
             merit: "Mérito FaucetChain",
-            estimated: "Equivalente Estimado",
+            claimNoPrice: "$CLAIM não tem preço de mercado. É a unidade interna com que esta rede mede trabalho; o que carrega valor para você é o token da campanha, que outra pessoa emitiu.",
             p2p: "Transferencia P2P",
             reputation: "Reputación Sentinel",
             reputationDesc: "Su puntuación se basa en la frecuencia de validación en el Merit Faucet y el tiempo de actividad local del nodo.",
             myStaking: "Mi Staking (UTXO Vault)",
             watchedAddresses: "Direcciones Rastreadas",
-            oracleMarket: "Mercado Oracle en Tiempo Real",
             recentActivity: "Actividad Reciente en Ledger",
             syncing: "Sincronizando Ledger...",
             sentinelAnalysis: "Análisis Sentinel AI"
@@ -485,10 +474,6 @@ const resourcesEs = {
             connError: "Error de conexión con el servidor.",
             transferBtn: "Transferir $CLAIM",
             success: "¡Éxito! TX: "
-        },
-        oracle: {
-            badge: "Powered by Chainlink Oracle",
-            querying: "Consultando Oracle..."
         }
     }
 };
