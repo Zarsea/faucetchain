@@ -163,7 +163,14 @@ export const Header: React.FC = () => {
                             <span className="text-brand-primary">CHAIN</span>
                         </h1>
                         <div className="hidden md:flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest drop-shadow-md">Hybrid PoC-V3 Consensus</span>
+                            {/* Era "Hybrid PoC-V3 Consensus". O consenso existe e a eleicao e
+                                recomputavel, mas nada esta sendo selado: a fila de claims
+                                nativos esta vazia e o ultimo bloco e de 18/09. Prometer
+                                consenso no cabecalho enquanto a cadeia esta parada e a
+                                mesma sobre-afirmacao que este repositorio ja removeu duas
+                                vezes. O que esta rodando de verdade e o trilho de
+                                distribuicao, e e isso que o cabecalho diz agora. */}
+                            <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest drop-shadow-md">Micro-Distribution Rail</span>
                             {/* Where the money actually lands. Solana's own colours, used
                                 only for settlement, so the badge means something. */}
                             <span className="settle-chip inline-flex items-center gap-1.5 rounded-full px-2 py-[2px] text-[9px] font-black uppercase tracking-widest">

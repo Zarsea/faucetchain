@@ -506,6 +506,29 @@ book, because those are different claims and only one of them is a proof.
 
 ## Change log
 
+**2026-09-27 - the header stopped promising consensus over a chain that has not
+moved since 18 September.** It read "Hybrid PoC-V3 Consensus". The consensus
+exists and the election is recomputable from the parent hash, but nothing is
+being sealed: `pending_claims` is zero, the tip is block 21 from nine days ago,
+and only the browser Proof of Claim ever queues one -- the partner bridge
+credits off-chain by design and never will. A visitor who opens the explorer
+and reads the height does that arithmetic themselves. The header now says
+**Micro-Distribution Rail**, which is what runs.
+
+The mining screen gained the whole picture instead of a slogan, served by
+`GET /api/mining/sealer`: each online node with its stake, its weight and its
+share of the draw, who is elected for the current tip, how many claims are
+queued, and the sentence that matters -- with an empty queue the elected node
+has nothing to seal, so the election decides nothing. With no node online it
+says *bootstrap, no consensus running*, because that is what `None` from
+`select_block_sealer` means.
+
+The numbers it shows are not flattering: one node with 5,500 staked and one
+with none split the draw 99.98 / 0.02. Balancing the stake to fix the picture
+was considered and refused -- with 11,934 $CLAIM in existence it would have
+meant minting some so a chart read evenly, which is the staging this repository
+spent a week removing. The screen says the real split instead.
+
 **2026-09-24 — the simulator now simulates the consensus that runs.** Three
 screens described a three-term sealer weight — merit, capital and reputation.
 `select_block_sealer` has one term: `1 + stake`. The simulator's `Math.random()`

@@ -116,6 +116,24 @@ checking the root on Solana without asking us anything.
 - [ ] **A real user links a Solana wallet and withdraws.** The only proof that
       matters: a click on somebody else's faucet became a token in a wallet,
       with the guarantee on chain, from a person who never held SOL.
+- [x] **Two mining nodes online.** Done 27 September, and it taught more than
+      it delivered. The node was asking for 840 calls an hour against a ceiling
+      of 300 and swallowing the 429s as success, so it printed MINING while the
+      server had it offline. Explore now runs every 30s and a 429 is an error
+      the operator sees. `NODE_ID_FILE` and `NODE_TOKEN_FILE` let a second node
+      share a machine without colliding on `.node_id`.
+
+      **The draw is real and it decides nothing.** The election is recomputable
+      from the parent hash, it has two participants, and the queue it elects
+      somebody to seal has been empty since 18 September. Only the browser Proof
+      of Claim creates blocks; the partner bridge credits off-chain by design.
+      The mining screen says all of this now, including the 99.98/0.02 split
+      that one staked node and one unstaked node actually produce.
+
+      **Balancing the stake to make that chart look better was refused.** With
+      11,934 $CLAIM in existence it would have meant minting some so a graph
+      read 50/50, which is the same staging this repository spent a week
+      removing.
 - [ ] **Two mining nodes online during the demo.** The sealer election is real
       and currently has no participants, so the header says "Hybrid PoC-V3
       Consensus" while nothing is sealing. `mining-node/` is a Node process;
@@ -162,6 +180,28 @@ The other two are worth having and are more work, in this order:
 Each one earns its own `verify_*` in `social_auth.py` and its own row in
 `test_social_login.py` proving a forged payload reaches nothing and writes
 nothing. Anything less is the button this project already removed once.
+
+## The sealer, after the deadline
+
+Modelling against Al-awamy et al. (2025) said the unit of work here is a human
+gesture rather than a machine's. Running two nodes said something narrower and
+more uncomfortable: the sealer does no work at all.
+
+- [ ] **Give the sealer something to do.** It does not compute, verify or serve
+      anything; it is paid for presence and elected to seal a queue that is
+      empty. If the elected node closed the settlement batch and published its
+      root, the election would decide who does the one thing this network
+      actually does, and the reward would be for work rather than for having a
+      tab open. That is a design change, not a tuning change, and it is the
+      honest answer to why the draw feels ceremonial.
+- [ ] **Revisit the stake ceiling once nodes exist to measure.**
+      `SEALER_STAKE_CAP = 10000` is a guess, and with the real distribution —
+      one node at 5,500 and one at 0 — it does not bind at all. No curve fixes
+      that: a ceiling of 100 still gives 99.02%, and `1 + sqrt(stake)` gives
+      98.69%. One staker against one non-staker is lopsided under any
+      stake-weighted rule, because that is what stake weighting means.
+      Decentralisation comes from several nodes with comparable stake, and the
+      number should be chosen from what those nodes hold.
 
 ## Deliberately not before the deadline
 

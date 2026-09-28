@@ -4290,6 +4290,71 @@ async def disconnect_miner(req: DisconnectRequest,
     return {"status": "disconnected", "node_id": req.node_id}
 
 
+@app.get("/api/mining/sealer")
+async def sealer_state():
+    """Quem sela o proximo bloco, com que peso, e o que ha para selar.
+
+    Existe porque a tela nao devia adivinhar nada disto. O sorteio e uma funcao
+    do hash do pai e do stake ativo; quem quiser conferir refaz a conta com
+    estes mesmos numeros. E a fila -- `pending` -- e a pergunta que ninguem
+    fazia: eleger um selador para uma fila vazia e cerimonia, e a tela precisa
+    poder dizer isso.
+    """
+    conn = get_db_connection()
+    c = conn.cursor()
+    now = int(_time.time())
+    try:
+        height, tip, _parent = get_chain_tip(c)
+        c.execute("SELECT timestamp FROM blocks WHERE height = ?", (height,))
+        row = c.fetchone()
+        last_block_at = row[0] if row else None
+
+        timeout = MINING_CONFIG["heartbeat_timeout"]
+        c.execute(
+            "SELECT DISTINCT wallet_address FROM active_miners "
+            "WHERE is_online = 1 AND last_heartbeat >= ? ORDER BY wallet_address",
+            (now - timeout,),
+        )
+        wallets = [r[0] for r in c.fetchall()]
+
+        nodes = []
+        for w in wallets:
+            try:
+                c.execute(
+                    "SELECT COALESCE(SUM(deposit_amount), 0) FROM staking_positions "
+                    "WHERE staker_address = ? AND is_spent = 0", (w,))
+                stake = float(c.fetchone()[0] or 0)
+            except sqlite3.OperationalError:
+                stake = 0.0
+            nodes.append({"wallet": w, "stake": stake, "weight": sealer_weight(stake)})
+
+        total = sum(n["weight"] for n in nodes) or 1.0
+        for n in nodes:
+            n["share"] = n["weight"] / total
+        nodes.sort(key=lambda n: -n["weight"])
+
+        try:
+            c.execute("SELECT COUNT(*) FROM pending_claims WHERE status = 'pending'")
+            pending = c.fetchone()[0]
+        except sqlite3.OperationalError:
+            pending = 0
+
+        elected = select_block_sealer(c, tip, now)
+    finally:
+        conn.close()
+
+    return {
+        "tip": {"height": height, "hash": tip, "sealed_at": last_block_at},
+        "pending_claims": pending,
+        "elected": elected,
+        "nodes": nodes,
+        "stake_cap": SEALER_STAKE_CAP,
+        # Sem nenhum no online o sorteio devolve None e qualquer chamador sela.
+        # E o modo de arranque, e a tela nao deve chama-lo de consenso.
+        "bootstrap": elected is None,
+    }
+
+
 @app.get("/api/mining/stats")
 async def get_mining_stats():
     """Global mining network statistics."""

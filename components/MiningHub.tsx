@@ -27,6 +27,15 @@ interface MiningStats {
     epochDuration: number;
 }
 
+interface SealerState {
+    tip: { height: number; hash: string; sealed_at: number | null };
+    pending_claims: number;
+    elected: string | null;
+    nodes: { wallet: string; stake: number; weight: number; share: number }[];
+    stake_cap: number;
+    bootstrap: boolean;
+}
+
 interface Miner {
     rank: number;
     wallet_address: string;
@@ -51,6 +60,7 @@ export const MiningHub: React.FC = () => {
     const { lang } = useLanguage();
 
     const [stats, setStats] = useState<MiningStats | null>(null);
+    const [sealer, setSealer] = useState<SealerState | null>(null);
     const [leaderboard, setLeaderboard] = useState<Miner[]>([]);
     const [myRewards, setMyRewards] = useState<Reward[]>([]);
     const [loading, setLoading] = useState(true);
@@ -58,12 +68,14 @@ export const MiningHub: React.FC = () => {
 
     const fetchData = useCallback(async () => {
         try {
-            const [sRes, lRes] = await Promise.all([
+            const [sRes, lRes, secRes] = await Promise.all([
                 fetch(`${API_BASE_URL}/api/mining/stats`),
-                fetch(`${API_BASE_URL}/api/mining/leaderboard?limit=20`)
+                fetch(`${API_BASE_URL}/api/mining/leaderboard?limit=20`),
+                fetch(`${API_BASE_URL}/api/mining/sealer`)
             ]);
             if (sRes.ok) setStats(await sRes.json());
             if (lRes.ok) setLeaderboard(await lRes.json());
+            if (secRes.ok) setSealer(await secRes.json());
 
             if (isConnected && userAddress) {
                 const rRes = await fetch(`${API_BASE_URL}/api/mining/rewards/${userAddress}`);
@@ -176,6 +188,100 @@ export const MiningHub: React.FC = () => {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* O sorteio do selador, dito como ele e. Este bloco existe porque o
+                cabecalho promete "Hybrid PoC-V3 Consensus" e a tela nao mostrava
+                nada que sustentasse a frase. Cada numero vem de
+                /api/mining/sealer, e qualquer um refaz a conta. */}
+            {sealer && (
+                <SectionCard
+                    title={lang === 'en' ? 'Who seals the next block' : 'Quem sela o proximo bloco'}
+                    icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}
+                >
+                    <div className="space-y-5">
+                        <p className="text-sm text-brand-muted leading-relaxed max-w-2xl">
+                            {lang === 'en'
+                                ? 'The draw is a function of the parent block hash and active stake, so anyone holding the chain can recompute it. Weight is 1 + min(stake, cap): the +1 keeps a node with no stake in the draw, and the cap stops the largest staker from sealing every round.'
+                                : 'O sorteio e funcao do hash do bloco pai e do stake ativo, entao qualquer um que tenha a cadeia refaz a conta. O peso e 1 + min(stake, teto): o +1 mantem no sorteio um no sem stake, e o teto impede que quem travou mais sele toda rodada.'}
+                        </p>
+
+                        {sealer.bootstrap ? (
+                            <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400 mb-1">
+                                    {lang === 'en' ? 'Bootstrap - no consensus running' : 'Bootstrap - sem consenso rodando'}
+                                </p>
+                                <p className="text-sm text-brand-muted leading-relaxed">
+                                    {lang === 'en'
+                                        ? 'No node is online, so the election has no participants and any caller may seal. Start a node to change that.'
+                                        : 'Nenhum no online, entao a eleicao nao tem participantes e qualquer chamador pode selar. Suba um no para mudar isso.'}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                {sealer.nodes.map((n) => (
+                                    <div key={n.wallet} className="rounded-xl border border-brand-border/50 bg-brand-bg/40 p-3">
+                                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                                            <span className="font-mono text-xs text-brand-secondary break-all">
+                                                {n.wallet}
+                                                {n.wallet === sealer.elected && (
+                                                    <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-green-400">
+                                                        {lang === 'en' ? 'elected' : 'sorteado'}
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span className="font-mono text-sm font-black text-white tabular-nums">
+                                                {(n.share * 100).toFixed(2)}%
+                                            </span>
+                                        </div>
+                                        <div className="mt-2 h-1.5 rounded-full bg-brand-border/40 overflow-hidden">
+                                            <div className="h-full bg-brand-primary rounded-full"
+                                                 style={{ width: `${Math.max(n.share * 100, 0.4)}%` }} />
+                                        </div>
+                                        <p className="mt-2 text-[11px] text-brand-muted font-mono">
+                                            stake {n.stake.toLocaleString()} -&gt; {lang === 'en' ? 'weight' : 'peso'} {n.weight.toLocaleString()}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* A parte que ninguem estava dizendo. */}
+                        <div className="rounded-xl border border-brand-border/50 bg-brand-bg/40 p-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
+                                        {lang === 'en' ? 'Queued to seal' : 'Fila para selar'}
+                                    </p>
+                                    <p className="text-2xl font-black font-mono text-white tabular-nums">{sealer.pending_claims}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
+                                        {lang === 'en' ? 'Chain height' : 'Altura da cadeia'}
+                                    </p>
+                                    <p className="text-2xl font-black font-mono text-white tabular-nums">{sealer.tip.height}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
+                                        {lang === 'en' ? 'Last block' : 'Ultimo bloco'}
+                                    </p>
+                                    <p className="text-sm font-mono text-brand-secondary pt-1">
+                                        {sealer.tip.sealed_at
+                                            ? new Date(sealer.tip.sealed_at * 1000).toLocaleDateString()
+                                            : '-'}
+                                    </p>
+                                </div>
+                            </div>
+                            {sealer.pending_claims === 0 && (
+                                <p className="text-sm text-brand-muted leading-relaxed">
+                                    {lang === 'en'
+                                        ? 'Nothing is queued, so the elected node has nothing to seal. Only the browser Proof of Claim creates blocks - the partner faucet bridge credits off-chain by design and never queues one. Until somebody claims natively, this election decides nothing.'
+                                        : 'Nao ha nada na fila, entao o no sorteado nao tem o que selar. So o Proof of Claim do navegador cria blocos - a ponte das torneiras parceiras credita fora da cadeia por projeto e nunca enfileira nada. Enquanto ninguem fizer claim nativo, esta eleicao nao decide nada.'}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </SectionCard>
             )}
 
             <SectionCard title={lang === 'en' ? 'Start AutoClaim' : 'Iniciar AutoClaim'} icon={<CpuChipIcon className="w-5 h-5 text-brand-primary" />}>
