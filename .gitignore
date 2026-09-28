@@ -56,6 +56,15 @@ treasury.json
 .node_token
 mining-node/.node_token
 
+# A identidade de um no e o par (.node_id, .node_token), e um segundo no na
+# mesma maquina usa .node_id.2 / .node_token.2. As regras acima davam o nome
+# exato, entao os sufixados escaparam e um token foi parar num commit. Glob
+# cobre qualquer sufixo.
+.node_id*
+.node_token*
+mining-node/.node_id*
+mining-node/.node_token*
+
 # Regra de permissao pessoal: libera o script de aposentadoria do ledger.
 # Nao vai para o repositorio -- liberar comando destrutivo e decisao de quem
 # opera a maquina, nao do projeto.
