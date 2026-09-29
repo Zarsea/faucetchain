@@ -210,7 +210,7 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Architectural Improvements',
         keywords: ['improve', 'melhorar', 'upgrade', 'enhance', 'v3', 'future'],
         response: [
-            "The work actually open is recorded in PENDING.md, not invented here: an independent review of the Solana program, which nobody who wrote it can do; a campaign funded for real so a partner faucet pays from a vault a judge can read; giving the sealer something to do, since today it is paid for presence and elected to seal an empty queue; and deciding what $CLAIM buys, because a token with no use and no market is neither.",
+            "The work actually open is recorded in PENDING.md, not invented here: an independent review of the Solana program, which nobody who wrote it can do; deciding what $CLAIM buys, because a token with no use and no market is neither; and moving the settlement batch itself under the sealer, which today is closed by the operator rather than by whoever the draw elected. Two items came off that list: two campaigns are funded on devnet and a partner faucet draws from both, and the sealer now closes real blocks -- the queue it was elected over stopped being empty on 29 September.",
             "O trabalho realmente aberto está no PENDING.md, não inventado aqui: uma revisão independente do programa Solana, que ninguém que o escreveu pode fazer; uma campanha financiada de verdade para uma torneira parceira pagar de um vault que um juiz consegue ler; dar trabalho ao selador, que hoje é pago por presença e eleito para selar uma fila vazia; e decidir o que o $CLAIM compra, porque um token sem uso e sem mercado não é nem uma coisa nem outra."
         ]
     },

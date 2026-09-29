@@ -269,7 +269,7 @@ def seed_knowledge_base():
             "metadata": {"category": "settlement", "tags": ["devnet", "program", "token-2022"], "source": "create_campaign.rs"}
         },
         {
-            "content": "A mining node keeps a machine present on the network and shares the hourly reward by uptime. It does not compute, verify or serve anything, which is worth saying plainly: it is paid for presence. Giving the sealer real work, such as closing the settlement batch and publishing its root, is recorded as design work for after the deadline.",
+            "content": "A mining node is paid by uptime, not by work: the hourly reward is split by how long each node was present. It does seal, though. When a merit claim is waiting, the node calls /api/mining/explore, and the stake-weighted draw over the parent hash decides who may close that block; a node that was not drawn is refused until a 60-second grace expires. Block 24 was sealed this way on 29 September, carrying a claim whose proof of work had just been solved. What the sealer still does not do is close the settlement batch and publish its root, which is design work recorded for after the deadline.",
             "metadata": {"category": "mining", "tags": ["nodes", "uptime", "rewards"], "source": "mining-node/"}
         },
         {

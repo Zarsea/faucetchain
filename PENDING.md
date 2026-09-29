@@ -258,8 +258,19 @@ Modelling against Al-awamy et al. (2025) said the unit of work here is a human
 gesture rather than a machine's. Running two nodes said something narrower and
 more uncomfortable: the sealer does no work at all.
 
-- [ ] **Give the sealer something to do.** It does not compute, verify or serve
-      anything; it is paid for presence and elected to seal a queue that is
+- [ ] **Give the sealer the settlement batch.** It now seals blocks of merit
+      claims: the draw over the parent hash decides who may close the block and
+      refuses everyone else for 60 seconds, and block 24 was sealed that way on
+      29 September with a freshly proved claim inside. What it still does not
+      touch is the batch that carries value -- closing it and publishing its
+      root are the operator's, and that is the asymmetry worth closing.
+
+      It remains paid for presence: the epoch reward is split by uptime, not by
+      blocks sealed. Both are true, and saying only the first described a system
+      emptier than the one that runs.
+
+      The original note, kept because it was accurate for eleven days: it is
+      paid for presence and elected to seal a queue that is
       empty. If the elected node closed the settlement batch and published its
       root, the election would decide who does the one thing this network
       actually does, and the reward would be for work rather than for having a
