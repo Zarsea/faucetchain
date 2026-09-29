@@ -6952,6 +6952,15 @@ async def get_campaign_ledger(campaign_id: int):
     state["vault"] = str(vault)
     state["vault_amount"] = vault_amount
     state["address"] = str(campaign)
+    state["program"] = str(pid)
+
+    # O nome do token, se alguem o criou. A tela precisa saber a diferenca
+    # entre "chama-se X" e "nao tem nome", e so a cadeia responde isso.
+    try:
+        result["token"] = chain.mint_metadata(rpc_url, Pubkey.from_string(registered[1]))
+    except Exception as e:
+        audit_logger.warning(f"Could not read token metadata for campaign {campaign_id}: {e}")
+        result["token"] = None
     for item, data, address in zip(off_chain, accounts[1:], roots):
         item["address"] = str(address)
         item["on_chain"] = chain.decode_reward_root(data) if data else None

@@ -385,6 +385,52 @@ def fetch_accounts(url: str, addresses: Sequence[Pubkey]) -> List[Optional[bytes
     ]
 
 
+# O programa de metadados do Metaplex. Um mint SPL classico nao carrega nome
+# nenhum: o nome, o simbolo e o logo moram numa conta separada, derivada do
+# mint, e criar essa conta e um passo que ninguem e obrigado a dar.
+METADATA_PROGRAM = Pubkey.from_string("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
+
+
+def metadata_pda(mint: Pubkey) -> Pubkey:
+    return Pubkey.find_program_address(
+        [b"metadata", bytes(METADATA_PROGRAM), bytes(mint)], METADATA_PROGRAM)[0]
+
+
+def mint_metadata(url: str, mint: Pubkey) -> Optional[dict]:
+    """O nome e o simbolo do token, ou None quando ninguem os criou.
+
+    None nao e erro: e a resposta certa para um mint sem metadados, e a tela
+    tem de dizer isso em vez de inventar um nome. A diferenca importa para quem
+    recebe o token -- um mint sem nome aparece sem nome na carteira dela tambem,
+    e e melhor saber disso antes de distribuir do que depois.
+
+    O layout comeca em key(1) + update_authority(32) + mint(32), e dai vem tres
+    strings Borsh, cada uma com o comprimento em quatro bytes little-endian.
+    Elas vem preenchidas com nulos ate o tamanho maximo, entao o corte no
+    primeiro nulo nao e cosmetico.
+    """
+    data = fetch_accounts(url, [metadata_pda(mint)])[0]
+    if not data or len(data) < 1 + 32 + 32 + 4:
+        return None
+
+    pos = 1 + 32 + 32
+    campos = []
+    for _ in range(3):
+        if pos + 4 > len(data):
+            return None
+        n = int.from_bytes(data[pos:pos + 4], "little")
+        pos += 4
+        if n > 512 or pos + n > len(data):
+            return None
+        campos.append(data[pos:pos + n].split(b"\x00", 1)[0].decode("utf-8", "replace").strip())
+        pos += n
+
+    nome, simbolo, uri = campos
+    if not nome and not simbolo:
+        return None
+    return {"name": nome, "symbol": simbolo, "uri": uri}
+
+
 def token_balance(url: str, token_account: Pubkey) -> int:
     """Base units held by a token account, 0 when the account does not exist."""
     result = rpc(url, "getTokenAccountBalance", [str(token_account), {"commitment": "confirmed"}])

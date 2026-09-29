@@ -35,6 +35,16 @@ interface CampaignState {
     closed: boolean;
     vault: string;
     vault_amount: number;
+    program: string;
+}
+
+// O nome vem dos metadados Metaplex, que sao uma conta separada do mint e que
+// ninguem e obrigado a criar. `null` quer dizer que este token nao tem nome em
+// lugar nenhum -- nao que a leitura falhou.
+interface TokenMeta {
+    name: string;
+    symbol: string;
+    uri: string;
 }
 
 interface Ledger {
@@ -43,6 +53,7 @@ interface Ledger {
     mint: string;
     batches: Batch[];
     on_chain: CampaignState | null;
+    token?: TokenMeta | null;
 }
 
 const EXPLORER = 'https://explorer.solana.com';
@@ -57,6 +68,24 @@ const amount = (value: number) => (value / UNIT).toLocaleString(undefined, {
 });
 
 const short = (value: string) => (value.length > 16 ? `${value.slice(0, 6)}…${value.slice(-6)}` : value);
+
+// Cada endereco com o nome do que ele e e uma linha dizendo o que ele faz.
+// Cinco strings base58 sem rotulo nao sao verificaveis por ninguem que nao
+// tenha escrito o programa.
+const Address: React.FC<{ role: string; what: string; address: string }> = ({ role, what, address }) => (
+    <div className="bg-brand-bg/40 border border-brand-border/40 rounded-2xl px-5 py-4">
+        <p className="text-brand-muted text-xs uppercase tracking-widest">{role}</p>
+        <a
+            href={accountUrl(address)}
+            target="_blank"
+            rel="noreferrer"
+            className="text-brand-primary hover:underline inline-flex items-center gap-1 font-mono text-sm mt-1 break-all"
+        >
+            {short(address)} <ArrowUpRightIcon className="w-3 h-3 flex-shrink-0" />
+        </a>
+        <p className="text-brand-muted text-xs mt-1 leading-relaxed">{what}</p>
+    </div>
+);
 
 const Figure: React.FC<{ label: string; value: string; hint?: string }> = ({ label, value, hint }) => (
     <div className="bg-brand-bg/40 border border-brand-border/40 rounded-2xl px-5 py-4">
@@ -143,11 +172,32 @@ export const SettlementLedger: React.FC = () => {
                 <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
                         <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Settlement Ledger</h2>
+                        {ledger && (
+                            <p className="text-white font-bold mt-2">
+                                Campaign {ledger.campaign_id} pays{' '}
+                                {ledger.token ? (
+                                    <span className="text-brand-primary">
+                                        {ledger.token.name}
+                                        {ledger.token.symbol && ` (${ledger.token.symbol})`}
+                                    </span>
+                                ) : (
+                                    <span className="text-yellow-400">an unnamed token</span>
+                                )}
+                            </p>
+                        )}
                         <p className="text-brand-muted mt-3 max-w-2xl leading-relaxed">
                             Every figure below comes from the campaign's accounts on Solana. The
                             sequencer only supplies the addresses, so you can open the explorer and
                             recompute the same numbers without trusting it.
                         </p>
+                        {ledger && !ledger.token && (
+                            <p className="text-yellow-200/80 text-xs mt-3 max-w-2xl leading-relaxed">
+                                This mint has no Metaplex metadata, so it has no name, symbol or logo
+                                anywhere on Solana — not here, and not in the wallet of whoever
+                                receives it. Creating that metadata is the sponsor's to do; until
+                                then the address below is the only thing that identifies it.
+                            </p>
+                        )}
                     </div>
                     {campaigns.length > 1 && (
                         <select
@@ -195,15 +245,46 @@ export const SettlementLedger: React.FC = () => {
                             )}
                             . The program enforces this before accepting any new root.
                         </p>
-                        <p className="flex flex-wrap gap-x-6 gap-y-1">
-                            <a href={accountUrl(state.vault)} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline inline-flex items-center gap-1">
-                                Vault {short(state.vault)} <ArrowUpRightIcon className="w-3 h-3" />
-                            </a>
-                            <a href={accountUrl(state.address)} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline inline-flex items-center gap-1">
-                                Campaign {short(state.address)} <ArrowUpRightIcon className="w-3 h-3" />
-                            </a>
-                            <span>{state.closed ? 'Closed to new roots' : 'Open'}</span>
-                        </p>
+                        <p>{state.closed ? 'This campaign is closed to new roots.' : 'This campaign is open to new roots.'}</p>
+                    </div>
+                </SectionCard>
+            )}
+
+            {state && ledger && (
+                <SectionCard title="What each address is" icon={<CubeIcon className="w-6 h-6" />}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <Address
+                            role="Program"
+                            address={state.program}
+                            what="The Anchor program that refuses to publish a root its vault cannot cover. The guarantee lives here, not on the appchain."
+                        />
+                        <Address
+                            role="Campaign"
+                            address={state.address}
+                            what="This campaign's account. Holds what has been funded, promised and paid, and the roots published so far."
+                        />
+                        <Address
+                            role="Vault"
+                            address={state.vault}
+                            what="The token account holding the sponsor's budget. Every withdrawal is paid out of this."
+                        />
+                        <Address
+                            role={ledger.token ? `Mint — ${ledger.token.symbol || ledger.token.name}` : 'Mint — unnamed'}
+                            address={ledger.mint}
+                            what={ledger.token
+                                ? `The token this campaign pays: ${ledger.token.name}. This is what carries value to the user; $CLAIM does not.`
+                                : 'The token this campaign pays. It carries no name on Solana, so wallets and explorers show only this address.'}
+                        />
+                        <Address
+                            role="Sponsor"
+                            address={ledger.sponsor}
+                            what="The wallet that opened the campaign and funded the vault. It can reclaim only the surplus, never a promised reward."
+                        />
+                        <Address
+                            role="Operator"
+                            address={state.operator}
+                            what="The key allowed to publish roots for this campaign. It cannot move money, only commit to paying it."
+                        />
                     </div>
                 </SectionCard>
             )}
