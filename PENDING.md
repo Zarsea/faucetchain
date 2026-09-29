@@ -79,18 +79,34 @@ checking the root on Solana without asking us anything.
 
 - [x] **The program on public devnet**, carrying the Token-2022 refusal, read
       back off the chain to confirm it.
-- [ ] **A tunnel, with the localhost exemption off.** `ngrok http 8000`, and
-      `RATE_LIMIT_TRUST_LOCALHOST=0` — behind a proxy on the same host every
-      caller arrives as 127.0.0.1, so leaving it on switches rate limiting off
-      for the whole internet at the exact moment the API stops being local.
+- [x] **A tunnel, with the localhost exemption off.** Done. `ngrok http 8010`
+      against the reserved domain, and `RATE_LIMIT_TRUST_LOCALHOST=0` has been in
+      `.env` since 18 September — behind a proxy on the same host every
+      caller arrives as 127.0.0.1, so leaving it on would switch rate limiting
+      off for the whole internet at the exact moment the API stops being local.
+
+      It was true and unticked for ten days, which is its own small lesson: an
+      unticked box costs somebody a re-check every time they read the list, and
+      this one got re-checked on the day the deadline was being counted.
 - [x] **Register FaucetHunter.** Done 24 September against the local API; the
       key is the one that goes into `FAUCETCHAIN_KEY` on their host. The exact
       call the PHP makes was then made by hand: 200 with `user_address` and
       `campaigns`, the derived account matching what that wallet reaches by
       signing in, and a second immediate call answering 429.
-- [ ] **Enrol it in a campaign that is funded for real — a new one.** The
-      micro-claim above answered with an empty `campaigns` list, which is
-      correct: FaucetHunter is enrolled in nothing.
+- [x] **Enrol it in a campaign that is funded for real — a new one.** Done 28
+      September: campaign 479079, vault holding 50,000 tokens on devnet,
+      enrolled in `0x7dda72ad...d40c6ef3` — the registration the bridge
+      actually calls.
+
+      It had been enrolled in `0x7a9c4b1e...5a09`, a registration the bridge
+      stopped using, so every claim for days credited $CLAIM and drew nothing
+      from any sponsor. Both halves looked finished — the faucet registered and
+      paying, the campaign funded and readable on chain — and the row between
+      them named an address neither side used. Nothing errored, because an empty
+      `campaigns` list is the correct answer for a faucet enrolled in nothing.
+
+      The exact call the PHP makes now answers
+      `campaigns: [{campaign_id: 479079, amount: 694384, funding: "vault"}]`.
 
       **Do not enrol it in one of the fourteen already in the database.** They
       all say `funding: vault`, and not one of their vaults can be read off any
