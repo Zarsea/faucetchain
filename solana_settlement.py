@@ -391,6 +391,71 @@ def fetch_accounts(url: str, addresses: Sequence[Pubkey]) -> List[Optional[bytes
 METADATA_PROGRAM = Pubkey.from_string("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
 
 
+def _borsh_string(text: str) -> bytes:
+    """Comprimento em quatro bytes little-endian, depois os bytes UTF-8."""
+    raw = text.encode("utf-8")
+    return len(raw).to_bytes(4, "little") + raw
+
+
+def create_metadata_ix(mint: Pubkey, mint_authority: Pubkey, payer: Pubkey,
+                       name: str, symbol: str, uri: str = "") -> Instruction:
+    """CreateMetadataAccountV3: o passo que da nome ao token.
+
+    Sem biblioteca Metaplex, porque a instrucao e Borsh direto e acrescentar
+    uma dependencia inteira por uma chamada nao se paga. O corpo e:
+
+        u8(33)                        CreateMetadataAccountV3
+        DataV2 {
+            name, symbol, uri         strings Borsh
+            seller_fee_basis_points   u16, zero: isto nao e NFT
+            creators, collection, uses  Option::None, um zero cada
+        }
+        is_mutable                    bool
+        collection_details            Option::None
+
+    Os limites do programa sao 32 bytes para o nome e 10 para o simbolo, e
+    estourar qualquer um faz a transacao falhar na cadeia -- longe daqui, com
+    uma mensagem que nao diz qual campo passou. Por isso a checagem e local.
+
+    `is_mutable` fica ligado de proposito: um token de demonstracao vai querer
+    trocar de nome ou ganhar logo depois, e um metadado imutavel fecha essa
+    porta para sempre.
+    """
+    nome_raw, simbolo_raw = name.encode("utf-8"), symbol.encode("utf-8")
+    if not 0 < len(nome_raw) <= 32:
+        raise ValueError(f"name must be 1..32 bytes, got {len(nome_raw)}")
+    if not 0 < len(simbolo_raw) <= 10:
+        raise ValueError(f"symbol must be 1..10 bytes, got {len(simbolo_raw)}")
+    if len(uri.encode("utf-8")) > 200:
+        raise ValueError("uri must be at most 200 bytes")
+
+    data = (
+        bytes([33])
+        + _borsh_string(name)
+        + _borsh_string(symbol)
+        + _borsh_string(uri)
+        + (0).to_bytes(2, "little")   # seller_fee_basis_points
+        + bytes([0])                  # creators: None
+        + bytes([0])                  # collection: None
+        + bytes([0])                  # uses: None
+        + bytes([1])                  # is_mutable: True
+        + bytes([0])                  # collection_details: None
+    )
+
+    return Instruction(
+        program_id=METADATA_PROGRAM,
+        accounts=[
+            AccountMeta(pubkey=metadata_pda(mint), is_signer=False, is_writable=True),
+            AccountMeta(pubkey=mint, is_signer=False, is_writable=False),
+            AccountMeta(pubkey=mint_authority, is_signer=True, is_writable=False),
+            AccountMeta(pubkey=payer, is_signer=True, is_writable=True),
+            AccountMeta(pubkey=mint_authority, is_signer=False, is_writable=False),  # update authority
+            AccountMeta(pubkey=SYSTEM_PROGRAM, is_signer=False, is_writable=False),
+        ],
+        data=data,
+    )
+
+
 def metadata_pda(mint: Pubkey) -> Pubkey:
     return Pubkey.find_program_address(
         [b"metadata", bytes(METADATA_PROGRAM), bytes(mint)], METADATA_PROGRAM)[0]
@@ -442,6 +507,25 @@ def _self_check() -> None:
     pid = program_id(idl)
     sponsor = Pubkey.from_string("11111111111111111111111111111112")
     mint = Pubkey.from_string("So11111111111111111111111111111111111111112")
+    # A instrucao de metadados, montada e conferida byte a byte. O programa
+    # recusa nome acima de 32 bytes e simbolo acima de 10, e a recusa chega
+    # como uma falha on-chain sem dizer qual campo passou.
+    _mint = Pubkey.from_string("GfGjMY4EiTRGALCoaQV4UVYC3GvMJWkmYd8fyTrYgBHA")
+    _auth = Pubkey.from_string("EL5HubafFFn3XLmzXatb6vrEcwXnAPZGjpPAvpkmjLzA")
+    ix = create_metadata_ix(_mint, _auth, _auth, "FaucetHunter Rewards", "FHR")
+    assert ix.program_id == METADATA_PROGRAM
+    assert ix.data[0] == 33, ix.data[0]
+    assert b"FaucetHunter Rewards" in ix.data and b"FHR" in ix.data
+    assert ix.data[-4:] == bytes([0, 0, 1, 0]), ix.data[-4:].hex()
+    assert ix.accounts[0].pubkey == metadata_pda(_mint)
+    assert ix.accounts[2].is_signer and ix.accounts[3].is_signer
+    for mau in (("x" * 33, "FHR"), ("ok", "x" * 11), ("", "FHR")):
+        try:
+            create_metadata_ix(_mint, _auth, _auth, *mau)
+            raise AssertionError(f"aceitou {mau!r}, que a cadeia recusaria")
+        except ValueError:
+            pass
+
 
     # Same seeds as the program: same input always lands on the same address,
     # and two different indexes never collide.

@@ -47,7 +47,16 @@ def main():
     ap.add_argument("--fund", type=float, default=50_000.0, help="tokens moved into the vault")
     ap.add_argument("--total-budget", type=float, default=50_000.0)
     ap.add_argument("--monthly-cap", type=float, default=5_000.0)
+    # Sem nome o mint nasce anonimo, e anonimo ele aparece na carteira de quem
+    # o recebe -- so o endereco base58, sem simbolo e sem logo. O nome mora numa
+    # conta do Metaplex que ninguem e obrigado a criar, e por isso quase todo
+    # token de hackathon fica sem.
+    ap.add_argument("--token-name", help="name on Solana, up to 32 bytes; omit and the mint stays unnamed")
+    ap.add_argument("--token-symbol", help="ticker, up to 10 bytes; required with --token-name")
     args = ap.parse_args()
+
+    if bool(args.token_name) != bool(args.token_symbol):
+        raise SystemExit("--token-name and --token-symbol go together, or neither")
 
     token = os.getenv("SETTLEMENT_OPERATOR_TOKEN")
     if not token:
@@ -80,6 +89,21 @@ def main():
         [sponsor, mint, sponsor_tokens],
     )
     print(f"mint     {mint.pubkey()} — {args.supply:,.0f} tokens minted")
+
+    # O nome, numa transacao a parte de proposito: se ela falhar, o mint e o
+    # supply continuam de pe e da para tentar de novo sem refazer nada.
+    if args.token_name:
+        chain.send_and_confirm(
+            args.rpc,
+            [chain.create_metadata_ix(mint.pubkey(), sponsor.pubkey(), sponsor.pubkey(),
+                                      args.token_name, args.token_symbol)],
+            sponsor,
+            [sponsor],
+        )
+        lido = chain.mint_metadata(args.rpc, mint.pubkey())
+        if not lido:
+            raise SystemExit("metadata was sent but cannot be read back; stopping before the campaign")
+        print(f"named    {lido['name']} ({lido['symbol']}) — read back off the chain")
 
     # --- the campaign and its vault --------------------------------------
     campaign = chain.campaign_pda(pid, sponsor.pubkey(), args.campaign_id)
@@ -124,6 +148,8 @@ def main():
 
     print()
     print("Done. The next click on that faucet drips from a vault that exists.")
+    if args.token_name:
+        print(f"  token       {args.token_name} ({args.token_symbol})")
     print(f"  campaign_id {args.campaign_id}")
     print(f"  mint        {mint.pubkey()}")
     print(f"  vault       {vault}")
