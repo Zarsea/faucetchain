@@ -9,6 +9,60 @@ Design questions that are open *on purpose* are not here — they live in
 
 ---
 
+## The submission itself
+
+Read off colosseum.com on 28 September. The rules PDF carries the deadline; the
+lengths come from the hackathon page and the Colosseum workshop write-up.
+
+- [ ] **Register on colosseum.com.** Separate from submitting, and it closes at
+      the same instant: after 23:59 PT on 12 October the registration form is
+      disabled and an unregistered entrant is disqualified. This is not in any
+      build list, which is exactly how it gets missed.
+- [ ] **Pitch video, 2—3 minutes.** The first thing judges watch, and what
+      decides whether a project is shortlisted. One Colosseum post says the
+      limit is 2 minutes for this hackathon while the hackathon page says 2—3;
+      **shoot for 2**, because a 2-minute pitch passes either rule and
+      exceeding the limit is on their own list of what sinks a submission.
+- [ ] **Demo video, no more than 3 minutes.** How the product works.
+- [ ] **Everything in English.** Content Guidelines 12(a)(i) of the rules. The
+      product is trilingual; the submission is not.
+- [ ] **Go-to-market, demand validation, distribution.** Required, not code,
+      and written nowhere in this repository — the only part of the
+      submission starting from zero. The demand evidence is unusually strong
+      and should be said plainly: a faucet in production, with real users,
+      already sends claims to this chain.
+- [ ] **Weekly 1-minute update video.** Optional. With two weeks left it is the
+      first thing to drop if time is short.
+- [x] **Public GitHub repo.** `Zarsea/faucetchain` is public, so no access
+      needs granting to hackathon@colosseum.com.
+- [ ] **Name, description, chains and tools, team backgrounds and location,
+      logo.** Mechanical, but none of it is written yet.
+
+### The shot list, in the order it should be filmed
+
+Everything below is live and was exercised on 29 September, except the last
+two, which are the climax and are deliberately unspent.
+
+1. **A real click on faucethunter.net.** Production, real users, not a mock.
+2. **The bridge answers with two funded campaigns at once** — 479079 and
+   652608 — each drawing from a vault a judge can read. One click, two
+   sponsors, budgets draining independently. This is the thesis in one
+   response body.
+3. **The user's dashboard shows the campaign tokens**, separated into credited
+   here / in a root on Solana / withdrawn, so promise and payment are never the
+   same number.
+4. **The explorer screen names every address** — program, campaign, vault,
+   mint, sponsor, operator — each linking to Solana devnet.
+5. **Publish a root whose vault cannot cover it, and let the program refuse.**
+   `InsufficientReserve`. More convincing than any happy path, and the whole
+   reason the guarantee lives on Solana rather than here.
+6. **Close the batch, publish the real root, withdraw.** Campaign 479079 has
+   one reward of 347,221 units loaded against a linked Solana wallet and has
+   never been settled. Spending it off-camera wastes the only unrehearsed
+   take.
+
+---
+
 ## Waiting on the operator
 
 Nothing here can be done by anyone else, and most of it takes minutes.

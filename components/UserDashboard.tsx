@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { sessionHeaders } from './AuthContext';
+import { CampaignHoldings } from './CampaignHoldings';
 import { SectionCard } from './SectionCard';
 import {
     WalletIcon,
@@ -421,6 +422,12 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                             </div>
                         </div>
                     </SectionCard>
+
+                    {/* O saldo acima e $CLAIM, a unidade interna desta rede. O que
+                        carrega valor vem de campanha, e nao aparecia em tela nenhuma:
+                        o usuario clicava, ganhava token de alguem, e nao ficava
+                        sabendo. */}
+                    <CampaignHoldings userAddress={userAddress} />
 
                     <SectionCard title={t('dashboard.p2p')} icon={<ArrowUpRightIcon className="w-5 h-5 text-brand-primary" />}>
                         <TransferWidget

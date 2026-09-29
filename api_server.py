@@ -207,6 +207,23 @@ def init_faucet_api_keys_table():
     # por torneira: declarar de novo substitui a anterior, e o historico nao
     # importa aqui -- o que o painel compara e a declaracao atual contra o
     # saldo de agora.
+    # Os tokens que esta rede sabe liquidar. Cada linha foi lida da cadeia:
+    # `decimals` e `token_program` vem da conta do mint, e `name`/`symbol`
+    # dos metadados quando existem. Um mint sem metadados entra com nome
+    # nulo, em vez de um rotulo que ninguem pode conferir.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS token_registry (
+            mint TEXT PRIMARY KEY,
+            cluster TEXT NOT NULL,
+            name TEXT,
+            symbol TEXT,
+            decimals INTEGER NOT NULL,
+            token_program TEXT NOT NULL,
+            settleable INTEGER NOT NULL,
+            note TEXT,
+            added_at INTEGER NOT NULL
+        )
+    ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS faucet_reserves (
             faucet_wallet TEXT PRIMARY KEY,
@@ -6116,6 +6133,159 @@ async def register_campaign(
     conn.commit()
     conn.close()
     return {"status": "registered", "campaign_id": req.campaign_id}
+
+
+class TokenRegisterRequest(BaseModel):
+    mint: str
+    cluster: str = "devnet"
+    note: Optional[str] = None
+
+
+@app.post("/api/solana/token")
+async def register_token(req: TokenRegisterRequest, x_operator_token: Optional[str] = Header(None)):
+    """Registra um token depois de conferi-lo na cadeia.
+
+    Nada aqui e digitado. Decimais e programa vem da conta do mint; nome e
+    simbolo dos metadados Metaplex, quando alguem os criou. Um mint que nao
+    existe naquele cluster e recusado, e um Token-2022 entra marcado como nao
+    liquidavel em vez de ficar de fora: saber que um token conhecido nao serve,
+    e por que, vale mais do que a ausencia dele na lista.
+    """
+    require_operator(x_operator_token)
+
+    import solana_settlement as chain
+    from solders.pubkey import Pubkey
+
+    try:
+        mint = Pubkey.from_string(req.mint.strip())
+    except Exception:
+        raise HTTPException(status_code=400, detail="That is not a Solana address")
+
+    rpc_url = {
+        "devnet": "https://api.devnet.solana.com",
+        "mainnet-beta": "https://api.mainnet-beta.solana.com",
+        "testnet": "https://api.testnet.solana.com",
+    }.get(req.cluster)
+    if not rpc_url:
+        raise HTTPException(status_code=400, detail="cluster must be devnet, testnet or mainnet-beta")
+
+    try:
+        info = chain.rpc(rpc_url, "getAccountInfo", [str(mint), {"encoding": "jsonParsed"}])["value"]
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Could not read {req.cluster}: {e}")
+    if not info:
+        raise HTTPException(status_code=404, detail=f"No account at {mint} on {req.cluster}")
+
+    parsed = (info.get("data") or {}).get("parsed") or {}
+    if parsed.get("type") != "mint":
+        raise HTTPException(status_code=400, detail="That address is not a token mint")
+
+    owner = info["owner"]
+    settleable = owner == str(chain.TOKEN_PROGRAM)
+    meta = None
+    try:
+        meta = chain.mint_metadata(rpc_url, mint)
+    except Exception:
+        pass
+
+    conn = get_db_connection()
+    conn.execute(
+        """INSERT INTO token_registry
+               (mint, cluster, name, symbol, decimals, token_program, settleable, note, added_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(mint) DO UPDATE SET
+               cluster = excluded.cluster, name = excluded.name, symbol = excluded.symbol,
+               decimals = excluded.decimals, token_program = excluded.token_program,
+               settleable = excluded.settleable, note = excluded.note""",
+        (str(mint), req.cluster, (meta or {}).get("name"), (meta or {}).get("symbol"),
+         parsed["info"]["decimals"], owner, 1 if settleable else 0, req.note,
+         int(_time.time())),
+    )
+    conn.commit()
+    conn.close()
+    return {
+        "mint": str(mint), "cluster": req.cluster,
+        "name": (meta or {}).get("name"), "symbol": (meta or {}).get("symbol"),
+        "decimals": parsed["info"]["decimals"], "settleable": settleable,
+        "reason": None if settleable else
+                  "Token-2022: a transfer fee would debit the vault more than the leaf paid",
+    }
+
+
+@app.get("/api/solana/tokens")
+async def list_tokens():
+    """Os tokens que esta rede sabe liquidar, com o que foi lido da cadeia."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM token_registry ORDER BY settleable DESC, symbol IS NULL, symbol"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    conn.close()
+    return {"tokens": [dict(r) for r in rows]}
+
+
+@app.get("/api/solana/holdings/{address}")
+async def get_campaign_holdings(address: str):
+    """O que este usuario ganhou de campanha, e onde cada parte esta.
+
+    Tres estados, porque a diferenca entre eles e a diferenca entre promessa e
+    pagamento:
+
+      credited  -- creditado aqui, ainda fora de qualquer raiz
+      published -- dentro de uma raiz que esta na Solana, sacavel
+      collected -- ja sacado, na carteira do usuario
+
+    `collected` vem do bitmap da raiz na cadeia, entao e a Solana dizendo, nao
+    este servidor. Quando a cadeia nao responde ele fica nulo e a tela diz que
+    nao sabe, em vez de contar como nao sacado.
+    """
+    try:
+        user = normalize_address(address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        rows = c.execute(
+            """SELECT r.campaign_id, r.amount, r.batch_id, b.published_signature,
+                      sc.mint, t.name, t.symbol, t.decimals
+                 FROM settlement_rewards r
+                 LEFT JOIN settlement_batches b   ON b.id = r.batch_id
+                 LEFT JOIN settlement_campaigns sc ON sc.campaign_id = r.campaign_id
+                 LEFT JOIN token_registry t        ON t.mint = sc.mint
+                WHERE r.user_address = ?""",
+            (user,),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    conn.close()
+
+    por_token: Dict[str, dict] = {}
+    for row in rows:
+        mint = row["mint"] or "unknown"
+        slot = por_token.setdefault(mint, {
+            "mint": mint,
+            "name": row["name"],
+            "symbol": row["symbol"],
+            "decimals": row["decimals"] if row["decimals"] is not None else 6,
+            "campaigns": [],
+            "credited": 0, "published": 0, "collected": 0,
+        })
+        if row["campaign_id"] not in slot["campaigns"]:
+            slot["campaigns"].append(row["campaign_id"])
+        if row["batch_id"] is None:
+            slot["credited"] += row["amount"]
+        elif row["published_signature"]:
+            slot["published"] += row["amount"]
+        else:
+            # Em lote fechado e ainda nao publicado: prometido aqui e em lugar
+            # nenhum na cadeia. Conta como creditado, que e o estado honesto.
+            slot["credited"] += row["amount"]
+
+    return {"address": user, "tokens": list(por_token.values())}
 
 
 @app.get("/api/solana/campaigns")
