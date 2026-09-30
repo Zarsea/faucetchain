@@ -63,9 +63,110 @@ two, which are the climax and are deliberately unspent.
 
 ---
 
+## The security audit of 29 September
+
+Nine categories were checked against the code and, where possible, against the
+running server. Four came back clean: SQL injection (everything is
+parameterised), secrets in the frontend (only `VITE_API_URL` reaches the
+bundle), SSRF (no user-controlled URL reaches a server-side fetch) and prompt
+injection (there is no LLM on the server, and the document write is
+operator-guarded).
+
+Nine findings came out of it. Eight are below; the ninth is a product
+decision rather than a repair, so it sits under *Waiting on the operator*.
+Full report, with the probes that produced each one:
+https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
+
+### High
+
+- [ ] **Behind the tunnel every caller shares one rate-limit bucket.** ngrok
+      delivers over loopback, so `request.client.host` is `127.0.0.1` for every
+      visitor on the internet. `X-Forwarded-For` is read nowhere — zero
+      occurrences — and uvicorn is not started with `proxy_headers`.
+
+      With `RATE_LIMIT_TRUST_LOCALHOST=0` the limit does apply, which looks
+      right and produces the worst of both: one abuser exhausts the quota for
+      everybody, so the limit is a denial-of-service amplifier rather than a
+      defence. And the per-IP ceilings become global —
+      `CLAIM_IP_HOURLY_WALLETS` is five wallets an hour for the whole internet,
+      `AUTH_HOURLY_PER_IP` thirty login attempts an hour for the planet.
+
+      Fix: `--proxy-headers --forwarded-allow-ips=127.0.0.1`, trusting only the
+      local proxy so nobody forges their own IP by sending the header. Worth a
+      test proving two different IPs get two different buckets.
+
+### Medium
+
+- [ ] **Close `/docs`, `/redoc` and `/openapi.json` in production.** All three
+      answer 200. The schema publishes 99 routes, fifteen sensitive ones by
+      name, and every authentication header the API expects —
+      `X-Operator-Token`, `X-Api-Key`, `X-Session-Token`, `X-Node-Token`. The
+      routes stay guarded; what is given away is the reconnaissance.
+      `FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`, kept on in
+      development by an environment variable.
+- [ ] **Replace the password hash.** `hmac.new(salt, password, sha256)` is one
+      round of a deliberately fast function, with a *global* salt and no work
+      factor. `users` has no per-user salt column, so two accounts with the same
+      password store the same hash. Not plaintext, which is the question that
+      was asked, but a database leak becomes a password list quickly. bcrypt or
+      argon2, re-hashing each account at its next login.
+
+      This is the only finding whose damage is permanent: a leaked key is
+      rotated, a leaked password is the one that person uses elsewhere.
+- [ ] **Pace `GET /api/solana/holdings/{address}`.** Forty of forty requests
+      succeeded. Four-table JOIN per call, no `check_rate_limit`, no
+      `within_rate`. Written on 29 September and never paced.
+      `test_endpoint_inventory.py` did not catch it because it audits
+      authorisation on state-changing routes and this is a GET — so the
+      inventory is worth extending to expensive reads, or the next heavy GET
+      walks in through the same door.
+
+### Low
+
+- [ ] **Stop returning the exception to the client.** The global handler sends
+      `{"detail": f"{type(exc).__name__}: {exc}"}`, plus seventeen sites with
+      `500, detail=str(e)`. It fired during this session: a database missing the
+      indexer's table answered `OperationalError('no such table: transactions')`
+      to whoever asked. The hand-written messages in this codebase are good; the
+      problem is the unforeseen ones. Log the full `repr`, return an incident id.
+- [ ] **`securityLevel: 'strict'` on Mermaid.** `'loose'` with
+      `htmlLabels: true` allows HTML and click handlers in labels, and the
+      output goes to `dangerouslySetInnerHTML`. Not exploitable today — every
+      diagram comes from the `DIAGRAMS` constant and the AI chat renders its
+      reply as a React child, which escapes — but it is a loaded gun aimed at
+      the first diagram that comes from data. One word.
+- [ ] **`POST /api/internal/notify-block` answers 500 when unconfigured.**
+      `INTERNAL_SECRET` is not in `.env`, so the route refuses, which is the
+      safe behaviour with the wrong code. 503 is the one that means the
+      capability is not available.
+- [ ] **Decide whether API keys stay readable.** `faucet_api_keys.api_key` is
+      stored in clear because `reveal-key` shows it again to the owner. That is
+      a deliberate trade, not an oversight, and the price is that one database
+      read hands out the right to distribute in every faucet's name. Closing it
+      means storing only the hash and dropping `reveal`: the key appears once at
+      creation and once at rotation, and whoever loses it rotates.
+
+---
+
 ## Waiting on the operator
 
 Nothing here can be done by anyone else, and most of it takes minutes.
+
+- [ ] **Decide whether the identity link is public.**
+      `GET /api/solana/link/{address}` answers for any address with no
+      authentication, returning the Solana wallet behind a FaucetChain account.
+      The forward direction is public by construction — the account is keccak
+      of the wallet, so anyone holding a wallet computes it. The reverse is
+      infeasible to compute, and this endpoint hands it over. Together with
+      `/holdings` and `/microclaim/balance`, which also answer about any
+      address, it profiles an account: what it earned, from which faucets, in
+      which campaigns, and which Solana wallet it points at.
+
+      Public balances are consistent with a public ledger and I would defend
+      them. Correlating the two identities is a different thing, and it should
+      be a decision somebody made rather than something that happened. If it is
+      meant to be public, say so on the screen where people link. If not, that
+      endpoint needs a session, and the owner always has one.
 
 - [ ] **A Telegram bot token.** `@BotFather` → `/newbot` → paste the token into
       `TELEGRAM_BOT_TOKEN`. Sign-in through Telegram is written, tested and
