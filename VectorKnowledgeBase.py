@@ -277,7 +277,7 @@ def seed_knowledge_base():
             "metadata": {"category": "architecture", "tags": ["storage", "transport", "scope"], "source": "api_server.py"}
         },
         {
-            "content": "FaucetHunter is the first partner faucet, live in production since 26 September 2026. Its bridge calls the micro-claim after its own commit, with a four-second timeout and a circuit breaker that stops trying while FaucetChain is unreachable, so a claim on its side is paid in milliseconds whether or not this network answers.",
+            "content": "FaucetHunter is the first partner faucet, live in production since 26 September 2026. Its bridge calls the micro-claim after its own commit, so the user is already paid when this network enters the story and every failure path returns null rather than throwing. Measured with the sequencer deliberately stopped: the call costs about 2 seconds against 0.005 with it running, because it waits out the connect timeout. The user still gets paid; their page is just slower. There is no circuit breaker -- the bridge retries on every claim for as long as the outage lasts, and building one is open work.",
             "metadata": {"category": "integration", "tags": ["faucethunter", "production", "bridge"], "source": "integration/faucethunter/"}
         },
         {

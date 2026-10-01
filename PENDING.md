@@ -305,9 +305,33 @@ checking the root on Solana without asking us anything.
       was a silent no-op on every claim. The bridge also moved out of
       `dist/api/`, which Vite empties on build. `test_bridge_contract.py` keeps
       the fields the PHP reads from being renamed out from under it.
-- [ ] **Take the sequencer down on purpose** and confirm the faucet still pays.
-      The one test that is about protecting the partner rather than us, and the
-      one most likely to be skipped for looking redundant.
+- [x] **Take the sequencer down on purpose** and confirm the faucet still pays.
+      Done 1 October. The partner is protected, and the protection is the
+      ordering: `claim.php` commits before it calls the bridge, so the user is
+      paid whatever happens next. Every failure path in the bridge returns null
+      and none of them throws, and `claim.php` wraps the call in its own catch
+      anyway.
+
+      `test_partner_survives_outage.py` pins all three — the ordering read out
+      of PATCHES.md, the four failure paths read out of the bridge, and the
+      timeout budget measured against a dead port. It is the only test here that
+      protects somebody else.
+
+      **It also found a sentence that was not true.** The AI corpus claimed the
+      bridge had "a circuit breaker that stops trying while FaucetChain is
+      unreachable, so a claim on its side is paid in milliseconds". There is no
+      circuit breaker in `faucetchain.php` — no cache, no backoff, no mention.
+      Measured with the sequencer stopped on purpose: **2.01 seconds per call,
+      against 0.005 with it running.** The user is still paid; their page is
+      just slower, on every claim, for as long as the outage lasts. The corpus
+      now says the measured number.
+
+- [ ] **Give the bridge a circuit breaker.** Six lines of core PHP: a file whose
+      mtime is touched on failure, skipped entirely while it is fresh. It would
+      take the partner's cost from 2 seconds on every claim to 2 seconds on the
+      first one. Not written yet because PHP does not run on this machine, and
+      untested PHP going into somebody else's production is how you repay a
+      favour badly. Worth doing with them watching, not alone.
 - [ ] **A field on FaucetHunter where the user types their Solana address.**
       The column exists and the bridge reads it; nothing yet writes it. Without
       this the integration is complete and pays nobody, which is the least
