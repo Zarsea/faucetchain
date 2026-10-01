@@ -369,6 +369,19 @@ checking the root on Solana without asking us anything.
       the variable would flush both on the next batch, which is why it should be
       done deliberately and not in passing.
 
+- [ ] **A real user links a Solana wallet and withdraws.** Everything the
+      machines can do is done, verified 1 October against the published root:
+      the proof endpoint returns leaf 0 of root `0x8aaa6330...` for 347,221
+      units, the chain's own bitmap says it is unclaimed, and the relayer builds
+      the transaction and offers to pay the fee from
+      `8G3hqGyHZLHLUQhmRayMR3bZ6kiXSGhUo7gAAEu8pa3w`, which holds 0.797 SOL.
+
+      What is left cannot be done here, and that is the design working: the
+      withdrawal needs a signature from `75vW4Hnh...QT3SDnE`, and nobody on this
+      machine holds that key — not the operator keypair, not the relayer, not
+      the one in WSL. It lives in somebody's Phantom. One signature on the
+      payouts screen finishes it.
+
 - [ ] **A real user links a Solana wallet and withdraws.** The only proof that
       matters: a click on somebody else's faucet became a token in a wallet,
       with the guarantee on chain, from a person who never held SOL.
