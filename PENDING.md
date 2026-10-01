@@ -336,6 +336,39 @@ checking the root on Solana without asking us anything.
       The column exists and the bridge reads it; nothing yet writes it. Without
       this the integration is complete and pays nobody, which is the least
       obvious way for all of the above to look finished and be useless.
+- [x] **Publish a root for a live partner campaign.** Done 1 October.
+      Campaign 479079, batch 19, root
+      `0x8aaa6330eea37d1411de38bb2051d89438dd3a5a0421d072638df518ed9532d4`,
+      one leaf, 347,221 units, signature
+      `4z4MWkBG94UWSZDaYo5i77FTQ4krBg3qmUJ4pTA3xpZ7E262pKVx5qz8od4kb9nkkXBPjYFMCvp3vszgGBbBGLvW`.
+
+      Read back off devnet rather than from our own books: the root account
+      `6KhrZLcdFwCENDnqvyRLNRHMHNG4suajjSrfMzTmaV9W` holds 109 bytes, the
+      campaign now reads `committed=347221 paid=0 root_count=1`, and the vault
+      still holds its 50,000. The reward no longer depends on this server —
+      whoever holds the proof withdraws straight from the vault.
+
+      Two things turned up on the way, neither fatal and both worth knowing.
+
+- [ ] **`publish_root.py` does not load `.env`.** It documents the four
+      variables it needs and then reads them straight from the environment, so
+      running it the way its own docstring shows fails with
+      `SETTLEMENT_CAMPAIGN_SPONSOR is not set` while the value sits in `.env`.
+      One `load_dotenv` at the top. Trivial, and it cost a round trip at exactly
+      the moment nobody wants one.
+
+- [ ] **The treasury's share still does not become a leaf.** Campaign 479079
+      owes the treasury 607,504 units and batch 19 went out with a single leaf.
+      The cause is narrower than the known gap suggests: `_flush_treasury_share`
+      returns early on `SETTLEMENT_TREASURY_SOLANA`, which is absent from
+      `.env` — but the treasury's `solana_links` row **does** exist, written by
+      an earlier run. The code reads the variable, not the book, so the debt
+      sits there while the address it needs is already in the database.
+
+      Same shape as the 9,999,566 units stranded on campaign 478840. Setting
+      the variable would flush both on the next batch, which is why it should be
+      done deliberately and not in passing.
+
 - [ ] **A real user links a Solana wallet and withdraws.** The only proof that
       matters: a click on somebody else's faucet became a token in a wallet,
       with the guarantee on chain, from a person who never held SOL.
