@@ -79,7 +79,7 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
 
 ### High
 
-- [ ] **Behind the tunnel every caller shares one rate-limit bucket.** ngrok
+- [x] **Behind the tunnel every caller shares one rate-limit bucket.** ngrok
       delivers over loopback, so `request.client.host` is `127.0.0.1` for every
       visitor on the internet. `X-Forwarded-For` is read nowhere — zero
       occurrences — and uvicorn is not started with `proxy_headers`.
@@ -97,7 +97,7 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
 
 ### Medium
 
-- [ ] **Close `/docs`, `/redoc` and `/openapi.json` in production.** All three
+- [x] **Close `/docs`, `/redoc` and `/openapi.json` in production.** All three
       answer 200. The schema publishes 99 routes, fifteen sensitive ones by
       name, and every authentication header the API expects —
       `X-Operator-Token`, `X-Api-Key`, `X-Session-Token`, `X-Node-Token`. The
@@ -113,7 +113,7 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
 
       This is the only finding whose damage is permanent: a leaked key is
       rotated, a leaked password is the one that person uses elsewhere.
-- [ ] **Pace `GET /api/solana/holdings/{address}`.** Forty of forty requests
+- [x] **Pace `GET /api/solana/holdings/{address}`.** Forty of forty requests
       succeeded. Four-table JOIN per call, no `check_rate_limit`, no
       `within_rate`. Written on 29 September and never paced.
       `test_endpoint_inventory.py` did not catch it because it audits
@@ -121,21 +121,49 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
       inventory is worth extending to expensive reads, or the next heavy GET
       walks in through the same door.
 
+### Found on 1 October, by the calendar
+
+- [ ] **A campaign whose rate rounds below two units pays nothing, silently.**
+      The per-click gross is
+      `month_left / days_left_in_month / (100 * 288 * 0.10)`, truncated to an
+      integer, and the user gets 80% of that, truncated again. So a gross of 1
+      splits into 0 for the user and 1 for the treasury, the code hits
+      `if to_user <= 0: continue`, and the campaign vanishes from the reply.
+
+      Nothing is debited — the `continue` happens before the write, which is
+      the one mercy here — but the `campaigns` list comes back empty, and the
+      bridge cannot tell that from "this faucet is enrolled in nothing". A
+      sponsor would see no payouts and no reason.
+
+      It surfaced because `test_bridge_contract.py` passed every day of
+      September and failed on 1 October. Its budget was 100,000 a month; with
+      two days left in September the rate was 17, and with 31 days left in
+      October it was 1. The test now uses production-scale numbers and says why,
+      so nobody shrinks them back.
+
+      The three live campaigns are unaffected: at today's rates they pay 44,802
+      and 179,211 units per click. The floor only bites small budgets, which is
+      exactly where a first-time sponsor would start.
+
+      Deliberately not fixed before filming: changing payout arithmetic the week
+      of a recording trades a known defect for an unknown one. Worth doing right
+      after.
+
 ### Low
 
-- [ ] **Stop returning the exception to the client.** The global handler sends
+- [x] **Stop returning the exception to the client.** The global handler sends
       `{"detail": f"{type(exc).__name__}: {exc}"}`, plus seventeen sites with
       `500, detail=str(e)`. It fired during this session: a database missing the
       indexer's table answered `OperationalError('no such table: transactions')`
       to whoever asked. The hand-written messages in this codebase are good; the
       problem is the unforeseen ones. Log the full `repr`, return an incident id.
-- [ ] **`securityLevel: 'strict'` on Mermaid.** `'loose'` with
+- [x] **`securityLevel: 'strict'` on Mermaid.** `'loose'` with
       `htmlLabels: true` allows HTML and click handlers in labels, and the
       output goes to `dangerouslySetInnerHTML`. Not exploitable today — every
       diagram comes from the `DIAGRAMS` constant and the AI chat renders its
       reply as a React child, which escapes — but it is a loaded gun aimed at
       the first diagram that comes from data. One word.
-- [ ] **`POST /api/internal/notify-block` answers 500 when unconfigured.**
+- [x] **`POST /api/internal/notify-block` answers 500 when unconfigured.**
       `INTERNAL_SECRET` is not in `.env`, so the route refuses, which is the
       safe behaviour with the wrong code. 503 is the one that means the
       capability is not available.

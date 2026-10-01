@@ -66,9 +66,17 @@ def main() -> int:
     }, headers=operator)
     assert r.status_code == 200, r.text
 
+    # O orcamento precisa ser grande, e o motivo nao e cosmetico: a taxa por
+    # clique e `month_left / dias_restantes / (100 * 288 * 0.10)` truncada para
+    # inteiro, e o usuario recebe 80% dela, tambem truncado. Com 100.000 por mes
+    # isso da 1 unidade bruta no dia 1 de um mes de 31 dias, e 80% de 1 e zero --
+    # o teste passava em setembro e falhava em outubro, pela data e nada mais.
+    #
+    # Os valores abaixo sao a ordem de grandeza das campanhas de verdade, onde
+    # um token tem 6 casas decimais.
     r = client.post(f"/api/solana/campaign/{campaign_id}/budget", json={
-        "total_budget": 1_000_000,
-        "monthly_cap": 100_000,
+        "total_budget": 100_000_000,
+        "monthly_cap": 10_000_000,
         "funding": "vault",
     }, headers=operator)
     assert r.status_code == 200, r.text

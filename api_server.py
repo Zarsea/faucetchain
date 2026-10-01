@@ -77,10 +77,20 @@ except ImportError:
     _fraud_detector = None
     print("⚠️ FraudDetector not available. Fraud detection disabled.")
 
+# A documentacao publicava 99 rotas, quinze sensiveis pelo nome, e os quatro
+# cabecalhos de autenticacao que a API espera. As rotas seguem guardadas; o que
+# ia de graca era o reconhecimento -- ninguem precisava adivinhar nem uma rota
+# nem o nome do cabecalho a forjar. Fica ligada em desenvolvimento, onde ela
+# serve a quem esta construindo.
+EXPOSE_API_DOCS = os.getenv("EXPOSE_API_DOCS", "0") == "1"
+
 app = FastAPI(
     title="FaucetChain Vector Knowledge API",
     description="Semantic search API for FaucetChain documentation (Secured)",
-    version="2.0.0"
+    version="2.0.0",
+    docs_url="/docs" if EXPOSE_API_DOCS else None,
+    redoc_url="/redoc" if EXPOSE_API_DOCS else None,
+    openapi_url="/openapi.json" if EXPOSE_API_DOCS else None,
 )
 
 # CORS for frontend integration
@@ -103,10 +113,23 @@ app.add_middleware(
 # turns it into an ordinary response, which the middleware then decorates.
 @app.exception_handler(Exception)
 async def unhandled_exception(request: Request, exc: Exception):
-    audit_logger.error(f"Unhandled error on {request.method} {request.url.path}: {exc!r}")
+    """O log recebe tudo; o cliente recebe um numero para citar.
+
+    Isto devolvia `f"{type(exc).__name__}: {exc}"`, e aconteceu de verdade: um
+    banco sem a tabela do indexer respondeu `no such table: transactions` a quem
+    perguntou. Um erro de arquivo devolveria caminho absoluto do disco.
+
+    As mensagens escritas a mao neste codigo sao boas e continuam chegando
+    inteiras -- HTTPException passa longe daqui. O que esta linha cobre e o que
+    ninguem previu, que e justamente onde o detalhe vaza.
+    """
+    incidente = secrets.token_hex(4)
+    audit_logger.error(
+        f"Unhandled error [{incidente}] on {request.method} {request.url.path}: {exc!r}"
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": f"{type(exc).__name__}: {exc}"},
+        content={"detail": f"Something failed on our side. Incident {incidente}."},
     )
 
 
@@ -445,6 +468,32 @@ def init_users_table():
     conn.commit()
     conn.close()
 
+TRUSTED_PROXIES = os.getenv("FORWARDED_ALLOW_IPS", "")
+
+
+@app.on_event("startup")
+async def announce_proxy_mode():
+    """Diz, no arranque, de quem o rate limit acha que as requisicoes vem.
+
+    Sem --proxy-headers o servidor atras de um tunel ve 127.0.0.1 em tudo e
+    aplica um teto unico a internet inteira: um abusador sozinho derruba o
+    servico para todos, e os tetos por IP viram tetos globais. Nada nisso
+    aparece em log de erro, porque nada falha -- so protege a coisa errada.
+    """
+    if TRUSTED_PROXIES:
+        audit_logger.info(
+            f"Rate limiting keys on the forwarded client IP, trusting {TRUSTED_PROXIES}. "
+            "Start uvicorn with --proxy-headers for this to take effect."
+        )
+    else:
+        audit_logger.warning(
+            "FORWARDED_ALLOW_IPS is unset: rate limiting keys on the TCP peer. "
+            "Correct when the API is reached directly. Behind a proxy or tunnel "
+            "every visitor arrives as one address and shares one bucket, which "
+            "turns the limit into a denial-of-service amplifier."
+        )
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize the knowledge base on startup (gracefully)."""
@@ -517,6 +566,7 @@ RATE_LIMIT_TRUST_LOCALHOST = os.getenv("RATE_LIMIT_TRUST_LOCALHOST", "1") != "0"
 AUTH_HOURLY_PER_IP = int(os.getenv("AUTH_HOURLY_PER_IP", "30"))
 REGISTER_HOURLY_PER_IP = int(os.getenv("REGISTER_HOURLY_PER_IP", "10"))
 TRACKER_HOURLY_PER_IP = int(os.getenv("TRACKER_HOURLY_PER_IP", "60"))
+HOLDINGS_HOURLY_PER_IP = int(os.getenv("HOLDINGS_HOURLY_PER_IP", "120"))
 MINING_HOURLY_PER_NODE = int(os.getenv("MINING_HOURLY_PER_NODE", "300"))
 RATE_LIMIT_WINDOW = timedelta(minutes=1)  # Time window
 
@@ -788,7 +838,7 @@ async def notify_block(payload: dict, request: Request):
     """Internal endpoint for indexer to notify API of new blocks."""
     expected_secret = os.getenv("INTERNAL_SECRET")
     if not expected_secret:
-        raise HTTPException(status_code=500, detail="Internal secret not configured")
+        raise HTTPException(status_code=503, detail="Internal secret not configured")
     if request.headers.get("X-Internal-Secret") != expected_secret:
         raise HTTPException(status_code=403, detail="Unauthorized internal call")
     try:
@@ -6227,7 +6277,7 @@ async def list_tokens():
 
 
 @app.get("/api/solana/holdings/{address}")
-async def get_campaign_holdings(address: str):
+async def get_campaign_holdings(address: str, request: Request):
     """O que este usuario ganhou de campanha, e onde cada parte esta.
 
     Tres estados, porque a diferenca entre eles e a diferenca entre promessa e
@@ -6241,6 +6291,12 @@ async def get_campaign_holdings(address: str):
     este servidor. Quando a cadeia nao responde ele fica nulo e a tela diz que
     nao sabe, em vez de contar como nao sacado.
     """
+    # Quatro tabelas em JOIN por chamada, e nada pacseava isto: 40 de 40
+    # rajadas passaram na auditoria. O inventario de endpoints nao pegou porque
+    # ele audita autorizacao em rotas que mudam estado, e esta e um GET.
+    if not within_rate("holdings", request.client.host, HOLDINGS_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many reads from here this hour.")
+
     try:
         user = normalize_address(address)
     except ValueError as e:
@@ -7532,10 +7588,15 @@ if __name__ == "__main__":
     print("[>] API will be available at: http://localhost:8000")
     print("[>] Docs available at: http://localhost:8000/docs")
     
+    # proxy_headers sozinho confiaria no cabecalho de qualquer um. A lista de
+    # permitidos e o que faz a diferenca: o cabecalho so vale quando a conexao
+    # TCP veio de um proxy nomeado aqui.
     uvicorn.run(
         "api_server:app",
         host="0.0.0.0",
         port=8000,
         reload=False,
-        log_level="info"
+        log_level="info",
+        proxy_headers=bool(TRUSTED_PROXIES),
+        forwarded_allow_ips=TRUSTED_PROXIES or None,
     )

@@ -16,7 +16,11 @@ import {
 mermaid.initialize({
     startOnLoad: false,
     theme: 'dark',
-    securityLevel: 'loose',
+    // 'loose' permite HTML e handler de clique dentro dos rotulos, e o
+    // resultado vai para dangerouslySetInnerHTML. Hoje todo diagrama vem
+    // da constante DIAGRAMS, entao nao era explorave -- mas e uma arma
+    // carregada apontada para o primeiro diagrama que vier de dado.
+    securityLevel: 'strict',
     fontFamily: 'Inter, sans-serif',
     flowchart: { 
         useMaxWidth: false, 
