@@ -230,6 +230,11 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
     // Quanto desta carteira esta travado como caucao de torneira. Zero para
     // quem nao tem torneira, que e a maioria das contas.
     const [lockedAsFaucet, setLockedAsFaucet] = useState<number>(0);
+    // O que foi reivindicado e ainda nao entrou em bloco, e quantos nos
+    // poderiam fecha-lo. Sem os dois a tela mostra 0,00 a quem acabou de
+    // resolver a prova de trabalho, e a pessoa conclui que nao registrou.
+    const [pending, setPending] = useState<{ amount: number; count: number; sealers: number }>(
+        { amount: 0, count: 0, sealers: 0 });
     const [isLoading, setIsLoading] = useState(true);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [refreshTick, setRefreshTick] = useState(0);
@@ -263,6 +268,11 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 if (resBalance.ok) {
                     const bData = await resBalance.json();
                     setBalanceClaim(bData.total_claim ?? 0);
+                    setPending({
+                        amount: bData.pending_amount ?? 0,
+                        count: bData.pending_count ?? 0,
+                        sealers: bData.sealers_online ?? 0,
+                    });
                 } else { setBalanceClaim(0); }
             } catch { setBalanceClaim(0); }
 
@@ -401,6 +411,26 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                     centavos por $CLAIM, escritos a mao. Nenhum mercado
                                     precifica este token, entao qualquer numero em dolar
                                     aqui e um numero que o usuario nao consegue realizar. */}
+                                {/* Um claim resolvido e nao selado some da tela se so
+                                    mostrarmos o saldo: o numero fica 0,00 e quem acabou de
+                                    fazer a prova de trabalho conclui que nao registrou. */}
+                                {pending.amount > 0 && (
+                                    <div className={`mt-3 p-2.5 rounded-lg border ${pending.sealers > 0
+                                        ? 'bg-sky-500/10 border-sky-500/30'
+                                        : 'bg-amber-500/10 border-amber-500/30'}`}>
+                                        <p className={`text-[10px] font-black uppercase tracking-wide ${pending.sealers > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
+                                            {t('dashboard.pendingTitle')}
+                                        </p>
+                                        <p className={`text-lg font-black font-mono mt-0.5 ${pending.sealers > 0 ? 'text-sky-300' : 'text-amber-300'}`}>
+                                            {pending.amount.toFixed(2)} <span className="text-[10px] font-bold">$CLAIM</span>
+                                        </p>
+                                        <p className={`text-[10px] leading-relaxed mt-1 ${pending.sealers > 0 ? 'text-sky-200/80' : 'text-amber-200/80'}`}>
+                                            {pending.sealers > 0
+                                                ? t('dashboard.pendingSealing')
+                                                : t('dashboard.pendingNoSealer')}
+                                        </p>
+                                    </div>
+                                )}
                                 {lockedAsFaucet > 0 && (
                                     <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                                         <p className="text-[10px] font-black text-amber-400 uppercase tracking-wide">

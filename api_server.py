@@ -2230,6 +2230,31 @@ async def get_user_balance(address: str):
     # Note: yields_total is kept at 0 because it's included in incoming_total
     total_claim = claims_total + mining_total + incoming_total - outgoing_total
 
+    # O que foi reivindicado e ainda nao entrou em bloco. Sem isto o painel
+    # mostra 0,00 a quem acabou de resolver a prova de trabalho, e a pessoa le
+    # "nao registrou" -- que e o que a tela diz, e nao o que aconteceu.
+    pending_amount, pending_count = 0.0, 0
+    try:
+        row = c.execute(
+            "SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM pending_claims "
+            "WHERE user_address = ? AND status = 'pending'",
+            (addr_lower,)).fetchone()
+        pending_amount, pending_count = float(row[0] or 0), int(row[1] or 0)
+    except sqlite3.OperationalError:
+        pass
+
+    # E quem poderia selar. Zero nos e a diferenca entre "espere um pouco" e
+    # "isto nao vai sair sozinho": o primeiro e paciencia, o segundo e uma
+    # maquina que precisa ser ligada.
+    sealers = 0
+    try:
+        sealers = c.execute(
+            "SELECT COUNT(DISTINCT wallet_address) FROM active_miners "
+            "WHERE is_online = 1 AND last_heartbeat >= ?",
+            (int(_time.time()) - MINING_CONFIG["heartbeat_timeout"],)).fetchone()[0] or 0
+    except (sqlite3.OperationalError, KeyError, NameError):
+        pass
+
     conn.close()
     return {
         "address": addr_lower,
@@ -2238,7 +2263,10 @@ async def get_user_balance(address: str):
         "yields_total": yields_total,
         "incoming_total": incoming_total,
         "outgoing_total": outgoing_total,
-        "total_claim": round(total_claim, 4)
+        "total_claim": round(total_claim, 4),
+        "pending_amount": round(pending_amount, 4),
+        "pending_count": pending_count,
+        "sealers_online": sealers,
     }
 
 class TransferRequest(BaseModel):
