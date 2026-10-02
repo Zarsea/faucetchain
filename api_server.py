@@ -7242,6 +7242,18 @@ async def get_campaign_ledger(campaign_id: int):
 # than once at a time.
 
 RELAY_HOURLY_PER_ADDRESS = int(os.getenv("RELAY_HOURLY_PER_ADDRESS", "12"))
+
+# Quanto de taxa de prioridade o relayer topa pagar por saque. A carteira do
+# usuario escolhe esse valor e quem paga e o relayer, entao sem teto o cliente
+# decide quanto do nosso SOL queimar. 100.000 lamports e 0,0001 SOL: suficiente
+# para qualquer prioridade que uma carteira acrescente sozinha, e barato o
+# bastante para nao valer a pena como ataque.
+RELAY_MAX_PRIORITY_LAMPORTS = int(os.getenv("RELAY_MAX_PRIORITY_LAMPORTS", "100000"))
+
+# O programa que a carteira usa para isso, e os dois opcodes que ela acrescenta.
+COMPUTE_BUDGET_PROGRAM = "ComputeBudget111111111111111111111111111111"
+_CB_SET_LIMIT, _CB_SET_PRICE = 2, 3
+_CB_DEFAULT_UNITS = 200_000        # o que a Solana assume quando ninguem pede
 PROOF_HOURLY_PER_IP = int(os.getenv("PROOF_HOURLY_PER_IP", "120"))
 
 _rate_windows = defaultdict(lambda: defaultdict(list))
@@ -7572,9 +7584,46 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
 
     message = transaction.message
     keys = message.account_keys
-    if len(message.instructions) != 1:
-        raise HTTPException(status_code=400, detail="The transaction must carry one instruction")
-    compiled = message.instructions[0]
+
+    # Separa o que a carteira acrescentou do que nos montamos. Phantom e as
+    # outras prefixam ComputeBudget ao assinar; recusar isso recusava toda
+    # carteira real, com uma mensagem que culpava a transacao.
+    nossas, limite, preco = [], None, None
+    for ix in message.instructions:
+        if str(keys[ix.program_id_index]) != COMPUTE_BUDGET_PROGRAM:
+            nossas.append(ix)
+            continue
+        dados = bytes(ix.data)
+        if not dados:
+            raise HTTPException(status_code=400, detail="Empty compute budget instruction")
+        if dados[0] == _CB_SET_LIMIT and len(dados) >= 5:
+            limite = int.from_bytes(dados[1:5], "little")
+        elif dados[0] == _CB_SET_PRICE and len(dados) >= 9:
+            preco = int.from_bytes(dados[1:9], "little")
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Only compute unit limit and price are accepted alongside the withdrawal",
+            )
+
+    # A taxa de prioridade sai do bolso do relayer. O cliente escolhe os dois
+    # fatores, entao o produto deles e o que precisa de teto.
+    if preco:
+        extra = (limite if limite is not None else _CB_DEFAULT_UNITS) * preco // 1_000_000
+        if extra > RELAY_MAX_PRIORITY_LAMPORTS:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"That priority fee would cost the relayer {extra} lamports, over the "
+                        f"{RELAY_MAX_PRIORITY_LAMPORTS} it accepts. Lower the priority in your wallet."),
+            )
+
+    if len(nossas) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"The transaction must carry exactly one withdrawal instruction, "
+                    f"found {len(nossas)}"),
+        )
+    compiled = nossas[0]
     if keys[0] != relayer.pubkey():
         raise HTTPException(status_code=400, detail="The relayer must be the fee payer")
     if keys[compiled.program_id_index] != expected.program_id:
