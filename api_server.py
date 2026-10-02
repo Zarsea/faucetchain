@@ -6041,6 +6041,12 @@ def init_settlement_tables():
             registered_at INTEGER NOT NULL
         )
     ''')
+    # Quanto uma pessoa precisa ter acumulado nesta campanha antes de entrar num
+    # lote. Zero e o comportamento historico: sem minimo, qualquer valor sai.
+    try:
+        c.execute("ALTER TABLE settlement_campaigns ADD COLUMN min_withdraw INTEGER NOT NULL DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # ja existe
     c.execute('''
         CREATE TABLE IF NOT EXISTS settlement_batches (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -6887,6 +6893,9 @@ class CampaignBudgetRequest(BaseModel):
     #              work, not money. These two must never look alike on screen.
     funding: str = "vault"
     ends_at: Optional[int] = None
+    # Na menor unidade do token, como todo valor aqui. Zero mantem o
+    # comportamento de sempre; quem define e quem conhece o preco do token.
+    min_withdraw: Optional[int] = None
 
 
 @app.post("/api/solana/campaign/{campaign_id}/budget")
@@ -6899,6 +6908,21 @@ async def set_campaign_budget(
         raise HTTPException(status_code=400, detail="Budget and monthly cap must be positive")
     if req.funding not in ("vault", "deferred"):
         raise HTTPException(status_code=400, detail="funding must be 'vault' or 'deferred'")
+    if req.min_withdraw is not None and req.min_withdraw < 0:
+        raise HTTPException(status_code=400, detail="min_withdraw cannot be negative")
+
+    if req.min_withdraw is not None:
+        conn0 = get_db_connection()
+        n = conn0.execute(
+            "UPDATE settlement_campaigns SET min_withdraw = ? WHERE campaign_id = ?",
+            (req.min_withdraw, campaign_id)).rowcount
+        conn0.commit()
+        conn0.close()
+        if not n:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Campaign {campaign_id} is not registered here, so it has no minimum to set",
+            )
 
     conn = get_db_connection()
     c = conn.cursor()
@@ -7052,6 +7076,37 @@ async def close_settlement_batch(
     rewards: Dict[str, int] = defaultdict(int)
     for _, solana_address, amount in pending:
         rewards[solana_address] += int(amount)
+
+    # Quem nao acumulou o minimo fica de fora deste lote e continua acumulando
+    # para o proximo -- as linhas dele seguem com batch_id nulo. Nao e recusa:
+    # entregar custa rent, uma vez por pessoa por token, e abaixo de certo valor
+    # a entrega custa mais do que entrega. Quem define o corte e o patrocinador,
+    # porque so ele sabe quanto vale o token dele.
+    c.execute("SELECT min_withdraw FROM settlement_campaigns WHERE campaign_id = ?",
+              (req.campaign_id,))
+    linha = c.fetchone()
+    minimo = int(linha[0] or 0) if linha else 0
+
+    retido, retidos = 0, 0
+    if minimo > 0:
+        abaixo = {a for a, total in rewards.items() if total < minimo}
+        if abaixo:
+            retidos = len(abaixo)
+            retido = sum(rewards[a] for a in abaixo)
+            for a in abaixo:
+                del rewards[a]
+            # As linhas tambem saem do lote, senao seriam marcadas como pagas
+            # sem folha nenhuma que as pague.
+            pending = [r for r in pending if r[1] not in abaixo]
+
+    if not rewards:
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail=(f"Nothing reaches the {minimo} minimum yet: {retidos} recipient(s) "
+                    f"holding {retido} between them, still accruing"),
+        )
+
     batch = settlement.build_batch(rewards)
 
     c.execute("SELECT COUNT(*) FROM settlement_batches WHERE campaign_id = ?", (req.campaign_id,))
@@ -7077,6 +7132,11 @@ async def close_settlement_batch(
         "UPDATE settlement_rewards SET batch_id = ?, solana_address = ? WHERE id = ?",
         [(batch_id, row[1], row[0]) for row in pending],
     )
+    if retidos:
+        audit_logger.info(
+            f"Batch {batch_id} of campaign {req.campaign_id} held back {retidos} "
+            f"recipient(s) with {retido} between them, under the {minimo} minimum"
+        )
     conn.commit()
     conn.close()
     return {
@@ -7087,6 +7147,11 @@ async def close_settlement_batch(
         "root": batch["root"],
         "total_amount": batch["total_amount"],
         "leaf_count": batch["leaf_count"],
+        # O que ficou para tras tem de aparecer: retencao silenciosa e
+        # indistinguivel de dinheiro sumindo.
+        "min_withdraw": minimo,
+        "held_back_recipients": retidos,
+        "held_back_amount": retido,
     }
 
 
