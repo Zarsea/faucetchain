@@ -234,6 +234,21 @@ def init_faucet_api_keys_table():
     # `decimals` e `token_program` vem da conta do mint, e `name`/`symbol`
     # dos metadados quando existem. Um mint sem metadados entra com nome
     # nulo, em vez de um rotulo que ninguem pode conferir.
+    # O que cada saque relayado custou. Tres parcelas, todas conhecidas
+    # antes de enviar -- nada aqui e estimativa.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS relayer_spend (
+            signature TEXT PRIMARY KEY,
+            batch_id INTEGER NOT NULL,
+            recipient TEXT NOT NULL,
+            mint TEXT,
+            amount INTEGER NOT NULL,
+            base_fee INTEGER NOT NULL,
+            priority_fee INTEGER NOT NULL,
+            rent_lamports INTEGER NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS token_registry (
             mint TEXT PRIMARY KEY,
@@ -7250,6 +7265,12 @@ RELAY_HOURLY_PER_ADDRESS = int(os.getenv("RELAY_HOURLY_PER_ADDRESS", "12"))
 # bastante para nao valer a pena como ataque.
 RELAY_MAX_PRIORITY_LAMPORTS = int(os.getenv("RELAY_MAX_PRIORITY_LAMPORTS", "100000"))
 
+# 5.000 lamports por assinatura, fixo na Solana. E o rent de uma conta de
+# token (165 bytes), que e a parcela que decide: uma vez por usuario por
+# token, e maior que muita recompensa individual.
+SOLANA_LAMPORTS_PER_SIGNATURE = 5_000
+TOKEN_ACCOUNT_RENT_LAMPORTS = int(os.getenv("TOKEN_ACCOUNT_RENT_LAMPORTS", "1488440"))
+
 # O programa que a carteira usa para isso, e os dois opcodes que ela acrescenta.
 COMPUTE_BUDGET_PROGRAM = "ComputeBudget111111111111111111111111111111"
 _CB_SET_LIMIT, _CB_SET_PRICE = 2, 3
@@ -7639,6 +7660,36 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="The recipient did not sign the withdrawal")
 
+    # O que isto vai custar ao relayer, antes de enviar. As tres parcelas sao
+    # deterministicas aqui: a taxa base e fixa por assinatura, a prioridade foi
+    # lida da propria transacao acima, e o rent so existe se o destinatario
+    # ainda nao tiver conta para este mint -- coisa que da para olhar.
+    base_fee = SOLANA_LAMPORTS_PER_SIGNATURE * message.header.num_required_signatures
+    priority_fee = 0
+    if preco:
+        priority_fee = (limite if limite is not None else _CB_DEFAULT_UNITS) * preco // 1_000_000
+
+    rent = 0
+    mint = None
+    try:
+        conn2 = get_db_connection()
+        row2 = conn2.execute(
+            "SELECT sc.mint FROM settlement_batches b "
+            "JOIN settlement_campaigns sc ON sc.campaign_id = b.campaign_id WHERE b.id = ?",
+            (req.batch_id,)).fetchone()
+        conn2.close()
+        if row2:
+            mint = row2[0]
+            from solders.pubkey import Pubkey as _Pk
+            ata = chain.associated_token_address(
+                _Pk.from_string(claim["recipient"]), _Pk.from_string(mint))
+            if chain.fetch_accounts(chain.default_rpc_url(), [ata])[0] is None:
+                # Uma vez por usuario por token, e 17 vezes a taxa da transacao.
+                # E a parcela que decide se atender mais gente se paga.
+                rent = TOKEN_ACCOUNT_RENT_LAMPORTS
+    except Exception as e:
+        audit_logger.warning(f"Could not price the relayed withdrawal: {e!r}")
+
     signature = _rpc_or_503(
         chain,
         "sendTransaction",
@@ -7647,8 +7698,85 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
             {"encoding": "base64", "preflightCommitment": "confirmed"},
         ],
     )
-    audit_logger.info(f"Relayed withdrawal of {claim['amount']} in batch {req.batch_id}: {signature}")
-    return {"signature": signature, "amount": claim["amount"]}
+
+    try:
+        conn3 = get_db_connection()
+        conn3.execute(
+            """INSERT OR IGNORE INTO relayer_spend
+                   (signature, batch_id, recipient, mint, amount,
+                    base_fee, priority_fee, rent_lamports, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (signature, req.batch_id, claim["recipient"], mint, claim["amount"],
+             base_fee, priority_fee, rent, int(_time.time())))
+        conn3.commit()
+        conn3.close()
+    except Exception as e:
+        # A gravacao do custo nunca pode derrubar um saque que ja foi enviado.
+        audit_logger.warning(f"Withdrawal {signature} sent but its cost went unrecorded: {e!r}")
+
+    audit_logger.info(
+        f"Relayed withdrawal of {claim['amount']} in batch {req.batch_id}: {signature} "
+        f"(cost {base_fee + priority_fee + rent} lamports: base {base_fee}, "
+        f"priority {priority_fee}, rent {rent})"
+    )
+    return {
+        "signature": signature,
+        "amount": claim["amount"],
+        "relayer_cost_lamports": base_fee + priority_fee + rent,
+    }
+
+
+@app.get("/api/solana/relayer")
+async def relayer_economics():
+    """O que o subsidio custou, e quantas pessoas ainda cabem nele.
+
+    O relayer paga a taxa e o rent para que ninguem precise ter SOL para receber
+    o que ganhou. Isso era uma frase na documentacao, com a observacao de que o
+    custo nao era cobrado de ninguem e nao havia medicao dele. Agora ha.
+
+    O rent domina: e uma vez por usuario por token, e e maior que muita
+    recompensa individual. O numero que interessa nao e quanto ja gastamos, e
+    quantos usuarios novos o saldo atual ainda atende.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(base_fee), 0), COALESCE(SUM(priority_fee), 0), "
+            "COALESCE(SUM(rent_lamports), 0) FROM relayer_spend").fetchone()
+        withdrawals, base, priority, rent = row
+        first_timers = conn.execute(
+            "SELECT COUNT(*) FROM relayer_spend WHERE rent_lamports > 0").fetchone()[0]
+    except sqlite3.OperationalError:
+        withdrawals = base = priority = rent = first_timers = 0
+    finally:
+        conn.close()
+
+    balance = None
+    try:
+        import solana_settlement as chain
+        _chain, relayer = _relayer()
+        balance = _chain.rpc(_chain.default_rpc_url(), "getBalance",
+                             [str(relayer.pubkey())])["value"]
+    except Exception as e:
+        audit_logger.warning(f"Could not read the relayer balance: {e!r}")
+
+    # Quanto custa o proximo usuario que nunca recebeu este token: a parcela
+    # que manda. Um que ja tem conta custa so a taxa.
+    novo = TOKEN_ACCOUNT_RENT_LAMPORTS + SOLANA_LAMPORTS_PER_SIGNATURE * 2
+    return {
+        "withdrawals": withdrawals,
+        "first_time_recipients": first_timers,
+        "spent_lamports": base + priority + rent,
+        "spent_base_fee": base,
+        "spent_priority_fee": priority,
+        "spent_rent": rent,
+        "balance_lamports": balance,
+        "cost_of_next_new_recipient": novo,
+        # Rent nao e despesa, e deposito: fica travado na conta do usuario e
+        # volta se ela for fechada. Na pratica ninguem fecha conta de token,
+        # entao o relayer trata como gasto e so a contabilidade sabe a diferenca.
+        "new_recipients_affordable": (balance // novo) if balance is not None else None,
+    }
 
 
 if __name__ == "__main__":

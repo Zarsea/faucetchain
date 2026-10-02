@@ -369,6 +369,47 @@ checking the root on Solana without asking us anything.
       the variable would flush both on the next batch, which is why it should be
       done deliberately and not in passing.
 
+- [x] **A real user links a Solana wallet and withdraws.** Done 1 October.
+      A click on faucethunter.net became 0.370305 FaucetHunter Rewards in
+      `2uVvAhL7...SVSdY`, through a root the program would have refused had the
+      vault not covered it. On chain afterwards: `paid=370305`,
+      `committed=370305`, and a second attempt answers *That reward has already
+      been withdrawn*.
+
+      The arc is closed: web2 click, campaign draw, Merkle leaf, published root,
+      withdrawal, with the guarantee on Solana the whole way and the user never
+      holding SOL.
+
+- [ ] **Decide the withdrawal minimum from the cost, now that there is one.**
+      That withdrawal cost the relayer 1,573,440 lamports, read off the chain
+      rather than estimated:
+
+      | rent for the token account | 1,488,440 | **95%** |
+      | priority fee (the wallet's choice) | 75,000 | 4.8% |
+      | base fee, two signatures | 10,000 | 0.6% |
+
+      The fee everyone quotes when they say Solana is cheap is 0.6% of it. The
+      rent is the bill, and it is **once per user per token** — so the cost of
+      serving people scales with new wallets, not with clicks. A thousand clicks
+      from one person cost 0.0015 SOL; one click from a thousand people costs
+      1.5 SOL.
+
+      At 0.7954 SOL the relayer can serve 530 more first-time recipients and
+      then stops. At $200 a SOL that is $0.30 each, against a reward of 0.37
+      units of a token with no market price.
+
+      `GET /api/solana/relayer` reports this from `relayer_spend`, which the
+      withdrawal path now writes before sending; the three parts are
+      deterministic at signing time, so none of it is a guess. The 1 October
+      withdrawal was backfilled from the chain.
+
+      What is open is a product decision, not a repair: **what minimum makes
+      sense when delivery costs $0.30 a head?** `MIN_WITHDRAW_AMOUNT` is 10.0
+      and governs $CLAIM; campaign tokens have no minimum at all, which is how a
+      0.37-unit reward ended up costing more to deliver than it plausibly
+      carries. Note the rent is a deposit rather than a cost — it unlocks if the
+      account is ever closed, which in practice nobody does.
+
 - [ ] **A real user links a Solana wallet and withdraws.** Everything the
       machines can do is done, verified 1 October against the published root:
       the proof endpoint returns leaf 0 of root `0x8aaa6330...` for 347,221
