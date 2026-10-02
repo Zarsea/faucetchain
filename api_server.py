@@ -7151,7 +7151,15 @@ async def get_campaign_ledger(campaign_id: int):
         import solana_settlement as chain
 
         idl = chain.load_idl()
-    except Exception:
+    except Exception as e:
+        # Mudo, isto custou uma noite: o servidor rodando no interpretador
+        # errado (sem solders) servia tudo e lia nada da cadeia, e a tela
+        # dizia "nao consegui ler" sem nada no log apontando o porque.
+        audit_logger.error(
+            f"Settlement reads are OFF -- cannot load the Solana client: {e!r}. "
+            "Every on-chain figure will come back null. Usually the wrong "
+            "Python: check that solders is installed in the one running this."
+        )
         return result
 
     from solders.pubkey import Pubkey
@@ -7298,7 +7306,11 @@ def _mark_claimed(c, proofs: list) -> None:
         import solana_settlement as chain
 
         idl = chain.load_idl()
-    except Exception:
+    except Exception as e:
+        audit_logger.error(
+            f"Cannot tell which rewards were already withdrawn: {e!r}. "
+            "Every proof will report claimed=null. Usually the wrong Python."
+        )
         return
 
     from solders.pubkey import Pubkey
