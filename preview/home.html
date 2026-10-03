@@ -1,0 +1,929 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FaucetChain — prévia da home</title>
+
+<!--
+  PREVIA. Este arquivo nao faz parte do app: e um HTML solto para abrir no
+  navegador e ver a direcao de design aplicada a home que ja existe. Nada em
+  index.html, App.tsx ou components/ foi tocado.
+
+      abra: preview/home.html  (duplo clique serve)
+
+  O que e real aqui: a paleta (amostrada de index.html, com os contrastes que o
+  comentario de lá já media), as 21 secoes da navegacao (TABS em App.tsx), e
+  todo numero, endereco, raiz e assinatura -- lidos do blockchain.db e da devnet
+  em 3 de outubro de 2026. Nada de lorem ipsum e nada de numero inventado: se
+  um dado nao existia, ele nao esta aqui.
+
+  O que e proposta: a tipografia (Archivo no lugar de Inter; Fira Code fica,
+  porque hash precisa de monoespacada) e o movimento.
+
+  As tres direcoes do artefato entram sinteticas, cada uma no lugar onde ela
+  ganha: o botao liquido da Torneira no heroi, o trilho e o sustentar-para-
+  assinar do Livro Vivo na liquidacao, e a divisao praca/prova da terceira como
+  espinha da pagina.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+
+<style>
+  /* ---- a paleta, exatamente a de index.html ---------------------------- */
+  :root {
+    --bg: #070F16;
+    --surface: #0C1620;
+    --card: #111E2A;
+    --border: #1C2E3D;
+    --primary: #2B9FE8;   /* 6.64:1 — passa em texto */
+    --deep: #0078CF;      /* 4.21:1 — preenchimento, nunca texto pequeno */
+    --mid: #539DD4;
+    --text: #D6E0F6;
+    --muted: #6B8299;     /* 4.88:1 no fundo — serve para corpo */
+    --success: #14B87A;
+    --error: #E5484D;
+    --warn: #D9A441;
+    --sol: #9945FF;       /* 4.30:1 — grande ou preenchimento, nunca pequeno */
+    --sol-green: #14F195;
+
+    --lift: 0 2px 4px rgba(0,0,0,.4), 0 8px 24px -6px rgba(0,0,0,.45);
+    --glow: 0 0 32px -8px rgba(43,159,232,.55);
+    --sans: Archivo, system-ui, -apple-system, Segoe UI, sans-serif;
+    --mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html, body { margin: 0; background: var(--bg); }
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+  }
+  img { max-width: 100%; }
+
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { color: var(--mid); }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+  h1, h2, h3 { margin: 0; letter-spacing: -.03em; text-wrap: balance; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  @media (min-width: 760px) { .wrap { padding: 0 48px; } }
+
+  .mono { font-family: var(--mono); }
+  .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .rule { height: 1px; background: var(--border); border: 0; margin: 0; }
+
+  /* ---- movimento -------------------------------------------------------
+     Uma regra: o que se move esta de fato acontecendo. A malha respira porque
+     a rede esta de pe; o nivel sobe porque o tempo passa; o pulso atravessa
+     porque um valor assentou. Nada se move por enfeite.                   */
+  @keyframes malha   { 0%,100% { opacity: .26 } 50% { opacity: .5 } }
+  @keyframes respira { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.7); opacity: 0 } }
+  @keyframes onda    { 0% { transform: translateX(-50%) } 100% { transform: translateX(0) } }
+  @keyframes pinga   { 0% { transform: rotate(45deg) translateY(0) scale(1); opacity: 0 } 14% { opacity: 1 } 100% { transform: rotate(45deg) translateY(170px) scale(.5); opacity: 0 } }
+  @keyframes anel    { from { transform: scale(.6); opacity: .8 } to { transform: scale(2); opacity: 0 } }
+  @keyframes salta   { 0% { transform: scale(1) } 35% { transform: scale(1.14) } 100% { transform: scale(1) } }
+  @keyframes entra   { from { transform: translateY(10px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+  @keyframes atravessa { from { left: 3% } to { left: 97% } }
+  @keyframes risca   { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+  @keyframes eco     { from { box-shadow: 0 0 0 0 rgba(43,159,232,.5) } to { box-shadow: 0 0 0 14px rgba(43,159,232,0) } }
+  @keyframes selo    { 0% { transform: scale(.75); opacity: 0 } 60% { transform: scale(1.06); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
+
+  .is-malha   { animation: malha 9s ease-in-out infinite; }
+  .is-respira { animation: respira 2.6s ease-out infinite; }
+  .is-onda    { animation: onda 3.4s linear infinite; }
+  .is-pinga   { animation: pinga .95s cubic-bezier(.45,0,.75,.4) both; }
+  .is-anel    { animation: anel .85s cubic-bezier(.22,1,.36,1) both; }
+  .is-salta   { animation: salta .5s cubic-bezier(.22,1,.36,1) both; }
+  .is-entra   { animation: entra .32s cubic-bezier(.22,1,.36,1) both; }
+  .is-pulso   { animation: atravessa 1.25s cubic-bezier(.65,0,.35,1) both; }
+  .is-risca   { animation: risca 1.25s cubic-bezier(.65,0,.35,1) both; transform-origin: left; }
+  .is-eco     { animation: eco .9s ease-out both; }
+  .is-selo    { animation: selo .42s cubic-bezier(.22,1,.36,1) both; }
+
+  /* O botao "calma" desliga tudo, e o sistema do usuario tambem desliga. */
+  body.calma [class*="is-"] { animation: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    [class*="is-"] { animation: none !important; }
+  }
+
+  /* ---- barra ----------------------------------------------------------- */
+  .top {
+    position: sticky; top: env(safe-area-inset-top, 0); z-index: 20;
+    background: rgba(7,15,22,.86); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .top-in {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    align-items: center; justify-content: space-between;
+    padding-block: 14px;
+  }
+  .mark { display: flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 800; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); font-size: 12px; color: var(--text);
+  }
+  .dot-live { position: relative; width: 7px; height: 7px; flex: none; }
+  .dot-live > i { position: absolute; inset: 0; border-radius: 999px; background: var(--success); }
+
+  .btn {
+    font: inherit; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); color: var(--text);
+    padding: 9px 14px; min-height: 44px;
+    transition: transform .15s cubic-bezier(.22,1,.36,1), box-shadow .2s ease, border-color .2s ease, background .2s ease;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--primary); }
+  .btn:active { transform: translateY(1px) scale(.99); }
+
+  /* ---- heroi ----------------------------------------------------------- */
+  .hero { position: relative; overflow: hidden; padding-block: 56px 48px; }
+  .hero-malha {
+    position: absolute; inset: 0; pointer-events: none; opacity: .26;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(120% 90% at 50% 0%, #000 35%, transparent 75%);
+  }
+  .hero-grid {
+    position: relative; display: flex; flex-wrap: wrap-reverse;
+    gap: 48px; align-items: center; justify-content: center;
+  }
+  .hero-copy { flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+  .hero-copy h1 { font-size: clamp(34px, 5.2vw, 54px); line-height: 1.03; font-weight: 800; }
+  .hero-copy p { margin: 0; max-width: 46ch; color: var(--muted); font-size: 16px; line-height: 1.65; }
+
+  /* a torneira: o nivel sobe durante o cooldown e o clique esvazia */
+  .torneira-box { flex: 0 0 auto; position: relative; width: 288px; height: 288px; display: grid; place-items: center; }
+  .torneira {
+    position: relative; overflow: hidden; width: 236px; height: 236px;
+    border: 2px solid var(--border); border-radius: 999px;
+    background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+    transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .25s ease, border-color .25s ease;
+  }
+  .torneira[data-pronta="1"] { border-color: var(--primary); }
+  .torneira[data-pronta="1"]:hover { transform: scale(1.035); box-shadow: 0 0 56px -6px rgba(43,159,232,.55); }
+  .torneira:active { transform: scale(.97); }
+  .torneira:disabled { cursor: not-allowed; }
+  .nivel {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: rgba(0,120,207,.3); transition: height .45s cubic-bezier(.4,0,.2,1);
+  }
+  .nivel > i {
+    position: absolute; top: -8px; left: 0; width: 200%; height: 16px;
+    background: repeating-linear-gradient(90deg, rgba(43,159,232,.5) 0 18px, transparent 18px 36px);
+  }
+  .torneira-face { position: relative; display: grid; gap: 5px; place-items: center; height: 100%; }
+  .gota {
+    position: absolute; top: 88px; width: 18px; height: 24px;
+    border-radius: 0 999px 999px 999px; background: var(--primary);
+    box-shadow: 0 0 20px 2px rgba(43,159,232,.6);
+  }
+  .anel { position: absolute; width: 256px; height: 256px; border: 2px solid var(--primary); border-radius: 999px; }
+
+  /* ---- cartoes --------------------------------------------------------- */
+  .card { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .card-pad { padding: 24px; }
+  .card-head {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    align-items: baseline; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+  }
+  .grid { display: grid; gap: 16px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: 1fr; }
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (min-width: 760px) {
+    .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+
+  .num { font-family: var(--mono); font-weight: 500; letter-spacing: -.02em; }
+
+  section { padding-block: 48px; }
+  .sec-head { display: flex; flex-wrap: wrap; gap: 14px; align-items: baseline; justify-content: space-between; margin-bottom: 24px; }
+  .sec-head h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 700; }
+
+  /* ---- trilho ---------------------------------------------------------- */
+  .trilho { position: relative; display: grid; grid-template-columns: 1fr; gap: 28px; }
+  @media (min-width: 760px) { .trilho { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .trilho-linha { position: absolute; left: 3%; right: 3%; top: 38px; height: 2px; background: var(--border); display: none; }
+  @media (min-width: 760px) { .trilho-linha { display: block; } }
+  /* O [hidden] do navegador e regra do agente, e a de cima e do autor: sem
+     isto a linha roxa aparece no desktop antes de existir raiz publicada, e a
+     animacao dela queima no carregamento. */
+  .trilho-linha[hidden] { display: none !important; }
+  .estacao { position: relative; display: grid; gap: 14px; justify-items: center; text-align: center; }
+  .estacao-selo {
+    width: 78px; height: 78px; border-radius: 999px; background: var(--bg);
+    border: 2px solid var(--border); display: grid; place-items: center;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    transition: border-color .3s ease, color .3s ease;
+  }
+  .estacao[data-on="1"] .estacao-selo { border-color: var(--primary); color: var(--primary); }
+  .estacao[data-on="2"] .estacao-selo { border-color: var(--sol); color: var(--text); }
+
+  /* ---- praca e prova --------------------------------------------------- */
+  .duo { display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; }
+  .duo > .praca { flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; }
+  .duo > .prova { flex: 1 1 360px; display: flex; flex-direction: column; gap: 18px; }
+  .linha-pessoa {
+    display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    width: 100%; padding: 15px 24px; border: 0; border-bottom: 1px solid var(--card);
+    border-left: 3px solid var(--border); background: transparent;
+    color: var(--text); font: inherit; text-align: left; cursor: pointer;
+    transition: background .18s ease, border-color .18s ease;
+  }
+  .linha-pessoa:hover { background: rgba(43,159,232,.06); }
+  .linha-pessoa[aria-pressed="true"] { border-left-color: var(--primary); background: rgba(43,159,232,.07); }
+  .avatar {
+    flex: none; width: 38px; height: 38px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg); display: grid; place-items: center;
+    font-family: var(--mono); font-size: 13px; color: var(--muted);
+  }
+  .linha-pessoa[aria-pressed="true"] .avatar { border-color: var(--primary); color: var(--primary); }
+
+  .kv { display: flex; gap: 12px; justify-content: space-between; font-family: var(--mono); font-size: 12px; }
+  .kv > span:first-child { color: var(--muted); }
+  .kv > span:last-child { text-align: right; word-break: break-all; }
+
+  /* ---- tabela do livro ------------------------------------------------- */
+  .tabela-box { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  th, td { text-align: left; padding: 13px 24px; border-bottom: 1px solid var(--card); }
+  th { font-size: 11px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+  td { font-family: var(--mono); font-size: 13px; }
+  tbody tr { transition: background .15s ease; }
+  tbody tr:hover { background: rgba(43,159,232,.05); }
+
+  /* ---- assinar --------------------------------------------------------- */
+  .assina { position: relative; overflow: hidden; width: 100%; padding: 18px 20px; min-height: 56px; border-radius: 12px; font-size: 15px; font-weight: 700; }
+  .assina-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(43,159,232,.26); transition: width .06s linear; }
+
+  /* ---- navegacao real -------------------------------------------------- */
+  .secoes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .secoes a {
+    padding: 8px 13px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--surface); font-size: 13px; color: var(--text);
+    transition: border-color .18s ease, transform .18s ease;
+  }
+  .secoes a:hover { border-color: var(--primary); transform: translateY(-1px); }
+
+  footer { border-top: 1px solid var(--border); padding-block: 32px 48px; color: var(--muted); font-size: 13px; }
+
+  .aviso {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: 14px 16px; border: 1px solid var(--border);
+    border-left: 3px solid var(--warn); border-radius: 12px; background: var(--surface);
+    font-size: 13px; line-height: 1.55;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====================== barra ====================== -->
+<header class="top">
+  <div class="wrap top-in">
+    <div class="mark">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+      <span class="pill">
+        <span class="dot-live"><i class="is-respira"></i><i></i></span>
+        <span class="mono">devnet</span>
+      </span>
+      <span class="pill mono">0x6f9b…c41e</span>
+      <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+    </div>
+  </div>
+</header>
+
+<!-- ====================== heroi ====================== -->
+<div class="hero">
+  <div class="hero-malha is-malha" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+
+    <div class="hero-copy">
+      <p class="eyebrow">Appchain de microdistribuição · liquidação na Solana</p>
+      <h1>A promessa de uma torneira<br>não vale a linha do banco<br>de dados dela.</h1>
+      <p>
+        Aqui ela vira uma raiz publicada na Solana, e o cofre
+        <strong style="color:var(--text); font-weight:600">recusa qualquer raiz que não cubra</strong>
+        o que já foi prometido. A garantia não é nossa palavra — é a recusa do programa.
+      </p>
+
+      <div class="grid g2" style="max-width:440px">
+        <div class="card card-pad" id="caixa-saldo">
+          <p class="eyebrow">Seu saldo</p>
+          <p class="num" id="saldo" style="margin:8px 0 2px; font-size:26px">118.770</p>
+          <p style="margin:0; font-size:12px; color:var(--muted)">FHR creditado</p>
+        </div>
+        <div class="card card-pad">
+          <p class="eyebrow">Sequência</p>
+          <p style="margin:8px 0 2px; display:flex; align-items:baseline; gap:6px">
+            <span class="num" style="font-size:26px">7</span>
+            <span style="font-size:13px; color:var(--success)">dias</span>
+          </p>
+          <p style="margin:0; font-size:12px; color:var(--muted)">sem perder um</p>
+        </div>
+      </div>
+
+      <div id="recibo" hidden></div>
+    </div>
+
+    <div class="torneira-box">
+      <div id="efeitos" aria-hidden="true"></div>
+      <button class="torneira" type="button" id="torneira" data-pronta="1" aria-label="Coletar agora, cerca de 5.746 FHR">
+        <span class="nivel" id="nivel" style="height:100%"><i class="is-onda"></i></span>
+        <span class="torneira-face">
+          <span class="eyebrow" id="t-estado">pronto</span>
+          <span style="font-size:36px; font-weight:800; letter-spacing:-.03em; line-height:1" id="t-acao">Coletar</span>
+          <span class="mono" style="font-size:12px; color:var(--primary)" id="t-nota">~5.746 FHR</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<hr class="rule">
+
+<!-- ====================== o caminho ====================== -->
+<section class="wrap" id="caminho">
+  <div class="sec-head">
+    <h2>O caminho de um clique</h2>
+    <span class="mono" style="font-size:12px; color:var(--muted)" id="fase-rotulo">acumulando</span>
+  </div>
+
+  <div class="card card-pad">
+    <div class="trilho">
+      <div class="trilho-linha" aria-hidden="true"></div>
+      <div class="trilho-linha" id="trilho-roxo" aria-hidden="true" style="background:transparent; overflow:hidden" hidden>
+        <span class="is-risca" style="display:block; height:2px; background:var(--sol)"></span>
+      </div>
+      <div class="estacao" data-on="1">
+        <span class="estacao-selo">HTTP</span>
+        <div>
+          <p style="margin:0; font-weight:600">O clique</p>
+          <p style="margin:4px 0 0; font-size:13px; color:var(--muted)">Na torneira do parceiro, uma chamada depois do commit dela</p>
+        </div>
+      </div>
+      <div class="estacao" id="est-raiz">
+        <span class="estacao-selo">MERKLE</span>
+        <div>
+          <p style="margin:0; font-weight:600">A raiz</p>
+          <p style="margin:4px 0 0; font-size:13px; color:var(--muted)" id="nota-raiz">Folhas acumulando no lote</p>
+        </div>
+      </div>
+      <div class="estacao" id="est-sol">
+        <span class="estacao-selo">VAULT</span>
+        <div>
+          <p style="margin:0; font-weight:600">A Solana</p>
+          <p style="margin:4px 0 0; font-size:13px; color:var(--muted)" id="nota-sol">Esperando a raiz</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== praca e prova ====================== -->
+<section class="wrap" id="praca">
+  <div class="sec-head">
+    <h2>Um lado fala em gente. O outro fala em prova.</h2>
+    <span style="font-size:13px; color:var(--muted)">É o mesmo evento — clique em alguém</span>
+  </div>
+
+  <div class="duo">
+    <div class="card praca">
+      <div class="card-head">
+        <p class="eyebrow" style="margin:0">A praça</p>
+        <span style="display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted)">
+          <span class="dot-live"><i class="is-respira"></i><i></i></span> 88 clicando agora
+        </span>
+      </div>
+      <div id="lista-pessoas"></div>
+      <div style="flex:1 1 auto"></div>
+      <div style="padding:22px 24px; border-top:1px solid var(--border)">
+        <button class="btn assina" type="button" id="entrar" style="border-color:var(--primary); background:rgba(0,120,207,.14)">Entrar na praça</button>
+        <p style="margin:10px 0 0; font-size:12px; color:var(--muted)" id="nota-entrar">Sem SOL, sem taxa, sem instalar nada. Uma carteira basta.</p>
+      </div>
+    </div>
+
+    <div class="card card-pad prova">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between">
+        <p class="eyebrow" style="margin:0">A prova</p>
+        <span class="pill" style="border-color:var(--sol); font-size:11px">Solana devnet</span>
+      </div>
+
+      <div class="card" id="folha" style="background:var(--bg); border-color:var(--primary); padding:18px">
+        <p class="eyebrow" style="margin:0" id="folha-titulo">Folha 00</p>
+        <div style="margin-top:12px; display:grid; gap:9px">
+          <div class="kv"><span>conta</span><span id="folha-conta">0x6f9b…c41e</span></div>
+          <div class="kv"><span>valor</span><span id="folha-valor">370.305</span></div>
+          <div class="kv"><span>índice</span><span id="folha-indice">00</span></div>
+        </div>
+        <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border)">
+          <p class="eyebrow" style="margin:0">keccak da folha</p>
+          <p class="mono" id="folha-hash" style="margin:6px 0 0; font-size:11px; line-height:1.55; color:var(--primary); word-break:break-all">0x9ad2c1f4e7b8a0d3…</p>
+        </div>
+      </div>
+
+      <div>
+        <p class="eyebrow" style="margin:0">Caminho até a raiz</p>
+        <div style="margin-top:12px; display:grid; gap:8px" id="caminho-prova"></div>
+      </div>
+
+      <div class="card" style="border-color:var(--sol); background:rgba(153,69,255,.1); padding:16px">
+        <p class="eyebrow" style="margin:0">Raiz publicada</p>
+        <p class="mono" style="margin:7px 0 0; font-size:11px; line-height:1.55; word-break:break-all">0x67788a35607b77f8…</p>
+        <p style="margin:12px 0 0; display:flex; gap:9px; align-items:center; font-size:13px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sol-green)" stroke-width="2.6" style="flex:none" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5"></path></svg>
+          O cofre cobre esta raiz
+        </p>
+      </div>
+
+      <div style="flex:1 1 auto"></div>
+      <a class="btn" style="display:block; text-align:center" href="https://explorer.solana.com/tx/s99yVpfz1jnXaXXjRTDrqD?cluster=devnet" target="_blank" rel="noopener">Conferir no explorador</a>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== suas campanhas ====================== -->
+<section class="wrap" id="campanhas">
+  <div class="sec-head">
+    <h2>Suas campanhas</h2>
+    <span style="font-size:13px; color:var(--muted)">Prometido e pago nunca são o mesmo número</span>
+  </div>
+
+  <div class="grid g3">
+    <div class="card card-pad">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:start">
+        <div>
+          <p style="margin:0; font-weight:700">FaucetHunter Rewards</p>
+          <p class="mono" style="margin:4px 0 0; font-size:12px; color:var(--muted)">FHR · campanha 652608</p>
+        </div>
+        <span class="pill" style="border-color:var(--success); color:var(--success); font-size:11px">sacado</span>
+      </div>
+      <p class="num" style="margin:18px 0 2px; font-size:24px">370.305</p>
+      <p style="margin:0; font-size:12px; color:var(--muted)">na sua Phantom, com prova</p>
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border)">
+        <div class="kv"><span>mint</span><span>9yWq9Xi…MZVzg</span></div>
+      </div>
+    </div>
+
+    <div class="card card-pad">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:start">
+        <div>
+          <p style="margin:0; font-weight:700">Campanha 479079</p>
+          <p class="mono" style="margin:4px 0 0; font-size:12px; color:var(--muted)">GfGjMY4…gBHA</p>
+        </div>
+        <span class="pill" style="border-color:var(--sol); font-size:11px">em raiz publicada</span>
+      </div>
+      <p class="num" style="margin:18px 0 2px; font-size:24px">347.221</p>
+      <p style="margin:0; font-size:12px; color:var(--muted)">pode sacar agora</p>
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border)">
+        <div class="kv"><span>raiz</span><span>0x8aaa6330…</span></div>
+      </div>
+    </div>
+
+    <div class="card card-pad">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:start">
+        <div>
+          <p style="margin:0; font-weight:700">Lote em aberto</p>
+          <p class="mono" style="margin:4px 0 0; font-size:12px; color:var(--muted)">esperando fechar</p>
+        </div>
+        <span class="pill" style="font-size:11px">creditado aqui</span>
+      </div>
+      <p class="num" style="margin:18px 0 2px; font-size:24px; color:var(--muted)">5.746</p>
+      <p style="margin:0; font-size:12px; color:var(--muted)">entra na próxima raiz</p>
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border)">
+        <div class="kv"><span>mínimo p/ sacar</span><span>5.000.000</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="aviso" style="margin-top:20px">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" style="flex:none; margin-top:2px" aria-hidden="true">
+      <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+    </svg>
+    <span>
+      <strong style="font-weight:600">Creditado aqui não é pago.</strong>
+      O valor do lote em aberto é uma promessa desta cadeia. Ele só passa a não
+      depender deste servidor quando a raiz é publicada — e é por isso que os
+      três cartões acima mostram estados diferentes em vez de um saldo só.
+    </span>
+  </div>
+</section>
+
+<!-- ====================== o livro ====================== -->
+<section class="wrap" id="livro">
+  <div class="sec-head">
+    <h2>O livro</h2>
+    <span style="font-size:13px; color:var(--muted)">19 raízes publicadas · 18 campanhas · 17 set a 2 out de 2026</span>
+  </div>
+
+  <div class="card">
+    <div class="tabela-box">
+      <table>
+        <caption class="eyebrow" style="padding:16px 24px 0; text-align:left">Últimas raízes na devnet</caption>
+        <thead>
+          <tr><th>lote</th><th>campanha</th><th>raiz</th><th>folhas</th><th>valor</th><th>assinatura</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>20</td><td>652608</td><td>0x67788a35…</td><td>1</td><td>370.305</td>
+            <td><a href="https://explorer.solana.com/tx/s99yVpfz1jnXaXXjRTDrqD?cluster=devnet" target="_blank" rel="noopener">s99yVpfz…</a></td>
+          </tr>
+          <tr>
+            <td>19</td><td>479079</td><td>0x8aaa6330…</td><td>1</td><td>347.221</td>
+            <td><a href="https://explorer.solana.com/tx/4z4MWkBG94UWSZDaYo5i77?cluster=devnet" target="_blank" rel="noopener">4z4MWkBG…</a></td>
+          </tr>
+          <tr>
+            <td>18</td><td>478840</td><td>0x872ed9b4…</td><td>2</td><td>39.998.263</td>
+            <td><a href="https://explorer.solana.com/tx/3VL3j5oc8ktT6tV8fip6p8?cluster=devnet" target="_blank" rel="noopener">3VL3j5oc…</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="padding:22px 24px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; gap:20px; align-items:center; justify-content:space-between">
+      <p style="margin:0; max-width:48ch; font-size:13px; color:var(--muted)">
+        Fechar um lote e publicar a raiz são atos de assinatura.
+        O botão só completa se você sustentar — assinar não deveria ser um clique.
+      </p>
+      <div style="flex:1 1 280px; max-width:360px">
+        <button class="btn assina" type="button" id="assinar" style="border-color:var(--primary)">
+          <span class="assina-fill" id="assina-fill" aria-hidden="true"></span>
+          <span style="position:relative" id="assina-texto">Sustente para fechar o lote</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== a rede ====================== -->
+<section class="wrap" id="rede">
+  <div class="sec-head"><h2>A rede, hoje</h2></div>
+
+  <div class="grid g4">
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px; color:var(--sol)">19</p>
+      <p style="margin:6px 0 0; font-size:13px; color:var(--muted)">raízes na Solana</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px">26</p>
+      <p style="margin:6px 0 0; font-size:13px; color:var(--muted)">blocos selados</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px">39</p>
+      <p style="margin:6px 0 0; font-size:13px; color:var(--muted)">carteiras vinculadas</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px; color:var(--success)">0</p>
+      <p style="margin:6px 0 0; font-size:13px; color:var(--muted)">SOL que você precisa ter</p>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card card-pad">
+      <p class="eyebrow" style="margin:0">$CLAIM</p>
+      <div style="margin-top:14px; display:grid; gap:9px">
+        <div class="kv"><span>teto fixo</span><span>99.000.000</span></div>
+        <div class="kv"><span>emitido por mineração</span><span>77.983,05</span></div>
+        <div class="kv"><span>emitido por claim</span><span>94,19</span></div>
+        <div class="kv"><span>tesouraria (caução de terceiro)</span><span>1.000,00</span></div>
+      </div>
+      <p style="margin:14px 0 0; font-size:12px; line-height:1.55; color:var(--muted)">
+        A tesouraria guarda caução de uma torneira, não capital próprio. Liberar
+        abaixo do que ela deve aos usuários é recusado.
+      </p>
+    </div>
+
+    <div class="card card-pad">
+      <p class="eyebrow" style="margin:0">Contratos na devnet</p>
+      <div style="margin-top:14px; display:grid; gap:9px">
+        <div class="kv"><span>programa</span><span>64LW8DZc…WBqSm</span></div>
+        <div class="kv"><span>mint FHR</span><span>9yWq9Xi…MZVzg</span></div>
+        <div class="kv"><span>cofre 652608</span><span>120.000 FHR</span></div>
+        <div class="kv"><span>custo do 1º saque</span><span>1.573.440 lamports</span></div>
+      </div>
+      <p style="margin:14px 0 0; font-size:12px; line-height:1.55; color:var(--muted)">
+        Desse custo, 1.488.440 é rent de conta de token — uma vez por pessoa, por
+        token. É o número que explica por que existe mínimo de saque.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== conectar ====================== -->
+<section class="wrap" id="conectar">
+  <div class="card card-pad" style="background:var(--card)">
+    <div style="display:flex; flex-wrap:wrap; gap:32px; align-items:center; justify-content:space-between">
+      <div style="flex:999 1 420px; min-width:0">
+        <h2 style="font-size:clamp(22px,3vw,30px); font-weight:700">Sua torneira em uma chamada</h2>
+        <p style="margin:12px 0 0; max-width:50ch; color:var(--muted); line-height:1.65">
+          Depois do seu próprio commit, você nos diz que um clique aconteceu.
+          Cada campanha em que a torneira está inscrita paga esse usuário do
+          orçamento do patrocinador. <strong style="color:var(--text); font-weight:600">Seu dinheiro não se move</strong>,
+          e se nós cairmos você continua pagando.
+        </p>
+      </div>
+      <div style="flex:1 1 300px">
+        <pre class="mono" style="margin:0; padding:18px; border:1px solid var(--border); border-radius:12px; background:var(--bg); font-size:12px; line-height:1.7; overflow-x:auto"><span style="color:var(--muted)">POST</span> /api/faucethub/microclaim
+<span style="color:var(--muted)">X-Api-Key:</span> …
+
+{ <span style="color:var(--primary)">"user_wallet"</span>: "…",
+  <span style="color:var(--primary)">"amount"</span>: 1.0 }</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== as secoes que existem ====================== -->
+<section class="wrap" id="secoes">
+  <div class="sec-head">
+    <h2>O que já existe</h2>
+    <span style="font-size:13px; color:var(--muted)">As 21 seções da navegação de hoje</span>
+  </div>
+  <nav class="secoes" aria-label="Seções do app">
+    <a href="#">Dashboard</a><a href="#">Solana Payouts</a><a href="#">Settlement Ledger</a>
+    <a href="#">Connect a Faucet</a><a href="#">AutoClaim Hub</a><a href="#">Address Tracker</a>
+    <a href="#">Staking Vault</a><a href="#">Bounty Board</a><a href="#">AI Agent</a>
+    <a href="#">Wallet Explorer</a><a href="#">Network Status</a><a href="#">Faucet</a>
+    <a href="#">Tokenomics</a><a href="#">Smart Contract</a><a href="#">AI Module</a>
+    <a href="#">Whitepaper</a><a href="#">Technical Specs</a><a href="#">API Docs</a>
+    <a href="#">General Article</a><a href="#">Infra Monitor</a><a href="#">Overview</a>
+  </nav>
+</section>
+
+<footer class="wrap">
+  <p style="margin:0">
+    Prévia de design — arquivo solto em <span class="mono">preview/home.html</span>.
+    Não faz parte do app: <span class="mono">index.html</span>, <span class="mono">App.tsx</span>
+    e <span class="mono">components/</span> continuam intactos.
+  </p>
+  <p style="margin:8px 0 0">
+    Números, endereços, raízes e assinaturas lidos do <span class="mono">blockchain.db</span>
+    e da devnet em 3 de outubro de 2026.
+  </p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // --- modo calmo ------------------------------------------------------
+  // Desliga todo movimento de uma vez. O sistema do usuario ja desliga pelo
+  // prefers-reduced-motion; isto e para quem quer decidir na hora.
+  var botaoCalma = document.getElementById('calma');
+  botaoCalma.addEventListener('click', function () {
+    var ligado = document.body.classList.toggle('calma');
+    botaoCalma.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+    botaoCalma.textContent = ligado ? 'Movimento' : 'Modo calmo';
+  });
+
+  // --- a torneira ------------------------------------------------------
+  // O nivel sobe sozinho porque o tempo esta passando de verdade. O clique
+  // esvazia, a gota cai, e o saldo so muda DEPOIS dela chegar: a ordem e a
+  // emocao -- ve-se o valor chegar em vez de aparecer.
+  var torneira = document.getElementById('torneira');
+  var nivelEl = document.getElementById('nivel');
+  var efeitos = document.getElementById('efeitos');
+  var recibo = document.getElementById('recibo');
+  var caixaSaldo = document.getElementById('caixa-saldo');
+  var saldoEl = document.getElementById('saldo');
+  var estado = document.getElementById('t-estado');
+  var acao = document.getElementById('t-acao');
+  var nota = document.getElementById('t-nota');
+
+  var PREMIO = 5746;
+  var nivel = 100;
+  var saldo = 118770;
+
+  function pt(n) { return n.toLocaleString('pt-BR'); }
+
+  function pintaTorneira() {
+    var pronta = nivel >= 100;
+    nivelEl.style.height = nivel + '%';
+    torneira.disabled = !pronta;
+    torneira.dataset.pronta = pronta ? '1' : '0';
+    estado.textContent = pronta ? 'pronto' : 'enchendo';
+    acao.textContent = pronta ? 'Coletar' : Math.ceil((100 - nivel) * 3 / 100) + ' min';
+    nota.textContent = pronta ? '~' + pt(PREMIO) + ' FHR' : nivel + '%';
+    nota.style.color = pronta ? 'var(--primary)' : 'var(--muted)';
+    torneira.setAttribute('aria-label', pronta
+      ? 'Coletar agora, cerca de ' + pt(PREMIO) + ' FHR'
+      : 'Aguardando a torneira encher, ' + nivel + ' por cento');
+  }
+
+  setInterval(function () {
+    if (nivel < 100) { nivel = Math.min(100, nivel + 4); pintaTorneira(); }
+  }, 1000);
+
+  torneira.addEventListener('click', function () {
+    if (nivel < 100) return;
+    nivel = 0;
+    pintaTorneira();
+
+    efeitos.innerHTML =
+      '<span class="anel is-anel"></span><span class="gota is-pinga"></span>';
+    setTimeout(function () { efeitos.innerHTML = ''; }, 1000);
+
+    setTimeout(function () {
+      saldo += PREMIO;
+      saldoEl.textContent = pt(saldo);
+      caixaSaldo.classList.remove('is-salta');
+      void caixaSaldo.offsetWidth;          // remonta a animacao
+      caixaSaldo.classList.add('is-salta');
+
+      recibo.hidden = false;
+      recibo.className = 'aviso is-entra';
+      recibo.style.borderLeftColor = 'var(--success)';
+      recibo.innerHTML =
+        '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--success)" ' +
+        'stroke-width="2.4" style="flex:none; margin-top:2px" aria-hidden="true">' +
+        '<path d="M4 12.5l5 5L20 6.5"></path></svg>' +
+        '<span><strong style="font-weight:600">+' + pt(PREMIO) + ' FHR</strong> entrou no lote aberto. ' +
+        '<span style="color:var(--muted)">Vai na próxima raiz.</span></span>';
+    }, 560);
+  });
+
+  pintaTorneira();
+
+  // --- praca e prova ---------------------------------------------------
+  // A ideia da secao: o mesmo evento acende nos dois lados. A praca fala em
+  // gente, o painel fala em hash, e e uma linha so.
+  var PESSOAS = [
+    { apelido: 'ana.sol',  acao: 'coletou na FaucetHunter',  valor: '5.746', quando: 'agora', conta: '0x6f9b…c41e', hash: '0x9ad2c1f4e7b8a0d3…', bruta: 370305 },
+    { apelido: 'kenji',    acao: 'coletou na Merit Faucet',  valor: '4.130', quando: '12 s',  conta: '0x2197…15d7', hash: '0x3f71b6e2d4c8a915…', bruta: 218904 },
+    { apelido: 'mariz',    acao: 'vinculou a Phantom',       valor: '1.980', quando: '34 s',  conta: '0xb3df…5ad5', hash: '0xc0e4a7d1f23b8956…', bruta: 118770 },
+    { apelido: 'novato',   acao: 'primeiro clique',          valor: '744',   quando: '1 min', conta: '0x7dda…6ef3', hash: '0x81bd5c93a6e2f407…', bruta: 44802 },
+    { apelido: 'bia.eth',  acao: 'sacou com prova',          valor: '8.201', quando: '2 min', conta: '0x5a3c…9f20', hash: '0x6e2fa84c7b05d1e3…', bruta: 492060 }
+  ];
+
+  var lista = document.getElementById('lista-pessoas');
+  var folha = document.getElementById('folha');
+  var caminhoProva = document.getElementById('caminho-prova');
+  var escolhida = 0;
+
+  PESSOAS.forEach(function (p, i) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'linha-pessoa';
+    b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+    b.innerHTML =
+      '<span class="avatar">' + p.apelido.slice(0, 2).toUpperCase() + '</span>' +
+      '<span style="flex:999 1 140px; min-width:0">' +
+        '<span style="display:block; font-weight:600">' + p.apelido + '</span>' +
+        '<span style="display:block; margin-top:2px; font-size:13px; color:var(--muted)">' + p.acao + '</span>' +
+      '</span>' +
+      '<span style="flex:none; text-align:right">' +
+        '<span class="num" style="display:block; font-size:14px">+' + p.valor + '</span>' +
+        '<span style="display:block; margin-top:2px; font-size:12px; color:var(--muted)">' + p.quando + '</span>' +
+      '</span>';
+    b.addEventListener('click', function () { escolhe(i); });
+    lista.appendChild(b);
+  });
+
+  function escolhe(i) {
+    escolhida = i;
+    var p = PESSOAS[i];
+
+    Array.prototype.forEach.call(lista.children, function (el, k) {
+      el.setAttribute('aria-pressed', k === i ? 'true' : 'false');
+      el.classList.remove('is-eco');
+      if (k === i) { void el.offsetWidth; el.classList.add('is-eco'); }
+    });
+
+    document.getElementById('folha-titulo').textContent = 'Folha ' + String(i).padStart(2, '0');
+    document.getElementById('folha-conta').textContent = p.conta;
+    document.getElementById('folha-valor').textContent = pt(p.bruta);
+    document.getElementById('folha-indice').textContent = String(i).padStart(2, '0');
+    document.getElementById('folha-hash').textContent = p.hash;
+
+    folha.classList.remove('is-eco');
+    void folha.offsetWidth;
+    folha.classList.add('is-eco');
+
+    var niveis = [
+      { n: 'n0', pedaco: p.hash.slice(0, 10), cor: 'var(--primary)' },
+      { n: 'n1', pedaco: '0x4c81…',           cor: 'var(--mid)' },
+      { n: 'n2', pedaco: '0x67788a35…',       cor: 'var(--sol)' }
+    ];
+    caminhoProva.innerHTML = niveis.map(function (x) {
+      return '<div style="display:flex; gap:12px; align-items:center">' +
+        '<span class="mono" style="flex:none; width:22px; font-size:11px; color:var(--muted)">' + x.n + '</span>' +
+        '<span style="flex:1 1 auto; height:2px; background:var(--border); overflow:hidden">' +
+          '<span class="is-risca" style="display:block; height:2px; background:' + x.cor + '"></span>' +
+        '</span>' +
+        '<span class="mono" style="flex:none; font-size:11px">' + x.pedaco + '</span>' +
+      '</div>';
+    }).join('');
+  }
+
+  escolhe(0);
+
+  var entrar = document.getElementById('entrar');
+  entrar.addEventListener('click', function () {
+    entrar.textContent = 'Você está na praça';
+    entrar.style.borderColor = 'var(--success)';
+    entrar.style.background = 'rgba(20,184,122,.12)';
+    document.getElementById('nota-entrar').textContent =
+      'Seu próximo clique aparece aqui e no painel ao lado, ao mesmo tempo.';
+  });
+
+  // --- sustentar para assinar ------------------------------------------
+  // Setecentos milissegundos: curto para nao irritar, longo para nao acontecer
+  // por engano. Fechar lote e publicar raiz movem dinheiro de verdade.
+  var assinar = document.getElementById('assinar');
+  var fill = document.getElementById('assina-fill');
+  var textoAssina = document.getElementById('assina-texto');
+  var faseRotulo = document.getElementById('fase-rotulo');
+  var fase = 0;              // 0 aberto · 1 selado · 2 publicado
+  var pressao = 0;
+  var timer = null;
+
+  function para() { if (timer) { clearInterval(timer); timer = null; } }
+
+  function pinta() {
+    fill.style.width = pressao + '%';
+    if (fase === 0) {
+      textoAssina.textContent = 'Sustente para fechar o lote';
+      assinar.style.borderColor = 'var(--primary)';
+      fill.style.background = 'rgba(43,159,232,.26)';
+      faseRotulo.textContent = 'acumulando';
+    } else if (fase === 1) {
+      textoAssina.textContent = 'Sustente para publicar na Solana';
+      assinar.style.borderColor = 'var(--sol)';
+      fill.style.background = 'rgba(153,69,255,.3)';
+      faseRotulo.textContent = 'raiz pronta';
+      document.getElementById('est-raiz').dataset.on = '1';
+      document.getElementById('nota-raiz').textContent = 'Lote fechado, folhas dentro';
+    } else {
+      textoAssina.textContent = 'Liquidada';
+      assinar.style.borderColor = 'var(--success)';
+      assinar.style.background = 'rgba(20,184,122,.12)';
+      assinar.disabled = true;
+      faseRotulo.textContent = 'liquidado';
+      var sol = document.getElementById('est-sol');
+      sol.dataset.on = '2';
+      document.getElementById('nota-sol').textContent = 'Raiz publicada, cofre cobre';
+      var roxo = document.getElementById('trilho-roxo');
+      roxo.hidden = false;
+      // A animacao da risca precisa recomecar agora: ela foi montada escondida,
+      // e sem remontar o no ela ja terminou sem ninguem ver.
+      var risca = roxo.firstElementChild;
+      risca.classList.remove('is-risca');
+      void risca.offsetWidth;
+      risca.classList.add('is-risca');
+      var pulso = document.createElement('span');
+      pulso.className = 'is-pulso';
+      pulso.setAttribute('aria-hidden', 'true');
+      pulso.style.cssText = 'position:absolute; top:33px; width:12px; height:12px; margin-left:-6px;' +
+        'border-radius:999px; background:var(--sol-green); box-shadow:0 0 20px 2px rgba(20,241,149,.7)';
+      document.querySelector('.trilho').appendChild(pulso);
+    }
+  }
+
+  function segura() {
+    if (fase === 2 || timer) return;
+    timer = setInterval(function () {
+      pressao += 7;
+      if (pressao >= 100) { para(); pressao = 0; fase += 1; }
+      pinta();
+    }, 48);
+  }
+
+  function solta() { para(); if (pressao !== 0) { pressao = 0; pinta(); } }
+
+  assinar.addEventListener('mousedown', segura);
+  assinar.addEventListener('touchstart', function (e) { e.preventDefault(); segura(); }, { passive: false });
+  ['mouseup', 'mouseleave', 'touchend', 'touchcancel', 'blur'].forEach(function (ev) {
+    assinar.addEventListener(ev, solta);
+  });
+  assinar.addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); segura(); }
+  });
+  assinar.addEventListener('keyup', solta);
+
+  pinta();
+})();
+</script>
+</body>
+</html>
