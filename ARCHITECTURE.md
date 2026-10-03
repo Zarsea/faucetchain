@@ -338,7 +338,7 @@ pays twice — `$CLAIM` for the work, and the partner's token from their budget.
 `distribution.py` holds the arithmetic and nothing else: no database, no clock
 beyond what the caller passes. Three rules carry it.
 
-**The floor.** The rate is computed against at least 100 users however few are
+**The floor.** The rate is computed against at least 30 users however few are
 present. Without it a new faucet with five users hands each a fifth of the
 month, which ruins the partner and draws anyone farming an empty faucet.
 

@@ -237,7 +237,7 @@ def seed_knowledge_base():
             "metadata": {"category": "accounts", "tags": ["derivation", "solana", "linking"], "source": "api_server.py account_reached_by_wallet"}
         },
         {
-            "content": "A campaign budget is dripped rather than airdropped. distribution.py computes a per-click rate from what the month still allows, the days left in it, and how many people claimed yesterday, against a floor of 100 users so a small faucet cannot hand each visitor a fifth of the month. Unspent budget rolls into the next month, and the credit never exceeds what the budget still holds.",
+            "content": "A campaign budget is dripped rather than airdropped. distribution.py computes a per-click rate from what the month still allows, the days left in it, and how many people claimed yesterday, against a floor of 30 users so a small faucet cannot hand each visitor a fifth of the month. That floor was 100 until 2 October; lowering it tripled the rate on a nearly empty campaign and tripled what one person can take of a day's allowance, from 10% to 33%. Unspent budget rolls into the next month, and the credit never exceeds what the budget still holds.",
             "metadata": {"category": "campaigns", "tags": ["drip", "budget", "distribution"], "source": "distribution.py"}
         },
         {

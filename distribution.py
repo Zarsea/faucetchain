@@ -26,7 +26,12 @@ returns more than the budget still holds.
 Amounts are integers in the token's smallest unit. Money is never a float.
 """
 
-FLOOR_USERS = 100          # the rate is never computed against fewer than this
+FLOOR_USERS = 30           # the rate is never computed against fewer than this
+# Was 100 until 2 October. Lowered deliberately: at 100 the rate against a
+# nearly empty campaign was 0.1852 per click and a single person could take
+# 10% of a day's allowance; at 30 it is 0.6173 and they can take 33%. The
+# floor still binds below 30, and above it the divisor is the real count, so
+# this only moves campaigns with few people in them.
 CLAIM_INTERVAL_MIN = 5     # one claim per user per five minutes, as faucets do
 MINUTES_PER_DAY = 24 * 60
 CLAIMS_PER_USER_DAY = MINUTES_PER_DAY // CLAIM_INTERVAL_MIN   # 288
@@ -108,25 +113,25 @@ def _self_check() -> None:
 
     # Month 1 — five users, so the floor decides the rate
     rate1 = per_click(cap, 30, active_users=5, participation_rate=p)
-    assert abs(rate1 / U - 0.11574) < 0.0001, rate1 / U
+    assert abs(rate1 / U - 0.38580) < 0.0001, rate1 / U
     spent1 = int(5 * CLAIMS_PER_USER_DAY * p) * rate1 * 30
     left1 = cap - spent1
-    assert abs(left1 / U - 9_500) < 20, left1 / U      # ~9.5k rolls over
+    assert abs(left1 / U - 8_333) < 20, left1 / U      # ~8.3k rolls over
 
     # Month 2 — 300 users, with the rollover added
     avail2 = month_budget(120_000 * U, cap, left1)
-    assert abs(avail2 / U - 19_500) < 20, avail2 / U
+    assert abs(avail2 / U - 18_333) < 20, avail2 / U
     rate2 = per_click(avail2, 30, active_users=300, participation_rate=p)
-    assert abs(rate2 / U - 0.07523) < 0.0001, rate2 / U
+    assert abs(rate2 / U - 0.07073) < 0.0001, rate2 / U
 
     # Month 3 — a thousand users, no rollover left
     rate3 = per_click(cap, 30, active_users=1000, participation_rate=p)
     assert abs(rate3 / U - 0.01157) < 0.0001, rate3 / U
 
     # The floor holds: below it the rate does not move, however few arrive.
-    assert per_click(cap, 30, 1, p) == per_click(cap, 30, 99, p) == per_click(cap, 30, 100, p)
+    assert per_click(cap, 30, 1, p) == per_click(cap, 30, 29, p) == per_click(cap, 30, 30, p)
     # Above it, more people means a smaller share each.
-    assert per_click(cap, 30, 200, p) < per_click(cap, 30, 100, p)
+    assert per_click(cap, 30, 60, p) < per_click(cap, 30, 30, p)
 
     # The split
     user, treasury = split(1000)
