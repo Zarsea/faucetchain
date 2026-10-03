@@ -1,177 +1,260 @@
 # The submission, field by field
 
-Crypto World's Fair closes **23:59 PT on 12 October 2026**. The nine fields
-below are the ones the [hackathon page](https://www.colosseum.com/hackathon)
-asks for, read off it on 3 October.
+Crypto World's Fair closes **23:59 PT on 12 October 2026**.
 
-**This file does not contain the submission.** Four of the nine fields are
-prose, and judges read prose as the team's own words — a paragraph written here
-and pasted there is the one shortcut that costs more than it saves. What is
-here instead is every fact the repository can prove, with the command that
-proves it, and the questions only the team can answer. Write the prose from
-this; do not copy it from it.
+Read from the **live draft** on 3 October through Colosseum's own API, not from
+the public hackathon page — the page lists nine things to prepare, the actual
+form has about forty fields. An earlier version of this file was built from the
+page and was materially incomplete.
 
-Everything marked **verified 3 Oct** was re-read from the chain or the live
-service today, not from an earlier note.
+**This file does not contain the submission.** The prose fields are the team's
+own words and judges read them that way; a paragraph written here and pasted
+there is the one shortcut that costs more than it saves. What is here is every
+value the repository can prove, the question behind every field it cannot, and
+nothing in between.
+
+Everything marked **verified 3 Oct** was re-read from the chain, the live
+service, or the draft itself today.
 
 ---
 
-## 1. Product name
+## What is already done
 
-**FaucetChain.** Settled.
+Four things the old checklist had wrong or did not know:
 
-The campaign-side name used with partners is *FaucetsWeb3 Liquidity Test and
-Airdrop*; the appchain is FaucetChain. Pick one for the form and keep it
-consistent with the videos and the logo.
+- **Registration is complete.** `registered: true` on Crypto World's Fair
+  (**verified 3 Oct**). The checklist carried this as an open item with a
+  warning that it would be missed. It was not missed.
+- **The project exists** as `faucetchain`, status **draft**, owner `Zarsea`.
+- **The team is three people**, all in Foz do Iguaçu, Brazil, and each one's
+  background is already on their Colosseum profile: `Zarsea` (physics,
+  self-taught, in faucets since 2017, building since 2022), `DoniJR` (AWS,
+  DevOps, infrastructure, security, observability), `Ciumauri` (CS student,
+  Solana and Rust).
+- **Weekly update #1 is published**, 21 September, with a video. The checklist
+  treated the weekly update as entirely undone.
 
-## 2. Brief description
+The **description** is also written and holds up — it names the problem, the
+mechanism, and the failure mode in one paragraph.
 
-**Open — prose.** The facts it has to rest on, all verifiable:
+---
 
-- A **micro-distribution appchain** that credits fractions of a token per
-  faucet claim, and settles the total on **Solana** through a Merkle root.
-- The promise and the payment are deliberately different numbers. The chain
-  credits; the Solana program pays, and **refuses a root its vault cannot
-  cover** (`InsufficientReserve`).
-- The partner is a **web2 faucet with real users** that already sends claims
-  here over one HTTP call.
+## Fields that have an answer right now
 
-Questions to answer before writing it:
+These are facts. Enter them and they are finished.
 
-- Who is the customer in one sentence — the faucet operator, the sponsor
-  funding a campaign, or the person clicking? The product serves three and the
-  description can only lead with one.
-- What does the sponsor buy that an airdrop does not give them?
+| Field | Value | |
+|---|---|---|
+| `repoLink` | `https://github.com/Zarsea/faucetchain` | public, branch `main`, **verified 3 Oct** |
+| `chains` | Solana | already set |
+| `category` | Developer Infrastructure | already set |
+| `country` | Brazil | already set |
+| `isSolanaMobile` | false | no mobile build exists |
+| `isUniversityProject` | false | already set |
+| `demoVideoPublic` | your call | currently `false`; it gates whether judges can share it |
 
-## 3. Blockchains and tools integrated
+`technologies` — everything below is in the repository today:
 
-Factual, no prose needed. Everything below is in the repository today:
+> Solana (devnet) · Anchor · SPL Token · Metaplex Token Metadata · Phantom ·
+> FastAPI · Python · SQLite · solders / solana-py · React · TypeScript · Vite
 
-| | |
-|---|---|
-| Chain | **Solana** — devnet, program `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, executable under the BPF upgradeable loader (**verified 3 Oct**) |
-| Program | **Anchor** |
-| Token | **SPL Token** + **Metaplex Token Metadata** (`CreateMetadataAccountV3`, hand-built in [settlement.py](settlement.py)) |
-| Wallet | **Phantom**, with a two-signature wallet link |
-| Backend | **FastAPI**, SQLite, Python; `solders` / `solana-py` for chain reads |
-| Frontend | **React + TypeScript**, Vite, trilingual (en/pt/es) |
-| Appchain | FaucetChain, chain id 7777 — keccak256 Proof of Claim, stake-weighted sealer election |
+`chainUsage` is *not* on this list, because it asks what Solana does for the
+product rather than which libraries are linked. The facts it rests on, each
+verifiable:
 
-The form also asks which **tools from the hackathon resources hub** were used.
-Needs the Copilot sign-in to answer against the hub rather than from memory —
-it is the one open item on this field.
-
-## 4. Team members, backgrounds, location
-
-**Open — only the team can fill this.** Nothing in the repository carries a
-person's background, and guessing one would be a lie in a field judges check.
-
-- How many people are on the submission?
-- One or two lines of relevant background each.
-- Team location, as the form words it.
-
-## 5. Product logo or graphic
-
-**Open.** `faucethunter_banner.jpg` and `faucethunter_square.jpg` exist in
-Downloads, but they are the **partner's** marks, not FaucetChain's. Submitting
-a partner's logo as the product's own is a correction waiting to happen.
-
-Decide: a FaucetChain mark, or the partner mark with the relationship stated.
-
-## 6. GitHub repository
-
-[github.com/Zarsea/faucetchain](https://github.com/Zarsea/faucetchain) —
-public, default branch `main` (**verified 3 Oct**). No access needs granting.
-
-Two things a judge sees before any code:
-
-- **The repository has no description.** One line, on the repo itself.
-- **`main` here is one commit ahead of what is published.** The local
-  mainnet-ceiling commit is not on GitHub yet. Judges read the public tree.
-
-## 7. Pitch video, 2–3 minutes
-
-**Open.** One Colosseum post says 2 minutes for this hackathon while the
-hackathon page says 2–3; **shoot for 2**, which passes either rule. English —
-Content Guidelines 12(a)(i).
-
-The shot list is in [PENDING.md](PENDING.md) and is live, not mocked.
-
-## 8. Demo video, no more than 3 minutes
-
-**Open.** Same shot list. The two climax shots are deliberately unspent: the
-refused root, and the withdrawal.
-
-## 9. Go-to-market, demand validation, distribution
-
-**Open — prose, and the only field starting from zero.** It is also the field
-with the strongest material, which is worth knowing before writing it.
-
-### What the chain itself proves (verified 3 Oct)
-
-- **19 Merkle roots published on Solana devnet**, across 18 campaigns, between
-  17 September and 2 October 2026. Every one carries a signature.
-- **A real withdrawal by a real wallet.** Signature
+- Program `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, executable under the
+  BPF upgradeable loader (**verified 3 Oct**).
+- **19 Merkle roots published**, across 18 campaigns, 17 September to 2 October.
+- The program **refuses a root its vault cannot cover** (`InsufficientReserve`).
+  This is the whole reason the guarantee lives on Solana instead of here.
+- Users withdraw against a proof with **no SOL of their own** — a relayer pays.
+  First real withdrawal:
   `46kkEoMDU3gyW5smjGmzpmdctfqWnzAyt8ztbF61S2u2LknHWEVh4oSZvwxkhBy5SXvcfWdP2XmAQhqnhXFFXNhw`,
-  `err: null`, fee 85,000 lamports, plus 1,488,440 lamports of token-account
-  rent — the first time the product's unit economics were measured instead of
-  estimated.
-- **A real campaign token with real metadata.** FaucetHunter Rewards (FHR),
-  mint `9yWq9XiWh5Ct29VcviAsT4WoGPEVwKc4jeJVNrdMZVzg`, 6 decimals, vault funded
-  with 120,000 FHR. USDC and USDT are registered as settleable; no campaign
-  pays in them yet, and the submission should not imply otherwise.
-
-### What the ledger here holds
-
-105 reward rows, 4,185,079,573 units credited, 39 linked Solana addresses, 6
-registered faucets, 26 sealed blocks. **These are integration numbers, not
-demand numbers**, and presenting them as traction would be the single easiest
-claim for a judge to puncture.
-
-### The demand evidence is not in this repository
-
-It is in **FaucetHunter's production database**, and the submission needs it
-from the team:
-
-- **How many registered users does faucethunter.net have?**
-- **How many claims a day does it serve?**
-- **How long has it been running?**
-- **Does any other faucet operator want this** — a conversation, a waitlist, a
-  "yes if"? One named operator outside the team is worth more than any number
-  above.
-
-A faucet in production sending claims to the chain is unusually strong demand
-evidence. It is also *one* partner, which is the first thing a judge asks
-about; answer it before they do.
-
-### Distribution, the part with an actual answer
-
-The distribution channel is the faucet itself, and the integration cost is the
-claim worth making: **one HTTP call after the partner's own commit** — see
-[FaucetHub_Integration_Guide.md](FaucetHub_Integration_Guide.md) §4. The
-partner's money never moves, and the partner site stays up if this one goes
-down (`test_partner_survives_outage.py`).
-
-Open: how a second and third faucet find out about it. Nothing in the
-repository answers that, and it is the question the field is really asking.
+  `err: null`, 85,000 lamports of fee plus 1,488,440 of token-account rent
+  (**verified 3 Oct**).
 
 ---
 
-## What has to happen, in order
+## Fields that need the team's words
 
-**By Sunday 4 October** — the adjustments:
+For each one: what the repository can back, and the question that has to be
+answered before the paragraph can be written honestly.
 
-1. Repository description, and push `main`.
-2. Logo decision (§5).
-3. Team answers (§4) and the FaucetHunter numbers (§9).
-4. The remaining pre-filming items in [PENDING.md](PENDING.md).
+### `whatBuilding`
 
-**Then, before 12 October:**
+Backed: the description already in the draft. Reusable as the spine.
 
-5. Register on colosseum.com — separate from submitting, same instant, and not
-   on any build list, which is how it gets missed.
-6. Write the four prose fields.
-7. Film both videos in English.
+**Question:** which of the three customers does this lead with — the faucet
+operator, the sponsor funding a campaign, or the person clicking? The product
+serves all three and a paragraph can only open with one.
 
-The gate nobody can work around: **the prose fields need the team's answers
-from item 3.** Everything else can proceed in parallel.
+### `whyNow`
+
+Backed: nothing. This field is about timing and the repository has no opinion
+about timing.
+
+**Questions:** what changed recently that makes this possible or necessary now?
+Candidates worth checking before claiming: the cost of a Solana transaction
+versus 2022, compressed state making per-user records affordable, or something
+specific happening to faucet payouts. Pick the one that is actually true.
+
+### `marketValidation`
+
+Backed, and strongly: **a faucet in production, with real users, already sends
+claims to this chain over one HTTP call.** That is unusually good validation
+and should be said plainly.
+
+**What it needs from you**, because it is in FaucetHunter's database and not in
+this repository:
+
+- How many registered users does faucethunter.net have?
+- How many claims a day does it serve?
+- How long has it been running?
+- **Has any faucet operator outside the team said they want this?** One named
+  operator is worth more than any number above, and its absence is the first
+  thing a judge will ask about.
+
+### `traction`
+
+Backed: 19 published roots, 105 reward rows, 4,185,079,573 units credited, 39
+linked Solana addresses, 6 registered faucets, 26 sealed blocks, one real
+withdrawal by a real wallet.
+
+**The honest reading, which is worth getting right before a judge does it for
+you:** those are *integration* numbers, not demand numbers. They prove the
+machine runs end to end. They do not prove anyone wants it. Presenting them as
+traction is the easiest claim in the submission to puncture; presenting them as
+"the rail works, and here is who uses it" is defensible.
+
+### `competition`
+
+Backed: nothing yet. Copilot's project evidence would answer "who has tried
+this at Colosseum before" — **the evidence routes are returning 401 today**
+(see the note at the end), so this field has no research behind it yet.
+
+**Question meanwhile:** who does a faucet operator use *today* instead of this?
+FaucetPay is the obvious incumbent and the comparison is the point: it is a
+custodial payout processor, this is a settlement guarantee. Name it rather than
+claiming an empty field.
+
+### `monetization`
+
+Backed: the 80/20 split is in the code — `USER_SHARE = 80`,
+`TREASURY_SHARE = 20`, and the treasury's share is staked, not sold.
+
+**Question:** is that the business model, or is it the network's continuity
+funding with the business model still to come? The draft should not imply the
+first if the answer is the second.
+
+### `teamCommitment`
+
+**Only the three of you can answer.** Hours per week, who is full time, what
+happens after the hackathon.
+
+### `teamLocationDetails`
+
+All three in Foz do Iguaçu, Brazil. The field wants the detail, not the
+country, and the country is already set separately.
+
+### `repoContext`
+
+What a judge should look at first, and what to ignore. A genuinely useful
+answer here, given the repository's size:
+
+- `ARCHITECTURE.md` — the design, including what is deliberately unfinished
+- `distribution.py` — the whole payout model, with a runnable self-check
+- `faucetchain/programs/faucetchain/` — the Anchor program
+- `PENDING.md` — what is open and who is blocked
+
+**Question:** do you want `legacy/` and the Sepolia-era files flagged as not
+part of the submission? They are in the public tree and a judge will find them.
+
+### `additionalInfo` / `liveProductAccessInstructions`
+
+See the next section — there is a decision to make before these can be filled.
+
+---
+
+## Two things that are not fields and block several
+
+### There is no public URL for FaucetChain's own interface
+
+`liveProductLink` and `website` are both empty, and today **nothing answers
+them**. The explorer runs on `localhost:8010` behind an ngrok tunnel that
+changes; there is no deployment config in the repository. What is public is the
+GitHub repo, the partner's site (which is *theirs*, not ours), and devnet
+explorer links.
+
+Judges click. A submission whose product cannot be opened is relying entirely
+on the videos.
+
+**Decision needed:** deploy the frontend somewhere stable before the 12th, or
+fill `liveProductAccessInstructions` with an honest "run it locally, here is
+how" and accept what that costs.
+
+### Both videos, and the logo
+
+`pitchVideoLink`, `demoVideoLink`, `presentationLink`, `technicalDemoLink` — all
+empty.
+
+- **Pitch: aim for 2 minutes.** One Colosseum source says 2 for this hackathon
+  while the page says 2–3; 2 passes either.
+- **Demo: 3 minutes maximum.**
+- **Both in English.** Content Guidelines 12(a)(i). The product is trilingual;
+  the submission is not.
+- The shot list is in [PENDING.md](PENDING.md), and every shot in it is live.
+
+**The logo** is still unresolved: `faucethunter_banner.jpg` and
+`faucethunter_square.jpg` are the *partner's* marks. Submitting a partner's logo
+as the product's own invites exactly the wrong question.
+
+---
+
+## Fields only you can answer
+
+`legalEntity` · `legalEntityDetails` · `investmentReceived` ·
+`investmentDetails` · `currentlyFundraising` · `fundraisingDetails` ·
+`liveToken` · `liveTokenDetails` · `externalContributors` · `twitterHandle` ·
+`telegramHandle` · `surveyAnswers`
+
+One worth a second look: **`liveToken`.** FHR exists on devnet with real
+Metaplex metadata, and USDC and USDT are registered as settleable but pay
+nothing. Whether that counts as a live token depends on what the field means by
+live — and answering "yes" about a devnet token would be the wrong kind of
+wrong.
+
+`tracks` is also empty. Worth checking what tracks this hackathon offers; the
+category is set but a track is not.
+
+---
+
+## Order of work
+
+**By Sunday 4 October:**
+
+1. `repoLink` — ten seconds, and it is the field a judge uses first.
+2. Push `main`. Three commits are local and judges read the public tree.
+3. A one-line description on the GitHub repository itself, which has none.
+4. The FaucetHunter numbers, for `marketValidation`.
+5. Decide the public-URL question, because the videos and two fields depend on it.
+6. Logo decision.
+
+**Then, before the 12th:**
+
+7. The prose fields, in this order: `whatBuilding`, `traction`,
+   `marketValidation`, `competition`, `whyNow`, `monetization`.
+8. Film both videos in English.
+9. Everything in the "only you" list.
+
+---
+
+## What is not verified here
+
+Colosseum's **evidence routes returned 401 all through 3 October** —
+`/search/projects` and `/faqs` both — while `/me` worked, so the draft above is
+first-hand and the research is not. That costs two things: the `competition`
+field has no precedent research behind it, and the hackathon's own FAQ wording
+on deadlines and judging could not be re-read from source. The 23:59 PT deadline
+above is from the rules read on 28 September, not re-verified today.
+
+Worth retrying before the prose fields are written.

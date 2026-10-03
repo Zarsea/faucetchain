@@ -19,10 +19,10 @@ repository can prove for each field, with the proof re-verified, and the
 questions only the team can answer. This list stays the schedule; that one is
 the content.
 
-- [ ] **Register on colosseum.com.** Separate from submitting, and it closes at
-      the same instant: after 23:59 PT on 12 October the registration form is
-      disabled and an unregistered entrant is disqualified. This is not in any
-      build list, which is exactly how it gets missed.
+- [x] **Register on colosseum.com.** **Already done** — the account reads
+      `registered: true` on Crypto World's Fair, read from Colosseum's own API
+      on 3 October. This entry warned that it would be missed because it was on
+      no build list; it was not missed, and carrying it as open was the error.
 - [ ] **Pitch video, 2—3 minutes.** The first thing judges watch, and what
       decides whether a project is shortlisted. One Colosseum post says the
       limit is 2 minutes for this hackathon while the hackathon page says 2—3;
@@ -31,17 +31,29 @@ the content.
 - [ ] **Demo video, no more than 3 minutes.** How the product works.
 - [ ] **Everything in English.** Content Guidelines 12(a)(i) of the rules. The
       product is trilingual; the submission is not.
-- [ ] **Go-to-market, demand validation, distribution.** Required, not code,
-      and written nowhere in this repository — the only part of the
-      submission starting from zero. The demand evidence is unusually strong
-      and should be said plainly: a faucet in production, with real users,
-      already sends claims to this chain.
-- [ ] **Weekly 1-minute update video.** Optional. With two weeks left it is the
-      first thing to drop if time is short.
+- [ ] **Go-to-market, demand validation, distribution.** In the draft these
+      are the separate fields `marketValidation`, `traction`, `competition`,
+      `monetization`, `whyNow` and `whatBuilding`, all empty. The demand
+      evidence is unusually strong and should be said plainly: a faucet in
+      production, with real users, already sends claims to this chain. What is
+      *not* evidence of demand is this ledger's own counts — they prove the
+      rail runs, which is a different claim and an easier one to puncture.
+
+- [ ] **Nothing public opens the product.** `liveProductLink` and `website` are
+      both empty and nothing in the repository answers them: the explorer runs
+      on localhost behind a tunnel that changes, and there is no deployment
+      config. Judges click. Either the frontend goes somewhere stable before the
+      12th, or the submission rests entirely on the two videos.
+- [x] **Weekly 1-minute update video.** **Update #1 was published on 21
+      September** with a video attached, which this list did not know. Further
+      ones stay optional and are still the first thing to drop.
 - [x] **Public GitHub repo.** `Zarsea/faucetchain` is public, so no access
       needs granting to hackathon@colosseum.com.
-- [ ] **Name, description, chains and tools, team backgrounds and location,
-      logo.** Mechanical, but none of it is written yet.
+- [ ] **The draft's own fields.** Read from the live draft on 3 October:
+      name, description, chains, category and country are **already filled**;
+      about twenty-five fields are not, and the public hackathon page does not
+      list most of them. [SUBMISSION.md](SUBMISSION.md) has them one by one.
+      The team's three backgrounds are already on their Colosseum profiles.
 
 ### The shot list, in the order it should be filmed
 
