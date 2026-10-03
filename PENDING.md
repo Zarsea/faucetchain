@@ -14,6 +14,11 @@ Design questions that are open *on purpose* are not here — they live in
 Read off colosseum.com on 28 September. The rules PDF carries the deadline; the
 lengths come from the hackathon page and the Colosseum workshop write-up.
 
+The field-by-field worksheet lives in [SUBMISSION.md](SUBMISSION.md): what the
+repository can prove for each field, with the proof re-verified, and the
+questions only the team can answer. This list stays the schedule; that one is
+the content.
+
 - [ ] **Register on colosseum.com.** Separate from submitting, and it closes at
       the same instant: after 23:59 PT on 12 October the registration form is
       disabled and an unregistered entrant is disqualified. This is not in any
