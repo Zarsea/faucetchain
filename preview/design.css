@@ -1,0 +1,345 @@
+/* ============================================================================
+   FaucetChain — a direção de design, em um arquivo só.
+
+   PRÉVIA. Isto não faz parte do app: é a folha compartilhada pelos arquivos de
+   preview/, para que mudar um token mude todas as telas de uma vez. É o que
+   torna isto um teste de design em vez de cinco páginas soltas.
+
+   A paleta é a de index.html, sem alteração, com os contrastes que o
+   comentário de lá já media. A tipografia é proposta: Archivo na voz em lugar
+   de Inter, Fira Code mantida no dado porque hash precisa de monoespaçada.
+   ========================================================================= */
+
+:root {
+  /* ---- a paleta, exatamente a de index.html ---------------------------- */
+  --bg: #070F16;
+  --surface: #0C1620;
+  --card: #111E2A;
+  --border: #1C2E3D;
+  --primary: #2B9FE8;   /* 6.64:1 no fundo — passa em texto */
+  --deep: #0078CF;      /* 4.21:1 — preenchimento, nunca texto pequeno */
+  --mid: #539DD4;
+  --text: #D6E0F6;
+  --muted: #6B8299;     /* 4.88:1 — serve para corpo, não para legenda miúda */
+  --success: #14B87A;
+  --error: #E5484D;
+  --warn: #D9A441;
+  --sol: #9945FF;       /* 4.30:1 — grande ou preenchimento, nunca pequeno */
+  --sol-green: #14F195;
+
+  /* Elevação no lugar de brilho: sombra com direção diz o que está acima do
+     quê. O halo é um só, reservado ao momento de marca. */
+  --lift-sm: 0 1px 2px rgba(0,0,0,.4), 0 2px 8px -2px rgba(0,0,0,.3);
+  --lift: 0 2px 4px rgba(0,0,0,.4), 0 8px 24px -6px rgba(0,0,0,.45);
+  --glow: 0 0 32px -8px rgba(43,159,232,.55);
+
+  --sans: Archivo, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { margin: 0; background: var(--bg); }
+
+body {
+  font-family: var(--sans);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+}
+
+img { max-width: 100%; }
+a { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--mid); }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+h1, h2, h3 { margin: 0; letter-spacing: -.03em; text-wrap: balance; }
+
+/* ---- estrutura ----------------------------------------------------------- */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+@media (min-width: 760px) { .wrap { padding: 0 48px; } }
+
+.wrap-lido { max-width: 760px; }   /* largura de leitura, ~68 caracteres */
+
+section { padding-block: 48px; }
+.rule { height: 1px; background: var(--border); border: 0; margin: 0; }
+
+.sec-head {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  align-items: baseline; justify-content: space-between;
+  margin-bottom: 24px;
+}
+.sec-head h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 700; }
+
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3, .g4 { grid-template-columns: 1fr; }
+@media (min-width: 560px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 760px) {
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.duo { display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; }
+.duo-larga { flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; }
+.duo-estreita { flex: 1 1 340px; display: flex; flex-direction: column; gap: 18px; }
+.cresce { flex: 1 1 auto; }
+
+/* ---- texto --------------------------------------------------------------- */
+.mono { font-family: var(--mono); }
+.num { font-family: var(--mono); font-weight: 500; letter-spacing: -.02em; }
+.eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: .15em;
+  text-transform: uppercase; color: var(--muted);
+}
+.quieto { color: var(--muted); }
+.firme { color: var(--text); font-weight: 600; }
+
+/* ---- cartões ------------------------------------------------------------- */
+.card { border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.card-pad { padding: 24px; }
+.card-head {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  align-items: baseline; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+}
+.card-foot { padding: 22px 24px; border-top: 1px solid var(--border); }
+
+/* Borda e fundo marcam estado, nunca enfeite: só três existem. */
+.card-sol { border-color: var(--sol); background: rgba(153,69,255,.1); }
+.card-ok { border-color: var(--success); background: rgba(20,184,122,.1); }
+.card-fundo { background: var(--bg); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); font-size: 12px; color: var(--text);
+}
+.pill-sol { border-color: var(--sol); }
+.pill-ok { border-color: var(--success); color: var(--success); }
+
+.kv { display: flex; gap: 12px; justify-content: space-between; font-family: var(--mono); font-size: 12px; }
+.kv > span:first-child { color: var(--muted); }
+.kv > span:last-child { text-align: right; word-break: break-all; }
+.kv-lista { display: grid; gap: 9px; }
+
+.aviso {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 14px 16px; border: 1px solid var(--border);
+  border-left: 3px solid var(--warn); border-radius: 12px;
+  background: var(--surface); font-size: 13px; line-height: 1.55;
+}
+.aviso-ok { border-left-color: var(--success); }
+.aviso svg { flex: none; margin-top: 2px; }
+
+/* ---- botões -------------------------------------------------------------- */
+/* O alvo mínimo é 44px em tudo que se toca, inclusive no desktop. */
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text);
+  padding: 9px 14px; min-height: 44px;
+  transition: transform .15s cubic-bezier(.22,1,.36,1), box-shadow .2s ease,
+              border-color .2s ease, background .2s ease;
+}
+.btn:hover:enabled { transform: translateY(-1px); border-color: var(--primary); }
+.btn:active:enabled { transform: translateY(1px) scale(.99); }
+.btn:disabled { cursor: not-allowed; opacity: .7; }
+.btn-marca { border-color: var(--primary); background: rgba(0,120,207,.14); }
+.btn-marca:hover:enabled { box-shadow: var(--glow); }
+.btn-largo { display: block; width: 100%; text-align: center; }
+
+/* Sustentar para assinar. O peso da pressão é a interação: assinar não
+   deveria ser um clique, porque um clique acontece por engano. */
+.assina {
+  position: relative; overflow: hidden; width: 100%;
+  padding: 18px 20px; min-height: 56px; border-radius: 12px;
+  font-size: 15px; font-weight: 700;
+}
+.assina-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  background: rgba(43,159,232,.26); transition: width .06s linear;
+}
+.assina-fill-sol { background: rgba(153,69,255,.3); }
+.assina > span:last-child { position: relative; }
+
+/* ---- a torneira ---------------------------------------------------------- */
+.torneira-box { flex: 0 0 auto; position: relative; width: 288px; height: 288px; display: grid; place-items: center; }
+.torneira {
+  position: relative; overflow: hidden; width: 236px; height: 236px;
+  border: 2px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--text); font: inherit; cursor: pointer;
+  transition: transform .18s cubic-bezier(.22,1,.36,1), box-shadow .25s ease, border-color .25s ease;
+}
+.torneira[data-pronta="1"] { border-color: var(--primary); }
+.torneira[data-pronta="1"]:hover { transform: scale(1.035); box-shadow: 0 0 56px -6px rgba(43,159,232,.55); }
+.torneira:active { transform: scale(.97); }
+.torneira:disabled { cursor: not-allowed; }
+.torneira-face { position: relative; display: grid; gap: 5px; place-items: center; height: 100%; }
+.nivel { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(0,120,207,.3); transition: height .45s cubic-bezier(.4,0,.2,1); }
+.nivel > i { position: absolute; top: -8px; left: 0; width: 200%; height: 16px; background: repeating-linear-gradient(90deg, rgba(43,159,232,.5) 0 18px, transparent 18px 36px); }
+.gota { position: absolute; top: 88px; width: 18px; height: 24px; border-radius: 0 999px 999px 999px; background: var(--primary); box-shadow: 0 0 20px 2px rgba(43,159,232,.6); }
+.anel { position: absolute; width: 256px; height: 256px; border: 2px solid var(--primary); border-radius: 999px; }
+
+/* ---- tabelas densas ------------------------------------------------------ */
+.tabela-box { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 640px; }
+caption { padding: 16px 24px 0; text-align: left; }
+th, td { text-align: left; padding: 13px 24px; border-bottom: 1px solid var(--card); }
+th { font-size: 11px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+td { font-family: var(--mono); font-size: 13px; }
+td.col-num { text-align: right; font-variant-numeric: tabular-nums; }
+th.col-num { text-align: right; }
+tbody tr { transition: background .15s ease; }
+tbody tr:hover { background: rgba(43,159,232,.05); }
+tbody tr[aria-selected="true"] { background: rgba(43,159,232,.08); box-shadow: inset 3px 0 0 var(--primary); }
+.linha-clicavel { cursor: pointer; }
+
+/* ---- lista de pessoas ---------------------------------------------------- */
+.linha-pessoa {
+  display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  width: 100%; padding: 15px 24px; border: 0;
+  border-bottom: 1px solid var(--card); border-left: 3px solid var(--border);
+  background: transparent; color: var(--text); font: inherit;
+  text-align: left; cursor: pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.linha-pessoa:hover { background: rgba(43,159,232,.06); }
+.linha-pessoa[aria-pressed="true"] { border-left-color: var(--primary); background: rgba(43,159,232,.07); }
+.avatar {
+  flex: none; width: 38px; height: 38px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg);
+  display: grid; place-items: center;
+  font-family: var(--mono); font-size: 13px; color: var(--muted);
+}
+.linha-pessoa[aria-pressed="true"] .avatar { border-color: var(--primary); color: var(--primary); }
+
+/* ---- barra de progresso -------------------------------------------------- */
+.barra { height: 10px; border-radius: 999px; background: var(--card); overflow: hidden; }
+.barra > i { display: block; height: 100%; background: var(--deep); }
+
+/* ---- prosa longa --------------------------------------------------------- */
+.prosa { font-size: 17px; line-height: 1.7; }
+.prosa p { margin: 0 0 20px; }
+.prosa h2 { margin: 44px 0 14px; font-size: 28px; font-weight: 700; }
+.prosa h3 { margin: 32px 0 10px; font-size: 19px; font-weight: 600; letter-spacing: -.01em; }
+.prosa ul { margin: 0 0 20px; padding-left: 22px; }
+.prosa li { margin-bottom: 9px; }
+.prosa strong { color: var(--text); font-weight: 600; }
+.prosa > :first-child { margin-top: 0; }
+.prosa blockquote {
+  margin: 28px 0; padding: 18px 22px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); font-size: 15px; line-height: 1.6; color: var(--muted);
+}
+.prosa code { font-family: var(--mono); font-size: .88em; color: var(--primary); }
+
+pre.bloco {
+  margin: 0; padding: 18px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg); font-family: var(--mono); font-size: 12px;
+  line-height: 1.7; overflow-x: auto;
+}
+
+/* ---- barra de topo ------------------------------------------------------- */
+.top {
+  position: sticky; top: env(safe-area-inset-top, 0); z-index: 20;
+  background: rgba(7,15,22,.86); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.top-in {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  align-items: center; justify-content: space-between; padding-block: 14px;
+}
+.mark { display: flex; align-items: center; gap: 11px; font-size: 16px; font-weight: 800; color: var(--text); }
+.mark:hover { color: var(--text); }
+.dot-live { position: relative; width: 7px; height: 7px; flex: none; }
+.dot-live > i { position: absolute; inset: 0; border-radius: 999px; background: var(--success); }
+
+/* A fita de prévia: diz, em toda tela, que isto não é o app. Sem ela alguém
+   tira um print e manda como se fosse. */
+.fita {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center;
+  padding: 10px 20px; border-bottom: 1px solid var(--border);
+  background: var(--card); font-size: 12px; color: var(--muted);
+}
+@media (min-width: 760px) { .fita { padding-inline: 48px; } }
+.fita nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.fita nav a {
+  padding: 5px 11px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); color: var(--text);
+  transition: border-color .18s ease;
+}
+.fita nav a:hover { border-color: var(--primary); }
+.fita nav a[aria-current="page"] { border-color: var(--primary); color: var(--primary); }
+
+footer { border-top: 1px solid var(--border); padding-block: 32px 48px; color: var(--muted); font-size: 13px; }
+
+/* ---- movimento -----------------------------------------------------------
+   Uma regra, e ela é a razão de o movimento não envelhecer: o que se move está
+   de fato acontecendo. A malha respira porque a rede está de pé, o nível sobe
+   porque o tempo passa, o pulso atravessa porque um valor assentou. Nada se
+   move por enfeite.                                                        */
+@keyframes malha     { 0%,100% { opacity: .26 } 50% { opacity: .5 } }
+@keyframes respira   { 0%,100% { transform: scale(1); opacity: .9 } 50% { transform: scale(1.7); opacity: 0 } }
+@keyframes onda      { 0% { transform: translateX(-50%) } 100% { transform: translateX(0) } }
+@keyframes pinga     { 0% { transform: rotate(45deg) translateY(0) scale(1); opacity: 0 } 14% { opacity: 1 } 100% { transform: rotate(45deg) translateY(170px) scale(.5); opacity: 0 } }
+@keyframes anel      { from { transform: scale(.6); opacity: .8 } to { transform: scale(2); opacity: 0 } }
+@keyframes salta     { 0% { transform: scale(1) } 35% { transform: scale(1.14) } 100% { transform: scale(1) } }
+@keyframes entra     { from { transform: translateY(10px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+@keyframes atravessa { from { left: 3% } to { left: 97% } }
+@keyframes risca     { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+@keyframes eco       { from { box-shadow: 0 0 0 0 rgba(43,159,232,.5) } to { box-shadow: 0 0 0 14px rgba(43,159,232,0) } }
+@keyframes selo      { 0% { transform: scale(.75); opacity: 0 } 60% { transform: scale(1.06); opacity: 1 } 100% { transform: scale(1); opacity: 1 } }
+
+.is-malha   { animation: malha 9s ease-in-out infinite; }
+.is-respira { animation: respira 2.6s ease-out infinite; }
+.is-onda    { animation: onda 3.4s linear infinite; }
+.is-pinga   { animation: pinga .95s cubic-bezier(.45,0,.75,.4) both; }
+.is-anel    { animation: anel .85s cubic-bezier(.22,1,.36,1) both; }
+.is-salta   { animation: salta .5s cubic-bezier(.22,1,.36,1) both; }
+.is-entra   { animation: entra .32s cubic-bezier(.22,1,.36,1) both; }
+.is-pulso   { animation: atravessa 1.25s cubic-bezier(.65,0,.35,1) both; }
+.is-risca   { animation: risca 1.25s cubic-bezier(.65,0,.35,1) both; transform-origin: left; }
+.is-eco     { animation: eco .9s ease-out both; }
+.is-selo    { animation: selo .42s cubic-bezier(.22,1,.36,1) both; }
+
+/* O modo calmo desliga tudo de uma vez; o sistema do usuário já desliga pelo
+   prefers-reduced-motion. Os dois caminhos existem porque são perguntas
+   diferentes: um é preferência permanente, o outro é vontade de agora. */
+body.calma [class*="is-"] { animation: none !important; }
+body.calma .torneira:hover { transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  [class*="is-"] { animation: none !important; }
+  .btn:hover:enabled, .torneira:hover { transform: none; }
+}
+
+/* ---- malha de fundo ------------------------------------------------------ */
+.hero { position: relative; overflow: hidden; padding-block: 56px 48px; }
+.hero-malha {
+  position: absolute; inset: 0; pointer-events: none; opacity: .26;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(120% 90% at 50% 0%, #000 35%, transparent 75%);
+}
+
+/* ---- trilho das estações ------------------------------------------------- */
+.trilho { position: relative; display: grid; grid-template-columns: 1fr; gap: 28px; }
+@media (min-width: 760px) { .trilho { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.trilho-linha { position: absolute; left: 3%; right: 3%; top: 38px; height: 2px; background: var(--border); display: none; }
+@media (min-width: 760px) { .trilho-linha { display: block; } }
+/* O [hidden] é regra do navegador e a de cima é do autor: sem isto a linha
+   roxa aparece no desktop antes de existir raiz, e a animação queima no load. */
+.trilho-linha[hidden] { display: none !important; }
+.estacao { position: relative; display: grid; gap: 14px; justify-items: center; text-align: center; }
+.estacao-selo {
+  width: 78px; height: 78px; border-radius: 999px; background: var(--bg);
+  border: 2px solid var(--border); display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  transition: border-color .3s ease, color .3s ease;
+}
+.estacao[data-on="1"] .estacao-selo { border-color: var(--primary); color: var(--primary); }
+.estacao[data-on="2"] .estacao-selo { border-color: var(--sol); color: var(--text); }

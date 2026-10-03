@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>O saque — prévia de design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+
+<div class="fita">
+  <strong class="firme">Prévia de design</strong>
+  <nav>
+    <a href="index.html">Índice</a>
+    <a href="home.html">Home</a>
+    <a href="ledger.html">Livro</a>
+    <a href="payout.html" aria-current="page">Saque</a>
+    <a href="network.html">Rede</a>
+    <a href="doc.html">Documento</a>
+  </nav>
+  <span>cobre: Solana Payouts · Staking Vault</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="mark" href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </a>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+      <span class="pill mono">2uVvAhL7…SVSdY</span>
+      <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+    </div>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="sec-head">
+    <h2>Sacar com prova</h2>
+    <span class="quieto" style="font-size:13px">Sem precisar ter SOL</span>
+  </div>
+
+  <div class="duo">
+
+    <!-- o saque -->
+    <div class="card duo-larga">
+      <div class="card-head">
+        <p class="eyebrow" style="margin:0">Campanha 652608 · FaucetHunter Rewards</p>
+        <span class="pill pill-sol" style="font-size:11px">raiz publicada</span>
+      </div>
+
+      <div class="card-pad">
+        <p class="eyebrow" style="margin:0">Disponível para sacar</p>
+        <p class="num" id="disponivel" style="margin:10px 0 2px; font-size:40px; line-height:1">370.305</p>
+        <p class="quieto" style="margin:0; font-size:13px">unidades FHR · 0,370305 com seis casas</p>
+
+        <div class="kv-lista" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border)">
+          <div class="kv"><span>mínimo desta campanha</span><span>5.000.000</span></div>
+          <div class="kv"><span>sua posição na raiz</span><span>folha 00 de 1</span></div>
+          <div class="kv"><span>mint</span><span>9yWq9Xi…MZVzg</span></div>
+          <div class="kv"><span>destino</span><span>2uVvAhL7…SVSdY</span></div>
+        </div>
+
+        <div class="aviso" style="margin-top:20px">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" aria-hidden="true">
+            <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+          </svg>
+          <span>
+            <strong class="firme">Você está abaixo do mínimo da campanha.</strong>
+            370.305 de 5.000.000. O valor não é recusado nem perdido: ele
+            continua acumulando e entra no próximo lote que cruzar o corte.
+            Entregar custa <span class="mono">1.488.440</span> lamports de rent
+            por pessoa por token, e abaixo de certo valor a entrega custa mais
+            do que entrega.
+          </span>
+        </div>
+      </div>
+
+      <div class="card-foot">
+        <button class="btn assina" type="button" id="sacar" data-hold data-hold-ms="800" style="border-color:var(--primary)">
+          <span class="assina-fill" data-hold-fill aria-hidden="true"></span>
+          <span id="sacar-texto">Sustente para sacar</span>
+        </button>
+        <p class="quieto" id="sacar-nota" style="margin:10px 0 0; font-size:12px; line-height:1.5">
+          O botão só completa se você sustentar. Esta ação assina uma transação
+          na Solana e não tem volta — um clique acontece por engano, sustentar não.
+        </p>
+      </div>
+    </div>
+
+    <!-- a conta -->
+    <div class="duo-estreita">
+
+      <div class="card card-pad">
+        <p class="eyebrow" style="margin:0">Quem paga o gás</p>
+        <p class="quieto" style="margin:12px 0 0; font-size:13px; line-height:1.6">
+          Um relayer assina e paga. Você recebe o token sem nunca ter tido SOL —
+          é a diferença entre uma recompensa que dá para pegar e uma que exige
+          comprar cripto antes.
+        </p>
+
+        <div class="kv-lista" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border)">
+          <div class="kv"><span>taxa base</span><span>10.000</span></div>
+          <div class="kv"><span>prioridade</span><span>75.000</span></div>
+          <div class="kv"><span>rent da conta de token</span><span>1.488.440</span></div>
+          <div class="kv" style="padding-top:9px; border-top:1px solid var(--border)">
+            <span class="firme">total em lamports</span><span class="firme">1.573.440</span>
+          </div>
+        </div>
+
+        <p class="quieto" style="margin:16px 0 0; font-size:12px; line-height:1.55">
+          <span class="firme">95% disso é rent</span>, cobrado uma vez por pessoa
+          por token. A segunda vez que a mesma carteira sacar o mesmo token custa
+          85.000 — dezoito vezes menos.
+        </p>
+      </div>
+
+      <div class="card card-pad card-fundo">
+        <p class="eyebrow" style="margin:0">A prova</p>
+        <div class="kv-lista" style="margin-top:14px">
+          <div class="kv"><span>folha</span><span>0x9ad2c1f4…</span></div>
+          <div class="kv"><span>raiz</span><span>0x67788a35…</span></div>
+          <div class="kv"><span>caminho</span><span>1 nó</span></div>
+        </div>
+        <p class="quieto" style="margin:14px 0 0; font-size:12px; line-height:1.55">
+          Com um lote de uma folha só, a folha é a raiz. O caminho cresce com o
+          lote, não com o valor.
+        </p>
+      </div>
+
+      <div class="card card-pad card-ok" id="feito" hidden>
+        <p style="margin:0; display:flex; gap:10px; align-items:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" style="flex:none" aria-hidden="true">
+            <path d="M4 12.5l5 5L20 6.5"></path>
+          </svg>
+          <span class="firme">Sacado</span>
+        </p>
+        <p class="mono" style="margin:12px 0 0; font-size:11px; line-height:1.55; word-break:break-all">46kkEoMDU3gyW5smjGmzpmdctfqWnzAyt8…</p>
+        <a class="btn btn-largo" style="margin-top:14px" href="https://explorer.solana.com/tx/46kkEoMDU3gyW5smjGmzpmdctfqWnzAyt8ztbF61S2u2LknHWEVh4oSZvwxkhBy5SXvcfWdP2XmAQhqnhXFFXNhw?cluster=devnet" target="_blank" rel="noopener">Ver a transação real</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <p style="margin:0">
+    Prévia de design — <span class="mono">preview/payout.html</span>. O saque, os custos
+    e a assinatura são o saque que de fato aconteceu em 2 de outubro de 2026, lido da devnet.
+  </p>
+</footer>
+
+<script src="preview.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // O sustentar vem de preview.js e dispara 'sustentado' só ao completar.
+  var sacar = document.getElementById('sacar');
+
+  sacar.addEventListener('sustentado', function () {
+    sacar.disabled = true;
+    sacar.style.borderColor = 'var(--success)';
+    sacar.style.background = 'rgba(20,184,122,.12)';
+    document.getElementById('sacar-texto').textContent = 'Assinado';
+    document.getElementById('sacar-nota').textContent =
+      'A partir daqui não depende deste servidor: a prova e o cofre bastam.';
+    document.getElementById('disponivel').textContent = '0';
+
+    var feito = document.getElementById('feito');
+    feito.hidden = false;
+    PV.repete(feito, 'is-selo');
+  });
+})();
+</script>
+</body>
+</html>

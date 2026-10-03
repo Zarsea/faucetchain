@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>O documento — prévia de design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+
+<div class="fita">
+  <strong class="firme">Prévia de design</strong>
+  <nav>
+    <a href="index.html">Índice</a>
+    <a href="home.html">Home</a>
+    <a href="ledger.html">Livro</a>
+    <a href="payout.html">Saque</a>
+    <a href="network.html">Rede</a>
+    <a href="doc.html" aria-current="page">Documento</a>
+  </nav>
+  <span>cobre: Whitepaper · Tokenomics · Technical Specs · API Docs · General Article · Connect a Faucet</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="mark" href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </a>
+    <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+  </div>
+</header>
+
+<div class="hero" style="padding-block:48px 32px">
+  <div class="hero-malha is-malha" aria-hidden="true"></div>
+  <div class="wrap wrap-lido" style="position:relative">
+    <p class="eyebrow">Whitepaper · seção 4</p>
+    <h1 style="margin-top:14px; font-size:clamp(30px,4.4vw,44px); line-height:1.06; font-weight:800">$CLAIM</h1>
+    <p class="quieto" style="margin:18px 0 0; font-size:17px; line-height:1.65">
+      O token da rede, e as três decisões sobre ele que não são negociáveis.
+    </p>
+  </div>
+</div>
+
+<hr class="rule">
+
+<article class="wrap wrap-lido prosa" style="padding-block:48px">
+
+  <ul>
+    <li><strong>Oferta fixa: 99.000.000.</strong> Nenhum mecanismo emite além disso.</li>
+    <li><strong>Sem gás para o usuário.</strong> Coletar e receber não custam nada
+      no appchain. Sacar para a Solana custa taxa de transação, e um relayer paga
+      — alguém com zero SOL ainda consegue recolher.</li>
+    <li><strong>Queima é opcional.</strong> Nenhuma taxa é destruída
+      automaticamente. Deflação por decreto encolhe o volume de que uma rede de
+      distribuição depende, então qualquer queima é ato deliberado, não efeito
+      colateral de usar o sistema.</li>
+  </ul>
+
+  <blockquote>
+    O limite existe para tornar o cronograma de emissão previsível e a rede cara
+    de farmar — não para pressionar ninguém a coletar mais rápido. Essa era a
+    razão antiga, e ela foi abandonada.
+  </blockquote>
+
+  <h2>Alocação macro</h2>
+
+  <p>
+    O rateio do teto de 99 milhões. Os valores aparecem em tokens
+    <em>e</em> em porcentagem de propósito: um rótulo que diz apenas
+    <span class="mono">20</span> é lido como vinte milhões por quem olha, e
+    vinte por cento de 99M são 19,8M — duas leituras que divergem por três
+    ordens de grandeza num número que fala de dinheiro.
+  </p>
+
+  <div class="card" style="margin:0 0 24px">
+    <div id="alocacao"></div>
+  </div>
+
+  <div class="aviso">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" aria-hidden="true">
+      <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+    </svg>
+    <span>
+      <strong class="firme">Este rateio não está em documento nenhum.</strong>
+      Ele existe só no gráfico da tela de Tokenomics. O whitepaper declara o
+      teto de 99.000.000 e não diz nada sobre como ele se divide — então o
+      gráfico é a única fonte de uma afirmação de que 19,8M vão para time e
+      liquidez. Ou vira política escrita, ou sai da tela.
+    </span>
+  </div>
+
+  <h2>Liquidação na Solana</h2>
+
+  <p>
+    É a parte que transforma promessa em algo conferível. Uma
+    <strong>campanha</strong> é aberta por um parceiro que quer distribuir
+    tokens. Ela registra o patrocinador, o operador autorizado a publicar
+    raízes, o mint, e os totais correntes.
+  </p>
+
+  <p>
+    O cofre dela é uma conta de token cuja autoridade é a própria campanha —
+    <strong>não uma chave que alguém guarda</strong>. É a diferença entre uma
+    garantia e uma intenção: não existe pessoa capaz de pagar errado, porque não
+    existe pessoa capaz de pagar.
+  </p>
+
+  <h3>O que o programa recusa</h3>
+
+  <p>
+    Uma raiz que o cofre não cubra, incluindo tudo que já foi prometido e ainda
+    não sacado. A recusa tem nome, e vê-la acontecer convence mais que qualquer
+    caminho felizmente concluído:
+  </p>
+
+  <pre class="bloco">Error: <span style="color:var(--error)">InsufficientReserve</span>
+    vault:    120.000.000.000
+    promised: 148.213.400.000
+    → a raiz não é publicada, e ninguém do lote é pago</pre>
+
+  <h2>Integração</h2>
+
+  <p>
+    Depois do seu próprio commit, você nos diz que um clique aconteceu. Cada
+    campanha em que a torneira está inscrita paga esse usuário do orçamento do
+    patrocinador. <strong>Seu dinheiro não se move</strong>, e se nós cairmos
+    você continua pagando.
+  </p>
+
+  <pre class="bloco"><span style="color:var(--muted)">POST</span> /api/faucethub/microclaim
+<span style="color:var(--muted)">X-Api-Key:</span> fch_…
+
+{ <span style="color:var(--primary)">"user_wallet"</span>: "EL5Huba…mjLzA",
+  <span style="color:var(--primary)">"amount"</span>: 1.0 }
+
+<span style="color:var(--muted)">→ 200</span>
+{ <span style="color:var(--primary)">"user_address"</span>: "0x6f9b…c41e",
+  <span style="color:var(--primary)">"campaigns"</span>: [
+    { "campaign_id": 652608, "amount": 5746, "funding": "vault" }
+  ],
+  <span style="color:var(--primary)">"campaigns_skipped"</span>: [
+    { "campaign_id": 479079, "reason": "month_spent",
+      "detail": "This month's allowance of 10000000 is spent" }
+  ] }</pre>
+
+  <p>
+    A segunda lista existe desde 3 de outubro, e ela é a correção de um defeito
+    real: uma campanha que não pagou devolvia a mesma lista vazia que uma
+    torneira inscrita em nada, e do lado do parceiro as duas coisas eram
+    indistinguíveis.
+  </p>
+
+  <h2>Distribuição</h2>
+
+  <p>
+    Quanto vale um clique não é uma constante: é o que o mês ainda permite,
+    dividido pelos dias que faltam e pelas pessoas que apareceram ontem.
+  </p>
+
+  <pre class="bloco">por_clique = mês_restante / dias_restantes
+             / (max(usuários, <span style="color:var(--primary)">30</span>) × 288 × participação)
+
+usuário recebe 80%   ·   tesouraria 20%, e ela é posta em stake</pre>
+
+  <p>
+    O <strong>30</strong> é um piso: a taxa nunca é calculada contra menos gente
+    que isso, para que uma torneira pequena não entregue a cada visitante um
+    quinto do mês. Ele era 100 até 2 de outubro.
+  </p>
+
+  <div class="aviso">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" aria-hidden="true">
+      <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+    </svg>
+    <span>
+      <strong class="firme">A participação está no divisor, e tem piso de 0,01.</strong>
+      Então tráfego ralo não baixa a recompensa: multiplica. Com os dois pisos
+      no valor atual, uma pessoa sozinha pode levar 2,67 vezes o orçamento de um
+      dia. É deliberado enquanto isto é um simulador em devnet, e é a primeira
+      coisa a reduzir antes da mainnet.
+    </span>
+  </div>
+</article>
+
+<footer class="wrap wrap-lido">
+  <p style="margin:0">
+    Prévia de design — <span class="mono">preview/doc.html</span>. O texto é o do
+    whitepaper e da arquitetura do repositório, não um rascunho novo.
+  </p>
+</footer>
+
+<script src="preview.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // A alocação como lista com barra, não como pizza. Numa pizza a fatia e o
+  // rótulo competem; aqui o token, a porcentagem e o comprimento dizem a mesma
+  // coisa três vezes, e nenhuma das três dá para ler errado.
+  var TETO = 99;
+  var FATIAS = [
+    ['Proof of Work · mineradores', 30, 'var(--primary)'],
+    ['Proof of Stake · cofre',      30, 'var(--mid)'],
+    ['Proof of Claim · mérito',     20, 'var(--deep)'],
+    ['Time e liquidez',             20, 'var(--muted)']
+  ];
+
+  document.getElementById('alocacao').innerHTML = FATIAS.map(function (f, i) {
+    var milhoes = (TETO * f[1] / 100).toFixed(1).replace('.', ',');
+    return '<div style="padding:18px 24px' +
+      (i ? '; border-top:1px solid var(--card)' : '') + '">' +
+      '<div style="display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; ' +
+        'justify-content:space-between; margin-bottom:10px">' +
+        '<span style="font-size:15px; font-weight:600">' + f[0] + '</span>' +
+        '<span class="num" style="font-size:14px">' + milhoes + 'M <span class="quieto">(' + f[1] + '%)</span></span>' +
+      '</div>' +
+      '<div class="barra" style="height:8px"><i style="width:' + f[1] + '%; background:' + f[2] + '"></i></div>' +
+    '</div>';
+  }).join('');
+})();
+</script>
+</body>
+</html>

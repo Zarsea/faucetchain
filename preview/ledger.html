@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>O livro — prévia de design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+
+<div class="fita">
+  <strong class="firme">Prévia de design</strong>
+  <nav>
+    <a href="index.html">Índice</a>
+    <a href="home.html">Home</a>
+    <a href="ledger.html" aria-current="page">Livro</a>
+    <a href="payout.html">Saque</a>
+    <a href="network.html">Rede</a>
+    <a href="doc.html">Documento</a>
+  </nav>
+  <span>cobre: Settlement Ledger · Wallet Explorer · Address Tracker · Smart Contract</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="mark" href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </a>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+      <span class="pill"><span class="dot-live"><i class="is-respira"></i><i></i></span><span class="mono">devnet</span></span>
+      <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+    </div>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="sec-head">
+    <h2>O livro</h2>
+    <span class="quieto" style="font-size:13px">19 raízes publicadas · 18 campanhas · 17 set a 2 out de 2026</span>
+  </div>
+
+  <div class="duo">
+
+    <!-- a tabela -->
+    <div class="card duo-larga">
+      <div class="card-head">
+        <p class="eyebrow" style="margin:0">Lotes publicados na devnet</p>
+        <span class="quieto" style="font-size:12px">clique numa linha</span>
+      </div>
+      <div class="tabela-box">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-num">lote</th>
+              <th>campanha</th>
+              <th>raiz</th>
+              <th class="col-num">folhas</th>
+              <th class="col-num">valor</th>
+              <th>data</th>
+            </tr>
+          </thead>
+          <tbody id="lotes"></tbody>
+        </table>
+      </div>
+      <div class="card-foot">
+        <p class="quieto" style="margin:0; font-size:13px; line-height:1.6">
+          Os oito mais recentes. Todo valor está na menor unidade do token da
+          campanha — seis casas decimais nas duas campanhas vivas, então
+          <span class="mono">370305</span> é 0,370305 FHR. A tabela não divide
+          por mil em lugar nenhum: a unidade crua é a que fecha com a cadeia.
+        </p>
+      </div>
+    </div>
+
+    <!-- o detalhe -->
+    <div class="duo-estreita">
+      <div class="card card-pad" id="detalhe">
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between">
+          <p class="eyebrow" style="margin:0">Lote <span id="d-lote">20</span></p>
+          <span class="pill pill-sol" style="font-size:11px">publicado</span>
+        </div>
+
+        <div class="kv-lista" style="margin-top:16px">
+          <div class="kv"><span>campanha</span><span id="d-campanha">652608</span></div>
+          <div class="kv"><span>folhas</span><span id="d-folhas">1</span></div>
+          <div class="kv"><span>valor</span><span id="d-valor">370.305</span></div>
+          <div class="kv"><span>publicado em</span><span id="d-data">02/10</span></div>
+        </div>
+
+        <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+          <p class="eyebrow" style="margin:0">raiz</p>
+          <p class="mono" id="d-raiz" style="margin:6px 0 0; font-size:11px; line-height:1.55; color:var(--primary); word-break:break-all">0x67788a35</p>
+        </div>
+
+        <div style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border)">
+          <p class="eyebrow" style="margin:0">assinatura</p>
+          <p class="mono" id="d-sig" style="margin:6px 0 0; font-size:11px; line-height:1.55; word-break:break-all">s99yVpfz</p>
+          <a class="btn btn-largo" id="d-link" style="margin-top:14px" href="#" target="_blank" rel="noopener">Abrir no explorer</a>
+        </div>
+      </div>
+
+      <div class="card card-pad card-fundo">
+        <p class="eyebrow" style="margin:0">O que a raiz garante</p>
+        <p class="quieto" style="margin:12px 0 0; font-size:13px; line-height:1.6">
+          Publicada, ela para de depender deste servidor. Quem tem prova de
+          inclusão saca direto do cofre da campanha, e o programa
+          <span class="firme">recusa qualquer raiz que o cofre não cubra</span> —
+          incluindo o que já foi prometido e ainda não sacado.
+        </p>
+        <p class="mono" style="margin:14px 0 0; font-size:11px; color:var(--muted)">InsufficientReserve</p>
+      </div>
+
+      <div class="card card-pad">
+        <p class="eyebrow" style="margin:0">Endereços desta cadeia</p>
+        <div class="kv-lista" style="margin-top:14px">
+          <div class="kv"><span>programa</span><span>64LW8DZc…WBqSm</span></div>
+          <div class="kv"><span>mint FHR</span><span>9yWq9Xi…MZVzg</span></div>
+          <div class="kv"><span>cofre 652608</span><span>GpgJHrwm…</span></div>
+          <div class="kv"><span>tesouraria</span><span>0xfaucetchaintreasury…</span></div>
+        </div>
+        <p class="quieto" style="margin:14px 0 0; font-size:12px; line-height:1.55">
+          A última não é um par de chaves: é um rótulo contábil, e nem é
+          hexadecimal válido. Ninguém assina por ela.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <p style="margin:0">
+    Prévia de design — <span class="mono">preview/ledger.html</span>. Lotes, raízes
+    e assinaturas lidos do <span class="mono">blockchain.db</span> em 3 de outubro de 2026.
+  </p>
+</footer>
+
+<script src="preview.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // Os oito lotes publicados mais recentes, como estão no banco. As
+  // assinaturas aparecem truncadas na tela e completas no link, porque o
+  // explorer precisa da assinatura inteira e a tela não.
+  var LOTES = [
+    [20, 652608, '0x67788a35607b77f8', 1, 370305,   '02/10', 's99yVpfz1jnXaXXjRTDrqD'],
+    [19, 479079, '0x8aaa6330eea37d14', 1, 347221,   '01/10', '4z4MWkBG94UWSZDaYo5i77'],
+    [18, 478840, '0x872ed9b45fb0dfc8', 2, 39998263, '27/09', '3VL3j5oc8ktT6tV8fip6p8'],
+    [17, 789699, '0xf8f570583b54db0f', 3, 49999276, '19/09', '4CkRe5LgLQayRkZQHi2k25'],
+    [16, 789619, '0x9a3a139b7bfa9442', 3, 49999276, '19/09', '9Bn75mxUWs8bxTbH4TWHwK'],
+    [15, 789533, '0x98a9a1be222850b1', 3, 49999276, '19/09', '46bG9dxF2TWnAL5KMkj7Yb'],
+    [14, 789430, '0x82b4ba6ca13ab096', 3, 49999276, '19/09', '4RNrV5JHPZNzsr3GrmwyGx'],
+    [13, 789356, '0x729a7317ef137d5c', 3, 49999276, '19/09', '38XjVkDSz1XKnitY66DS52']
+  ];
+
+  var corpo = document.getElementById('lotes');
+  var detalhe = document.getElementById('detalhe');
+
+  corpo.innerHTML = LOTES.map(function (L, i) {
+    return '<tr class="linha-clicavel" tabindex="0" role="button" data-i="' + i + '"' +
+           ' aria-selected="' + (i === 0) + '">' +
+      '<td class="col-num">' + L[0] + '</td>' +
+      '<td>' + L[1] + '</td>' +
+      '<td style="color:var(--primary)">' + L[2].slice(0, 10) + '…</td>' +
+      '<td class="col-num">' + L[3] + '</td>' +
+      '<td class="col-num">' + PV.pt(L[4]) + '</td>' +
+      '<td style="color:var(--muted)">' + L[5] + '</td>' +
+    '</tr>';
+  }).join('');
+
+  function mostra(i) {
+    var L = LOTES[i];
+    Array.prototype.forEach.call(corpo.children, function (tr, k) {
+      tr.setAttribute('aria-selected', k === i ? 'true' : 'false');
+    });
+    document.getElementById('d-lote').textContent = L[0];
+    document.getElementById('d-campanha').textContent = L[1];
+    document.getElementById('d-folhas').textContent = L[3];
+    document.getElementById('d-valor').textContent = PV.pt(L[4]);
+    document.getElementById('d-data').textContent = L[5];
+    document.getElementById('d-raiz').textContent = L[2] + '…';
+    document.getElementById('d-sig').textContent = L[6] + '…';
+    document.getElementById('d-link').href =
+      'https://explorer.solana.com/tx/' + L[6] + '?cluster=devnet';
+    PV.repete(detalhe, 'is-eco');
+  }
+
+  corpo.addEventListener('click', function (e) {
+    var tr = e.target.closest('tr[data-i]');
+    if (tr) mostra(+tr.dataset.i);
+  });
+  corpo.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var tr = e.target.closest('tr[data-i]');
+    if (tr) { e.preventDefault(); mostra(+tr.dataset.i); }
+  });
+
+  mostra(0);
+})();
+</script>
+</body>
+</html>

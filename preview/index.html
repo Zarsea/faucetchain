@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prévias de design — FaucetChain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+
+<div class="fita">
+  <strong class="firme">Prévia de design</strong>
+  <nav>
+    <a href="index.html" aria-current="page">Índice</a>
+    <a href="home.html">Home</a>
+    <a href="ledger.html">Livro</a>
+    <a href="payout.html">Saque</a>
+    <a href="network.html">Rede</a>
+    <a href="doc.html">Documento</a>
+  </nav>
+  <span>não é o app — <span class="mono">index.html</span>, <span class="mono">App.tsx</span> e <span class="mono">components/</span> intactos</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="mark" href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </a>
+    <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="hero-malha is-malha" aria-hidden="true"></div>
+  <div class="wrap" style="position:relative">
+    <p class="eyebrow">Teste de design · 3 de outubro de 2026</p>
+    <h1 style="margin-top:14px; font-size:clamp(32px,4.6vw,48px); line-height:1.05; font-weight:800">
+      Cinco telas, um arquivo de estilo.
+    </h1>
+    <p class="quieto" style="margin:20px 0 0; max-width:60ch; font-size:16px; line-height:1.65">
+      Cada prévia carrega a mesma <span class="mono">design.css</span>. Mudar um
+      token lá muda todas as telas de uma vez — é o que torna isto um teste de
+      design em vez de cinco páginas soltas. Abra uma por uma pela fita no topo,
+      que segue em todas elas.
+    </p>
+  </div>
+</div>
+
+<hr class="rule">
+
+<!-- ====================== as previas ====================== -->
+<section class="wrap">
+  <div class="sec-head">
+    <h2>As prévias</h2>
+    <span class="quieto" style="font-size:13px">Cada uma testa um risco diferente do design</span>
+  </div>
+
+  <div class="grid g2">
+
+    <a class="card card-pad" href="home.html" style="color:var(--text); display:flex; flex-direction:column; gap:12px">
+      <div style="display:flex; gap:12px; align-items:start; justify-content:space-between">
+        <span style="font-size:19px; font-weight:700; letter-spacing:-.02em">Home</span>
+        <span class="pill-ok pill">pronta</span>
+      </div>
+      <p class="quieto" style="margin:0; font-size:14px; line-height:1.6">
+        A home de hoje, que é o Dashboard. Herói com o botão líquido, o caminho
+        de um clique, praça e prova, suas campanhas nos três estados.
+      </p>
+      <p class="mono quieto" style="margin:0; font-size:12px">
+        testa: emoção no botão sem virar enfeite
+      </p>
+    </a>
+
+    <a class="card card-pad" href="ledger.html" style="color:var(--text); display:flex; flex-direction:column; gap:12px">
+      <div style="display:flex; gap:12px; align-items:start; justify-content:space-between">
+        <span style="font-size:19px; font-weight:700; letter-spacing:-.02em">O livro</span>
+        <span class="pill-ok pill">pronta</span>
+      </div>
+      <p class="quieto" style="margin:0; font-size:14px; line-height:1.6">
+        Tabela densa das raízes publicadas, com painel de detalhe. Oito lotes
+        reais, assinaturas que abrem no explorer da devnet.
+      </p>
+      <p class="mono quieto" style="margin:0; font-size:12px">
+        testa: a paleta aguenta densidade de dado
+      </p>
+    </a>
+
+    <a class="card card-pad" href="payout.html" style="color:var(--text); display:flex; flex-direction:column; gap:12px">
+      <div style="display:flex; gap:12px; align-items:start; justify-content:space-between">
+        <span style="font-size:19px; font-weight:700; letter-spacing:-.02em">O saque</span>
+        <span class="pill-ok pill">pronta</span>
+      </div>
+      <p class="quieto" style="margin:0; font-size:14px; line-height:1.6">
+        O saque que de fato aconteceu, com o custo aberto em lamports e o
+        sustentar-para-assinar numa ação que move dinheiro.
+      </p>
+      <p class="mono quieto" style="margin:0; font-size:12px">
+        testa: sustentar generaliza para ação irreversível
+      </p>
+    </a>
+
+    <a class="card card-pad" href="network.html" style="color:var(--text); display:flex; flex-direction:column; gap:12px">
+      <div style="display:flex; gap:12px; align-items:start; justify-content:space-between">
+        <span style="font-size:19px; font-weight:700; letter-spacing:-.02em">A rede</span>
+        <span class="pill-ok pill">pronta</span>
+      </div>
+      <p class="quieto" style="margin:0; font-size:14px; line-height:1.6">
+        Telemetria: blocos, selador ao vivo, emissão contra o teto, campanhas.
+        A tela onde tudo se move ao mesmo tempo.
+      </p>
+      <p class="mono quieto" style="margin:0; font-size:12px">
+        testa: movimento honesto quando tudo pulsa
+      </p>
+    </a>
+
+    <a class="card card-pad" href="doc.html" style="color:var(--text); display:flex; flex-direction:column; gap:12px">
+      <div style="display:flex; gap:12px; align-items:start; justify-content:space-between">
+        <span style="font-size:19px; font-weight:700; letter-spacing:-.02em">O documento</span>
+        <span class="pill-ok pill">pronta</span>
+      </div>
+      <p class="quieto" style="margin:0; font-size:14px; line-height:1.6">
+        Texto longo em largura de leitura: whitepaper, tokenomics com a alocação
+        corrigida, e o bloco de integração.
+      </p>
+      <p class="mono quieto" style="margin:0; font-size:12px">
+        testa: Archivo lê bem em parágrafo longo
+      </p>
+    </a>
+
+    <div class="card card-pad" style="display:flex; flex-direction:column; gap:12px; border-style:dashed">
+      <div style="display:flex; gap:12px; align-items:start; justify-content:space-between">
+        <span style="font-size:19px; font-weight:700; letter-spacing:-.02em; color:var(--muted)">Conversa e quadro</span>
+        <span class="pill">não feitas</span>
+      </div>
+      <p class="quieto" style="margin:0; font-size:14px; line-height:1.6">
+        AI Agent e Bounty Board. Deixei de fora de propósito: as duas são
+        variações de padrões que as cinco acima já resolvem, e nenhuma testa um
+        risco novo do design. Peça se quiser.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== as 21 secoes ====================== -->
+<section class="wrap">
+  <div class="sec-head">
+    <h2>As 21 seções, e quem cobre cada uma</h2>
+    <span class="quieto" style="font-size:13px">A navegação de hoje, lida do <span class="mono">App.tsx</span></span>
+  </div>
+
+  <div class="card">
+    <div class="tabela-box">
+      <table>
+        <thead>
+          <tr><th>seção no app</th><th>prévia que a cobre</th><th>o que ela empresta</th></tr>
+        </thead>
+        <tbody id="mapa"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="aviso" style="margin-top:20px">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" aria-hidden="true">
+      <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+    </svg>
+    <span>
+      <strong class="firme">Cinco prévias não são 21 telas.</strong>
+      O que está testado são os cinco arquétipos de layout que o app tem; as 21
+      seções são variações deles. Um arquétipo aprovado aqui vira componente
+      real — vinte e uma telas quase iguais não diriam mais do que isto, e
+      custariam vinte vezes mais para manter enquanto a direção ainda muda.
+    </span>
+  </div>
+</section>
+
+<footer class="wrap">
+  <p style="margin:0">
+    Prévias em <span class="mono">preview/</span>, estilo em
+    <span class="mono">preview/design.css</span>, comportamentos em
+    <span class="mono">preview/preview.js</span>.
+  </p>
+  <p style="margin:8px 0 0">
+    Todo número, endereço, raiz e assinatura veio do <span class="mono">blockchain.db</span>
+    e da devnet em 3 de outubro de 2026. Onde não havia dado, não há nada no lugar.
+  </p>
+</footer>
+
+<script src="preview.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // As 21 seções na ordem exata de TABS em App.tsx, mais Overview, que fecha a
+  // lista lá. A terceira coluna é o que a prévia empresta -- dito assim porque
+  // nenhuma prévia é a seção: ela é o padrão que a seção usaria.
+  var MAPA = [
+    ['Dashboard',        'home.html',    'Home',       'a tela inteira'],
+    ['Solana Payouts',   'payout.html',  'Saque',      'a tela inteira'],
+    ['Settlement Ledger','ledger.html',  'Livro',      'a tela inteira'],
+    ['Connect a Faucet', 'doc.html',     'Documento',  'texto longo com bloco de código'],
+    ['AutoClaim Hub',    'home.html',    'Home',       'o laço de coleta e o botão líquido'],
+    ['Address Tracker',  'ledger.html',  'Livro',      'tabela densa com painel de detalhe'],
+    ['Staking Vault',    'payout.html',  'Saque',      'ação consequente com sustentar'],
+    ['Bounty Board',     '',             '',           'quadro de cartões com estado'],
+    ['AI Agent',         '',             '',           'conversa'],
+    ['Wallet Explorer',  'ledger.html',  'Livro',      'tabela densa com painel de detalhe'],
+    ['Network Status',   'network.html', 'Rede',       'a tela inteira'],
+    ['Faucet',           'home.html',    'Home',       'o botão líquido'],
+    ['Tokenomics',       'doc.html',     'Documento',  'a alocação, com as unidades'],
+    ['Smart Contract',   'ledger.html',  'Livro',      'endereços e hashes em monoespaçada'],
+    ['AI Module',        'network.html', 'Rede',       'cartões de telemetria'],
+    ['Whitepaper',       'doc.html',     'Documento',  'a tela inteira'],
+    ['Technical Specs',  'doc.html',     'Documento',  'prosa com tabela de chave e valor'],
+    ['API Docs',         'doc.html',     'Documento',  'prosa com bloco de código'],
+    ['General Article',  'doc.html',     'Documento',  'largura de leitura'],
+    ['Infra Monitor',    'network.html', 'Rede',       'selador ao vivo e barras'],
+    ['Overview',         'network.html', 'Rede',       'cartões de telemetria']
+  ];
+
+  document.getElementById('mapa').innerHTML = MAPA.map(function (r) {
+    var cobre = r[1]
+      ? '<a href="' + r[1] + '">' + r[2] + '</a>'
+      : '<span style="color:var(--muted)">não feita</span>';
+    return '<tr><td>' + r[0] + '</td><td>' + cobre +
+           '</td><td style="font-family:var(--sans); color:var(--muted)">' + r[3] + '</td></tr>';
+  }).join('');
+})();
+</script>
+</body>
+</html>

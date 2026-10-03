@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A rede — prévia de design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+
+<div class="fita">
+  <strong class="firme">Prévia de design</strong>
+  <nav>
+    <a href="index.html">Índice</a>
+    <a href="home.html">Home</a>
+    <a href="ledger.html">Livro</a>
+    <a href="payout.html">Saque</a>
+    <a href="network.html" aria-current="page">Rede</a>
+    <a href="doc.html">Documento</a>
+  </nav>
+  <span>cobre: Network Status · Infra Monitor · Overview · AI Module</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="mark" href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </a>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+      <span class="pill"><span class="dot-live"><i class="is-respira"></i><i></i></span><span class="mono">chain 7777</span></span>
+      <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+    </div>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="sec-head">
+    <h2>A rede, hoje</h2>
+    <span class="quieto" style="font-size:13px">Um único ponto pulsa: o selador. O resto é número parado, porque é.</span>
+  </div>
+
+  <div class="grid g4">
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px; color:var(--sol)">19</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">raízes na Solana</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px">26</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">blocos selados · altura 25</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px">39</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">carteiras vinculadas</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:28px; color:var(--success)">0</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">SOL que um usuário precisa ter</p>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" style="padding-top:0">
+  <div class="duo">
+
+    <!-- o selador -->
+    <div class="card duo-larga">
+      <div class="card-head">
+        <p class="eyebrow" style="margin:0">Seladores</p>
+        <span class="quieto" style="font-size:12px">
+          <span class="dot-live" style="display:inline-block"><i class="is-respira"></i><i></i></span>
+          1 de 2 online
+        </span>
+      </div>
+
+      <div class="card-pad">
+        <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between">
+          <div style="min-width:0">
+            <p style="margin:0; font-weight:700">admin-miner-01</p>
+            <p class="mono quieto" style="margin:4px 0 0; font-size:12px">0xb3dff5d3…d5ad5 · v1.0.0</p>
+          </div>
+          <span class="pill pill-ok" style="font-size:11px">online</span>
+        </div>
+
+        <div class="grid g3" style="margin-top:22px">
+          <div>
+            <p class="num" style="margin:0; font-size:22px">696</p>
+            <p class="quieto" style="margin:4px 0 0; font-size:12px">épocas ativas</p>
+          </div>
+          <div>
+            <p class="num" style="margin:0; font-size:22px">31d 9h</p>
+            <p class="quieto" style="margin:4px 0 0; font-size:12px">tempo de pé</p>
+          </div>
+          <div>
+            <p class="num" style="margin:0; font-size:22px">6%</p>
+            <p class="quieto" style="margin:4px 0 0; font-size:12px">carga de CPU</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 24px 20px">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; margin-bottom:10px">
+          <p class="eyebrow" style="margin:0">Recompensa de mineração deste endereço</p>
+          <span class="num" style="font-size:14px">53.037,60</span>
+        </div>
+        <div class="barra"><i style="width:68%"></i></div>
+        <p class="quieto" style="margin:10px 0 0; font-size:12px; line-height:1.55">
+          68% de tudo que a rede emitiu por mineração — 42 recompensas de 69.
+          Este número vem de <span class="mono">mining_rewards</span>, que é o
+          livro. O contador em <span class="mono">active_miners</span> diz outra
+          coisa, e está marcado abaixo em vez de exibido.
+        </p>
+      </div>
+
+      <div class="card-foot">
+        <div class="aviso">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" aria-hidden="true">
+            <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+          </svg>
+          <span>
+            <strong class="firme">Dois números para a mesma coisa, e eles não batem.</strong>
+            <span class="mono">active_miners.total_earned</span> marca
+            1.257.422,56 para este selador; somar
+            <span class="mono">mining_rewards</span> do mesmo endereço dá
+            53.037,60 — vinte e quatro vezes menos. Esta tela mostra o livro e
+            não o contador, porque o livro é o que paga. Qual dos dois está
+            errado é uma pergunta aberta, não uma escolha de layout.
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- a emissao -->
+    <div class="duo-estreita">
+      <div class="card card-pad">
+        <p class="eyebrow" style="margin:0">$CLAIM emitido contra o teto</p>
+        <p class="num" style="margin:12px 0 2px; font-size:26px">78.077,24</p>
+        <p class="quieto" style="margin:0 0 16px; font-size:12px">de 99.000.000 — 0,0789%</p>
+
+        <div class="barra" style="height:6px"><i style="width:0.4%; background:var(--primary)"></i></div>
+
+        <div class="kv-lista" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border)">
+          <div class="kv"><span>por mineração</span><span>77.983,05</span></div>
+          <div class="kv"><span>por claim de mérito</span><span>94,19</span></div>
+          <div class="kv"><span>teto fixo</span><span>99.000.000</span></div>
+        </div>
+        <p class="quieto" style="margin:14px 0 0; font-size:12px; line-height:1.55">
+          A barra é quase invisível e é honesta: a rede emitiu oito centésimos de
+          um por cento do que pode. Desenhá-la cheia seria mentir com CSS.
+        </p>
+      </div>
+
+      <div class="card card-pad">
+        <p class="eyebrow" style="margin:0">Tesouraria</p>
+        <p class="num" style="margin:12px 0 2px; font-size:26px">1.000,00</p>
+        <p class="quieto" style="margin:0; font-size:12px">$CLAIM, de uma transação só</p>
+        <p class="quieto" style="margin:14px 0 0; font-size:12px; line-height:1.55">
+          E não é capital dela: é <span class="firme">caução de uma torneira</span>,
+          posta para cobrir o que ela deve aos próprios usuários. Liberar abaixo
+          dessa dívida é recusado.
+        </p>
+      </div>
+
+      <div class="card card-pad">
+        <p class="eyebrow" style="margin:0">Campanhas vivas</p>
+        <div class="kv-lista" style="margin-top:14px">
+          <div class="kv"><span>652608 · FHR</span><span>cota 40.000</span></div>
+          <div class="kv"><span>479079</span><span>cota 10.000</span></div>
+          <div class="kv"><span>torneiras ligadas</span><span>6</span></div>
+          <div class="kv"><span>recompensas creditadas</span><span>105</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="wrap">
+  <p style="margin:0">
+    Prévia de design — <span class="mono">preview/network.html</span>. Tudo lido do
+    <span class="mono">blockchain.db</span> em 3 de outubro de 2026, inclusive a divergência.
+  </p>
+</footer>
+
+<script src="preview.js"></script>
+</body>
+</html>
