@@ -15,6 +15,7 @@
   <strong class="firme">Prévia de design</strong>
   <nav>
     <a href="index.html" aria-current="page">Índice</a>
+    <a href="app.html">Explorador</a>
     <a href="home.html">Home</a>
     <a href="ledger.html">Livro</a>
     <a href="payout.html">Saque</a>
@@ -46,9 +47,12 @@
     <p class="quieto" style="margin:20px 0 0; max-width:60ch; font-size:16px; line-height:1.65">
       Cada prévia carrega a mesma <span class="mono">design.css</span>. Mudar um
       token lá muda todas as telas de uma vez — é o que torna isto um teste de
-      design em vez de cinco páginas soltas. Abra uma por uma pela fita no topo,
-      que segue em todas elas.
+      design em vez de páginas soltas.
     </p>
+    <div style="margin-top:28px; display:flex; flex-wrap:wrap; gap:12px">
+      <a class="btn btn-marca" href="app.html" style="padding:14px 20px">Abrir o explorador · as 21 seções</a>
+      <a class="btn" href="home.html" style="padding:14px 20px">Ir direto para a home</a>
+    </div>
   </div>
 </div>
 
@@ -57,7 +61,28 @@
 <!-- ====================== as previas ====================== -->
 <section class="wrap">
   <div class="sec-head">
-    <h2>As prévias</h2>
+    <h2>Por onde começar</h2>
+    <span class="quieto" style="font-size:13px">O explorador percorre tudo; as cinco telas inteiras testam a interação</span>
+  </div>
+
+  <a class="card card-pad" href="app.html" style="color:var(--text); display:flex; flex-wrap:wrap; gap:24px; align-items:center; justify-content:space-between; margin-bottom:16px; border-color:var(--primary)">
+    <div style="flex:999 1 380px; min-width:0">
+      <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center">
+        <span style="font-size:21px; font-weight:700; letter-spacing:-.02em">O explorador</span>
+        <span class="pill" style="border-color:var(--primary); color:var(--primary); font-size:11px">as 21 seções</span>
+      </div>
+      <p class="quieto" style="margin:12px 0 0; font-size:14px; line-height:1.6">
+        A navegação de hoje inteira, agrupada, uma seção por vez — e o endereço
+        carrega a seção, então o botão voltar funciona. Quinze seções com dado
+        real do banco, duas com estado vazio de verdade, quatro em esqueleto de
+        layout, e cada uma diz qual é na própria tela.
+      </p>
+    </div>
+    <span class="num" style="flex:none; font-size:40px; color:var(--primary)">21</span>
+  </a>
+
+  <div class="sec-head" style="margin-top:36px">
+    <h3 style="font-size:19px; font-weight:700">As cinco telas inteiras</h3>
     <span class="quieto" style="font-size:13px">Cada uma testa um risco diferente do design</span>
   </div>
 

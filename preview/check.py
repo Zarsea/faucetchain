@@ -99,13 +99,77 @@ def confere(nome):
     return problemas
 
 
+def confere_js(nome):
+    """Um .js solto quebrado derruba a pagina inteira e nao aparece em lugar
+    nenhum: a tela simplesmente fica parada nos valores do HTML. sections.js
+    carrega as 21 secoes, entao um erro nele apaga o explorador todo."""
+    r = subprocess.run(["node", "--check", os.path.join(DIR, nome)],
+                       capture_output=True, text=True)
+    if not r.returncode:
+        return []
+    linhas = [x.strip() for x in (r.stderr or "").splitlines() if x.strip()]
+    erro = next((x for x in linhas if "Error" in x), None)
+    return [erro or (linhas[0] if linhas else "erro")]
+
+
+def confere_secoes():
+    """O HTML das secoes mora dentro de strings de sections.js, entao o
+    verificador de tags nao o alcanca: um <div> mal fechado ali desaba o layout
+    de uma secao e as outras vinte continuam perfeitas, o que e exatamente o
+    tipo de defeito que ninguem encontra olhando.
+
+    A saida e pedida ao node com um window de mentira, que e tudo que
+    sections.js toca, e cada fragmento passa pela mesma pilha de tags."""
+    codigo = ("global.window = {};"
+              "require('./sections.js');"
+              "console.log(JSON.stringify(window.SECOES.map("
+              "function (s) { return { id: s.id, html: s.html }; })));")
+    r = subprocess.run(["node", "-e", codigo], capture_output=True, text=True, cwd=DIR)
+    if r.returncode:
+        linhas = [x.strip() for x in (r.stderr or "").splitlines() if x.strip()]
+        return ["sections.js nao carrega: " + (linhas[0] if linhas else "erro")]
+
+    import json
+    secoes = json.loads(r.stdout)
+    problemas = []
+
+    if len(secoes) != 21:
+        problemas.append("esperava as 21 secoes de TABS, achei %d" % len(secoes))
+
+    vistos = set()
+    for s in secoes:
+        if s["id"] in vistos:
+            problemas.append("id repetido: %s" % s["id"])
+        vistos.add(s["id"])
+
+        p = Pilha()
+        p.feed(s["html"])
+        for e in p.erros:
+            problemas.append("%s: %s" % (s["id"], e))
+        for t, l in p.abertas:
+            problemas.append("%s: <%s> nunca fecha" % (s["id"], t))
+
+    return problemas
+
+
 def main():
     paginas = sorted(f for f in os.listdir(DIR) if f.endswith(".html"))
+    scripts = sorted(f for f in os.listdir(DIR) if f.endswith(".js"))
     if not paginas:
         print("nenhuma previa encontrada em", DIR)
         return 1
 
     falhas = 0
+    for nome in scripts:
+        problemas = confere_js(nome)
+        if problemas:
+            falhas += 1
+            print("%-14s FALHOU" % nome)
+            for x in problemas:
+                print("    -", x)
+        else:
+            print("%-14s ok" % nome)
+
     for nome in paginas:
         problemas = confere(nome)
         if problemas:
@@ -116,8 +180,17 @@ def main():
         else:
             print("%-14s ok" % nome)
 
+    problemas = confere_secoes()
+    if problemas:
+        falhas += 1
+        print("%-14s FALHOU" % "as 21 secoes")
+        for x in problemas[:8]:
+            print("    -", x)
+    else:
+        print("%-14s ok" % "as 21 secoes")
+
     print()
-    print("%d previas, %d com problema" % (len(paginas), falhas))
+    print("%d arquivos, %d com problema" % (len(paginas) + len(scripts) + 1, falhas))
     return 1 if falhas else 0
 
 

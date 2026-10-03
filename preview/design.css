@@ -343,3 +343,67 @@ body.calma .torneira:hover { transform: none; }
 }
 .estacao[data-on="1"] .estacao-selo { border-color: var(--primary); color: var(--primary); }
 .estacao[data-on="2"] .estacao-selo { border-color: var(--sol); color: var(--text); }
+
+/* ============================================================================
+   O explorador: a casca com as 21 seções, em app.html.
+
+   Lateral e conteúdo são uma linha que embrulha, não um grid de duas colunas
+   fixas: no telefone a lateral vira uma faixa de pílulas em cima e o conteúdo
+   desce inteiro. A lateral nunca é sticky nem 100vh — as duas coisas quebram
+   em tela curta e são a causa mais comum de menu que não dá para rolar.
+   ========================================================================= */
+
+.app { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start; }
+
+.lateral { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+.conteudo { flex: 999 1 620px; min-width: 0; }
+
+.nav-grupo > p {
+  margin: 0 0 9px;
+  font-size: 10px; font-weight: 600; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--muted);
+}
+.nav-grupo ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 4px; }
+@media (min-width: 760px) { .nav-grupo ul { flex-direction: column; flex-wrap: nowrap; } }
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; min-height: 40px; border-radius: 9px;
+  border: 1px solid transparent;
+  font-size: 14px; color: var(--muted);
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.nav-item:hover { color: var(--text); background: var(--surface); }
+.nav-item[aria-current="page"] {
+  color: var(--text); background: var(--surface);
+  border-color: var(--border); box-shadow: inset 2px 0 0 var(--primary);
+}
+/* O ponto diz de onde vem o dado da seção, e ele é informação, não enfeite:
+   azul tem dado real, cinza é esqueleto, verde é estado vazio verdadeiro. */
+.nav-ponto { flex: none; width: 5px; height: 5px; border-radius: 999px; background: var(--border); }
+.nav-item[data-selo="real"] .nav-ponto { background: var(--primary); }
+.nav-item[data-selo="vazio"] .nav-ponto { background: var(--success); }
+
+.sec-topo {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  align-items: flex-end; justify-content: space-between;
+  padding-bottom: 20px; margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+.sec-topo h1 { font-size: clamp(26px, 3.4vw, 36px); font-weight: 800; }
+.sec-topo p { margin: 8px 0 0; max-width: 56ch; color: var(--muted); font-size: 15px; line-height: 1.6; }
+
+/* Estado vazio. Desenhá-lo é metade do trabalho de uma tela e quase sempre
+   fica para depois — e "depois" é quando um juiz abre a aba e vê um vão. */
+.vazio {
+  display: grid; gap: 14px; justify-items: center; text-align: center;
+  padding: 56px 24px; border: 1px dashed var(--border); border-radius: 16px;
+  background: var(--surface);
+}
+.vazio-icone {
+  width: 52px; height: 52px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg);
+  display: grid; place-items: center;
+}
+.vazio h3 { font-size: 18px; font-weight: 700; }
+.vazio p { margin: 0; max-width: 46ch; color: var(--muted); font-size: 14px; line-height: 1.6; }

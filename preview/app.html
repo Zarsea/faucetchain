@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Explorador — prévia de design</title>
+
+<!--
+  PREVIA. Nao faz parte do app.
+
+  Esta e a casca: as 21 secoes da navegacao de hoje, no design novo, uma a uma.
+  O endereco carrega a secao (#dashboard, #ledger, ...), entao o botao voltar
+  funciona e um link aponta para uma secao especifica.
+
+      abra: preview/app.html
+
+  Aqui dentro as secoes sao LAYOUT. A interacao de verdade -- o botao liquido,
+  o sustentar-para-assinar, o eco entre praca e painel -- mora nas cinco
+  previas de tela inteira, e cada secao que tem uma linka para ela.
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+</head>
+<body>
+
+<div class="fita">
+  <strong class="firme">Prévia de design</strong>
+  <nav>
+    <a href="index.html">Índice</a>
+    <a href="app.html" aria-current="page">Explorador</a>
+    <a href="home.html">Home</a>
+    <a href="ledger.html">Livro</a>
+    <a href="payout.html">Saque</a>
+    <a href="network.html">Rede</a>
+    <a href="doc.html">Documento</a>
+  </nav>
+  <span>as 21 seções, uma a uma</span>
+</div>
+
+<header class="top">
+  <div class="wrap top-in">
+    <a class="mark" href="index.html">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.8" aria-hidden="true">
+        <path d="M12 2v6M12 8c-4 0-6 3-6 7a6 6 0 0 0 12 0c0-4-2-7-6-7z"></path>
+      </svg>
+      FaucetChain
+    </a>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+      <span class="pill"><span class="dot-live"><i class="is-respira"></i><i></i></span><span class="mono">devnet</span></span>
+      <button class="btn" type="button" id="calma" aria-pressed="false">Modo calmo</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap" style="padding-block:32px 56px">
+  <div class="app">
+
+    <!-- a navegacao -->
+    <aside class="lateral" id="lateral" aria-label="Seções"></aside>
+
+    <!-- a secao aberta -->
+    <main class="conteudo">
+      <div class="sec-topo">
+        <div style="min-width:0">
+          <h1 id="s-titulo">—</h1>
+          <p id="s-sub"></p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center">
+          <span class="pill" id="s-selo" style="font-size:11px"></span>
+          <a class="btn" id="s-cheia" href="#" hidden>Tela inteira</a>
+        </div>
+      </div>
+      <div id="s-corpo"></div>
+    </main>
+  </div>
+</div>
+
+<footer class="wrap">
+  <p style="margin:0">
+    Prévia de design — <span class="mono">preview/app.html</span>.
+    Não faz parte do app: <span class="mono">index.html</span>,
+    <span class="mono">App.tsx</span> e <span class="mono">components/</span> continuam intactos.
+  </p>
+  <p style="margin:8px 0 0">
+    O ponto ao lado de cada seção diz de onde vem o dado:
+    <span style="color:var(--primary)">azul</span> é dado real do
+    <span class="mono">blockchain.db</span> ou da devnet,
+    <span style="color:var(--success)">verde</span> é estado vazio verdadeiro,
+    cinza é esqueleto de layout.
+  </p>
+</footer>
+
+<script src="preview.js"></script>
+<script src="sections.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var SECOES = window.SECOES;
+  var porId = {};
+  SECOES.forEach(function (s) { porId[s.id] = s; });
+
+  var SELOS = {
+    real:  ['dado real', 'var(--primary)'],
+    vazio: ['estado vazio real', 'var(--success)'],
+    ossos: ['esqueleto', 'var(--muted)']
+  };
+
+  // --- a lateral, agrupada na ordem em que os grupos aparecem ------------
+  var grupos = [];
+  SECOES.forEach(function (s) {
+    var g = grupos.filter(function (x) { return x.nome === s.grupo; })[0];
+    if (!g) { g = { nome: s.grupo, itens: [] }; grupos.push(g); }
+    g.itens.push(s);
+  });
+
+  document.getElementById('lateral').innerHTML = grupos.map(function (g) {
+    return '<div class="nav-grupo"><p>' + g.nome + '</p><ul>' +
+      g.itens.map(function (s) {
+        return '<li><a class="nav-item" href="#' + s.id + '" data-id="' + s.id +
+          '" data-selo="' + s.selo + '">' +
+          '<span class="nav-ponto"></span>' + s.nome + '</a></li>';
+      }).join('') + '</ul></div>';
+  }).join('');
+
+  var itens = document.querySelectorAll('.nav-item');
+  var corpo = document.getElementById('s-corpo');
+  var selo = document.getElementById('s-selo');
+  var cheia = document.getElementById('s-cheia');
+
+  function abre(id) {
+    var s = porId[id] || SECOES[0];
+
+    document.getElementById('s-titulo').textContent = s.titulo;
+    document.getElementById('s-sub').textContent = s.sub;
+
+    var sl = SELOS[s.selo];
+    selo.textContent = sl[0];
+    selo.style.borderColor = sl[1];
+    selo.style.color = sl[1];
+
+    if (s.cheia) { cheia.hidden = false; cheia.href = s.cheia; }
+    else { cheia.hidden = true; }
+
+    corpo.innerHTML = s.html;
+    PV.repete(corpo, 'is-entra');
+
+    Array.prototype.forEach.call(itens, function (a) {
+      if (a.dataset.id === s.id) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+
+    document.title = s.titulo + ' — prévia de design';
+  }
+
+  // O endereço manda: assim o botão voltar funciona e um link aponta para uma
+  // seção. Sem isto a casca é um app sem histórico, que é pior que uma página.
+  function doHash() {
+    abre((location.hash || '').replace('#', '') || SECOES[0].id);
+  }
+
+  window.addEventListener('hashchange', doHash);
+  doHash();
+})();
+</script>
+</body>
+</html>
