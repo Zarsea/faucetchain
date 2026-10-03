@@ -1668,7 +1668,8 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
         # The same click that mints $CLAIM also draws from every campaign this
         # faucet carries. One action, paid twice: the network's own token for
         # the work, and the partner's token from the budget they committed.
-        result["campaigns"] = _campaign_drip(conn, faucet_wallet, user_lower)
+        result["campaigns"], result["campaigns_skipped"] = _campaign_drip(
+            conn, faucet_wallet, user_lower)
         conn.execute('''
             UPDATE faucet_api_keys SET total_requests = total_requests + 1, last_used = ?
             WHERE api_key = ?
@@ -1787,7 +1788,8 @@ async def internal_microclaim(req: InternalMicroClaimRequest, request: Request):
         # wallet and a row in faucet_api_keys. A campaign that names it should pay
         # through it. Without this the same click paid differently depending on
         # which door it came through, which is not a rule anyone could explain.
-        result["campaigns"] = _campaign_drip(conn, faucet_wallet, user_lower)
+        result["campaigns"], result["campaigns_skipped"] = _campaign_drip(
+            conn, faucet_wallet, user_lower)
         conn.commit()
     finally:
         conn.close()
@@ -6802,7 +6804,12 @@ def _roll_month_if_needed(c, row, now: int):
 
 
 def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None):
-    """Credit every campaign this faucet carries. Returns what was credited.
+    """Credit every campaign this faucet carries.
+
+    Returns (credited, skipped). Both matter: a campaign that pays nothing
+    returns the same empty list as a faucet enrolled in nothing, and the
+    partner cannot tell those apart. So every skip carries its reason, with
+    the numbers behind it where a sponsor could act on them.
 
     Never credits past the budget: publishing a root the vault cannot cover is
     refused on-chain, and that refusal costs everyone in the batch, not only
@@ -6816,23 +6823,36 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None)
     )
     campaigns = [r[0] for r in c.fetchall()]
     credited = []
+    skipped = []
+
+    def skip(cid, reason, detail):
+        skipped.append({"campaign_id": cid, "reason": reason, "detail": detail})
 
     for campaign_id in campaigns:
         c.execute("SELECT * FROM campaign_budget WHERE campaign_id = ?", (campaign_id,))
         row = c.fetchone()
         if not row:
+            skip(campaign_id, "no_budget",
+                 "This faucet is enrolled, but the campaign has no budget set yet")
             continue
         if row["ends_at"] and now > row["ends_at"]:
-            continue  # the testnet window closed
+            skip(campaign_id, "window_closed",
+                 f"The campaign window closed at {row['ends_at']}")
+            continue
 
         rolled, spent_month = _roll_month_if_needed(c, row, now)
 
         total_left = row["total_budget"] - row["spent_total"]
         if total_left <= 0:
+            skip(campaign_id, "budget_spent",
+                 f"The whole budget of {row['total_budget']} is spent")
             continue
         allowance = distribution.month_budget(total_left, row["monthly_cap"], rolled)
         month_left = max(0, allowance - spent_month)
         if month_left <= 0:
+            skip(campaign_id, "month_spent",
+                 f"This month's allowance of {allowance} is spent; "
+                 f"{total_left} remains for later months")
             continue
 
         # Participation and active users come from yesterday's traffic, so the
@@ -6851,13 +6871,30 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None)
         )
         active = c.fetchone()[0] or 0
 
-        gross = distribution.per_click(month_left, _days_left_in_month(now), active, rate_part)
+        dias = _days_left_in_month(now)
+        gross = distribution.per_click(month_left, dias, active, rate_part)
         gross = distribution.credit(gross, month_left)
         if gross <= 0:
+            # The rate is truncated to an integer, so a day's share spread over
+            # the expected clicks can land under one unit. Nothing is debited --
+            # but a sponsor seeing no payout and no reason would have no way to
+            # find out it was arithmetic and not a bug.
+            skip(campaign_id, "rate_rounds_to_zero",
+                 f"{month_left} over {dias} day(s) across the expected clicks "
+                 f"is less than one unit per click; raise the monthly cap or "
+                 f"use a token with more decimals")
             continue
 
         to_user, to_treasury = distribution.split(gross)
         if to_user <= 0:
+            # Gross of 1 splits 80/20 into 0 and 1: the user's share truncates
+            # away while the treasury keeps the unit. Saying so is the whole
+            # point -- this is the case that passed every day of September and
+            # failed on 1 October without anybody being told why.
+            skip(campaign_id, "user_share_rounds_to_zero",
+                 f"The gross of {gross} per click leaves the user nothing after "
+                 f"the {distribution.USER_SHARE}/{distribution.TREASURY_SHARE} "
+                 f"split; raise the monthly cap or use a token with more decimals")
             continue
 
         c.execute(
@@ -6882,7 +6919,7 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None)
             "funding": row["funding"],
         })
 
-    return credited
+    return credited, skipped
 
 
 class CampaignBudgetRequest(BaseModel):

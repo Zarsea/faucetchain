@@ -1,7 +1,7 @@
 # FaucetHub — Integration Guide for Developers
 **Everything needed to connect your faucet to FaucetChain through the API.**
 
-**Version:** 1.2 | **Updated:** 24 September 2026 | **Base URL:** `http://localhost:8000`
+**Version:** 1.3 | **Updated:** 3 October 2026 | **Base URL:** `http://localhost:8000`
 
 ---
 
@@ -180,14 +180,39 @@ POST /api/faucethub/microclaim
   "user_address": "0x6f9b...c41e",
   "campaigns": [
     { "campaign_id": 990001, "amount": 4.82, "treasury": 1.2, "funding": "vault" }
+  ],
+  "campaigns_skipped": [
+    { "campaign_id": 990002, "reason": "month_spent",
+      "detail": "This month's allowance of 10000000 is spent; 40000000 remains for later months" }
   ]
 }
 ```
 
-`campaigns` is empty when your faucet is enrolled in nothing, or when every
-campaign is out of budget for the month. **An empty list is not an error** — it
-is the commonest reason an integration looks broken when it is not, and it
-almost always means the enrolment is missing.
+`campaigns` is empty when your faucet is enrolled in nothing, or when no
+campaign paid this click. **An empty list is not an error.**
+
+`campaigns_skipped` is how you tell those two apart, and it was added on
+3 October because you could not. Every campaign your faucet is enrolled in that
+did *not* pay appears here with a `reason` your code can switch on and a
+`detail` a sponsor can act on:
+
+| `reason` | What happened |
+|---|---|
+| `no_budget` | Enrolled, but the sponsor has not set a budget yet |
+| `window_closed` | The campaign's end date has passed |
+| `budget_spent` | The whole budget is gone |
+| `month_spent` | This month's allowance is gone; it resumes next month |
+| `rate_rounds_to_zero` | The month's remaining budget spread over the expected clicks is under one unit. Arithmetic, not a fault — the cap or the token's decimals are too small |
+| `user_share_rounds_to_zero` | The gross was 1, and the user's 80% of 1 truncates to nothing |
+
+The last two are worth showing a sponsor rather than swallowing: a budget too
+small to express one click pays nobody, and before this field existed it did so
+in silence. Nothing is ever debited for a skipped campaign.
+
+Both lists together name every campaign your faucet carries, so
+`campaigns` + `campaigns_skipped` being empty really does mean the enrolment is
+missing — which was previously the commonest reason an integration looked broken
+when it was not.
 
 `funding` matters if you show this on screen:
 

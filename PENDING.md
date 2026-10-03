@@ -128,7 +128,21 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
 
 ### Found on 1 October, by the calendar
 
-- [ ] **A campaign whose rate rounds below two units pays nothing, silently.**
+- [x] **A campaign whose rate rounds below two units pays nothing, silently.**
+      **Closed 3 October, and wider than written here.** The loop had *six*
+      silent exits, not one — no budget, window closed, budget spent, month
+      spent, gross rounds to zero, user's share rounds to zero — and all six
+      return the same `campaigns: []`. Fixing only the sixth would have left
+      five mute. `_campaign_drip` now returns `(credited, skipped)`, every skip
+      carries a machine-readable `reason` and a sponsor-readable `detail`, and
+      the bridge answers with `campaigns_skipped` beside the unchanged
+      `campaigns` list — unchanged because FaucetHunter reads it in production.
+      [test_silent_skip.py](test_silent_skip.py) pins all six, computes its
+      budgets from today's date so it cannot rot by calendar the way the last
+      one did, and asserts nothing is debited for a skipped campaign. Partner
+      guide at 1.3. The original finding is kept below, because the reasoning
+      is why the fix is shaped this way.
+
       The per-click gross is
       `month_left / days_left_in_month / (100 * 288 * 0.10)`, truncated to an
       integer, and the user gets 80% of that, truncated again. So a gross of 1
@@ -355,12 +369,10 @@ checking the root on Solana without asking us anything.
 
       Two things turned up on the way, neither fatal and both worth knowing.
 
-- [ ] **`publish_root.py` does not load `.env`.** It documents the four
-      variables it needs and then reads them straight from the environment, so
-      running it the way its own docstring shows fails with
-      `SETTLEMENT_CAMPAIGN_SPONSOR is not set` while the value sits in `.env`.
-      One `load_dotenv` at the top. Trivial, and it cost a round trip at exactly
-      the moment nobody wants one.
+- [x] **`publish_root.py` does not load `.env`.** Done 3 October, with the
+      same block `api_server.py` uses, so the real environment still overrides
+      the file and a missing `dotenv` does not stop the script. Verified by
+      importing it and reading the three variables back.
 
 - [ ] **The treasury's share still does not become a leaf.** Campaign 479079
       owes the treasury 607,504 units and batch 19 went out with a single leaf.

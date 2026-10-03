@@ -10,7 +10,7 @@ promised and not yet withdrawn.
     python publish_root.py --campaign 7 --batch 3
     python publish_root.py --campaign 7 --batch 3 --dry-run
 
-Environment:
+Environment (read from .env, which the real environment overrides):
     SOLANA_RPC_URL               devnet by default
     SETTLEMENT_OPERATOR_KEYPAIR  keypair that signs publish_root
     SETTLEMENT_CAMPAIGN_SPONSOR  wallet that opened the campaign (base58)
@@ -21,6 +21,17 @@ Environment:
 import argparse
 import os
 import sys
+
+# As quatro variaveis abaixo moram no .env e o script nao as lia de la, so do
+# ambiente exportado -- entao publicar uma raiz dependia de alguem lembrar de
+# exportar o que ja estava no disco. Mesma regra do api_server.py: o ambiente
+# real vence o arquivo.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+except ImportError:  # sem dotenv o script ainda roda com variaveis exportadas
+    pass
 
 import requests
 from solders.pubkey import Pubkey
