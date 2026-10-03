@@ -101,10 +101,10 @@ flowchart LR
     `,
     TREASURY_ALLOCATION_DIAGRAM: `
 pie title "Macro Allocation (99M Hardcap)"
-    "Proof of Work (Miners)" : 30
-    "Proof of Stake (Vault)" : 30
-    "Proof of Claim (Merit)" : 20
-    "Core Team & Liquidity" : 20
+    "Proof of Work (Miners): 29.7M (30%)" : 30
+    "Proof of Stake (Vault): 29.7M (30%)" : 30
+    "Proof of Claim (Merit): 19.8M (20%)" : 20
+    "Core Team & Liquidity: 19.8M (20%)" : 20
     `
   },
   pt: {
@@ -208,10 +208,10 @@ mindmap
     `,
     TREASURY_ALLOCATION_DIAGRAM: `
 pie title "Macro Alocação (Hardcap 99M)"
-    "Proof of Work (Mineradores)" : 30
-    "Proof of Stake (Cofre/Vault)" : 30
-    "Proof of Claim (Mérito)" : 20
-    "Core Team & Liquidez" : 20
+    "Proof of Work (Mineradores): 29,7M (30%)" : 30
+    "Proof of Stake (Cofre/Vault): 29,7M (30%)" : 30
+    "Proof of Claim (Mérito): 19,8M (20%)" : 20
+    "Core Team & Liquidez: 19,8M (20%)" : 20
     `
   }
 };

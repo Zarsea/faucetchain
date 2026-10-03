@@ -211,6 +211,27 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
 
 Nothing here can be done by anyone else, and most of it takes minutes.
 
+- [ ] **The 30/30/20/20 token allocation has no document behind it.** It exists
+      in exactly one place: the pie chart in `constants.ts`, which the Tokenomics
+      page renders. The whitepaper states the 99,000,000 hardcap and says nothing
+      about how it is divided, so the chart is the sole source of a claim that
+      **19.8M $CLAIM goes to the core team and liquidity** — a number a judge
+      will read as a commitment and ask about.
+
+      Found on 3 October, by the chart being misread: asked what gives access to
+      "the treasury with 20M $CLAIM", the answer was that no such balance exists.
+      The treasury address holds **1,000 $CLAIM**, all of it one faucet's escrow,
+      and `0xfaucetchaintreasury...` is not a keypair at all — it is not even
+      valid hex. The 20 was the pie slice.
+
+      The labels now carry the token amounts, and
+      [test_tokenomics_chart.mjs](test_tokenomics_chart.mjs) fails if anyone
+      removes them. **That fixes the misreading, not the claim.** Either the
+      allocation goes in the whitepaper as policy, or it comes off the page
+      before the submission. Deciding to leave it is also an answer — but it
+      should be a decision, because right now the product's own tokenomics page
+      promises something no document supports.
+
 - [ ] **Decide whether the identity link is public.**
       `GET /api/solana/link/{address}` answers for any address with no
       authentication, returning the Solana wallet behind a FaucetChain account.
