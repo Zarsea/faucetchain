@@ -44,6 +44,16 @@ TREASURY_SHARE = 20        # the rest funds continuity; it is staked, not sold
 # low: guessing high overspends the month in its first week.
 DEFAULT_PARTICIPATION = 0.10
 
+# O menor valor que a participacao medida pode assumir. Ele existe para que uma
+# madrugada vazia nao zere o divisor, mas ele esta no divisor: a 0,01 ele
+# multiplica a recompensa por dez em relacao ao padrao, justamente quando ha
+# pouca gente olhando. Combinado com FLOOR_USERS = 30 isso deixa uma pessoa
+# sozinha levar 2,67x o orcamento de um dia -- medido, prendido no _self_check,
+# e aceito de proposito enquanto a rede e um simulador em devnet.
+# ANTES DA MAINNET: ver "Antes da mainnet" em PENDING.md. Este numero e
+# FLOOR_USERS sao os dois lados da mesma conta e precisam subir juntos.
+PARTICIPATION_FLOOR = 0.01
+
 
 def participation(claims_observed: int, users_observed: int) -> float:
     """What fraction of the possible claims people actually made.
@@ -59,7 +69,7 @@ def participation(claims_observed: int, users_observed: int) -> float:
         return DEFAULT_PARTICIPATION
     seen = claims_observed / possible
     # Clamp: a burst or an outage should not throw the whole month's rate.
-    return min(max(seen, 0.01), 1.0)
+    return min(max(seen, PARTICIPATION_FLOOR), 1.0)
 
 
 def per_click(budget_remaining: int, days_remaining: int, active_users: int,
@@ -142,10 +152,24 @@ def _self_check() -> None:
     assert credit(500, 0) == 0              # an empty vault pays nothing
     assert per_click(0, 30, 500, p) == 0
 
+    # The two floors multiply, and this is the price of that. One person
+    # claiming the maximum, on a campaign with nobody else in it and traffic
+    # thin enough to hold participation at its floor, takes 2.67 times the
+    # whole day's allowance. It is deliberate while this is devnet: a visible
+    # reward is what makes the demonstration legible. It is also why lowering
+    # either floor again has to be done with both in view -- which is what this
+    # assertion is for. Raising either one lowers this number; if it moves,
+    # somebody changed the exposure, and the number here says by how much.
+    dia = cap / 30
+    pior = per_click(cap, 30, active_users=1, participation_rate=PARTICIPATION_FLOOR)
+    leva = pior * CLAIMS_PER_USER_DAY * USER_SHARE / 100
+    assert abs(leva / dia - 2.667) < 0.01, leva / dia
+
     # Participation is measured when there is traffic to measure
     assert participation(0, 0) == DEFAULT_PARTICIPATION
     assert abs(participation(288, 10) - 0.1) < 1e-9     # 288 of 2880 possible
     assert participation(10**9, 10) == 1.0              # clamped
+    assert participation(1, 1) == PARTICIPATION_FLOOR   # one click measures nothing
 
     print("distribution.py OK")
 

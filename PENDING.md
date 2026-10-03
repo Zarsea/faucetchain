@@ -525,6 +525,46 @@ more uncomfortable: the sealer does no work at all.
       Decentralisation comes from several nodes with comparable stake, and the
       number should be chosen from what those nodes hold.
 
+## Before mainnet
+
+Not work for the deadline. A **gate**: the numbers below are deliberately
+generous because this is a simulator on devnet, where a reward small enough to
+be prudent is also small enough to be invisible on camera. Every one of them is
+wrong for real money, and none of them will announce itself.
+
+Decided 2 October, with the exposure measured rather than estimated.
+
+- [ ] **`FLOOR_USERS`, now 30, back to 100 or higher.** The rate is divided by
+      whichever is larger, the real number of active users or this floor. At 30
+      a nearly empty campaign pays 0.6173 per click instead of 0.1852.
+- [ ] **`PARTICIPATION_FLOOR`, now 0.01, raised toward
+      `DEFAULT_PARTICIPATION`.** This one is the trap. Participation is
+      measured, and it sits in the *divisor*, so thin traffic does not lower
+      the rate — it multiplies it. On 2 October the previous day held one click
+      by one user, participation measured 0.0035, clamped to 0.01, and the rate
+      came out **ten times** the figure the default would have given. The
+      measurement is honest; the floor is what turns an unmeasurable sample
+      into a tenfold multiplier.
+- [ ] **The monthly caps, now 40,000 FHR on 652608 and 10,000 on 479079.**
+      Raised on 2 October for the demonstration. Note that `month_budget`
+      adds the rollover on top: 652608 carries 19,993 unspent from September,
+      so the allowance in force is 59,993, not 40,000.
+- [ ] **`min_withdraw`, 5,000,000 on both campaigns, re-priced.** Five units at
+      six decimals is a guess at a token with no market. Delivery costs
+      1,488,440 lamports of rent the first time a person touches a token; the
+      minimum has to clear that in whatever the token is actually worth.
+
+**What the three multiply to, today.** One person, clicking the maximum 288
+times, on a campaign with nobody else in it and traffic thin enough to hold
+participation at its floor, takes **2.67 times the entire day's allowance** —
+`distribution.py` pins that figure in `_self_check`, so it fails loudly if
+either floor moves. At the 100-user floor and the default participation the
+same person takes 10%. The floor exists to stop one visitor walking off with a
+fifth of the month; at these settings it no longer does, and that is a choice
+that makes sense on devnet and nowhere else.
+
+---
+
 ## Deliberately not before the deadline
 
 Written down so they are decisions rather than things that quietly did not

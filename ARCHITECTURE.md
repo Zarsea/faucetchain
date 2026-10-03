@@ -353,6 +353,14 @@ Participation — the share of possible claims people actually make — is measu
 from yesterday's traffic rather than assumed, because a campaign whose users
 claim twice a day and one whose users claim hourly cannot share a constant.
 
+It sits in the **divisor**, which is the part worth saying out loud: thin
+traffic does not lower the rate, it raises it, and `PARTICIPATION_FLOOR` bounds
+how far. At the devnet setting of 0.01 a day with one click in it pays ten times
+what the default would, and the two floors multiply — one person on an otherwise
+empty campaign can take 2.67 times a day's allowance. Deliberate while this is a
+simulator, wrong for real money, and listed under "Before mainnet" in
+[PENDING.md](PENDING.md) so it cannot be inherited by accident.
+
 Enrolment belongs to the campaign: `POST /api/solana/campaign/{id}/faucets`
 declares where it wants to appear. A faucet cannot opt itself into somebody
 else's budget.
