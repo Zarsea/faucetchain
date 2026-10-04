@@ -6093,6 +6093,16 @@ def init_settlement_tables():
         )
     """)
 
+    # Quando e por que uma campanha saiu da lista. Nulo e o estado normal.
+    # Aposentar nao apaga: a campanha continua respondendo por id direto, e
+    # some das listas. Apagar uma campanha que ja pagou alguem arrancaria o
+    # contexto de uma recompensa que continua existindo.
+    for coluna in ("retired_at INTEGER", "retired_reason TEXT"):
+        try:
+            c.execute(f"ALTER TABLE settlement_campaigns ADD COLUMN {coluna}")
+        except sqlite3.OperationalError:
+            pass  # ja existe
+
     # O nome proprio da campanha. Nulo e o comportamento historico: ela se
     # identifica pelo numero e herda o nome do token que paga.
     try:
@@ -6517,20 +6527,43 @@ async def get_campaign_holdings(address: str, request: Request):
 
 
 @app.get("/api/solana/campaigns")
-async def list_campaigns():
+async def list_campaigns(include_retired: bool = False):
+    """As campanhas, com o rotulo que as telas exibem.
+
+    As aposentadas ficam de fora por omissao. Elas nao sao apagadas: continuam
+    respondendo em /api/solana/ledger/{id} e aparecem com include_retired=1.
+    Uma campanha cujo mint nao e um mint nunca podera pagar ninguem, e manter
+    nove dessas numa lista de vinte e oito faz o operador procurar as reais
+    entre entulho.
+    """
     conn = get_db_connection()
     c = conn.cursor()
     c.execute(
-        "SELECT campaign_id, sponsor, mint, registered_at FROM settlement_campaigns ORDER BY campaign_id"
+        """SELECT sc.campaign_id, sc.sponsor, sc.mint, sc.registered_at, sc.name,
+                  sc.retired_at, sc.retired_reason, t.name, t.symbol
+             FROM settlement_campaigns sc
+             LEFT JOIN token_registry t ON t.mint = sc.mint
+            ORDER BY sc.campaign_id"""
     )
     rows = c.fetchall()
     conn.close()
-    return {
-        "campaigns": [
-            {"campaign_id": r[0], "sponsor": r[1], "mint": r[2], "registered_at": r[3]}
-            for r in rows
-        ]
-    }
+
+    saida = []
+    for r in rows:
+        if r["retired_at"] and not include_retired:
+            continue
+        saida.append({
+            "campaign_id": r["campaign_id"],
+            "sponsor": r["sponsor"],
+            "mint": r["mint"],
+            "registered_at": r["registered_at"],
+            "name": r["name"],
+            # O mesmo rotulo do dashboard, montado no mesmo lugar.
+            "label": campaign_label(r["name"], r[7], r["symbol"], r["campaign_id"]),
+            "retired_at": r["retired_at"],
+            "retired_reason": r["retired_reason"],
+        })
+    return {"campaigns": saida, "include_retired": include_retired}
 
 
 class SolanaLinkRequest(BaseModel):
@@ -7390,6 +7423,39 @@ async def get_campaign_ledger(campaign_id: int):
         (campaign_id,),
     )
     batches = c.fetchall()
+
+    # Quem de fato recebeu, com a assinatura que prova. Vem de relayer_spend,
+    # que so ganha linha quando uma transferencia foi assinada e confirmada --
+    # diferente de settlement_rewards, que registra o que foi prometido.
+    #
+    # A distincao e a razao de esta lista existir: uma raiz publicada diz
+    # quanto a campanha deve; esta diz quanto ela pagou, e para quem. Sem ela a
+    # tela mostra a promessa e chama de liquidacao.
+    try:
+        c.execute(
+            """SELECT rs.signature, rs.recipient, rs.mint, rs.amount, rs.created_at,
+                      rs.base_fee, rs.priority_fee, rs.rent_lamports, b.root_index
+                 FROM relayer_spend rs
+                 JOIN settlement_batches b ON b.id = rs.batch_id
+                WHERE b.campaign_id = ?
+                ORDER BY rs.created_at""",
+            (campaign_id,),
+        )
+        pagamentos = [
+            {
+                "signature": r[0],
+                "recipient": r[1],
+                "mint": r[2],
+                "amount": r[3],
+                "paid_at": r[4],
+                "lamports": (r[5] or 0) + (r[6] or 0) + (r[7] or 0),
+                "root_index": r[8],
+            }
+            for r in c.fetchall()
+        ]
+    except sqlite3.OperationalError as e:
+        audit_logger.warning(f"could not read payouts for campaign {campaign_id}: {e}")
+        pagamentos = []
     conn.close()
     if not registered:
         raise HTTPException(status_code=404, detail=f"Campaign {campaign_id} is not registered here")
@@ -7410,6 +7476,11 @@ async def get_campaign_ledger(campaign_id: int):
         "sponsor": registered[0],
         "mint": registered[1],
         "batches": off_chain,
+        # Prometido e pago sao numeros diferentes e vao em listas diferentes,
+        # porque junta-los foi o erro que este projeto existe para nao repetir.
+        "payouts": pagamentos,
+        "paid_total": sum(p["amount"] for p in pagamentos),
+        "paid_recipients": len({p["recipient"] for p in pagamentos}),
         "on_chain": None,
     }
 

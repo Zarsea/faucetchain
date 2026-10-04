@@ -243,7 +243,7 @@
          ['18', '478840', '<span style="color:var(--primary)">0x872ed9b4…</span>', '2', '39.998.263', '27/09'],
          ['17', '789699', '<span style="color:var(--primary)">0xf8f57058…</span>', '3', '49.999.276', '19/09'],
          ['16', '789619', '<span style="color:var(--primary)">0x9a3a139b…</span>', '3', '49.999.276', '19/09']],
-        '19 raízes publicadas · 18 campanhas') +
+        '5 raízes publicadas · 5 campanhas, conferidas pelo PDA') +
       aviso('Um lote dos vinte nunca foi publicado. Está no banco com assinatura nula, e a tabela diria isso se ele estivesse nesta janela — o livro mostra o que não aconteceu com a mesma clareza do que aconteceu.', false) +
       '<div style="margin-top:20px"><a class="btn btn-marca" href="ledger.html">Abrir o livro com painel de detalhe</a></div>'
   });

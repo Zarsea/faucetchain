@@ -64,7 +64,9 @@ verifiable:
 
 - Program `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, executable under the
   BPF upgradeable loader (**verified 3 Oct**).
-- **19 Merkle roots published**, across 18 campaigns, 17 September to 2 October.
+- **5 Merkle roots published**, across 5 campaigns: 687389 and 711670 on
+  17–18 September, then 478840, 479079 and 652608 between 27 September and
+  2 October (**verified 4 Oct**, and the verification matters — see below).
 - The program **refuses a root its vault cannot cover** (`InsufficientReserve`).
   This is the whole reason the guarantee lives on Solana instead of here.
 - Users withdraw against a proof with **no SOL of their own** — a relayer pays.
@@ -116,9 +118,26 @@ this repository:
 
 ### `traction`
 
-Backed: 19 published roots, 105 reward rows, 4,185,079,573 units credited, 39
+Backed: 5 published roots, 105 reward rows, 4,185,079,573 units credited, 39
 linked Solana addresses, 6 registered faucets, 26 sealed blocks, one real
 withdrawal by a real wallet.
+
+**This file said 19 until 4 October, and that was wrong.** Fourteen batches
+carried a `published_signature` for a transaction that does not exist on devnet
+— simulation residue that counting rows in `settlement_batches` could never
+catch, because a well-formed 88-character string is indistinguishable from a
+real signature until something asks the network.
+
+Checking `getTransaction` alone would not have settled it either: devnet prunes
+history, so a legitimate old signature can fail to come back. What decides is
+the account — `publish_root` creates the root PDA, and accounts are not pruned.
+By that test 5 exist and 14 never did; for those 14 the campaign account does
+not exist either. `verify_published_roots.py` runs it and exits non-zero when
+the database claims more than the chain holds.
+
+Five verifiable roots is a smaller number and a defensible one. Nineteen, told
+to judges who can check, would have been the single worst thing in this
+submission.
 
 **The honest reading, which is worth getting right before a judge does it for
 you:** those are *integration* numbers, not demand numbers. They prove the

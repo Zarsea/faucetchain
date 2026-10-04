@@ -47,11 +47,28 @@ interface TokenMeta {
     uri: string;
 }
 
+// Um pagamento que de fato aconteceu: so ganha linha quando a transferencia
+// foi assinada e confirmada. E diferente de uma recompensa, que registra o que
+// foi prometido -- e juntar os dois numa tela so foi o erro que este projeto
+// existe para nao repetir.
+interface Payout {
+    signature: string;
+    recipient: string;
+    mint: string;
+    amount: number;
+    paid_at: number;
+    lamports: number;
+    root_index: number;
+}
+
 interface Ledger {
     campaign_id: number;
     sponsor: string;
     mint: string;
     batches: Batch[];
+    payouts: Payout[];
+    paid_total: number;
+    paid_recipients: number;
     on_chain: CampaignState | null;
     token?: TokenMeta | null;
 }
@@ -96,7 +113,9 @@ const Figure: React.FC<{ label: string; value: string; hint?: string }> = ({ lab
 );
 
 export const SettlementLedger: React.FC = () => {
-    const [campaigns, setCampaigns] = useState<number[]>([]);
+    // Guarda o rótulo junto do id: montar o nome aqui seria a quarta cópia da
+    // mesma cadeia de fallback, e a primeira a divergir.
+    const [campaigns, setCampaigns] = useState<{ campaign_id: number; label: string }[]>([]);
     const [selected, setSelected] = useState<number | null>(null);
     const [ledger, setLedger] = useState<Ledger | null>(null);
     const [loading, setLoading] = useState(true);
@@ -107,9 +126,9 @@ export const SettlementLedger: React.FC = () => {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/solana/campaigns`);
                 const body = await response.json();
-                const ids = (body.campaigns ?? []).map((c: { campaign_id: number }) => c.campaign_id);
-                setCampaigns(ids);
-                setSelected(ids.length ? ids[ids.length - 1] : null);
+                const lista = (body.campaigns ?? []) as { campaign_id: number; label: string }[];
+                setCampaigns(lista);
+                setSelected(lista.length ? lista[lista.length - 1].campaign_id : null);
             } catch {
                 setError('Could not reach the sequencer.');
             } finally {
@@ -206,8 +225,8 @@ export const SettlementLedger: React.FC = () => {
                             onChange={(e) => setSelected(Number(e.target.value))}
                             className="bg-brand-bg border border-brand-border rounded-2xl px-5 py-3 text-white font-bold"
                         >
-                            {campaigns.map((id) => (
-                                <option key={id} value={id}>Campaign {id}</option>
+                            {campaigns.map((c) => (
+                                <option key={c.campaign_id} value={c.campaign_id}>{c.label}</option>
                             ))}
                         </select>
                     )}
@@ -288,6 +307,85 @@ export const SettlementLedger: React.FC = () => {
                     </div>
                 </SectionCard>
             )}
+
+            <SectionCard
+                title={`Paid out (${ledger?.payouts?.length ?? 0})`}
+                icon={<CubeIcon className="w-6 h-6" />}
+            >
+                <p className="text-sm text-brand-muted mb-4 max-w-3xl">
+                    Quem recebeu de verdade, e quanto. Cada linha existe porque uma
+                    transferência foi assinada e confirmada na Solana — a assinatura abaixo
+                    abre no explorer e mostra a mesma coisa sem passar por este servidor.
+                    Uma raiz publicada diz quanto a campanha <em>deve</em>; esta tabela diz
+                    quanto ela <em>pagou</em>.
+                </p>
+
+                {!ledger?.payouts?.length ? (
+                    <p className="text-brand-muted">
+                        Nenhuma retirada foi assinada nesta campanha ainda. As raízes abaixo
+                        já prometem valor; ninguém o recolheu.
+                    </p>
+                ) : (
+                    <>
+                        <div className="flex flex-wrap gap-6 mb-4 text-sm">
+                            <span className="text-brand-muted">
+                                total pago{' '}
+                                <span className="text-white font-mono font-bold tabular-nums">
+                                    {(ledger.paid_total / UNIT).toFixed(6)}
+                                </span>
+                            </span>
+                            <span className="text-brand-muted">
+                                destinatários{' '}
+                                <span className="text-white font-mono font-bold">{ledger.paid_recipients}</span>
+                            </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-[11px] uppercase tracking-widest text-brand-muted">
+                                        <th className="py-2 pr-4">para</th>
+                                        <th className="py-2 pr-4 text-right">unidades</th>
+                                        <th className="py-2 pr-4">raiz</th>
+                                        <th className="py-2">assinatura</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {ledger.payouts.map((p) => (
+                                        <tr key={p.signature} className="border-t border-brand-border/40">
+                                            <td className="py-2 pr-4 font-mono text-xs text-brand-secondary">
+                                                <a
+                                                    href={`${EXPLORER}/address/${p.recipient}?cluster=devnet`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="hover:text-brand-primary"
+                                                >
+                                                    {p.recipient.slice(0, 8)}…{p.recipient.slice(-6)}
+                                                </a>
+                                            </td>
+                                            <td className="py-2 pr-4 font-mono text-right tabular-nums text-white">
+                                                {(p.amount / UNIT).toFixed(6)}
+                                            </td>
+                                            <td className="py-2 pr-4 font-mono text-xs text-brand-muted">
+                                                #{p.root_index}
+                                            </td>
+                                            <td className="py-2 font-mono text-xs">
+                                                <a
+                                                    href={`${EXPLORER}/tx/${p.signature}?cluster=devnet`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-brand-primary hover:underline"
+                                                >
+                                                    {p.signature.slice(0, 12)}… ↗
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
+            </SectionCard>
 
             <SectionCard title={`Published roots (${ledger?.batches.length ?? 0})`} icon={<CubeIcon className="w-6 h-6" />}>
                 {!ledger || ledger.batches.length === 0 ? (
