@@ -232,6 +232,42 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       should be a decision, because right now the product's own tokenomics page
       promises something no document supports.
 
+- [ ] **`active_miners.total_earned` shows 24 times what the ledger holds, and
+      the cause is two defects stacked.** The sealer `admin-miner-01` reads
+      1,257,422.56 on the Infra Monitor and Network Status screens; summing
+      `mining_rewards` for the wallet beside it gives 53,037.60. Diagnosed
+      3 October against the two database backups in the repository root, which
+      is what turned a wrong number into an explanation.
+
+      **The cleanup of 24 September deleted the rewards and left the counter.**
+      `blockchain.db.antes-limpeza-20260924-185201` holds **57,808**
+      `mining_rewards` rows summing 1,207,967.65, against a counter of
+      1,204,384.96 — the two agreed to within one partial epoch. The current
+      database holds **69** rows summing 77,983.05, and the counter simply
+      carried on from its pre-cleanup value. So `total_earned` is a faithful
+      record of a ledger that no longer exists.
+
+      **And the counter belongs to the node, not to the wallet.** Every write is
+      `UPDATE active_miners SET total_earned = total_earned + ? WHERE node_id = ?`
+      (api_server.py:3583 and :4846). Node `fcn-923037b4-ba0` kept its row, its
+      name and its April registration while its wallet changed from
+      `0x7dda72ad9ad5…` to `0xb3dff5d3f802…`, and the earnings followed the
+      node. `0x7dda72ad9ad5…` is FaucetHunter's address — the faucet that posted
+      the 1,000 $CLAIM escrow — so a faucet's mining history now displays
+      against somebody else's wallet.
+
+      Keying lifetime output to the node is defensible on its own; printing it
+      next to a wallet address is what makes it read as a claim about that
+      wallet. Three ways out, and this is a decision: reset the counter to match
+      the ledger and accept that history before 24 September is gone; drop the
+      column and compute from `mining_rewards` every time, which cannot drift
+      because there is nothing to drift from; or keep it and label it as the
+      node's lifetime, not the wallet's.
+
+      The design previews already take the third-party-safe route: `network.html`
+      shows the ledger figure and says on screen that the two disagree. The app
+      still shows the counter.
+
 - [ ] **The program's keypair lives where `cargo clean` deletes it.**
       `faucetchain/target/deploy/faucetchain-keypair.json` is the keypair for
       `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm` — verified by deriving its

@@ -29,6 +29,25 @@ forged, mints anything.
    The campaign PDA records the sponsor, the operator allowed to publish roots,
    the mint, and the running totals. A vault token account is created with the
    campaign PDA as its authority.
+
+   **A campaign's name is not on the chain, deliberately.** The PDA is derived
+   from `[CAMPAIGN_SEED, sponsor, campaign_id]`, so on chain a campaign is a
+   number under a sponsor — which is what the program needs to pay and nothing
+   more. The display name lives in `settlement_campaigns.name` here, because a
+   name is a label and not a guarantee: putting it in the `Campaign` account
+   would mean a program upgrade and an account migration every time a partner
+   renamed something.
+
+   The sponsor in the seeds is load-bearing and should not be removed: it is
+   what lets two partners both pick campaign 42 without colliding. Without it
+   campaign ids would have to be globally unique, which needs a registry
+   somebody has to run.
+
+   One label, composed in one place — `campaign_label()` in api_server.py:
+   the campaign's own name, else the token's name, else its symbol, else
+   `#652608`. The last rung carries no word on purpose, so a trilingual
+   interface needs no translation for it, and the chain of fallbacks cannot
+   drift between screens.
 2. **`fund_campaign(amount)`** — the partner moves tokens into the vault. Only
    the sponsor's own token account is debited.
 3. Users earn on the appchain. Rewards owed in a campaign are rows in

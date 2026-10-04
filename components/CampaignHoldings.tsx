@@ -26,7 +26,10 @@ interface TokenHolding {
     name: string | null;
     symbol: string | null;
     decimals: number;
-    campaigns: number[];
+    // `label` vem pronto do servidor: nome próprio da campanha, senão o nome do
+    // token, senão o símbolo, senão `#652608`. Não remontar essa cadeia aqui —
+    // ela existe num lugar só justamente para não divergir entre telas.
+    campaigns: { id: number; name: string | null; label: string }[];
     credited: number;
     published: number;
     collected: number;
@@ -118,7 +121,8 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
                                     {t.symbol && <span className="text-brand-muted font-normal ml-2">{t.symbol}</span>}
                                 </p>
                                 <p className="text-[11px] text-brand-muted mt-0.5">
-                                    Campanha{t.campaigns.length > 1 ? 's' : ''} {t.campaigns.join(', ')}
+                                    Campanha{t.campaigns.length > 1 ? 's' : ''}{' '}
+                                    {t.campaigns.map(c => c.label).join(', ')}
                                 </p>
                             </div>
                             <p className="text-xl font-black text-white tabular-nums">

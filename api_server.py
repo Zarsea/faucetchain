@@ -6043,6 +6043,35 @@ def init_settlement_tables():
             registered_at INTEGER NOT NULL
         )
     ''')
+    # A consulta de holdings faz LEFT JOIN em token_registry, e essa tabela era
+    # criada por init_faucet_api_keys_table -- uma funcao cujo nome nao tem
+    # relacao nenhuma com registro de token. Num banco que nunca chamou aquela
+    # funcao, a rota de holdings falhava com "no such table" e devolvia
+    # {"tokens": []} com HTTP 200: quem TINHA a receber via o mesmo que quem
+    # nao tinha nada. A liquidacao passa a garantir a tabela de que depende, em
+    # vez de herdar de quem a criou primeiro. IF NOT EXISTS, entao as duas
+    # criacoes convivem.
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS token_registry (
+            mint TEXT PRIMARY KEY,
+            cluster TEXT NOT NULL,
+            name TEXT,
+            symbol TEXT,
+            decimals INTEGER NOT NULL,
+            token_program TEXT NOT NULL,
+            settleable INTEGER NOT NULL,
+            note TEXT,
+            added_at INTEGER NOT NULL
+        )
+    """)
+
+    # O nome proprio da campanha. Nulo e o comportamento historico: ela se
+    # identifica pelo numero e herda o nome do token que paga.
+    try:
+        c.execute("ALTER TABLE settlement_campaigns ADD COLUMN name TEXT")
+    except sqlite3.OperationalError:
+        pass  # ja existe
+
     # Quanto uma pessoa precisa ter acumulado nesta campanha antes de entrar num
     # lote. Zero e o comportamento historico: sem minimo, qualquer valor sai.
     try:
@@ -6198,10 +6227,56 @@ def _batch_tree(c, batch_id: int, published_root: str):
     return rebuilt
 
 
+# Comprimento de rotulo, nao de texto livre: cabe num cartao e num titulo de
+# tela sem truncar. Quem precisa de mais que isso quer uma descricao, que e
+# outro campo e ainda nao existe.
+CAMPAIGN_NAME_MAX = 48
+
+
+def campaign_label(name, token_name, token_symbol, campaign_id) -> str:
+    """O que uma tela escreve quando precisa dizer de que campanha se trata.
+
+    A ordem e deliberada: o nome que o patrocinador deu vence o nome do token,
+    porque duas campanhas podem pagar no mesmo token e o token nao as distingue.
+    O ultimo degrau e o numero com cerquilha -- `#652608` -- em vez de "Campanha
+    652608", porque assim o rotulo nao precisa de traducao e as telas em tres
+    idiomas nao divergem.
+
+    Existe aqui, e nao no frontend, por um motivo: cinco telas montando a mesma
+    cadeia de fallback e cinco chances de ela ficar diferente.
+    """
+    for candidato in (name, token_name, token_symbol):
+        if candidato and str(candidato).strip():
+            return str(candidato).strip()
+    return f"#{campaign_id}"
+
+
+def clean_campaign_name(bruto):
+    """Devolve o nome higienizado, ou None quando nao ha nome.
+
+    String vazia e so espaco viram None em vez de um nome em branco, que
+    passaria pelo fallback como se fosse um nome e deixaria a tela sem rotulo.
+    """
+    if bruto is None:
+        return None
+    nome = " ".join(str(bruto).split())      # colapsa espaco e tira controle
+    if not nome:
+        return None
+    if len(nome) > CAMPAIGN_NAME_MAX:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A campaign name is a label: {CAMPAIGN_NAME_MAX} characters at most, got {len(nome)}",
+        )
+    return nome
+
+
 class CampaignRegisterRequest(BaseModel):
     campaign_id: int
     sponsor: str
     mint: str
+    # Opcional, e omitir numa re-chamada preserva o nome que ja existe em vez
+    # de apaga-lo -- ver o COALESCE no upsert.
+    name: Optional[str] = None
 
 
 @app.post("/api/solana/campaign")
@@ -6224,16 +6299,20 @@ async def register_campaign(
 
     conn = get_db_connection()
     c = conn.cursor()
+    nome = clean_campaign_name(req.name)
+    # COALESCE e o que separa "nao mandei nome" de "quero apagar o nome": uma
+    # re-chamada para corrigir o mint nao deve levar o nome embora com ela.
     c.execute(
-        """INSERT INTO settlement_campaigns (campaign_id, sponsor, mint, registered_at)
-           VALUES (?, ?, ?, ?)
+        """INSERT INTO settlement_campaigns (campaign_id, sponsor, mint, registered_at, name)
+           VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(campaign_id) DO UPDATE SET sponsor = excluded.sponsor,
-                                                  mint = excluded.mint""",
-        (req.campaign_id, req.sponsor.strip(), req.mint.strip(), int(_time.time())),
+                                                  mint = excluded.mint,
+                                                  name = COALESCE(excluded.name, settlement_campaigns.name)""",
+        (req.campaign_id, req.sponsor.strip(), req.mint.strip(), int(_time.time()), nome),
     )
     conn.commit()
     conn.close()
-    return {"status": "registered", "campaign_id": req.campaign_id}
+    return {"status": "registered", "campaign_id": req.campaign_id, "name": nome}
 
 
 class TokenRegisterRequest(BaseModel):
@@ -6358,7 +6437,7 @@ async def get_campaign_holdings(address: str, request: Request):
     try:
         rows = c.execute(
             """SELECT r.campaign_id, r.amount, r.batch_id, b.published_signature,
-                      sc.mint, t.name, t.symbol, t.decimals
+                      sc.mint, sc.name AS campaign_name, t.name, t.symbol, t.decimals
                  FROM settlement_rewards r
                  LEFT JOIN settlement_batches b   ON b.id = r.batch_id
                  LEFT JOIN settlement_campaigns sc ON sc.campaign_id = r.campaign_id
@@ -6366,7 +6445,15 @@ async def get_campaign_holdings(address: str, request: Request):
                 WHERE r.user_address = ?""",
             (user,),
         ).fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as e:
+        # Nao basta devolver vazio: vazio aqui significa "voce nao tem nada a
+        # receber", e uma tabela que falta produz exatamente essa frase para
+        # quem tem. Com log, a proxima vez vira uma linha no diario em vez de
+        # uma reclamacao de que o saldo desapareceu.
+        audit_logger.error(
+            f"holdings query failed for {user}: {e} -- answering as if the account "
+            f"were empty, which it may not be"
+        )
         rows = []
     conn.close()
 
@@ -6381,8 +6468,14 @@ async def get_campaign_holdings(address: str, request: Request):
             "campaigns": [],
             "credited": 0, "published": 0, "collected": 0,
         })
-        if row["campaign_id"] not in slot["campaigns"]:
-            slot["campaigns"].append(row["campaign_id"])
+        rotulo = campaign_label(row["campaign_name"], row["name"], row["symbol"],
+                                row["campaign_id"])
+        if not any(x["id"] == row["campaign_id"] for x in slot["campaigns"]):
+            slot["campaigns"].append({
+                "id": row["campaign_id"],
+                "name": row["campaign_name"],
+                "label": rotulo,
+            })
         if row["batch_id"] is None:
             slot["credited"] += row["amount"]
         elif row["published_signature"]:
