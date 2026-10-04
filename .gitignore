@@ -69,3 +69,12 @@ mining-node/.node_token*
 # Nao vai para o repositorio -- liberar comando destrutivo e decisao de quem
 # opera a maquina, nao do projeto.
 .claude/settings.local.json
+
+# Skills instalados por `npx skills add`. Sao ferramenta de quem edita, nao o
+# produto: 2,3 MB de referencias mais um binario que o lancador baixa no
+# primeiro uso. Os symlinks de .claude/skills apontam para caminho absoluto
+# desta maquina, entao nao servem para mais ninguem.
+# skills-lock.json fica de fora de proposito: ele registra quais skills o
+# projeto usa, e commitar isso e decisao de quem mantem, nao minha.
+.agents/
+.claude/skills/
