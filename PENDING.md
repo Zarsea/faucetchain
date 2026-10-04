@@ -232,6 +232,31 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       should be a decision, because right now the product's own tokenomics page
       promises something no document supports.
 
+- [ ] **The program's keypair lives where `cargo clean` deletes it.**
+      `faucetchain/target/deploy/faucetchain-keypair.json` is the keypair for
+      `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm` — verified by deriving its
+      pubkey on 3 October, not assumed from the filename. It sits inside
+      `target/`, which `faucetchain/.gitignore` ignores, so it exists in exactly
+      one place on one machine and in no backup.
+
+      `cargo clean` is the most routine command in Rust and it destroys that
+      file. Losing it means the program at that address can never be upgraded
+      or redeployed again — and the address is in the whitepaper, in all 19
+      published roots, in every explorer link, and in the submission draft.
+      Nothing warns anybody: the directory looks like build output because it
+      is build output, with one secret in it.
+
+      **It must not be committed** — it is a private key, and the repository is
+      public. What it needs is a copy somewhere durable and private: the
+      RyusGero backup, a password manager, anywhere that is not a build
+      directory. Whoever does it should also decide whether the upgrade
+      authority should stay on this keypair at all, or move to a multisig
+      before mainnet.
+
+      Found while clearing 7.9 GB of build output on 3 October. The cleanup
+      spared it because only `target/debug` was removed, which was luck about
+      which subdirectory, not a decision about the key.
+
 - [ ] **Decide whether the identity link is public.**
       `GET /api/solana/link/{address}` answers for any address with no
       authentication, returning the Solana wallet behind a FaucetChain account.

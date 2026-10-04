@@ -47,7 +47,34 @@ FIM
 fi
 
 echo "building with $construtor"
-"$construtor"
+
+# By default cargo-build-sbf asks rustup for the Solana toolchain with a
+# `+solana` override. On this machine that path is broken: it parses
+# `rustup toolchain list -v`, whose lines are `name<TAB>path`, and hands the
+# whole line back as the toolchain name --
+#
+#   invalid toolchain name '1.95.0-sbpf-solana-v1.57\t/root/.cache/...'
+#
+# which is a version mismatch between platform-tools and rustup, not a problem
+# with this program. `--no-rustup-override` skips rustup, but then the Solana
+# rustc has to be found some other way, so RUSTC is pointed at the one that
+# ships with the platform-tools release this cargo-build-sbf reports.
+#
+# The plain invocation is tried first, so a machine with a working rustup is
+# unaffected and this fallback stays dead code there.
+if "$construtor" "$@"; then
+    :
+else
+    versao="$("$construtor" --version 2>/dev/null | sed -n 's/^platform-tools //p')"
+    rustc_solana="$HOME/.cache/solana/${versao}/platform-tools/rust/bin/rustc"
+    if [ -z "$versao" ] || [ ! -x "$rustc_solana" ]; then
+        echo "the build failed and no platform-tools rustc was found to retry with" >&2
+        echo "looked for: $rustc_solana" >&2
+        exit 1
+    fi
+    echo "retrying without the rustup override, RUSTC=$rustc_solana"
+    RUSTC="$rustc_solana" "$construtor" --no-rustup-override "$@"
+fi
 
 so="$raiz/target/deploy/faucetchain.so"
 if [ ! -f "$so" ]; then
