@@ -7,6 +7,25 @@ use solana_keccak_hasher::hashv;
 /// settlement.py): parent = keccak256(left ‖ right), with the direction taken
 /// from the index bit. An odd level duplicates its last node, which shows up in
 /// a proof as a sibling equal to the node itself.
+///
+/// **There is no domain separation between a leaf and an internal node**, and
+/// that is worth stating rather than leaving to be discovered. Nothing prefixes
+/// a leaf with 0x00 and a node with 0x01, so `verify_proof` on its own accepts
+/// an internal node presented as a leaf -- `an_internal_node_passes_as_a_leaf`
+/// below proves it does.
+///
+/// What closes that hole is not this function: it is `claim_reward` computing
+/// the leaf from the signer, the amount and the index instead of accepting one
+/// from the caller. Forging a claim therefore needs a 44-byte keccak preimage
+/// matching a 32-byte internal node, which is a preimage attack and not a
+/// protocol mistake.
+///
+/// So the rule for anyone extending this program: **never pass a caller-supplied
+/// leaf to `verify_proof`.** An instruction that takes a leaf as an argument
+/// reopens the hole completely, and no constraint elsewhere would catch it.
+/// Real domain separation is listed under "Before mainnet" in PENDING.md,
+/// because adding a prefix changes every root -- including the 19 already
+/// published, whose proofs would stop verifying.
 pub fn leaf_hash(recipient: &Pubkey, amount: u64, leaf_index: u32) -> [u8; 32] {
     hashv(&[
         recipient.as_ref(),
@@ -99,5 +118,51 @@ mod tests {
     fn single_leaf_tree_has_the_leaf_as_root() {
         let only = leaf_hash(&Pubkey::new_from_array([7; 32]), 5, 0);
         assert!(verify_proof(only, 0, &[], only));
+    }
+
+    /// Pins the one property of this tree that could become a theft, so that
+    /// nobody has to rediscover it.
+    ///
+    /// Without domain separation, an internal node handed in as a leaf verifies
+    /// against the root: on a four-leaf tree, n01 at index 0 with [n23] as its
+    /// proof rehashes to exactly the root, because that is what the root is.
+    /// This test asserts that it DOES verify -- it is not describing a defect in
+    /// `verify_proof`, it is recording that `verify_proof` cannot be trusted
+    /// with a leaf it did not compute.
+    ///
+    /// `claim_reward` is what makes it unreachable: the leaf there comes from
+    /// the signer, the amount and the index, never from an argument. If this
+    /// test ever starts failing, someone added domain separation and every
+    /// published root changed with it, which is a migration and not a patch.
+    #[test]
+    fn an_internal_node_passes_as_a_leaf() {
+        let leaves = [
+            leaf_hash(&Pubkey::new_from_array([1; 32]), 10, 0),
+            leaf_hash(&Pubkey::new_from_array([2; 32]), 20, 1),
+            leaf_hash(&Pubkey::new_from_array([3; 32]), 30, 2),
+            leaf_hash(&Pubkey::new_from_array([4; 32]), 40, 3),
+        ];
+        let n01 = parent(leaves[0], leaves[1]);
+        let n23 = parent(leaves[2], leaves[3]);
+        let root = parent(n01, n23);
+
+        // The honest claim: leaf 0 with its two siblings.
+        assert!(verify_proof(leaves[0], 0, &[leaves[1], n23], root));
+
+        // The property: an internal node, one level up, with a one-node proof.
+        assert!(
+            verify_proof(n01, 0, &[n23], root),
+            "the tree gained domain separation; every published root changed"
+        );
+
+        // And the reason it is harmless: a leaf is computed, and no (pubkey,
+        // amount, index) triple in reach hashes to n01. Checking a handful is
+        // not a proof of that -- the preimage resistance of keccak is -- but it
+        // keeps the claim from being purely rhetorical.
+        for i in 0..8u8 {
+            for amount in [0u64, 10, 20, u64::MAX] {
+                assert_ne!(leaf_hash(&Pubkey::new_from_array([i; 32]), amount, 0), n01);
+            }
+        }
     }
 }

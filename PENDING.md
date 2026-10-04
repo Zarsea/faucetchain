@@ -604,6 +604,30 @@ Decided 2 October, with the exposure measured rather than estimated.
       1,488,440 lamports of rent the first time a person touches a token; the
       minimum has to clear that in whatever the token is actually worth.
 
+- [ ] **The Merkle tree has no domain separation between a leaf and an internal
+      node.** Found 3 October by the Trail of Bits Solana scanner's sweep, as an
+      observation outside its six patterns. Nothing prefixes a leaf with `0x00`
+      and a node with `0x01`, so `verify_proof` on its own accepts an internal
+      node handed in as a leaf — demonstrated, and now pinned by
+      `an_internal_node_passes_as_a_leaf` in `merkle.rs`.
+
+      **It is not exploitable today**, and the reason matters more than the
+      fact: `claim_reward` computes the leaf from the signer, the amount and the
+      index rather than accepting one, so forging a claim needs a 44-byte keccak
+      preimage matching a 32-byte node. The safety lives in
+      [claim_reward.rs](faucetchain/programs/faucetchain/src/instructions/claim_reward.rs),
+      not in the tree — which means any future instruction that takes a leaf as
+      an argument reopens it in full, and no constraint elsewhere would catch
+      that.
+
+      Why it is a mainnet gate and not a fix: a prefix changes every root,
+      including the **19 already published**. Campaign 479079 has 347,221 units
+      sitting in a published root that a real wallet can withdraw today; change
+      the hash and that proof stops verifying. On devnet the roots are
+      disposable, so the right moment is the migration, with the appchain's
+      `leaf_hash` in settlement.py moving in the same commit and a version field
+      on `RewardRoot` if old roots must stay claimable.
+
 **What the three multiply to, today.** One person, clicking the maximum 288
 times, on a campaign with nobody else in it and traffic thin enough to hold
 participation at its floor, takes **2.67 times the entire day's allowance** —

@@ -556,3 +556,137 @@ fn a_campaign_cannot_open_under_token_2022() {
     )
     .unwrap();
 }
+
+/// Only the operator the sponsor named may publish a root.
+///
+/// `handle_publish_root` opens with `require_keys_eq!(campaign.operator, …)`,
+/// and until this test nothing proved it. Every other negative case in this
+/// file was covered -- double withdrawal, forged proof, a root beyond the
+/// vault, a surplus beyond what is owed -- and the one authority check that
+/// decides who can promise the sponsor's money was not.
+///
+/// Two details make the refusal mean what it says:
+///
+/// The impostor is airdropped SOL. `publish_root` has `payer = operator` on the
+/// init, so an impostor with an empty wallet would be refused for being broke
+/// and the test would pass without the authority check existing at all.
+///
+/// The vault is funded first. The reserve check would otherwise refuse the
+/// publish for `InsufficientReserve` before reaching the operator comparison --
+/// again passing for the wrong reason. The assertion reads the log for
+/// `Unauthorized` rather than accepting any error.
+#[test]
+fn only_the_operator_publishes_a_root() {
+    let mut svm = LiteSVM::new();
+    svm.add_program_from_file(
+        faucetchain::ID,
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../target/deploy/faucetchain.so"
+        ),
+    )
+    .expect("run scripts/build-program.sh before the test");
+
+    let sponsor = Keypair::new();
+    let operator = Keypair::new();
+    let impostor = Keypair::new();
+    let alice = Keypair::new();
+    for who in [&sponsor, &operator, &impostor] {
+        svm.airdrop(&who.pubkey(), 10 * SOL).unwrap();
+    }
+
+    let mint = create_mint(&mut svm, &sponsor);
+    let sponsor_tokens = create_funded_account(&mut svm, &sponsor, &mint, 1_000_000_000);
+
+    let campaign = pda(&[
+        faucetchain::CAMPAIGN_SEED,
+        sponsor.pubkey().as_ref(),
+        &CAMPAIGN_ID.to_le_bytes(),
+    ]);
+    let vault = pda(&[faucetchain::VAULT_SEED, campaign.as_ref()]);
+
+    send(
+        &mut svm,
+        &[ix(
+            faucetchain::accounts::CreateCampaign {
+                sponsor: sponsor.pubkey(),
+                campaign,
+                mint,
+                vault,
+                token_program: spl_token::ID,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::CreateCampaign {
+                campaign_id: CAMPAIGN_ID,
+                operator: operator.pubkey(),
+                period_cap: 500_000_000,
+                period_len: 30 * 86_400,
+            }
+            .data(),
+        )],
+        &[&sponsor],
+    )
+    .unwrap();
+
+    send(
+        &mut svm,
+        &[ix(
+            faucetchain::accounts::FundCampaign {
+                sponsor: sponsor.pubkey(),
+                campaign,
+                mint,
+                sponsor_token_account: sponsor_tokens,
+                vault,
+                token_program: spl_token::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::FundCampaign {
+                amount: 500_000_000,
+            }
+            .data(),
+        )],
+        &[&sponsor],
+    )
+    .unwrap();
+
+    // One leaf, so the leaf is the root.
+    let root = leaf_hash(&alice.pubkey(), 100_000_000, 0);
+    let reward_root = pda(&[
+        faucetchain::ROOT_SEED,
+        campaign.as_ref(),
+        &0u32.to_le_bytes(),
+    ]);
+
+    let publish = |who: &Keypair| {
+        ix(
+            faucetchain::accounts::PublishRoot {
+                operator: who.pubkey(),
+                campaign,
+                reward_root,
+                vault,
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+            faucetchain::instruction::PublishRoot {
+                index: 0,
+                root,
+                total_amount: 100_000_000,
+                leaf_count: 1,
+            }
+            .data(),
+        )
+    };
+
+    let err = send(&mut svm, &[publish(&impostor)], &[&impostor])
+        .expect_err("anybody could publish a root on somebody else's campaign");
+    assert!(
+        err.meta.logs.iter().any(|l| l.contains("Unauthorized")),
+        "the publish was refused, but not for the authority: {:?}",
+        err.meta.logs
+    );
+
+    // The named operator publishes the same root, so the check refuses the
+    // right signer rather than everyone.
+    send(&mut svm, &[publish(&operator)], &[&operator]).unwrap();
+}
