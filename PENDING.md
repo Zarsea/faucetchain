@@ -293,6 +293,39 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       spared it because only `target/debug` was removed, which was luck about
       which subdirectory, not a decision about the key.
 
+- [ ] **An API key works without a faucet registration.** Two keys have been
+      used with no row in `faucet_registry` behind them: `0x7a9c4b1e8f3d…`,
+      nine requests and enrolled in campaign 479079, and `0xb3dff5d3f802…`,
+      one request. Neither owes any user anything, so retiring them costs
+      nobody — measured 4 October, zero owed to zero users each.
+
+      Reported from the FaucetHunter side as "three duplicate FaucetHunter
+      registrations". That is not what the data says: `faucet_registry` holds
+      exactly one FaucetHunter, `0x7dda72ad9ad5…`, and `/api/faucethub/faucets`
+      reads only that table, so it cannot list three. The real shape is a key
+      that outlives, or precedes, the registration it was issued for — which is
+      more interesting, because such a faucet can post claims and never appear
+      in the directory a user reads.
+
+      Decide whether a key without a registration should keep working. Revoking
+      `0x7a9c4b1e…` needs care: it is enrolled in a live campaign and has been
+      used nine times.
+
+- [ ] **The read ceiling on holdings is per IP, and every partner user shares
+      one.** `HOLDINGS_HOURLY_PER_IP` is 120/h, and FaucetHunter's users all
+      arrive through one tunnel, so the whole partner shares one allowance.
+      FaucetHunter caches each user's answer for two minutes, which is what has
+      kept it under the ceiling so far.
+
+      It should be per API key: the key is what identifies a partner, and an IP
+      identifies a tunnel. Worth doing before the partner's user base grows.
+
+      One suspicion worth recording rather than asserting: this may already be
+      biting. The partner reported `/api/solana/holdings` as empty for an
+      account that in fact has four rewards worth 24.8M across both campaigns —
+      verified 4 October by running the query. A 429 that a client treats as
+      "no data" would look exactly like that.
+
 - [ ] **Decide whether the identity link is public.**
       `GET /api/solana/link/{address}` answers for any address with no
       authentication, returning the Solana wallet behind a FaucetChain account.
