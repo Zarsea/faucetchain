@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Balanço da FaucetHunter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap">
+<link rel="stylesheet" href="design.css">
+<style>
+  /* O rotulo nao quebra; o valor alinha a direita e a nota desce para a linha
+     seguinte. Sem isto "em raiz publicada" partia no meio da palavra, que e o
+     tipo de defeito que so aparece depois do print. */
+  .kv {
+    display: flex; gap: 16px; align-items: baseline; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid var(--card); font-size: 13px;
+  }
+  .kv > span:first-child { flex: none; color: var(--muted); white-space: nowrap; }
+  .kv > span:last-child { text-align: right; min-width: 0; }
+  .kv em {
+    display: block; font-style: normal; color: var(--muted);
+    font-size: 11px; margin-top: 2px; white-space: nowrap;
+  }
+  .kv b { color: var(--warn); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-block:40px 56px; max-width:1000px">
+
+  <p class="eyebrow">Balanço lido do banco e da cadeia</p>
+  <h1 style="margin-top:12px; font-size:clamp(28px,4vw,40px); font-weight:800">
+    A torneira FaucetHunter, item por item
+  </h1>
+
+  <div class="grid g4" style="margin-top:32px">
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:26px">1.000</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">caução na tesouraria</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:26px">20,0</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">devido a 8 usuários</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:26px; color:var(--success)">50×</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">cobertura da dívida</p>
+    </div>
+    <div class="card card-pad">
+      <p class="num" style="margin:0; font-size:26px; color:var(--sol)">5</p>
+      <p class="quieto" style="margin:6px 0 0; font-size:13px">raízes reais na Solana</p>
+    </div>
+  </div>
+
+  <div class="duo" style="margin-top:20px">
+    <div class="card card-pad duo-larga">
+      <p class="eyebrow">Como torneira</p>
+      <div style="margin-top:14px">
+        <div class="kv"><span>registro</span><span>id 40 · FaucetHunter</span></div>
+        <div class="kv"><span>chaves de API</span><span>1 <em>10 requisições</em></span></div>
+        <div class="kv"><span>campanhas inscritas</span><span>479079, 652608</span></div>
+      </div>
+      <p class="eyebrow" style="margin-top:24px">Deve a</p>
+      <div style="margin-top:14px"><div class="kv"><span>0xb3dff5d3f802…</span><span>8,0</span></div><div class="kv"><span>0xbae99ba0c1c7…</span><span>4,0</span></div><div class="kv"><span>0x5a4b7aef89d4…</span><span>2,0</span></div><div class="kv"><span>0x7dda72ad9ad5… <b>(ela mesma)</b></span><span>2,0</span></div><div class="kv"><span>0x219715d77760…</span><span>1,0</span></div><div class="kv"><span>0x22febb1c9289…</span><span>1,0</span></div><div class="kv"><span>0x5170ac6a041e…</span><span>1,0</span></div><div class="kv"><span>0x6c0a4c34ec2f…</span><span>1,0</span></div></div>
+    </div>
+
+    <div class="card card-pad duo-estreita">
+      <p class="eyebrow">Como conta de usuário</p>
+      <div style="margin-top:14px">
+        <div class="kv"><span>saldo $CLAIM livre</span><span>21.079,72</span></div>
+        <div class="kv"><span>campanha 479079</span><span>347.221 <em>em raiz publicada</em></span></div>
+        <div class="kv"><span>vínculo Solana</span><span>nenhum <em>removido em 4/10</em></span></div>
+      </div>
+      <div class="aviso" style="margin-top:18px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" aria-hidden="true">
+          <path d="M12 8v5M12 17h.01M10.3 3.9L2.6 17.1A2 2 0 0 0 4.3 20h15.4a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0z"></path>
+        </svg>
+        <span>Sem vínculo, essa recompensa não aparece no painel de quem entra
+        como <span class="mono">0xb3dff5d3…</span>. O valor está seguro: a folha
+        tem hash sobre a carteira Solana, não sobre a conta.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-pad" style="margin-top:20px">
+    <p class="eyebrow">O que a limpeza de 4 de outubro fez</p>
+    <div class="grid g3" style="margin-top:16px">
+      <div>
+        <p class="num" style="margin:0; font-size:22px">5</p>
+        <p class="quieto" style="margin:4px 0 0; font-size:12px">campanhas na lista</p>
+      </div>
+      <div>
+        <p class="num" style="margin:0; font-size:22px; color:var(--muted)">23</p>
+        <p class="quieto" style="margin:4px 0 0; font-size:12px">aposentadas, mint não é mint</p>
+      </div>
+      <div>
+        <p class="num" style="margin:0; font-size:22px; color:var(--muted)">3.429.450.464</p>
+        <p class="quieto" style="margin:4px 0 0; font-size:12px">unidades nelas, nunca pagáveis</p>
+      </div>
+    </div>
+  </div>
+
+  <footer style="border:0; padding-block:28px 0">
+    <p style="margin:0">
+      Lido em 04/10/2026 16:22 UTC de
+      <span class="mono">blockchain.db</span> e da devnet. Gerado por
+      <span class="mono">scripts/gera_balanco.py</span> — nenhum número foi digitado.
+    </p>
+  </footer>
+</div>
+</body>
+</html>
