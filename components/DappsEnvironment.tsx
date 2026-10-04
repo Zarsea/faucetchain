@@ -6,7 +6,15 @@ export const DappsFloatingButton: React.FC<{ onClick: () => void }> = ({ onClick
     return (
         <button
             onClick={onClick}
-            className="fixed bottom-12 right-12 z-40 w-24 h-24 bg-gradient-to-br from-brand-accent via-yellow-500 to-yellow-600 shadow-[0_0_25px_rgba(234,179,8,0.7)] flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-[0_0_40px_rgba(234,179,8,1)] transition-all duration-300 animate-[bounce_3s_infinite]"
+            // O bounce infinito saiu. Um alvo que nunca para de se mexer e dificil
+            // de acertar com o cursor, e impossivel para automacao: o Playwright
+            // espera o elemento ficar estavel antes de clicar, e este nunca ficava.
+            // Era a causa de "esse botao nao funciona".
+            //
+            // A atencao que a animacao buscava continua vindo do halo e do crescer
+            // no hover, que acontecem quando o cursor ja esta la -- quando o alvo
+            // ficar parado e o unico momento em que mexer ajuda.
+            className="fixed bottom-12 right-12 z-40 w-24 h-24 bg-gradient-to-br from-brand-accent via-yellow-500 to-yellow-600 shadow-[0_0_25px_rgba(234,179,8,0.7)] flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-[0_0_40px_rgba(234,179,8,1)] transition-all duration-300"
             style={{ 
                 borderRadius: '0 50% 50% 50%', 
                 transform: 'rotate(45deg)' 

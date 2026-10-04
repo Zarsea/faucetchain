@@ -55,6 +55,11 @@ the content.
       list most of them. [SUBMISSION.md](SUBMISSION.md) has them one by one.
       The team's three backgrounds are already on their Colosseum profiles.
 
+Os três roteiros, com tempos e falas, estão em [ROTEIRO_VIDEOS.md](ROTEIRO_VIDEOS.md).
+Esta lista continua sendo a ordem de filmagem do demo; aquele arquivo diz o que
+se fala por cima dela, e por que o pitch não pode ser escrito antes do
+go-to-market.
+
 ### The shot list, in the order it should be filmed
 
 Everything below is live and was exercised on 29 September, except the last

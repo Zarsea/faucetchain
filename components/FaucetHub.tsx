@@ -64,7 +64,7 @@ interface L2BalanceResponse {
 }
 
 export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
-    const { authMethod } = useAuth();
+    const { authMethod, isConnected, userAddress } = useAuth();
     const [faucets, setFaucets] = useState<FaucetData[]>([]);
     const [loading, setLoading] = useState(true);
     const [showRegister, setShowRegister] = useState(false);
@@ -471,6 +471,50 @@ const formataCobertura = (c: number): string =>
             );
         });
     };
+
+    // Sem conta conectada o painel não abre.
+    //
+    // Nada aqui é segredo — a lista de torneiras é um quadro de transparência,
+    // e as ações que movem dinheiro já exigem assinatura, uma por uma. O que o
+    // portão resolve é outra coisa: este é o console de quem opera uma
+    // torneira, com chave de API, caução e saque, e abri-lo para um visitante
+    // anônimo convida a mexer onde não se tem o que mexer. Um botão que só
+    // pode falhar é pior que um botão ausente.
+    //
+    // O portão é da tela, não dos dados, e vale dizer qual é qual: as rotas de
+    // leitura seguem públicas de propósito. `/api/faucethub/faucets` é o quadro
+    // que qualquer um deve poder auditar, e o start-local.ps1 a usa para saber
+    // se o servidor subiu. Fechá-las esconderia o que o produto existe para
+    // mostrar, sem proteger nada que já não esteja protegido por assinatura.
+    if (!isConnected || !userAddress) {
+        return (
+            <div className="fixed inset-0 z-50 bg-[#02000A] text-purple-100 flex items-center justify-center font-sans p-6">
+                <div className="max-w-xl w-full bg-purple-950/20 border-2 border-dashed border-purple-500/30 rounded-[2rem] p-10 text-center">
+                    <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
+                        🔑
+                    </div>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter text-purple-100">
+                        FaucetHub Core
+                    </h2>
+                    <p className="text-purple-300/70 mt-4 leading-relaxed">
+                        Este é o console de quem opera uma torneira: chave de API, caução e
+                        saque. Entre na sua conta para abrir — cada ação aqui é assinada pela
+                        carteira dona da torneira, e sem conta não há o que assinar.
+                    </p>
+                    <p className="text-purple-400/50 text-xs mt-6 leading-relaxed">
+                        O quadro de torneiras continua público, com saldo, dívida e cobertura
+                        de cada uma. Ele é para auditar, e auditar não pede login.
+                    </p>
+                    <button
+                        onClick={onBack}
+                        className="mt-8 px-6 py-3 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-500/30 text-purple-100 rounded-xl text-sm font-bold transition-colors"
+                    >
+                        ← Voltar
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-50 bg-[#02000A] text-purple-100 flex flex-col font-sans overflow-hidden animate-slideUpFadeIn">
