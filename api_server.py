@@ -1873,6 +1873,34 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
         req.signature, req.sig_timestamp, x_session_token
     )
 
+    # A torneira nao saca de si mesma, e a razao nao e politica: e aritmetica.
+    # O saque grava uma transferencia de `pagador` para `user_lower`, e
+    # get_user_balance soma o que entra e subtrai o que sai -- com o mesmo
+    # endereco nos dois lados, as duas pontas se cancelam. O saldo virtual era
+    # zerado, total_withdrawn crescia, e o saldo em $CLAIM nao se movia: o
+    # dinheiro simplesmente deixava de existir, com HTTP 200 em cima.
+    #
+    # Medido em 4 de outubro, nao deduzido: 12 $CLAIM entraram, 12 sairam do
+    # livro virtual, e o saldo ficou nos mesmos 500. test_self_payment.py
+    # reproduz.
+    #
+    # Recusar e o conserto certo, e nao retem nada de ninguem: o que a torneira
+    # deve a si mesma ja esta no saldo dela. Nao ha para onde mover.
+    if faucet_lower == user_lower:
+        conn_tmp = get_db_connection()
+        devido = faucet_owed(conn_tmp, faucet_lower)
+        conn_tmp.close()
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A faucet cannot withdraw from itself: the transfer would have the same "
+                "address on both sides and would cancel out, consuming the virtual balance "
+                "without crediting anything. Whatever this faucet owes itself is already in "
+                f"its own balance. (This faucet owes {round(devido, 4)} in total, including "
+                "to other users.)"
+            ),
+        )
+
     conn = get_db_connection()
     c = conn.cursor()
     
