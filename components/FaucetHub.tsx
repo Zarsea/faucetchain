@@ -96,6 +96,19 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const [l2Loading, setL2Loading] = useState(false);
     const [l2WithdrawStatus, setL2WithdrawStatus] = useState<string | null>(null);
 
+    // "Tem alguém mexendo agora?" — lido pela enquete de 10 segundos antes de
+    // substituir o estado da lista. É uma ref e não um estado de propósito: o
+    // intervalo é criado uma vez, no mount, e uma closure sobre um useState
+    // enxergaria para sempre o valor do primeiro render.
+    const ocupadoRef = React.useRef(false);
+    ocupadoRef.current =
+        showRegister ||          // formulário de registro aberto
+        reserveSaving ||         // assinando uma trava de caução
+        keyLoading ||            // revelando ou rotacionando chave
+        l2Loading ||             // consultando saldo
+        revealedKey !== null ||  // chave na tela: recarregar a faria sumir
+        selectedFaucet !== null; // cartão aberto, com formulário dentro
+
     // Leaderboard & Activity Links state
     const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [activityLinks, setActivityLinks] = useState<any[]>([]);
@@ -147,9 +160,24 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
         fetchL2Stats();
         fetchLeaderboard();
         fetchActivityLinks();
-        const interval = setInterval(() => { 
-            fetchFaucets(); 
-            fetchL2Stats(); 
+        // A cada 10 segundos este painel refazia quatro chamadas e substituía o
+        // estado inteiro da lista. O efeito do lado de quem clica é um botão que
+        // "demora" ou "não funciona": o re-render chega no meio da interação e
+        // leva junto o foco, o que estava digitado e o cartão aberto.
+        //
+        // Duas pausas, e as duas são sobre não atropelar quem está ali:
+        //
+        //   Enquanto houver algo em curso -- uma assinatura, um formulário
+        //   aberto, uma chave sendo revelada -- a enquete espera. O painel só
+        //   se atualiza sozinho quando ninguém está mexendo nele.
+        //
+        //   Com a aba escondida não há ninguém para ver a atualização, e
+        //   continuar pedindo é gastar o teto de leitura por nada.
+        const interval = setInterval(() => {
+            if (document.hidden) return;
+            if (ocupadoRef.current) return;
+            fetchFaucets();
+            fetchL2Stats();
             fetchLeaderboard();
             fetchActivityLinks();
         }, 10000);
@@ -322,6 +350,16 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
         setKeyCopied(true);
         setTimeout(() => setKeyCopied(false), 2000);
     };
+
+// Cobertura é razão, não porcentagem, e tratá-la como porcentagem produziu
+// "105399% caucionado" numa tela que um parceiro lê. Acima de dez vezes a
+// dívida a porcentagem deixa de informar: o que importa é a ordem de grandeza,
+// e "1.053×" diz isso numa olhada. Abaixo de dez, a porcentagem é a leitura
+// natural -- 80% coberto é uma frase que se entende.
+const formataCobertura = (c: number): string =>
+    c >= 10
+        ? `${c.toLocaleString(undefined, { maximumFractionDigits: 0 })}×`
+        : `${(c * 100).toFixed(0)}%`;
 
     const totalLiquidity = faucets.reduce((acc, f) => acc + f.liquidity, 0);
     // Somar saldos e chamar o total de "reservas" era a mesma confusao de
@@ -626,7 +664,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                                 <p className="text-purple-400/50 text-xs">nada devido ainda</p>
                                             ) : (
                                                 <p className={`text-xs font-semibold ${faucet.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    deve {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {(faucet.coverage * 100).toFixed(0)}% caucionado
+                                                    deve {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {formataCobertura(faucet.coverage)} caucionado
                                                 </p>
                                             )}
                                             <p className="text-purple-400/80 text-xs">{faucet.recent_txs} Txs/hr</p>
@@ -767,8 +805,8 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                                 </div>
                                                 <p className={`text-[11px] mt-1 ${f.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
                                                     {f.coverage >= 1
-                                                        ? `Coberta: a caucao cobre ${(f.coverage * 100).toFixed(0)}% do que voce deve.`
-                                                        : `Descoberta: a caucao cobre ${(f.coverage * 100).toFixed(0)}% do que voce deve; o resto sai do saldo livre no saque, se houver.`}
+                                                        ? `Coberta: a caucao cobre ${formataCobertura(f.coverage)} do que voce deve.`
+                                                        : `Descoberta: a caucao cobre ${formataCobertura(f.coverage)} do que voce deve; o resto sai do saldo livre no saque, se houver.`}
                                                     {f.reserve_declared_at && ` Travado em ${new Date(f.reserve_declared_at * 1000).toLocaleDateString()}.`}
                                                 </p>
                                             </div>
@@ -793,6 +831,59 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                                                 {reserveSaving ? "Assinando..." : "Travar"}
                                             </button>
                                         </div>
+
+                                        {/* Destravar sempre existiu no servidor: a rota recebe o valor TOTAL
+                                            que fica travado, então mandar menos libera a diferença. O que não
+                                            existia era o caminho na tela, e sem ele a caução parecia porta de
+                                            mão única — que é o contrário do que ela é.
+
+                                            Os dois atalhos cobrem o que se quer de verdade: soltar o que
+                                            sobra acima da dívida, ou soltar tudo. Qualquer outro valor se
+                                            digita no campo acima e se trava normalmente. */}
+                                        {f.reserve > 0 && (
+                                            <div className="mt-3">
+                                                <p className="text-purple-400 text-[10px] font-semibold mb-2">DESTRAVAR</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setReserveInput(String(Math.max(f.owed, 0)));
+                                                            handleDeclareReserve(selectedFaucet);
+                                                        }}
+                                                        disabled={reserveSaving || f.reserve <= f.owed}
+                                                        title={f.reserve <= f.owed
+                                                            ? "Não há excedente: a caução já é igual ou menor que a dívida."
+                                                            : undefined}
+                                                        className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
+                                                    >
+                                                        Soltar o excedente
+                                                        <span className="block text-[10px] font-normal text-purple-400">
+                                                            {Math.max(f.reserve - f.owed, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} livres
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setReserveInput("0");
+                                                            handleDeclareReserve(selectedFaucet);
+                                                        }}
+                                                        disabled={reserveSaving || f.owed > 0}
+                                                        title={f.owed > 0
+                                                            ? `Não dá: esta torneira deve ${f.owed} aos usuários, e a caução não desce abaixo da dívida.`
+                                                            : undefined}
+                                                        className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
+                                                    >
+                                                        Soltar tudo
+                                                        <span className="block text-[10px] font-normal text-purple-400">
+                                                            {f.owed > 0 ? "bloqueado pela dívida" : "nada devido"}
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                                <p className="text-purple-500/60 text-[10px] mt-2 leading-relaxed">
+                                                    Destravar devolve o valor ao saldo livre da torneira. O servidor
+                                                    recusa descer abaixo do que os usuários já têm a receber — a regra
+                                                    é dele, não deste botão, e vale mesmo se a tela estiver errada.
+                                                </p>
+                                            </div>
+                                        )}
                                         {reserveError && <p className="text-red-300 text-[11px] mt-2">{reserveError}</p>}
                                         <p className="text-purple-500/60 text-[10px] mt-3 leading-relaxed">
                                             O valor travado sai do seu saldo e aparece no seu dashboard como
