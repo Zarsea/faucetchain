@@ -78,3 +78,7 @@ mining-node/.node_token*
 # projeto usa, e commitar isso e decisao de quem mantem, nao minha.
 .agents/
 .claude/skills/
+
+# Saida do playwright-cli: snapshots e logs de console de cada sessao de
+# navegador. Diagnostico de um momento, nao do projeto.
+.playwright-cli/
