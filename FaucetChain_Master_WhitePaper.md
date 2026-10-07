@@ -2,7 +2,7 @@
 
 **Micro-distribution that settles on Solana.**
 
-Version 2 · September 2026 · supersedes the March 2026 paper
+Version 2.1 · revised 7 October 2026 · supersedes the March 2026 paper
 
 ---
 
@@ -205,6 +205,12 @@ The distinction matters more than the roadmap, so it comes first.
   its address
 - A settlement ledger read from Solana rather than from the sequencer
 - The whole flow end to end against a running program, nothing mocked
+- Session authentication for custodial accounts. Knowing the address used to be
+  enough to spend from it and to repoint where its rewards are paid; it is not
+  any more, and there is no fallback to address-only
+- Rate limits on the relayer and on the proof endpoint
+- Deployed on devnet as `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, with
+  five roots published and two withdrawals settled by real wallets
 
 **Designed, not built**
 
@@ -215,10 +221,9 @@ The distinction matters more than the roadmap, so it comes first.
 
 **Known limits, stated because they are real**
 
-- A custodial account is authenticated by knowing its address. Session tokens
-  are the fix and are not yet in place. This is the sharpest open item.
 - One sequencer closes batches. It cannot steal — the program stops that — but
-  it can stall.
+  it can stall. This is the sharpest open item now that custodial accounts have
+  sessions.
 - Token-2022 mints with transfer fees would break payout accounting; campaigns
   should stay on plain SPL mints until that is handled.
 
@@ -228,11 +233,11 @@ The distinction matters more than the roadmap, so it comes first.
 
 **Done** — Proof of Claim and the hourly economy; the appchain, its API and
 explorer; anti-Sybil; the Solana settlement program with vaults, roots, proofs,
-receipts and the relayer; the ledger read from chain.
+receipts and the relayer; the ledger read from chain; devnet deployment and a
+live demo campaign; session authentication for custodial accounts; rate limits
+on the relayer and the proof endpoint.
 
-**Next** — devnet deployment and a public demo campaign; session authentication
-for custodial accounts; rate limits on the relayer and the proof endpoint; a
-partner SDK.
+**Next** — a partner SDK; a second faucet operator outside the team.
 
 **After that** — treasury staking as an operation rather than a model; the
 payout choice; unclaimed-reward expiry; more than one sequencer.
@@ -256,6 +261,22 @@ Notes from that period are in [`legacy/docs/`](legacy/docs/).
 The earlier paper described that EVM design as the architecture and listed an
 Ethereum bridge as the plan. Settlement is on Solana now, and there is no
 bridge: value does not cross a chain boundary, only a 32-byte root does.
+
+A second correction, from October and about this project's own numbers. The
+sequencer's database recorded nineteen published roots. Five exist. Fourteen
+batches carried a signature for a transaction that was never sent, and every
+screen and document that cited the count repeated it.
+
+Asking Solana for the transaction is not what settled it: devnet prunes
+transaction history, so a signature that returns nothing proves nothing either
+way. What settles it is the account. Publishing a root creates one, and accounts
+are not pruned. [`verify_published_roots.py`](verify_published_roots.py) counts
+roots that way and exits non-zero when the database claims more than the chain
+holds.
+
+The paper records this for the same reason it records the Solidity contracts: a
+number nobody checked is the failure mode this whole design exists to remove,
+and it is worth saying out loud that it happened here too.
 
 [`PRIOR_WORK.md`](PRIOR_WORK.md) records precisely what predates the Crypto
 World's Fair hackathon and what was built during it.
