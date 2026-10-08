@@ -212,6 +212,31 @@ The distinction matters more than the roadmap, so it comes first.
 - Deployed on devnet as `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, with
   six roots published and two withdrawals settled by real wallets
 
+**Running outside a test, and how small that is**
+
+One faucet is connected in production. faucethunter.net opened for testing in
+early September 2026, has **five registered users**, and has paid **more than
+75 claims** to them. It sends each claim to this chain over one HTTP call made
+after its own commit.
+
+Two things have to be said about those 75, in this order.
+
+**They were paid by the faucet, not by us.** FaucetHunter pays its users
+through FaucetPay, its own rail; our FaucetPay integration proves an identity
+and moves no money. So the 75 are evidence that a real operator runs a real
+faucet and really pays — not evidence that FaucetChain distributed anything.
+Counting them as ours would be the easiest claim in this paper to puncture.
+
+**Five users is small, and the number is the point.** What it demonstrates is
+the integration cost: a working faucet added this chain with one call, kept its
+own payouts, kept custody of its own money, and stays up if we go down
+(`test_partner_survives_outage.py`). That argument does not need scale to be
+true, and scale would not make it truer.
+
+What this does not yet show is demand from anyone outside the team. No faucet
+operator beyond this one has asked for it. That is the honest state, and it is
+the next milestone rather than a gap in the design.
+
 **Designed, not built**
 
 - Treasury staking as an automated operation — today it is a stated model
