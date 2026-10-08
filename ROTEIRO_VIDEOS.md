@@ -48,7 +48,7 @@ Say these in your own words. A minute of someone reading a script sounds like a
 minute of someone reading a script, and judges have heard many.
 
 **0:00 – 0:10 · the hook.**
-On screen: the Settlement Ledger, five roots.
+On screen: the Settlement Ledger, six roots.
 Beat: this week we audited our own claims against Solana and found that we had
 been counting rows in our database, not roots on the chain.
 
@@ -68,7 +68,7 @@ the chain holds.
 
 **0:45 – 1:00 · where it stands.**
 On screen: the real withdrawal on the Solana explorer.
-Beat: five roots, verified account by account. Two real withdrawals by real
+Beat: six roots, verified account by account. Two real withdrawals by real
 wallets, the second into a wallet holding no SOL at all. Five live campaigns
 after retiring twenty-three whose mint was not a mint. Next week: the public
 URL and the demo.
@@ -175,7 +175,7 @@ about a project whose demand evidence is a single partner.
 
 ### The trap to avoid
 
-This ledger's own counts — 113 reward rows, 39 linked addresses, 5 roots — are
+This ledger's own counts — 113 reward rows, 39 linked addresses, 6 roots — are
 **integration** numbers. They prove the rail runs end to end. They do not prove
 anyone wants it. Presenting them as traction is the easiest claim in the
 submission to puncture, and "the rail works, and here is who uses it" is
@@ -189,13 +189,13 @@ Spoken on camera, a number cannot be corrected. **Re-read 8 October:**
 
 | figure | value | command |
 |---|---|---|
-| roots published, verified by account | 5 | `python verify_published_roots.py` |
+| roots published, verified by account | 6 | `python verify_published_roots.py` |
 | live campaigns | 5 | `GET /api/solana/campaigns` |
 | withdrawals actually signed | 2, for 717,526 units | `GET /api/solana/relayer` |
 | what those two cost the relayer | 3,146,880 lamports | same |
 | registered faucets (one is a real partner) | 6 | `GET /api/faucethub/faucets` |
 | FaucetHunter escrow vs debt | 21,079.72 against 22.00 | same |
 | $CLAIM minted of the 99M cap | 78,077.24 | `python reconcile.py` |
-| rewards still unspent in a published root | 8 | see the demo note below |
+| the withdrawal waiting for the camera | 15,424,575 units, batch 21 | `GET /api/solana/proof/0xb3dff5d3…` |
 
 Re-run them the morning of the shoot. Four changed between 4 and 8 October.

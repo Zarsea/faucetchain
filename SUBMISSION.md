@@ -64,7 +64,7 @@ verifiable:
 
 - Program `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, executable under the
   BPF upgradeable loader (**verified 3 Oct**).
-- **5 Merkle roots published**, across 5 campaigns: 687389 and 711670 on
+- **6 Merkle roots published**, across 5 campaigns: 687389 and 711670 on
   17–18 September, then 478840, 479079 and 652608 between 27 September and
   2 October (**verified 4 Oct**, and the verification matters — see below).
 - The program **refuses a root its vault cannot cover** (`InsufficientReserve`).
@@ -125,7 +125,7 @@ this repository:
 
 ### `traction`
 
-Backed, re-read from the ledger on 8 October: 5 published roots, 113 reward
+Backed, re-read from the ledger on 8 October: 6 published roots, 113 reward
 rows, 4,262,207,812 units credited, 39 linked Solana addresses, 6 registered
 faucets, 26 sealed blocks, two real withdrawals by real wallets.
 

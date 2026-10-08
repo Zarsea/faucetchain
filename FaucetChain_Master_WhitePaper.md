@@ -210,7 +210,7 @@ The distinction matters more than the roadmap, so it comes first.
   any more, and there is no fallback to address-only
 - Rate limits on the relayer and on the proof endpoint
 - Deployed on devnet as `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, with
-  five roots published and two withdrawals settled by real wallets
+  six roots published and two withdrawals settled by real wallets
 
 **Designed, not built**
 

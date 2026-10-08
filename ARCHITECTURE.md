@@ -602,6 +602,26 @@ knows; the user does not.
 
 ## Change log
 
+**2026-10-08 - batch 21, published so the demo has a withdrawal to film.** The
+shot list had been built around campaign 479079's 347,221 units, which were
+withdrawn on 5 October while we were proving the Phantom path worked. A query
+then said eight rewards were still unspent in published roots; the chain said
+otherwise — campaigns 687389, 711670 and 478840 all read `committed == paid`
+with an empty vault, so those eight were long since collected. The query had
+looked for a missing row in `relayer_spend` and called that proof of a missing
+withdrawal, which is the same mistake as counting roots in the database.
+
+Nothing was fabricated to fix it. `0xb3dff5d3` already held four credited,
+unbatched rewards on 479079 from 4 and 7 October; closing the batch summed them
+into one leaf of 15,424,575 against `75vW4Hnh…`, the wallet that signed the
+5 October withdrawal. Root `BixqB6e5…` published in
+`5SDDQNQWFhRwW8z4zeGahrfXN3m8pRHXX5Sh6fLHLd3pFKVma7JoB2LabbPQvqj97ANCtyEwkSatDwNev2p86ZrQ`.
+
+Six roots now, all six confirmed by their account on chain. The withdrawal was
+rehearsed as far as `relay/prepare` — the transaction builds and asks for the
+relayer plus `75vW4Hnh…` — and deliberately not submitted. Every document that
+said five says six.
+
 **2026-10-08 - the four findings the September audit left open.** All four are
 closed; three were defects and one was a tradeoff the owner chose to stop
 paying for.
