@@ -36,6 +36,9 @@ import json
 import math
 import secrets
 import hashlib
+import base64
+import bcrypt
+import traceback
 from eth_account.messages import encode_defunct
 from eth_account import Account
 import logging
@@ -133,6 +136,26 @@ async def unhandled_exception(request: Request, exc: Exception):
     )
 
 
+def falha_interna(e: Exception) -> HTTPException:
+    """O mesmo trato do tratador global, para quem levanta o 500 na mao.
+
+    Treze sitios faziam `raise HTTPException(500, detail=str(e))`. Consertar o
+    tratador global nao os alcancou, porque HTTPException nunca chega la: eles
+    continuaram devolvendo o texto da excecao a quem perguntou, que e como
+    `no such table: transactions` saiu daqui uma vez.
+
+    O traceback inteiro vai para o log de auditoria. Ele identifica a funcao e
+    a linha melhor do que um rotulo escrito a mao, e nao envelhece quando o
+    codigo se move.
+    """
+    incidente = secrets.token_hex(4)
+    audit_logger.error(f"Handled 500 [{incidente}]: {e!r}\n{traceback.format_exc()}")
+    return HTTPException(
+        status_code=500,
+        detail=f"Something failed on our side. Incident {incidente}.",
+    )
+
+
 # Initialize Vector DB
 kb = None
 
@@ -217,7 +240,7 @@ def init_faucet_api_keys_table():
         CREATE TABLE IF NOT EXISTS faucet_api_keys (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             faucet_wallet TEXT NOT NULL,
-            api_key TEXT NOT NULL UNIQUE,
+            api_key_hash TEXT NOT NULL UNIQUE,
             created_at INTEGER NOT NULL,
             is_active INTEGER NOT NULL DEFAULT 1,
             last_used INTEGER,
@@ -297,6 +320,30 @@ def init_faucet_api_keys_table():
         except sqlite3.OperationalError:
             pass  # already there
 
+    # A coluna guardava a chave em claro, e uma leitura do banco entregava o
+    # direito de distribuir em nome de todas as torneiras. Agora guarda o
+    # sha256 dela, e o nome diz isso -- `api_key` com um hash dentro e o tipo
+    # de mentira no esquema que custa caro um ano depois.
+    #
+    # sha256 e nao bcrypt de proposito: a chave e `fch_` mais 32 bytes
+    # aleatorios, entao nao ha dicionario a tentar, e a busca precisa ser
+    # determinavel para continuar indexada. E a mesma escolha que `_hash_token`
+    # faz para as sessoes.
+    #
+    # A chave que cada parceiro ja tem continua valendo: quem chega e hasheado
+    # antes da comparacao. O que se perde e a capacidade de mostra-la de novo.
+    colunas = {r[1] for r in c.execute("PRAGMA table_info(faucet_api_keys)")}
+    if "api_key_hash" not in colunas:
+        c.execute("ALTER TABLE faucet_api_keys RENAME COLUMN api_key TO api_key_hash")
+        em_claro = c.execute(
+            "SELECT id, api_key_hash FROM faucet_api_keys WHERE api_key_hash LIKE 'fch_%'"
+        ).fetchall()
+        for linha in em_claro:
+            c.execute("UPDATE faucet_api_keys SET api_key_hash = ? WHERE id = ?",
+                      (_hash_token(linha[1]), linha[0]))
+        if em_claro:
+            print(f"  {len(em_claro)} chave(s) de API convertidas para hash")
+
     conn.commit()
     conn.close()
 
@@ -344,10 +391,10 @@ def init_internal_faucet():
         timestamp = int(_time.time())
         c.execute("INSERT OR IGNORE INTO faucet_registry (name, wallet_address, registered_at) VALUES (?, ?, ?)",
                   ("FaucetInternal", wallet, timestamp))
-        c.execute("SELECT id FROM faucet_api_keys WHERE api_key = ?", (key,))
+        c.execute("SELECT id FROM faucet_api_keys WHERE api_key_hash = ?", (_hash_token(key),))
         if not c.fetchone():
-            c.execute("INSERT INTO faucet_api_keys (faucet_wallet, api_key, created_at, is_active) VALUES (?, ?, ?, 1)",
-                      (wallet, key, timestamp))
+            c.execute("INSERT INTO faucet_api_keys (faucet_wallet, api_key_hash, created_at, is_active) VALUES (?, ?, ?, 1)",
+                      (wallet, _hash_token(key), timestamp))
         conn.commit()
     except Exception as e:
         print(f"⚠️ Failed to init internal faucet: {e}")
@@ -810,7 +857,7 @@ async def vector_search(query: SearchQuery, request: Request):
         return results
     except Exception as e:
         audit_log("SEARCH_ERROR", client_ip, {"error": str(e)})
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 # Escreve na base que o assistente le. Operador, nao usuario.
 @app.post("/api/add-document")
@@ -836,7 +883,7 @@ async def add_document(doc: AddDocumentRequest, request: Request,
         doc_id = kb.add_document(doc.content, doc.metadata, doc.doc_id)
         return {"status": "success", "doc_id": doc_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 @app.websocket("/ws/network")
 async def websocket_endpoint(websocket: WebSocket):
@@ -865,7 +912,7 @@ async def notify_block(payload: dict, request: Request):
         return {"status": "broadcasted"}
     except Exception as e:
         audit_log("NOTIFY_ERROR", "internal", {"error": str(e)})
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 # [REMOVED] Duplicate /api/blocks endpoint — kept the version at line ~670 which uses user_claims + transactions
 
@@ -889,7 +936,7 @@ def get_address_transactions(address: str, limit: int = 50):
         
         return [dict(row) for row in rows]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 class FaucetRegisterRequest(BaseModel):
     name: str
@@ -916,16 +963,16 @@ async def register_faucet(req: FaucetRegisterRequest, request: Request):
             VALUES (?, ?, ?)
         ''', (req.name, wallet_lower, timestamp))
         c.execute('''
-            INSERT INTO faucet_api_keys (faucet_wallet, api_key, created_at)
+            INSERT INTO faucet_api_keys (faucet_wallet, api_key_hash, created_at)
             VALUES (?, ?, ?)
-        ''', (wallet_lower, api_key, timestamp))
+        ''', (wallet_lower, _hash_token(api_key), timestamp))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
         raise HTTPException(status_code=400, detail="Wallet address already registered")
     except Exception as e:
         conn.close()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
     
     conn.close()
     return {
@@ -1030,7 +1077,7 @@ async def get_my_api_key(wallet: str):
     conn = get_db_connection()
     c = conn.cursor()
     c.execute('''
-        SELECT api_key, created_at, is_active, last_used, total_requests, total_settled
+        SELECT created_at, is_active, last_used, total_requests, total_settled
         FROM faucet_api_keys WHERE faucet_wallet = ? AND is_active = 1
     ''', (wallet_lower,))
     row = c.fetchone()
@@ -1053,36 +1100,19 @@ class RevealKeyRequest(BaseModel):
     sig_timestamp: Optional[int] = None
 
 
-@app.post("/api/faucethub/reveal-key")
-async def reveal_api_key(req: RevealKeyRequest, x_session_token: Optional[str] = Header(None)):
-    """Hands back the live API key, to the wallet that owns the faucet.
-
-    A POST rather than a GET because it carries a signature, and because a key
-    does not belong in a URL: it would sit in every proxy log and browser
-    history between here and the caller.
-    """
-    try:
-        wallet_lower = normalize_address(req.wallet_address)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    require_action_signature(
-        wallet_lower,
-        settlement.api_key_reveal_message(wallet_lower, CHAIN_ID, req.sig_timestamp or 0),
-        req.signature, req.sig_timestamp, x_session_token
-    )
-
-    conn = get_db_connection()
-    c = conn.cursor()
-    c.execute('''
-        SELECT api_key FROM faucet_api_keys
-        WHERE faucet_wallet = ? AND is_active = 1
-    ''', (wallet_lower,))
-    row = c.fetchone()
-    conn.close()
-    if not row:
-        raise HTTPException(status_code=404, detail="No active API key found for this wallet")
-    return {"api_key": row["api_key"], "wallet_address": wallet_lower}
+# POST /api/faucethub/reveal-key foi removido em 8 de outubro de 2026.
+#
+# Ele devolvia a chave viva ao dono da torneira, e para isso ela precisava
+# existir em claro no banco. O preco era que uma unica leitura do banco
+# entregava o direito de distribuir em nome de todas as torneiras de uma vez.
+#
+# Agora so o sha256 e guardado, entao nao ha o que revelar: a chave aparece uma
+# vez na criacao e uma vez na rotacao, e quem a perder rotaciona. A propria tela
+# ja dizia "mostrada uma vez so" -- isto alinha o codigo ao que ela promete.
+#
+# `RevealKeyRequest` e `settlement.api_key_reveal_message` continuam aqui de
+# proposito: um cliente antigo que ainda poste para esta rota recebe 404 do
+# FastAPI, e nao um erro de importacao em outro lugar do arquivo.
 
 
 class RegenerateKeyRequest(BaseModel):
@@ -1125,9 +1155,9 @@ async def regenerate_api_key(req: RegenerateKeyRequest, x_session_token: Optiona
     new_key = generate_api_key()
     timestamp = int(datetime.now().timestamp())
     c.execute('''
-        INSERT INTO faucet_api_keys (faucet_wallet, api_key, created_at)
+        INSERT INTO faucet_api_keys (faucet_wallet, api_key_hash, created_at)
         VALUES (?, ?, ?)
-    ''', (wallet_lower, new_key, timestamp))
+    ''', (wallet_lower, _hash_token(new_key), timestamp))
     conn.commit()
     conn.close()
     
@@ -1500,8 +1530,8 @@ async def settle_claim(req: SettlementRequest, x_api_key: Optional[str] = Header
     c = conn.cursor()
     c.execute('''
         SELECT faucet_wallet FROM faucet_api_keys
-        WHERE api_key = ? AND is_active = 1
-    ''', (x_api_key,))
+        WHERE api_key_hash = ? AND is_active = 1
+    ''', (_hash_token(x_api_key),))
     key_row = c.fetchone()
     
     if not key_row:
@@ -1549,8 +1579,8 @@ async def settle_claim(req: SettlementRequest, x_api_key: Optional[str] = Header
             SET total_requests = total_requests + 1,
                 total_settled = total_settled + ?,
                 last_used = ?
-            WHERE api_key = ?
-        ''', (req.amount, timestamp, x_api_key))
+            WHERE api_key_hash = ?
+        ''', (req.amount, timestamp, _hash_token(x_api_key)))
         
         conn.commit()
     except Exception as e:
@@ -1649,7 +1679,7 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
     # Authenticate
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute('SELECT faucet_wallet FROM faucet_api_keys WHERE api_key = ? AND is_active = 1', (x_api_key,))
+    c.execute('SELECT faucet_wallet FROM faucet_api_keys WHERE api_key_hash = ? AND is_active = 1', (_hash_token(x_api_key),))
     key_row = c.fetchone()
     if not key_row:
         conn.close()
@@ -1672,8 +1702,8 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
             conn, faucet_wallet, user_lower)
         conn.execute('''
             UPDATE faucet_api_keys SET total_requests = total_requests + 1, last_used = ?
-            WHERE api_key = ?
-        ''', (int(datetime.now().timestamp()), x_api_key))
+            WHERE api_key_hash = ?
+        ''', (int(datetime.now().timestamp()), _hash_token(x_api_key)))
         conn.commit()
     finally:
         conn.close()
@@ -2153,7 +2183,7 @@ async def get_epoch_root(epoch_id: int, epoch_size: int = 128):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 
 @app.get("/api/blocks/{height}/merkle-proof")
@@ -2207,7 +2237,7 @@ async def get_block_merkle_proof(height: int, epoch_size: int = 128):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 @app.get("/api/user/{address}/balance")
 async def get_user_balance(address: str):
     """Retorna o saldo agregado de $CLAIM para um usuário (merit faucet + mining rewards)."""
@@ -2871,7 +2901,7 @@ async def transfer_claim(req: TransferRequest, request: Request,
     except Exception as e:
         conn.rollback()
         conn.close()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
     finally:
         conn.close()
 
@@ -3655,7 +3685,7 @@ def get_user_claims(address: str):
         conn.close()
         return [dict(row) for row in rows]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 
 # ===========================
@@ -3738,7 +3768,7 @@ async def get_staking_positions(address: str):
             positions.append(r)
         return positions
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 
 @app.post("/api/staking/stake")
@@ -3978,7 +4008,7 @@ async def get_staking_stats():
             "tiers": {str(k): v for k, v in TIER_CONFIG.items()}
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 @app.get("/api/vault/yield")
 async def get_vault_yield():
@@ -4007,7 +4037,7 @@ async def get_vault_yield():
             "apy": 12.5 # Mock simulated APY based on network activity
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 # ===========================
 # COMMUNITY BOUNTY BOARD
@@ -4338,7 +4368,7 @@ async def get_bounty_stats():
             "paidRewards": round(paid_rewards, 4)
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise falha_interna(e)
 
 
 # ===========================
@@ -5938,11 +5968,60 @@ class LoginRequest(BaseModel):
 def startup_users():
     init_users_table()
 
-def hash_password(password: str) -> str:
+def _bcrypt_input(password: str) -> bytes:
+    """O que vai para o bcrypt: 44 caracteres, sempre.
+
+    bcrypt nao aceita senha acima de 72 bytes. O 5.0 levanta ValueError; as
+    versoes antigas truncavam em silencio, e ai duas senhas que compartilhavam
+    os primeiros 72 bytes abriam uma a conta da outra.
+
+    Sem esta linha, a versao instalada aqui transforma uma senha longa num 500
+    no registro e no login. O digest em base64 tem 44 caracteres e nunca chega
+    perto do limite, nas duas versoes.
+    """
+    return base64.b64encode(hashlib.sha256(password.encode()).digest())
+
+
+def _legacy_hash(password: str) -> Optional[str]:
+    """O esquema antigo, mantido so para reconhecer quem ainda nao reentrou."""
     salt = os.getenv("PASSWORD_SALT")
     if not salt:
-        raise RuntimeError("PASSWORD_SALT is not configured")
+        return None
     return hmac.new(salt.encode(), password.encode(), hashlib.sha256).hexdigest()
+
+
+def hash_password(password: str) -> str:
+    """bcrypt, com salt por usuario que a propria biblioteca gera e embute.
+
+    Era HMAC-SHA256 com o salt global de PASSWORD_SALT. Dois defeitos, e o
+    primeiro e o que importa: SHA-256 e rapido de proposito, entao uma GPU
+    comum testa bilhoes de candidatos por segundo e um vazamento do banco vira
+    uma lista de senhas. Uma funcao de senha precisa ser lenta de proposito.
+
+    O segundo: com um salt so para todos, duas contas com a mesma senha
+    guardavam exatamente o mesmo hash. Dava para ver quem compartilha senha sem
+    quebrar nada, e um ataque pre-computado servia para a base inteira.
+
+    Chave de API vazada se rotaciona. Senha vazada e a senha que a pessoa usa
+    em outro lugar, e por isso este era o unico achado da auditoria cujo dano
+    nao tem volta.
+    """
+    return bcrypt.hashpw(_bcrypt_input(password), bcrypt.gensalt()).decode()
+
+
+def verify_password(password: str, stored: str) -> tuple:
+    """(confere, precisa_reescrever).
+
+    O segundo valor e verdadeiro quando a linha ainda esta no esquema antigo.
+    A migracao acontece no login, com a senha em maos -- nao da para converter
+    um hash antigo em bcrypt sem ela, entao nao existe migracao em lote.
+    """
+    if stored.startswith("$2"):
+        return bcrypt.checkpw(_bcrypt_input(password), stored.encode()), False
+    legado = _legacy_hash(password)
+    if legado and hmac.compare_digest(legado, stored):
+        return True, True
+    return False, False
 
 @app.post("/api/auth/register")
 async def register_user(req: RegisterRequest, request: Request):
@@ -6013,17 +6092,35 @@ async def login_user(req: LoginRequest, request: Request):
         raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
     email = req.email.strip().lower()
     password = req.password
-    password_hash = hash_password(password)
-    
+
+    # Era `WHERE email = ? AND password_hash = ?`, que so funciona enquanto a
+    # mesma senha produz sempre o mesmo hash -- ou seja, enquanto nao ha salt
+    # por usuario. Com bcrypt a linha vem primeiro e a conferencia e feita
+    # depois, contra o salt que esta embutido nela.
     conn = get_db_connection()
     c = conn.cursor()
-    c.execute("SELECT wallet_address FROM users WHERE email = ? AND password_hash = ?", (email, password_hash))
+    c.execute("SELECT wallet_address, password_hash FROM users WHERE email = ?", (email,))
     row = c.fetchone()
-    conn.close()
-    
+
     if not row:
+        conn.close()
         raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
-        
+
+    confere, precisa_reescrever = verify_password(password, row[1])
+    if not confere:
+        conn.close()
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+
+    if precisa_reescrever:
+        # A unica hora em que a senha em claro passa por aqui. Quem nunca mais
+        # entrar fica no esquema antigo, e e por isso que o caminho legado
+        # continua existindo em vez de ser apagado numa data.
+        c.execute("UPDATE users SET password_hash = ? WHERE email = ?",
+                  (hash_password(password), email))
+        conn.commit()
+
+    conn.close()
+
     return {"status": "success", "wallet_address": row[0], "email": email,
             **issue_session(row[0])}
 
@@ -6905,8 +7002,33 @@ async def link_solana_wallet(req: SolanaLinkRequest, x_session_token: Optional[s
 
 
 @app.get("/api/solana/link/{address}")
-async def get_solana_link(address: str):
+async def get_solana_link(address: str, x_session_token: Optional[str] = Header(None)):
+    """Qual carteira Solana recebe por esta conta. So o dono ve.
+
+    A conta desta cadeia e derivada da carteira Solana por keccak256, e keccak
+    nao se inverte: de posse de uma carteira qualquer um calcula a conta, e
+    isso e publico por construcao. O caminho de volta era inviavel de computar
+    -- ate este endpoint, que o entregava de graca a quem perguntasse.
+
+    Com /holdings e /microclaim/balance, que respondem sobre qualquer endereco,
+    dava para montar o perfil de uma conta (quanto ganhou, de quais torneiras)
+    e terminar com a carteira Solana da pessoa. Saldos publicos sao coerentes
+    com um livro-razao publico; correlacionar as duas identidades e outra
+    coisa, e estava acontecendo por omissao e nao por decisao.
+
+    Exigir sessao e a decisao: o dono sempre tem uma, e ninguem mais precisa
+    desta resposta. Nao fecha o livro-razao, fecha so a ponte entre as duas
+    identidades.
+    """
     user = address.strip().lower()
+    if session_holder(x_session_token) != user:
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                "Which Solana wallet an account pays to is visible only to that "
+                "account. Sign in as it to read this."
+            ),
+        )
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("SELECT solana_address, linked_at FROM solana_links WHERE user_address = ?", (user,))

@@ -602,6 +602,46 @@ knows; the user does not.
 
 ## Change log
 
+**2026-10-08 - the four findings the September audit left open.** All four are
+closed; three were defects and one was a tradeoff the owner chose to stop
+paying for.
+
+*Passwords.* `hash_password` was `hmac.new(PASSWORD_SALT, password, sha256)`.
+SHA-256 is fast by design, so a database leak was a password list; and with one
+global salt, two accounts with the same password stored the same hash. Now
+bcrypt, which generates and embeds a salt per row. `verify_password` returns
+`(matches, needs_rewrite)` and login rewrites the old format in place, with the
+password in hand -- there is no batch migration, because a legacy hash cannot
+be converted without it. A sha256+base64 pre-hash feeds bcrypt: the installed
+bcrypt 5.0 *refuses* a password over 72 bytes, so without it a long password
+was a 500 at registration. `test_password_hashing.py` pins all of it.
+
+*API keys.* The column held them in plaintext, so one database read handed over
+the right to distribute for every faucet. It now holds `sha256` and is named
+`api_key_hash`; an arriving key is hashed before the lookup, so every key
+already in the wild keeps working -- verified against all 13 before and after.
+sha256 rather than bcrypt because the key is `fch_` plus 32 random bytes, with
+no dictionary to try and a lookup that has to stay indexed. `POST
+/api/faucethub/reveal-key` is gone with the plaintext it needed; the key appears
+once at creation and once at rotation, which is what the panel already told
+people. The migration is idempotent and runs in `init_faucet_api_keys_table`.
+
+*The reverse identity map.* `GET /api/solana/link/{address}` answered for any
+address. The account derives from the Solana wallet by keccak, which does not
+invert, so this endpoint was the only way back -- and beside `/holdings` it
+turned a profile into a wallet. It now requires the session of the account it
+describes. The ledger stays public; the bridge between the two identities does
+not.
+
+*Leaked exception text.* Thirteen sites raised `HTTPException(500,
+detail=str(e))`. Fixing the global handler never reached them, because
+`HTTPException` does not pass through it. They now call `falha_interna(e)`,
+which logs the traceback and returns an incident id.
+
+Two stale tests were failing before any of this and are fixed in the same pass:
+`/api/auth/solana` had gained `derived` and `links`, and a reserve message had
+been reworded away from the word the assertion searched for.
+
 **2026-09-28 - the reserve stopped being a sentence and became money.** Declaring
 now moves the $CLAIM out of the faucet's wallet into the treasury, the withdrawal
 is paid from there before it touches the faucet's free balance, and the escrow
@@ -807,6 +847,8 @@ process. Both now go through `require_action_signature`, the key moved to
 `POST /reveal-key` so it never sits in a URL, and `my-key` returns counters
 only. `test_faucetpay_identity.py` fails if either gate is removed. Phase one
 of the FaucetPay work lands with it: identity, and not a cent of movement.
+(`reveal-key` was removed on 2026-10-08; only the key's hash is stored now, so
+there is nothing left to reveal.)
 
 
 **2026-09-18 — a click draws the campaign budget.** `distribution.py` prices a

@@ -55,7 +55,12 @@ export const SolanaPayouts: React.FC = () => {
     const loadLinkAndProofs = useCallback(async () => {
         if (!userAddress) return;
         try {
-            const linkResponse = await fetch(`${API_BASE_URL}/api/solana/link/${userAddress}`);
+            // Com sessão: desde 8/10 o servidor só diz a carteira de quem está
+            // dentro da conta. Sem o cabeçalho isto volta 401 e a tela diz que
+            // não há vínculo, que é falso.
+            const linkResponse = await fetch(`${API_BASE_URL}/api/solana/link/${userAddress}`, {
+                headers: sessionHeaders(),
+            });
             if (linkResponse.ok) {
                 const body = await linkResponse.json();
                 setLinked(body.solana_address);

@@ -317,8 +317,13 @@ def test_the_browser_is_told_which_account_to_sign_for(client):
     wallet = str(fresh.pubkey())
     r = client.get(f"/api/auth/solana/{wallet}")
     assert r.status_code == 200, r.text
+    # `derived` e `links` entraram depois para o parceiro distinguir os dois
+    # casos sem reimplementar keccak sobre base58; o teste ficou pedindo as
+    # duas chaves antigas e falhava desde entao.
     assert r.json() == {"account": srv.address_from_solana_wallet(wallet),
-                        "existing": False}, r.json()
+                        "existing": False,
+                        "derived": srv.address_from_solana_wallet(wallet),
+                        "links": 0}, r.json()
 
     # Once the wallet is linked somewhere, that is the answer instead.
     linked = Keypair.from_seed(bytes([102] * 32))
@@ -328,7 +333,9 @@ def test_the_browser_is_told_which_account_to_sign_for(client):
     assert client.post("/api/solana/link",
                        json=link_body(account, wallet2)).status_code == 200
     body = client.get(f"/api/auth/solana/{wallet2}").json()
-    assert body == {"account": account.address.lower(), "existing": True}, body
+    assert body == {"account": account.address.lower(), "existing": True,
+                    "derived": srv.address_from_solana_wallet(wallet2),
+                    "links": 1}, body
 
     assert client.get("/api/auth/solana/not-a-wallet").status_code == 400
 
@@ -383,8 +390,34 @@ def test_link_requires_the_owner_signature(client):
     assert client.post("/api/solana/link", json=expired).status_code == 401
 
     assert client.post("/api/solana/link", json=body).status_code == 200
-    linked = client.get(f"/api/solana/link/{account.address.lower()}").json()
+
+    conta = account.address.lower()
+    sessao = srv.issue_session(conta)["session_token"]
+    linked = client.get(f"/api/solana/link/{conta}",
+                        headers={"X-Session-Token": sessao}).json()
     assert linked["solana_address"] == WALLET_A
+
+
+def test_link_readback_is_only_for_the_owner(client):
+    """O mapa de volta da conta para a carteira Solana nao e publico.
+
+    A conta e derivada da carteira por keccak, que nao se inverte; este
+    endpoint entregava o caminho de volta a quem perguntasse, e com /holdings
+    ao lado dava para ligar um perfil inteiro a uma carteira.
+    """
+    account = Account.create()
+    conta = account.address.lower()
+    assert client.post("/api/solana/link", json=link_body(account, WALLET_A)).status_code == 200
+
+    assert client.get(f"/api/solana/link/{conta}").status_code == 401
+
+    de_outro = srv.issue_session(Account.create().address.lower())["session_token"]
+    assert client.get(f"/api/solana/link/{conta}",
+                      headers={"X-Session-Token": de_outro}).status_code == 401
+
+    dele = srv.issue_session(conta)["session_token"]
+    assert client.get(f"/api/solana/link/{conta}",
+                      headers={"X-Session-Token": dele}).status_code == 200
 
 
 def test_link_requires_the_wallet_to_prove_it_holds_the_key(client):

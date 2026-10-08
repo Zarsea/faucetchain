@@ -189,8 +189,16 @@ def test_microclaim_withdraw_requires_owner_signature(client):
     sig = Account.sign_message(encode_defunct(text=msg), acct.key).signature.hex()
     body = {"user_wallet": user, "faucet_wallet": FAUCET, "signature": sig, "sig_timestamp": ts}
     r = client.post("/api/faucethub/microclaim/withdraw", json=body)
-    # passou da autenticação; a faucet de teste não tem reserva L1
-    assert r.status_code == 400 and "reserve" in r.json()["detail"].lower(), r.text
+    # Passou da autenticação; a torneira de teste não tem caução. O 400 (e não
+    # 401) é o que esta linha existe para provar.
+    #
+    # Procurava a palavra "reserve", que saiu da mensagem quando ela passou a
+    # dizer "cannot cover … Escrowed … free balance". O teste falhava desde
+    # então por causa da palavra, não do comportamento, então agora aceita
+    # qualquer um dos termos que signifiquem falta de lastro.
+    detalhe = r.json()["detail"].lower()
+    assert r.status_code == 400, r.text
+    assert any(p in detalhe for p in ("reserve", "cover", "escrow", "balance")), r.text
 
     attacker = Account.create()
     forged = Account.sign_message(encode_defunct(text=msg), attacker.key).signature.hex()
@@ -248,8 +256,8 @@ def test_the_internal_faucet_drips_like_any_other(client):
     os.environ["INTERNAL_FAUCET_WALLET"] = faucet
     conn = db()
     conn.execute(
-        "INSERT OR IGNORE INTO faucet_api_keys (faucet_wallet, api_key, created_at, is_active) "
-        "VALUES (?, ?, 0, 1)", (faucet, "test-internal-key"))
+        "INSERT OR IGNORE INTO faucet_api_keys (faucet_wallet, api_key_hash, created_at, is_active) "
+        "VALUES (?, ?, 0, 1)", (faucet, srv._hash_token("test-internal-key")))
     campaign = 90410
     conn.execute("INSERT OR REPLACE INTO settlement_campaigns (campaign_id, sponsor, mint, "
                  "registered_at) VALUES (?, ?, ?, 0)", (campaign, "S", "M"))

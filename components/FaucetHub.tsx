@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth, sessionHeaders } from './AuthContext';
-import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRevealMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
 
 
 interface FaucetHubProps {
@@ -28,8 +28,9 @@ interface FaucetData {
 }
 
 // Sem `api_key`: o my-key devolvia a chave a quem soubesse o endereco da
-// torneira, e o endereco esta no diretorio publico. Ela agora vem do
-// reveal-key, contra assinatura.
+// torneira, e o endereco esta no diretorio publico. Desde 8/10/2026 o servidor
+// guarda so o hash, entao nenhuma rota devolve a chave -- ela aparece uma vez
+// no registro e uma vez na rotacao.
 interface ApiKeyInfo {
     created_at: number;
     is_active: boolean;
@@ -81,6 +82,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     const [keyInfo, setKeyInfo] = useState<ApiKeyInfo | null>(null);
     // Fica so nesta tela, ate trocar de torneira. Nao vai para o estado global
     // nem para o storage: uma chave na aba aberta ja e exposicao suficiente.
+    // Guarda a chave que a rotacao acabou de devolver, para mostra-la uma vez.
     const [revealedKey, setRevealedKey] = useState<string | null>(null);
     const [keyError, setKeyError] = useState<string>("");
     const [keyLoading, setKeyLoading] = useState(false);
@@ -271,25 +273,9 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
         }
     };
 
-    // Ver a chave e uma acao, nao uma leitura: quem a ve pode distribuir em
-    // nome da torneira. Por isso passa pela mesma assinatura do saque.
-    const handleRevealKey = async (wallet: string) => {
-        setKeyError("");
-        try {
-            const faucet = wallet.trim().toLowerCase();
-            const sig = await signAction(authMethod, (ts) => apiKeyRevealMessage(faucet, ts));
-            const res = await fetch(`${API_BASE_URL}/api/faucethub/reveal-key`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...sessionHeaders() },
-                body: JSON.stringify({ wallet_address: faucet, ...sig })
-            });
-            const data = await res.json();
-            if (res.ok) setRevealedKey(data.api_key);
-            else setKeyError(data.detail || "Nao foi possivel mostrar a chave.");
-        } catch (e: any) {
-            setKeyError(e.message);
-        }
-    };
+    // handleRevealKey saiu em 8/10/2026 junto com o endpoint. O servidor guarda
+    // so o sha256 da chave, entao nao existe mais o que revelar -- quem perdeu
+    // a dela rotaciona, logo abaixo.
 
     const handleRegenerateKey = async (wallet: string) => {
         setKeyError("");
@@ -760,12 +746,17 @@ const formataCobertura = (c: number): string =>
                                                 </button>
                                             </div>
                                         ) : (
-                                            <button
-                                                onClick={() => handleRevealKey(selectedFaucet)}
-                                                className="w-full py-2 bg-purple-900/30 hover:bg-purple-800/40 border border-purple-500/30 text-purple-200 rounded-lg text-xs font-semibold transition-colors"
-                                            >
-                                                Mostrar chave (assina com a carteira da torneira)
-                                            </button>
+                                            <div className="bg-black/30 rounded-lg p-3 border border-purple-500/15">
+                                                <p className="text-purple-300/90 text-[11px] leading-relaxed">
+                                                    A chave não pode ser mostrada de novo. Aqui fica só o
+                                                    hash dela, para que uma leitura do banco não entregue o
+                                                    direito de distribuir em nome desta torneira.
+                                                </p>
+                                                <p className="text-purple-400/70 text-[10px] mt-2 leading-relaxed">
+                                                    Perdeu a sua? Rotacione abaixo: a nova aparece uma vez e
+                                                    a anterior morre na mesma chamada.
+                                                </p>
+                                            </div>
                                         )}
 
                                         {keyError && (

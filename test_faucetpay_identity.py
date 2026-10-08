@@ -63,8 +63,11 @@ def main() -> int:
     assert "api_key" not in body, f"my-key still leaks the key: {body}"
     assert "total_requests" in body, "counters should survive; only the key left"
 
+    # reveal-key foi removido em 8/10/2026: o banco guarda so o sha256 da
+    # chave, entao nao existe rota que a devolva. O 404 aqui e o do FastAPI
+    # para uma rota que nao existe, e e o que um cliente antigo recebe.
     r = client.post("/api/faucethub/reveal-key", json={"wallet_address": FAUCET})
-    assert r.status_code == 401, f"reveal-key without a signature returned {r.status_code}"
+    assert r.status_code == 404, f"reveal-key should be gone, got {r.status_code}"
     assert real_key not in r.text
 
     r = client.post("/api/faucethub/regenerate-key", json={"wallet_address": FAUCET})
@@ -73,12 +76,14 @@ def main() -> int:
     # And it really did not rotate: the original key still works. A refusal
     # that cut the owner off anyway would be the denial half of FC-01 surviving.
     conn = sqlite3.connect(os.path.join(workdir, "blockchain.db"))
+    # O banco guarda o sha256 desde 8/10/2026, entao a comparacao e contra o
+    # hash da chave original -- que e exatamente o que a autenticacao faz.
     still = conn.execute(
-        "SELECT api_key FROM faucet_api_keys WHERE faucet_wallet = ? AND is_active = 1",
+        "SELECT api_key_hash FROM faucet_api_keys WHERE faucet_wallet = ? AND is_active = 1",
         (FAUCET,),
     ).fetchone()
     conn.close()
-    assert still and still[0] == real_key, "a refused regenerate must change nothing"
+    assert still and still[0] == api_server._hash_token(real_key),         "a refused regenerate must change nothing"
 
     # --- fase 1: nomear ----------------------------------------------------
     r = client.post("/api/faucethub/faucetpay/link",
