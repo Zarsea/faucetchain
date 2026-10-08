@@ -338,7 +338,7 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
                     <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
                         <span className="text-[10px] font-black text-brand-primary uppercase block">{t('dashboard.network')}</span>
-                        <span className="text-xs font-bold text-white">FaucetChain L1</span>
+                        <span className="text-xs font-bold text-white">FaucetChain appchain</span>
                     </div>
                     <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
                         <span className="text-[10px] font-black text-brand-primary uppercase block">{t('dashboard.consensus')}</span>

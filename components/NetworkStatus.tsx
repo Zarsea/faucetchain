@@ -97,7 +97,7 @@ export const NetworkStatus: React.FC = () => {
                 <div>
                     <h2 className="text-3xl font-bold text-brand-secondary">Network Status</h2>
                     <p className="text-brand-muted">
-                        Live metrics and AI-driven supervision of the FaucetChain L1 network.
+                        Live metrics and AI-driven supervision of the FaucetChain appchain, which settles on Solana.
                     </p>
                 </div>
                 <div className="flex gap-2 p-1 bg-brand-surface border border-brand-border rounded-lg">
