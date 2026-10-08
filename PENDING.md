@@ -126,14 +126,24 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
       routes stay guarded; what is given away is the reconnaissance.
       `FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`, kept on in
       development by an environment variable.
-- [ ] **Replace the password hash.** `hmac.new(salt, password, sha256)` is one
-      round of a deliberately fast function, with a *global* salt and no work
-      factor. `users` has no per-user salt column, so two accounts with the same
-      password store the same hash. Not plaintext, which is the question that
-      was asked, but a database leak becomes a password list quickly. bcrypt or
-      argon2, re-hashing each account at its next login.
+- [x] **Replace the password hash.** **Done 8 October.** It was
+      `hmac.new(salt, password, sha256)`: one round of a deliberately fast
+      function, a *global* salt, no work factor, and two accounts with the same
+      password storing byte-identical hashes.
 
-      This is the only finding whose damage is permanent: a leaked key is
+      Now bcrypt, which generates and embeds a salt per row. Login had to be
+      rewritten with it, because `WHERE password_hash = ?` only works while the
+      same password always produces the same hash. `verify_password` returns
+      `(matches, needs_rewrite)` and the old format is rewritten in place at
+      login, with the password in hand — there is no batch migration, since a
+      legacy hash cannot be converted without it.
+
+      A sha256+base64 pre-hash feeds bcrypt: the installed bcrypt 5.0 *refuses*
+      a password over 72 bytes rather than truncating, so without it a long
+      password was a 500 at registration. `test_password_hashing.py` pins all
+      six properties, including that a legacy hash still opens the account.
+
+      This was the only finding whose damage is permanent: a leaked key is
       rotated, a leaked password is the one that person uses elsewhere.
 - [x] **Pace `GET /api/solana/holdings/{address}`.** Forty of forty requests
       succeeded. Four-table JOIN per call, no `check_rate_limit`, no
@@ -203,12 +213,24 @@ https://claude.ai/artifact/38Bgae5GPZTKDCboHSq5aV
       `INTERNAL_SECRET` is not in `.env`, so the route refuses, which is the
       safe behaviour with the wrong code. 503 is the one that means the
       capability is not available.
-- [ ] **Decide whether API keys stay readable.** `faucet_api_keys.api_key` is
-      stored in clear because `reveal-key` shows it again to the owner. That is
-      a deliberate trade, not an oversight, and the price is that one database
-      read hands out the right to distribute in every faucet's name. Closing it
-      means storing only the hash and dropping `reveal`: the key appears once at
-      creation and once at rotation, and whoever loses it rotates.
+- [x] **Decide whether API keys stay readable.** **Decided and done
+      8 October: they are not.** The column holds `sha256` now and is named
+      `api_key_hash`, because `api_key` with a hash inside is the kind of lie
+      in a schema that costs someone a day a year from now. sha256 and not
+      bcrypt: the key is `fch_` plus 32 random bytes, so there is no dictionary
+      to try, and the lookup has to stay indexed — the same choice
+      `_hash_token` makes for sessions.
+
+      `POST /api/faucethub/reveal-key` is gone with the plaintext it depended
+      on, along with its button in the panel and its section in
+      [FaucetHub_Integration_Guide.md](FaucetHub_Integration_Guide.md). The key
+      appears once at creation and once at rotation, which is what the panel
+      already promised.
+
+      Every key already in the wild keeps working, because an arriving key is
+      hashed before the lookup. Verified against all 13 rows before and after
+      the migration, and against the running server with the partner's real
+      key.
 
 ---
 
@@ -331,8 +353,13 @@ Nothing here can be done by anyone else, and most of it takes minutes.
       verified 4 October by running the query. A 429 that a client treats as
       "no data" would look exactly like that.
 
-- [ ] **Decide whether the identity link is public.**
-      `GET /api/solana/link/{address}` answers for any address with no
+- [x] **Decide whether the identity link is public.** **Decided and done
+      8 October: it is not.** `GET /api/solana/link/{address}` now requires the
+      session of the account it describes, and the browser sends it. The ledger
+      stays public; the bridge between the two identities does not. What
+      follows is the reasoning that produced that decision.
+
+      `GET /api/solana/link/{address}` answered for any address with no
       authentication, returning the Solana wallet behind a FaucetChain account.
       The forward direction is public by construction — the account is keccak
       of the wallet, so anyone holding a wallet computes it. The reverse is
@@ -682,6 +709,26 @@ be prudent is also small enough to be invisible on camera. Every one of them is
 wrong for real money, and none of them will announce itself.
 
 Decided 2 October, with the exposure measured rather than estimated.
+
+- [ ] **What happens when the 99M cap is reached.** Today: nothing graceful.
+      `distribute_epoch_rewards` returns `max_supply_reached` and uptime
+      rewards simply stop. At the current constant pool of 1,695 $CLAIM an hour
+      that is 14,848,200 a year, so the cap arrives in about 6.7 years and the
+      network falls off a cliff on an ordinary Tuesday.
+
+      This is the question the halving was trying to answer, and the halving
+      was never built — it only existed as a chart in `Tokenomics.tsx`, three
+      contradictory numbers in `i18n.ts`, `KnowledgeBase.ts` and
+      `Whitepaper.tsx`, and nowhere in the server. All of that was removed on
+      8 October rather than implemented, because changing an emission schedule
+      four days before a deadline is a worse idea than admitting there isn't
+      one.
+
+      The real options, for after the hackathon: a decay on the hourly ceiling
+      so emission asymptotes instead of stopping; or fees and treasury yield
+      taking over as the subsidy falls, which is what the whitepaper already
+      implies by funding rewards from staking rather than from issuance. The
+      second fits what is already built. Neither is decided.
 
 - [ ] **`FLOOR_USERS`, now 30, back to 100 or higher.** The rate is divided by
       whichever is larger, the real number of active users or this floor. At 30

@@ -319,28 +319,19 @@ since the wallet address is published in the faucet directory, reading the
 directory was enough to take over any faucet on it. Counters are not a secret;
 the key is.
 
-### Show the key
+### The key cannot be shown again
 
-```
-POST /api/faucethub/reveal-key
-Content-Type: application/json
-```
+`POST /api/faucethub/reveal-key` existed until 8 October 2026 and is gone. It
+returned the live key to the wallet that owned the faucet, and for that the key
+had to sit in our database in plaintext — which meant one read of that database
+handed over the right to distribute in the name of every faucet on it, yours
+included.
 
-```json
-{
-    "wallet_address": "0x84da...",
-    "signature": "0x...",
-    "sig_timestamp": 1717372800
-}
-```
+We now store only its SHA-256. The key you are sent when you register, and
+again when you rotate, is the only time it exists in readable form anywhere.
+Put it on your server then. If you lose it, rotate.
 
-The wallet that owns the faucet signs a sentence saying what it is asking for,
-and the server rebuilds that sentence before checking the signature. A POST
-rather than a GET because a key does not belong in a URL, where it would sit in
-every proxy log between you and us.
-
-If your account is custodial — created with an email rather than a wallet — send
-the session token in `X-Session-Token` instead of a signature.
+A request to the old route returns 404.
 
 ### Rotate the key
 

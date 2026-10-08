@@ -100,8 +100,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         description: 'Token Economics',
         keywords: ['token', 'tokenomics', 'supply', 'emission', 'halving', 'reward', 'recompensa'],
         response: [
-            "$CLAIM is the native token. Initial emission: 100 tokens/block. Halving occurs every 210,000 blocks (similar to Bitcoin). Total supply cap: 21 million tokens. Validators earn block rewards + transaction fees.",
-            "O token $CLAIM tem emissão deflacionária. Começamos com 100 tokens por bloco, com halving a cada 210.000 blocos. Supply máximo: 21 milhões. Validadores ganham recompensas de bloco + taxas de transação."
+            "$CLAIM has a fixed supply of 99,000,000 and nothing mints beyond it. Emission is capped per hour, not per block: the network releases at most 2,000 $CLAIM an hour across every faucet connected to it, and the claim puzzle gets harder as that hour's quota is spent. There is no halving — the hourly ceiling is the emission control. Claiming and receiving cost nothing; withdrawing to Solana costs a fee a relayer pays.",
+            "O $CLAIM tem supply fixo de 99.000.000 e nada emite além disso. A emissão é limitada por hora, não por bloco: a rede libera no máximo 2.000 $CLAIM por hora somando todas as torneiras conectadas, e o desafio do claim fica mais difícil conforme a cota da hora é gasta. Não há halving — o teto horário é o controle de emissão. Claim e recebimento não custam nada; sacar para a Solana custa uma taxa que um relayer paga."
         ]
     },
     {
@@ -288,8 +288,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         ]
     },
     {
-        id: 'halving_impact',
-        description: 'Explain Halving Impact on Rewards',
+        id: 'emission_schedule',
+        description: 'How emission is limited (there is no halving)',
         keywords: [
             'halving',
             'halvening',
@@ -299,8 +299,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
             'emission schedule'
         ],
         response: [
-            "The halving event periodically cuts block rewards in half, reducing long-term inflation. In FaucetChain, this shifts focus from pure issuance to fee-driven security: validators rely more on real usage (fees + PoC participation) and less on new token emission.",
-            "O halving reduz periodicamente a recompensa de bloco pela metade, diminuindo a inflação de longo prazo. Na FaucetChain isso desloca o foco de emissão pura para segurança guiada por uso real: validadores passam a depender mais de taxas (fees + participação PoC) e menos de nova emissão de tokens."
+            "FaucetChain has no halving. An earlier draft described one and it was never built; what limits emission is a hard ceiling of 2,000 $CLAIM an hour across the whole network, against a fixed supply of 99,000,000. Two things follow: a botnet cannot drain a day of emission in ten minutes, and the cost of attacking the network scales with time rather than with hardware. Within the hour the claim puzzle gets harder as the quota is spent, so the cheapest claims go to whoever arrives first.",
+            "A FaucetChain não tem halving. Uma versão antiga do papel descrevia um e ele nunca foi construído; o que limita a emissão é um teto rígido de 2.000 $CLAIM por hora para a rede inteira, contra um supply fixo de 99.000.000. Daí saem duas coisas: uma botnet não drena a emissão de um dia em dez minutos, e o custo de atacar a rede cresce com o tempo em vez de crescer com hardware. Dentro da hora o desafio do claim fica mais difícil conforme a cota é gasta, então os claims mais baratos vão para quem chega primeiro."
         ]
     },
     {
@@ -331,8 +331,8 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
             'change parameters'
         ],
         response: [
-            "Hybrid governance in FaucetChain mixes stake weight and merit participation. Critical parameters like reward rate, halving schedule and slashing rules can be changed only through on-chain proposals where both economic weight and protocol usage are taken into account.",
-            "A governança híbrida na FaucetChain mistura peso de stake com participação em mérito. Parâmetros críticos como taxa de recompensa, cronograma de halving e regras de slashing só podem ser alterados via propostas on-chain onde tanto o peso econômico quanto o uso real do protocolo são considerados."
+            "Hybrid governance in FaucetChain mixes stake weight and merit participation. Critical parameters like the hourly emission ceiling, the claim difficulty and slashing rules can be changed only through on-chain proposals where both economic weight and protocol usage are taken into account.",
+            "A governança híbrida na FaucetChain mistura peso de stake com participação em mérito. Parâmetros críticos como o teto horario de emissao, a dificuldade do claim e as regras de slashing só podem ser alterados via propostas on-chain onde tanto o peso econômico quanto o uso real do protocolo são considerados."
         ]
     },
 

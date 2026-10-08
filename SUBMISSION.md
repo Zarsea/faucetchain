@@ -70,10 +70,17 @@ verifiable:
 - The program **refuses a root its vault cannot cover** (`InsufficientReserve`).
   This is the whole reason the guarantee lives on Solana instead of here.
 - Users withdraw against a proof with **no SOL of their own** — a relayer pays.
-  First real withdrawal:
-  `46kkEoMDU3gyW5smjGmzpmdctfqWnzAyt8ztbF61S2u2LknHWEVh4oSZvwxkhBy5SXvcfWdP2XmAQhqnhXFFXNhw`,
-  `err: null`, 85,000 lamports of fee plus 1,488,440 of token-account rent
-  (**verified 3 Oct**).
+  **Two real withdrawals**, 717,526 units in all:
+  `46kkEoMDU3gyW5smjGmzpmdctfqWnzAyt8ztbF61S2u2LknHWEVh4oSZvwxkhBy5SXvcfWdP2XmAQhqnhXFFXNhw`
+  on 2 October (**verified 3 Oct**) and
+  `2fKnxfS4T7Wrbad2ULK5xQQN9eBgb9v2X2aWVc4bkacJv3KFJhK8RkccR54dark49hyK3gwooRJzE6Wgux6eC6Qx`
+  on 5 October, both `err: null`, each 85,000 lamports of fee plus 1,488,440 of
+  token-account rent.
+
+  The second one is the better screenshot: the receiving wallet holds **zero
+  SOL** and got the token anyway, which is the whole argument in one frame.
+  Checked the way this project learned to check — the token account exists and
+  holds the balance, and accounts are not pruned (**verified 8 Oct**).
 
 ---
 
@@ -118,9 +125,13 @@ this repository:
 
 ### `traction`
 
-Backed: 5 published roots, 105 reward rows, 4,185,079,573 units credited, 39
-linked Solana addresses, 6 registered faucets, 26 sealed blocks, one real
-withdrawal by a real wallet.
+Backed, re-read from the ledger on 8 October: 5 published roots, 113 reward
+rows, 4,262,207,812 units credited, 39 linked Solana addresses, 6 registered
+faucets, 26 sealed blocks, two real withdrawals by real wallets.
+
+Say **one** of those six faucets is a partner with its own audience. The other
+five are ours, for testing. "Six partner faucets" is the easiest sentence in
+this submission to puncture.
 
 **This file said 19 until 4 October, and that was wrong.** Fourteen batches
 carried a `published_signature` for a transaction that does not exist on devnet

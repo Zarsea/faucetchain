@@ -220,7 +220,7 @@ the key that can replace the program never has to sit on the machine running a d
 
 | Variable | Used for |
 | --- | --- |
-| `PASSWORD_SALT` | Hashing passwords of custodial accounts |
+| `PASSWORD_SALT` | Only reads back pre-bcrypt password hashes, so they can be rewritten at the next login. New passwords use bcrypt, which carries its own per-row salt. Remove it once nobody is left on the old format |
 | `INTERNAL_FAUCET_WALLET`, `INTERNAL_FAUCET_API_KEY` | The built-in faucet that pays micro-claims |
 | `CLAIM_IP_HOURLY_WALLETS` | How many wallets one IP may claim for per hour (default 5) |
 | `SETTLEMENT_OPERATOR_TOKEN` | Guards crediting rewards and closing batches |

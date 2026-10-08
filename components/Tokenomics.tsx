@@ -13,37 +13,47 @@ interface TokenomicsProps {
     onNavigate?: (tab: string) => void;
 }
 
-const generateDecayData = () => {
+// Este gráfico mostrava um halving: 28,25 por bloco caindo pela metade a cada
+// 525.600 blocos, com assíntota em 29,7M. Nada disso roda no servidor. Lá o
+// pagamento por época é `MINING_CONFIG["epoch_reward"] = 1695.0`, constante, e
+// o que limita a emissão é `TOKENS_PER_HOUR = 2000` contra o teto de 99M. As
+// duas curvas coincidiam no primeiro ano e divergiam para sempre depois.
+//
+// O que está desenhado agora é o mecanismo que existe de verdade: dentro de
+// cada hora, o desafio do claim encarece conforme a cota é gasta.
+// `claim_difficulty_bits` soma +1 bit a cada 25% da cota, até +3 — e cada bit
+// dobra o trabalho. Quem chega cedo paga o custo base; quem tenta varrer o
+// resto da hora paga oito vezes mais.
+const CLAIM_PROOF_DIFFICULTY_BITS = 16;  // api_server.py
+const CLAIM_PROOF_MAX_EXTRA_BITS = 3;
+
+const generateDifficultyData = () => {
     const data = [];
-    const initialReward = 28.25; // Block 0 reward to asymptote at 29.7M (30% of 99M)
-    const halvingInterval = 525600; // ~1 year (at 1 minute blocks)
-    const totalBlocks = 3153600; // ~6 years projection on the chart
-    const steps = 60;
-    
-    for (let i = 0; i <= steps; i++) {
-        const block = (totalBlocks / steps) * i;
-        const reward = initialReward * Math.pow(0.5, block / halvingInterval);
+    for (let pct = 0; pct <= 100; pct += 2) {
+        const extra = Math.min(CLAIM_PROOF_MAX_EXTRA_BITS, Math.floor((pct / 100) * 4));
         data.push({
-            block,
-            reward: parseFloat(reward.toFixed(2)),
-            label: `${(block / 1000).toFixed(0)}k`
+            quota: pct,
+            work: Math.pow(2, extra),          // trabalho relativo ao primeiro claim da hora
+            bits: CLAIM_PROOF_DIFFICULTY_BITS + extra,
         });
     }
     return data;
 };
 
-const DECAY_DATA = generateDecayData();
+const DIFFICULTY_DATA = generateDifficultyData();
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
             <div className="bg-brand-surface border border-brand-border p-3 rounded-lg shadow-xl backdrop-blur-md">
-                <p className="text-xs text-brand-muted mb-1 uppercase tracking-tighter">Network Progress</p>
-                <p className="text-sm font-bold text-brand-secondary mb-2">Block {Math.round(payload[0].payload.block).toLocaleString()}</p>
+                <p className="text-xs text-brand-muted mb-1 uppercase tracking-tighter">Hourly quota</p>
+                <p className="text-sm font-bold text-brand-secondary mb-2">{payload[0].payload.quota}% spent</p>
                 <div className="h-px bg-brand-border mb-2" />
                 <p className="text-sm font-bold text-orange-400 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span>
-                    {payload[0].value} <span className="text-[10px] text-brand-muted">$CLAIM / Block</span>
+                    {payload[0].value}x <span className="text-[10px] text-brand-muted">
+                        work · {payload[0].payload.bits} bits
+                    </span>
                 </p>
             </div>
         );
@@ -189,10 +199,12 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                     <div style={{ width: '100%', height: 220 }} className="bg-brand-bg/40 rounded-xl p-4 border border-brand-border/50 relative overflow-hidden">
                         <div className="absolute top-4 right-4 flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                            <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">Emission Rate</span>
+                            <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">
+                                {lang === 'en' ? "Work per claim" : "Trabalho por claim"}
+                            </span>
                         </div>
                         <ResponsiveContainer>
-                            <AreaChart data={DECAY_DATA} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                            <AreaChart data={DIFFICULTY_DATA} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorReward" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#F78166" stopOpacity={0.3}/>
@@ -200,30 +212,33 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#30363D" vertical={false} opacity={0.5} />
-                                <XAxis 
-                                    dataKey="block" 
+                                <XAxis
+                                    dataKey="quota"
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: '#8B949E', fontSize: 10 }}
-                                    tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
+                                    tickFormatter={(val) => `${val}%`}
                                 />
-                                <YAxis 
+                                <YAxis
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: '#8B949E', fontSize: 10 }}
-                                    domain={[0, 30]}
+                                    domain={[0, 9]}
+                                    ticks={[1, 2, 4, 8]}
+                                    tickFormatter={(val) => `${val}x`}
                                 />
                                 <Tooltip content={<CustomTooltip />} />
                                 
-                                <ReferenceLine x={525600} stroke="#8B949E" strokeDasharray="3 3" label={{ position: 'top', value: '1st Halving (Yr 1)', fill: '#8B949E', fontSize: 9 }} />
-                                <ReferenceLine x={1051200} stroke="#8B949E" strokeDasharray="3 3" label={{ position: 'top', value: '2nd Halving (Yr 2)', fill: '#8B949E', fontSize: 9 }} />
-                                
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="reward" 
-                                    stroke="#F78166" 
-                                    strokeWidth={3} 
-                                    fillOpacity={1} 
+                                <ReferenceLine x={25} stroke="#8B949E" strokeDasharray="3 3" label={{ position: 'top', value: '+1 bit', fill: '#8B949E', fontSize: 9 }} />
+                                <ReferenceLine x={50} stroke="#8B949E" strokeDasharray="3 3" label={{ position: 'top', value: '+2', fill: '#8B949E', fontSize: 9 }} />
+                                <ReferenceLine x={75} stroke="#8B949E" strokeDasharray="3 3" label={{ position: 'top', value: '+3', fill: '#8B949E', fontSize: 9 }} />
+
+                                <Area
+                                    type="stepAfter"
+                                    dataKey="work"
+                                    stroke="#F78166"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
                                     fill="url(#colorReward)"
                                     animationDuration={2500}
                                 />
@@ -231,8 +246,12 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                         </ResponsiveContainer>
                     </div>
                     <div className="flex justify-between mt-2 px-1">
-                        <span className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Epoch 0 (Genesis)</span>
-                        <span className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">Epoch 4+</span>
+                        <span className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">
+                            {lang === 'en' ? "Start of the hour" : "Início da hora"}
+                        </span>
+                        <span className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">
+                            {lang === 'en' ? "Quota spent" : "Cota esgotada"}
+                        </span>
                     </div>
                 </SectionCard>
             </div>

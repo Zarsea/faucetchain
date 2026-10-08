@@ -68,9 +68,10 @@ the chain holds.
 
 **0:45 – 1:00 · where it stands.**
 On screen: the real withdrawal on the Solana explorer.
-Beat: five roots, verified account by account. One real withdrawal by a real
-wallet. Five live campaigns after retiring twenty-three whose mint was not a
-mint. Next week: the public URL and the demo.
+Beat: five roots, verified account by account. Two real withdrawals by real
+wallets, the second into a wallet holding no SOL at all. Five live campaigns
+after retiring twenty-three whose mint was not a mint. Next week: the public
+URL and the demo.
 
 ### Shooting notes
 
@@ -96,10 +97,19 @@ cover is the only shot that proves the guarantee is not ours to break. Every
 happy path in every hackathon demo looks identical; a program refusing its own
 operator does not.
 
-**The last shot is unspent on purpose.** Campaign 479079 holds 347,221 units in
-a published root, against a linked Solana wallet, never withdrawn. Spending it
-off-camera wastes the only take that cannot be rehearsed. Do not click it while
-testing.
+**The last shot was spent off-camera on 5 October, and that is the lesson.**
+Campaign 479079's 347,221 units were the unrehearsable take. They were
+withdrawn while we were proving the Phantom path worked. The take is gone.
+
+What replaces it: eight rewards are still unspent in published roots, across
+campaigns 687389, 711670 and 478840, each against a linked wallet. **Any of
+them only works on camera if you hold that wallet's private key** — a link says
+which account a wallet opens, not that you control it. Check that before the
+shoot, not during it.
+
+The silver lining is real and worth filming: the 5 October withdrawal landed in
+a wallet holding **zero SOL**, and the Solana explorer shows exactly that — the
+account has no SOL and holds the token. One frame, the whole thesis.
 
 Shoot the demo **before** the pitch. It is the one with a fixed script — the
 software decides what happens — and watching your own demo is the fastest way
@@ -146,8 +156,9 @@ true.
   partner's money never moves, and the partner stays up if we go down
   (`test_partner_survives_outage.py`).
 - **The unit economics**, measured rather than estimated: 1,573,440 lamports
-  for the first withdrawal, 95% of it token-account rent, charged once per
-  person per token. That number is why a withdrawal minimum exists.
+  per withdrawal, the same for both that have happened, 95% of it
+  token-account rent and charged once per person per token. That number is why
+  a withdrawal minimum exists.
 
 ### What is not answered, and only you can
 
@@ -164,7 +175,7 @@ about a project whose demand evidence is a single partner.
 
 ### The trap to avoid
 
-This ledger's own counts — 105 reward rows, 39 linked addresses, 5 roots — are
+This ledger's own counts — 113 reward rows, 39 linked addresses, 5 roots — are
 **integration** numbers. They prove the rail runs end to end. They do not prove
 anyone wants it. Presenting them as traction is the easiest claim in the
 submission to puncture, and "the rail works, and here is who uses it" is
@@ -174,18 +185,17 @@ defensible where "we have traction" is not.
 
 ## The figures, and how to re-read them
 
-Spoken on camera, a number cannot be corrected. These were read on 4 October:
+Spoken on camera, a number cannot be corrected. **Re-read 8 October:**
 
 | figure | value | command |
 |---|---|---|
 | roots published, verified by account | 5 | `python verify_published_roots.py` |
 | live campaigns | 5 | `GET /api/solana/campaigns` |
-| the unspent withdrawal | 347,221 units, campaign 479079 | `GET /api/solana/ledger/479079` |
-| payouts actually signed | 1, for 370,305 | same |
-| cost of that payout | 1,573,440 lamports | `GET /api/solana/relayer` |
-| registered faucets | 6 | `GET /api/faucethub/faucets` |
-| FaucetHunter escrow vs debt | 21,079.72 against 20 | same |
+| withdrawals actually signed | 2, for 717,526 units | `GET /api/solana/relayer` |
+| what those two cost the relayer | 3,146,880 lamports | same |
+| registered faucets (one is a real partner) | 6 | `GET /api/faucethub/faucets` |
+| FaucetHunter escrow vs debt | 21,079.72 against 22.00 | same |
 | $CLAIM minted of the 99M cap | 78,077.24 | `python reconcile.py` |
+| rewards still unspent in a published root | 8 | see the demo note below |
 
-Re-run them the morning of the shoot. Three of these changed this week, and one
-of them was wrong in a document for two days.
+Re-run them the morning of the shoot. Four changed between 4 and 8 October.

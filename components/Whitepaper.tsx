@@ -340,9 +340,11 @@ export const Whitepaper: React.FC = () => {
                             {[
                                 { param: 'Epoch Duration', value: '1 hour' },
                                 { param: 'Tokens Per Epoch', value: '2,000 $CLAIM' },
-                                { param: 'Halving Interval', value: '2,100,000 blocks — planned' },
-                                { param: 'Initial Block Reward', value: '500 $CLAIM — planned' },
-                                { param: 'Treasury Split', value: '60% Ecosystem / 40% Team — policy' },
+                                { param: 'Halving', value: 'None — the hourly ceiling is the control' },
+                                { param: 'Uptime Pool', value: '1,695 $CLAIM/hour, inside the ceiling' },
+                                { param: 'Claim Split', value: '80% user / 20% miner' },
+                                { param: 'Claim Difficulty', value: '16 bits, +1 per 25% of quota spent' },
+                                { param: 'Fee Burn', value: 'Opt-in only — nothing burns automatically' },
                             ].map((item, i) => (
                                 <div key={i} className="flex justify-between items-center p-3 bg-brand-bg/40 rounded-lg border border-brand-border/30">
                                     <span className="text-xs text-brand-muted font-bold uppercase">{item.param}</span>
@@ -383,9 +385,9 @@ export const Whitepaper: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 my-6">
                     {[
                         { label: 'Max Supply', value: '99,000,000', sub: '$CLAIM' },
-                        { label: 'Initial Reward', value: '500', sub: '$CLAIM/block' },
-                        { label: 'Halving', value: '2.1M', sub: 'blocks' },
-                        { label: 'Gas Burn', value: '50%', sub: 'of base fee' },
+                        { label: 'Hourly Ceiling', value: '2,000', sub: '$CLAIM/hour' },
+                        { label: 'Halving', value: 'None', sub: 'hourly quota instead' },
+                        { label: 'Fee Burn', value: 'Opt-in', sub: 'never automatic' },
                     ].map((s, i) => (
                         <div key={i} className="text-center p-5 bg-brand-bg/40 rounded-xl border border-brand-border/30 hover:border-brand-primary/30 transition-colors">
                             <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-1">{s.label}</span>
@@ -599,7 +601,7 @@ export const Whitepaper: React.FC = () => {
                         <thead><TableRow cells={['Parameter', 'Current Value', 'Governance Scope']} header /></thead>
                         <tbody>
                             <TableRow cells={['Epoch Quota', '2,000 CLAIM/hour', 'Adjustable ±50%']} />
-                            <TableRow cells={['Halving Interval', '2.1M blocks', 'Requires 80% consensus']} />
+                            <TableRow cells={['Claim Difficulty', '16 bits, +1 per 25% of quota', 'Adjustable ±4 bits']} />
                             <TableRow cells={['Min DApp Stake', '10,000 CLAIM', 'Adjustable ±30%']} />
                             <TableRow cells={['UTXO Vault Tiers', '3 tiers (1h/24h/7d)', 'New tiers can be added']} />
                             <TableRow cells={['Slashing Rates', '1-100% stake', 'Emergency governance only']} />

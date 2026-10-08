@@ -1,217 +1,223 @@
-
+// Os sete diagramas foram reescritos em 8/10/2026. Os anteriores desenhavam o
+// design pre-Solana: "VRF Leader Election" e "VRF Slot Selection", que nao
+// existem em codigo nenhum; "Stablecoin Yield", que tambem nao; e, acima de
+// tudo, nenhum deles mencionava a liquidacao na Solana -- o cofre, a raiz de
+// Merkle, o saque contra prova. O ANCHOR_CODE logo abaixo mostrava o programa
+// como codigo, e nenhuma figura o desenhava.
+//
+// O que veio de la e verdade e continua: Sentinel (SentinelV3Engine) e o peso
+// do stake na selagem (sealer_weight, com teto).
 export const DIAGRAMS = {
   en: {
     MERMAID_CODE: `
 flowchart TD
-    A["Event Trigger: User Activity"] --> B{"Sentinel AI Audit"}
-    B -- "Valid" --> C["PoC Merit Pool"]
-    B -- "Sybil" --> D["Reputation Penalty"]
-    
-    subgraph AdaptiveConsensus
-        C --> E{"HVM-V2 Engine"}
-        F["Staked CLAIM"] --> E
-        G["Network Health Metrics"] --> E
+    A["A click on a partner faucet"] --> B["Keccak puzzle in the browser"]
+    B --> C{"Sentinel: timing, clustering, per-IP"}
+    C -- "automated" --> D["Scored down, claim refused"]
+    C -- "human" --> E["Claim accepted"]
+
+    subgraph Sealing
+        E --> F["Block sealed"]
+        G["Staked CLAIM, capped weight"] --> F
     end
-    
-    E --> H["Final Consensus Weight"]
-    H --> I["VRF Leader Election"]
-    I --> J["Block Finalization"]
+
+    F --> H["80 percent to the user, 20 to the miner"]
+    H --> I["Hourly quota spent, difficulty rises"]
     `,
     HUB_INTEGRATION_DIAGRAM: `
 flowchart LR
-    H["Reputation Hub"] --> P["Merkle Proof"]
-    P --> API["API Submission"]
-    API --> S["Sentinel AI Analysis"]
-    S --> L["L1 State Update"]
-    L --> W["Reward Minting"]
+    F["Partner faucet"] -- "one HTTP call, X-Api-Key" --> A["POST /microclaim"]
+    A --> C["Credited on the appchain"]
+    C --> B["Batch closes: Merkle tree"]
+    B --> R["Root published on Solana"]
+    R --> W["User withdraws against a proof"]
     `,
     CLAIM_LIFECYCLE_DETAILED_CODE: `
 flowchart TD
-    User["User/App Activity"] --> Sub["Proof of Merit Submission"]
-    
-    subgraph ValidationLayer
-        Sub --> Val{"V2 Validator"}
-        Val --> Sentinel["AI Identity Audit"]
-        Val --> Adaptive["Adaptive Weight Calculation"]
-        Sentinel --> VRF["VRF Slot Selection"]
-        Adaptive --> VRF
+    User["User clicks on the faucet"] --> Credit["Credited here, free and instant"]
+
+    subgraph OnTheAppchain
+        Credit --> Drip["Campaign drip: 80 percent user, 20 treasury"]
+        Drip --> Batch["Batch closes, one Merkle tree"]
     end
-    
-    VRF --> Block["Block Commit"]
-    Block --> Split{"60/40 Treasury Split"}
-    
-    Split --> Eco["Ecosystem Yield"]
-    Split --> Team["Vesting"]
+
+    Batch --> Check{"Does the vault cover what is promised?"}
+    Check -- "no" --> Refuse["InsufficientReserve: root refused"]
+    Check -- "yes" --> Root["Root published on Solana"]
+
+    subgraph OnSolana
+        Root --> Proof["User proves their leaf"]
+        Proof --> Receipt["Receipt account blocks a second withdrawal"]
+        Receipt --> Pay["Relayer pays the fee and the rent"]
+    end
+
+    Pay --> Wallet["Tokens in the user wallet"]
     `,
     MINDMAP_CODE: `
 mindmap
-  root((FaucetChain V3))
-    Frontend (Vite/React)
-      User Dashboard
-        Address Tracker
-        P2P Transfers
-        Merit Portfolio
-      AutoClaim Hub
-        Web3 Login
-        Staking Vault
-      API Integration
-        WebSocket Auto-Reconnect
-        FastAPI Hooks
-    Backend (FastAPI)
-      Consensus Engine
-        Dual PoC & PoS
-        Hybrid Block Validation
-      Sentinel AI V3
-        Fraud Detection (Sybil)
-        Rate Limiting (Per IP/Node)
-      SQLite Database
-        B-Tree Indexes (Optimized)
-        Transactions Ledger
-        Miners & Claims State
-    Mining Node (Electron)
-      Core Logic
-        Heartbeats (Uptime)
-        Epoch Rewards
-      GUI Interface
-        Real-time Logs
-        Local Hardware Stats
+  root((FaucetChain))
+    Appchain
+      Proof of Claim
+        Keccak puzzle in the browser
+        Hourly quota of 2000 CLAIM
+        Difficulty rises as it is spent
+      Sentinel
+        Timing and clustering
+        Per-IP wallet cap
+      Micro-claims
+        Partner faucets over one HTTP call
+        Campaign drip, 80/20
+    Settlement on Solana
+      Campaign vault
+        Authority is the campaign, not a key
+      Merkle root per batch
+        Reserve check before publishing
+      Withdrawal
+        Proof of one leaf
+        Receipt against replay
+        Relayer pays the fee
+    Treasury
+      Stakes its own capital
+      Funds the reward budget
+      Users never deposit
     `,
     CLAIM_EVENT_DIAGRAM: `
 sequenceDiagram
-    participant U as "User/Node"
-    participant C as "HVM-V2 Engine"
-    participant S as "Sentinel AI"
-    participant T as "Treasury"
-    
-    U->>C: Submit Verifiable Activity
-    C->>S: Audit Merit Patterns
-    S->>C: Return Reputation Delta
-    C->>C: Calculate Hybrid Weight
-    C->>T: Mint & Hedge Reward
-    T->>U: Payout Merit Share
+    participant U as "User"
+    participant F as "Partner faucet"
+    participant A as "FaucetChain"
+    participant S as "Solana"
+
+    U->>F: Completes the task
+    F->>A: One HTTP call, after its own commit
+    A->>A: Credits the user and the campaign share
+    A->>S: Publishes the batch root
+    S->>S: Refuses it if the vault cannot cover
+    U->>A: Asks for the proof of their leaf
+    U->>S: Withdraws, signing with their wallet
+    S->>U: Tokens, with the relayer paying the fee
     `,
     TOKENOMICS_FLOW_CODE: `
 flowchart LR
-    A["Activity/Claims"] --> B{"HVM-V2 Protocol"}
-    B --> C["Circulating Supply"]
-    B --> D["Ecosystem Treasury"]
-    D --> E["Stablecoin Yield"]
-    E --> F["Treasury Reinvestment"]
-    F --> B
+    Q["Hourly ceiling of 2000 CLAIM"] --> C["Claims across every faucet"]
+    C --> U["80 percent to the user"]
+    C --> T["20 percent to the treasury"]
+    T --> S["Treasury stakes its own capital: a model, not yet an operation"]
+    S --> B["Yield funds the reward budget"]
+    B --> C
     `,
     TREASURY_ALLOCATION_DIAGRAM: `
-pie title "Macro Allocation (99M Hardcap)"
-    "Proof of Work (Miners): 29.7M (30%)" : 30
-    "Proof of Stake (Vault): 29.7M (30%)" : 30
-    "Proof of Claim (Merit): 19.8M (20%)" : 20
-    "Core Team & Liquidity: 19.8M (20%)" : 20
+pie title "Proposed split of the 99M cap, not yet committed"
+    "Proof of Work, miners: 30" : 30
+    "Proof of Stake, vault: 30" : 30
+    "Proof of Claim, merit: 20" : 20
+    "Core team and liquidity: 20" : 20
     `
   },
   pt: {
     MERMAID_CODE: `
 flowchart TD
-    A["Gatilho: Atividade de Usuario"] --> B{"Auditoria IA Sentinel"}
-    B -- "Valido" --> C["Pool de Merito PoC"]
-    B -- "Sybil" --> D["Penalidade de Reputacao"]
-    
-    subgraph ModuladorAdaptativo
-        C --> E{"Motor HVM-V2"}
-        F["CLAIM em Stake"] --> E
-        G["Metricas de Saude da Rede"] --> E
+    A["Um clique numa torneira parceira"] --> B["Desafio keccak no navegador"]
+    B --> C{"Sentinel: ritmo, agrupamento, por IP"}
+    C -- "automatizado" --> D["Pontuado para baixo, claim recusado"]
+    C -- "humano" --> E["Claim aceito"]
+
+    subgraph Selagem
+        E --> F["Bloco selado"]
+        G["CLAIM em stake, peso com teto"] --> F
     end
-    
-    E --> H["Peso de Consenso Final"]
-    H --> I["Eleicao de Lider VRF"]
-    I --> J["Finalizacao do Bloco"]
+
+    F --> H["80 por cento para o usuario, 20 para o minerador"]
+    H --> I["Cota da hora gasta, dificuldade sobe"]
     `,
     HUB_INTEGRATION_DIAGRAM: `
 flowchart LR
-    H["Hub de Reputacao"] --> P["Prova de Merkle"]
-    P --> API["Submissao API"]
-    API --> S["Analise IA Sentinel"]
-    S --> L["Update de Estado L1"]
-    L --> W["Mintagem de Recompensa"]
+    F["Torneira parceira"] -- "uma chamada HTTP, X-Api-Key" --> A["POST /microclaim"]
+    A --> C["Creditado na appchain"]
+    C --> B["Lote fecha: arvore de Merkle"]
+    B --> R["Raiz publicada na Solana"]
+    R --> W["Usuario saca contra uma prova"]
     `,
     CLAIM_LIFECYCLE_DETAILED_CODE: `
 flowchart TD
-    User["Atividade Usuario/App"] --> Sub["Submissao de Prova de Merito"]
-    
-    subgraph CamadaValidacao
-        Sub --> Val{"V2 Validator"}
-        Val --> Sentinel["Auditoria de Identidade IA"]
-        Val --> Adaptive["Calculo de Peso Adaptativo"]
-        Sentinel --> VRF["Selecao de Slot VRF"]
-        Adaptive --> VRF
+    User["Usuario clica na torneira"] --> Credit["Creditado aqui, gratis e na hora"]
+
+    subgraph NaAppchain
+        Credit --> Drip["Gotejamento da campanha: 80 por cento usuario, 20 tesouraria"]
+        Drip --> Batch["Lote fecha, uma arvore de Merkle"]
     end
-    
-    VRF --> Block["Commit do Bloco"]
-    Block --> Split{"Divisao 60/40 Tesouro"}
-    
-    Split --> Eco["Yield de Ecossistema"]
-    Split --> Team["Vesting"]
-    `,
-    CLAIM_EVENT_DIAGRAM: `
-sequenceDiagram
-    participant U as "Usuario/No"
-    participant C as "Motor HVM-V2"
-    participant S as "IA Sentinel"
-    participant T as "Tesouro"
-    
-    U->>C: Submeter Atividade Verificavel
-    C->>S: Auditar Padroes de Merito
-    S->>C: Retornar Delta de Reputacao
-    C->>C: Calcular Peso Hibrido
-    C->>T: Mintar e Proteger Recompensa
-    T->>U: Pagamento de Parcela de Merito
-    `,
-    TOKENOMICS_FLOW_CODE: `
-flowchart LR
-    A["Atividade/Claims"] --> B{"Protocolo HVM-V2"}
-    B --> C["Suprimento Circulante"]
-    B --> D["Tesouro do Ecossistema"]
-    D --> E["Yield em Stablecoin"]
-    E --> F["Reinvestimento no Tesouro"]
-    F --> B
+
+    Batch --> Check{"O cofre cobre o que foi prometido?"}
+    Check -- "nao" --> Refuse["InsufficientReserve: raiz recusada"]
+    Check -- "sim" --> Root["Raiz publicada na Solana"]
+
+    subgraph NaSolana
+        Root --> Proof["Usuario prova a folha dele"]
+        Proof --> Receipt["Recibo impede um segundo saque"]
+        Receipt --> Pay["Relayer paga a taxa e o aluguel"]
+    end
+
+    Pay --> Wallet["Tokens na carteira do usuario"]
     `,
     MINDMAP_CODE: `
 mindmap
-  root((FaucetChain V3))
-    Frontend (Vite/React)
-      Dashboard do Usuario
-        Address Tracker
-        Transferencias P2P
-        Portfolio de Merito
-      AutoClaim Hub
-        Login Web3
-        Staking Vault
-      Integracao API
-        WebSocket Auto-Reconnect
-        FastAPI Hooks
-    Backend (FastAPI)
-      Motor de Consenso
-        PoC & PoS Hibrido
-        Validacao de Blocos
-      IA Sentinela V3
-        Detecao de Fraudes
-        Rate Limiting
-      Banco de Dados SQLite
-        Indices B-Tree (Otimizado)
-        Ledger de Transacoes
-        Miners e Claims
-    No de Mineracao (Electron)
-      Logica Principal
-        Heartbeats (Uptime)
-        Recompensas de Epoch
-      Interface Grafica
-        Logs em Tempo Real
-        Status do Hardware
+  root((FaucetChain))
+    Appchain
+      Proof of Claim
+        Desafio keccak no navegador
+        Cota horaria de 2000 CLAIM
+        Dificuldade sobe conforme e gasta
+      Sentinel
+        Ritmo e agrupamento
+        Teto de carteiras por IP
+      Microclaims
+        Torneiras parceiras por uma chamada HTTP
+        Gotejamento de campanha, 80/20
+    Liquidacao na Solana
+      Cofre da campanha
+        A autoridade e a campanha, nao uma chave
+      Raiz de Merkle por lote
+        Prova de reserva antes de publicar
+      Saque
+        Prova de uma folha
+        Recibo contra repeticao
+        Relayer paga a taxa
+    Tesouraria
+      Stakeia capital proprio
+      Financia o orcamento de recompensa
+      Usuario nunca deposita
+    `,
+    CLAIM_EVENT_DIAGRAM: `
+sequenceDiagram
+    participant U as "Usuario"
+    participant F as "Torneira parceira"
+    participant A as "FaucetChain"
+    participant S as "Solana"
+
+    U->>F: Cumpre a tarefa
+    F->>A: Uma chamada HTTP, depois do commit dela
+    A->>A: Credita o usuario e a parte da campanha
+    A->>S: Publica a raiz do lote
+    S->>S: Recusa se o cofre nao cobrir
+    U->>A: Pede a prova da folha dele
+    U->>S: Saca, assinando com a carteira
+    S->>U: Tokens, com o relayer pagando a taxa
+    `,
+    TOKENOMICS_FLOW_CODE: `
+flowchart LR
+    Q["Teto horario de 2000 CLAIM"] --> C["Claims em todas as torneiras"]
+    C --> U["80 por cento para o usuario"]
+    C --> T["20 por cento para a tesouraria"]
+    T --> S["A tesouraria stakeia capital proprio: modelo, ainda nao operacao"]
+    S --> B["O rendimento financia o orcamento"]
+    B --> C
     `,
     TREASURY_ALLOCATION_DIAGRAM: `
-pie title "Macro Alocação (Hardcap 99M)"
-    "Proof of Work (Mineradores): 29,7M (30%)" : 30
-    "Proof of Stake (Cofre/Vault): 29,7M (30%)" : 30
-    "Proof of Claim (Mérito): 19,8M (20%)" : 20
-    "Core Team & Liquidez: 19,8M (20%)" : 20
+pie title "Divisao proposta do teto de 99M, ainda nao decidida"
+    "Proof of Work, mineradores: 30" : 30
+    "Proof of Stake, cofre: 30" : 30
+    "Proof of Claim, merito: 20" : 20
+    "Core team e liquidez: 20" : 20
     `
   }
 };
