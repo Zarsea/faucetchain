@@ -212,8 +212,17 @@ answer here, given the repository's size:
 - `faucetchain/programs/faucetchain/` — the Anchor program
 - `PENDING.md` — what is open and who is blocked
 
-**Question:** do you want `legacy/` and the Sepolia-era files flagged as not
-part of the submission? They are in the public tree and a judge will find them.
+**`legacy/` is flagged, as of 9 October.** It and `.deps/` are marked
+`linguist-vendored` in `.gitattributes`, so they no longer count toward the
+language bar — a Solana project was advertising **Solidity** on its front page
+because of ten archived files. The directories stay listed and browsable, and
+section 11 of the whitepaper already says what they are: contracts that
+compile, that the backend never called, and that were never deployed to a
+public network.
+
+Say the same thing here if a judge asks. Hiding them would contradict the
+section that documents them; letting them describe the project is just as
+wrong.
 
 ### `additionalInfo` / `liveProductAccessInstructions`
 

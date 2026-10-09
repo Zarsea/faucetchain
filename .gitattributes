@@ -18,3 +18,19 @@
 *.png binary
 *.db binary
 *.mp4 binary
+
+# Kept out of the language bar, not out of the repository.
+#
+# GitHub reads the language bar off every tracked file, so ten Solidity files
+# make a Solana project advertise Solidity on its front page. Nine of them are
+# the archived EVM contracts in `legacy/evm/` -- they compile, the backend
+# never called them, and they were never deployed to a public network, which
+# section 11 of the whitepaper says in as many words. The tenth is a vendored
+# OpenZeppelin interface they import.
+#
+# `linguist-vendored` removes them from the statistics only. The directories
+# stay listed, browsable, and explained by their own README. Hiding them would
+# be the opposite of what this repository is for; letting them describe the
+# project is just as wrong.
+legacy/** linguist-vendored
+.deps/** linguist-vendored
