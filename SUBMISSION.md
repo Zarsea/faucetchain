@@ -202,6 +202,18 @@ happens after the hackathon.
 All three in Foz do Iguaçu, Brazil. The field wants the detail, not the
 country, and the country is already set separately.
 
+### A disambiguation to put wherever the form allows it
+
+**The repository link is `https://github.com/Zarsea/faucetchain`.** Not the
+`FaucetChain` organisation: its only repository publishes `faucet.chains.my`,
+a testnet faucet whose drips come from `faucet-edisontkp.vercel.app`, operated
+by EdisonTKP and unconnected to this project. A judge following the org link
+lands on a faucet that gives away test tokens on ten networks instead of on
+this protocol.
+
+The README now opens with the same disambiguation, because a judge who
+searches the name will find that site before this one.
+
 ### `repoContext`
 
 What a judge should look at first, and what to ignore. A genuinely useful

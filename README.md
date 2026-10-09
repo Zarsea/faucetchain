@@ -1,5 +1,16 @@
 # FaucetChain
 
+> **Not to be confused with `faucet.chains.my`.** That site is a testnet faucet
+> UI that hands out test tokens on Solana and several EVM networks. Its drips
+> come from `faucet-edisontkp.vercel.app`, operated by EdisonTKP
+> (edisontkp.com), which is not us and not connected to this project in any
+> way. It shares the name and nothing else: no code, no infrastructure, no
+> operator.
+>
+> This repository is the FaucetChain protocol — the appchain and the Solana
+> settlement program described below. If you arrived from a search for
+> "FaucetChain" and found a multi-chain testnet faucet, that was the other one.
+
 Crypto faucets pay in promises. A user grinds through a hundred tasks, watches
 the balance go up on a dashboard, and finds out at withdrawal time that the
 operator never had the money. FaucetChain fixes the part that matters: the
