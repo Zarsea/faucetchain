@@ -24,8 +24,12 @@ use solana_keccak_hasher::hashv;
 /// leaf to `verify_proof`.** An instruction that takes a leaf as an argument
 /// reopens the hole completely, and no constraint elsewhere would catch it.
 /// Real domain separation is listed under "Before mainnet" in PENDING.md,
-/// because adding a prefix changes every root -- including the 19 already
+/// because adding a prefix changes every root -- including the six already
 /// published, whose proofs would stop verifying.
+///
+/// (That count said 19 until 9 October. Nineteen was the number the sequencer's
+/// database claimed; six is the number of root accounts that exist on devnet.
+/// `verify_published_roots.py` is what tells them apart.)
 pub fn leaf_hash(recipient: &Pubkey, amount: u64, leaf_index: u32) -> [u8; 32] {
     hashv(&[
         recipient.as_ref(),
