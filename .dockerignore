@@ -1,0 +1,38 @@
+# Nothing secret and nothing stateful goes into the image.
+#
+# `.env` holds nine variables, three of them private keys. `blockchain.db` is
+# the live ledger: baking it in would ship a snapshot that every redeploy
+# silently reverts to. Both arrive at runtime instead — secrets from the host's
+# secret store, the database from the mounted volume.
+
+.env
+.env.*
+*.db
+*.db-wal
+*.db-shm
+*.db.antes-*
+
+# Keypairs. These must never leave the machine that holds them.
+*keypair*.json
+faucetchain/target/
+
+# Build output and caches, rebuilt or unused in the container.
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+chroma_db/
+
+# Not the server's job.
+.git/
+.github/
+.agents/
+.claude/
+prints/
+preview/
+legacy/
+.deps/
+*.mp4
+*.png

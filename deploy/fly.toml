@@ -1,0 +1,61 @@
+# One machine, one volume, always on.
+#
+#     fly launch --no-deploy --copy-config    # reads this file
+#     fly volumes create faucetchain_data --size 1 --region gru
+#     fly secrets set ...                     # see deploy/LEIA-PRIMEIRO.md
+#     fly deploy
+#
+# Three settings below are load-bearing and explained where they appear:
+# auto_stop_machines, min_machines_running, and the absence of any scaling.
+
+app = "faucetchain-api"
+primary_region = "gru"          # São Paulo: nearest region to the team and to
+                                # the partner faucet's users
+
+[build]
+  dockerfile = "deploy/Dockerfile"
+
+[env]
+  PORT = "8010"
+  DATA_DIR = "/data"
+  RATE_LIMIT_TRUST_LOCALHOST = "0"
+
+[[mounts]]
+  source = "faucetchain_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8010
+  force_https = true
+
+  # The ledger is a SQLite file on this volume, and the app has 104 write
+  # statements. Two machines writing the same file over a shared mount
+  # corrupts it. This app scales to exactly one; if it ever needs more, the
+  # database has to move to something that expects concurrent writers, and
+  # that is a different piece of work.
+  min_machines_running = 1
+
+  # A stopped machine stops the epoch scheduler.
+  #
+  # `asyncio.create_task(epoch_scheduler())` runs at startup and sleeps 3600
+  # seconds between epochs. With auto-stop on, Fly suspends the machine when
+  # requests go quiet, the loop never fires, and the hourly emission quota and
+  # the uptime rewards simply do not happen — silently, because nothing errors.
+  auto_stop_machines = false
+  auto_start_machines = true
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "40s"
+    method = "GET"
+    path = "/api/faucethub/faucets"
+    # Not /api/health. That route reports `indexer_db: "error"` whenever the
+    # vector knowledge base is absent, and this image leaves it out on
+    # purpose, so a check reading that field would mark a healthy machine
+    # unhealthy forever. This path answers 200 from the real database and
+    # therefore proves the volume is mounted and readable.
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
