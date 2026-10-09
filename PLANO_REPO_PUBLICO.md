@@ -67,29 +67,44 @@ ficam como estão.
 
 ---
 
-## Decisão prévia: consolidar na org
+## Decisão prévia: **não** consolidar na org — revertida em 9 de outubro
 
-Confirmei a org em 8 de outubro: **um repositório público, `FaucetWeb`,
-TypeScript, último commit em 14 de agosto de 2026.** O briefing está certo
-sobre o estado e certo sobre a decisão — o link do formulário aponta para a
-org, e uma org vazia com o conteúdo no perfil pessoal passa a impressão errada.
+O briefing manda mover o conteúdo para `github.com/FaucetChain`, e eu
+concordei com isso em 8 de outubro. **Estava errado, e o motivo só apareceu ao
+abrir o site que a org publica.**
 
-**Um risco que o briefing não nomeia, e ele é datado.** `Zarsea/faucetchain` é
-onde estão 29 commits, o programa Anchor, o whitepaper e toda a documentação
-que a `SUBMISSION.md` manda o juiz abrir. Mover ou arquivar esse repositório a
-quatro dias do prazo tem dois perigos:
+O único repositório da org, `FaucetWeb`, tem um `public/CNAME` apontando para
+`faucet.chains.my`, e o GitHub Pages publica ali uma torneira de testnet. Essa
+torneira não distribui nada por conta própria: o `.env.production` aponta
+`VITE_FAUCET_API` para `https://faucet-edisontkp.vercel.app`, que **não é
+nosso**. O cabeçalho daquele site diz, em HTML:
 
-1. Se o formulário já foi enviado apontando para o endereço antigo, o
-   redirecionamento do GitHub cobre — mas só enquanto ninguém criar um repo
-   novo com o nome antigo.
-2. Arquivar deixa o repositório somente-leitura. Qualquer correção de última
-   hora na documentação, e são prováveis, teria de ir para a org.
+```html
+<header class="brand">
+  <span class="mark">FaucetChain</span>
+  <a class="host" href="https://edisontkp.com">EdisonTKP</a>
+</header>
+```
 
-**Recomendação:** espelhar para a org agora e **não arquivar o pessoal até
-depois de 12 de outubro.** Os dois ficam de pé, o pessoal ganha um aviso no
-topo do README apontando para a org, e nada quebra no meio da avaliação.
+Um terceiro opera uma torneira de testnet multi-chain sob o nome FaucetChain,
+e um site da nossa org, no nosso domínio, serve a interface dela chamando a
+API dela. Para quem visita, parece que nós operamos aquilo.
 
----
+Três consequências, em ordem de urgência:
+
+1. **O link do formulário da Colosseum aponta para a org.** Um juiz que clique
+   não encontra este projeto; encontra uma torneira que dá tokens de teste em
+   dez redes. Trocar o link é a ação mais valiosa desta lista inteira.
+2. **`faucet.chains.my` depende de um estranho.** Se ele desligar ou mudar a
+   API, o site quebra — no nosso domínio, com a nossa marca.
+3. **O nome está em uso por outro.** Isso é questão de identidade e não trava a
+   hackathon, mas quem pesquisar "FaucetChain" vai achar aquilo.
+
+**Recomendação revertida:** manter `Zarsea/faucetchain` como o endereço
+oficial e apontar o formulário para lá. Não mover nada para a org enquanto o
+nome dela servir o produto de outra pessoa. O repositório pessoal tem 137
+commits, licença MIT, CI verde e toda a documentação — ele já é o repositório
+que o briefing queria construir.
 
 ## Ordem de execução
 
@@ -108,9 +123,15 @@ embutidas.
 Em `Zarsea/faucetchain` esta varredura já foi feita em 8 de outubro antes do
 push: nenhum `.env`, keypair ou credencial versionada.
 
-### 2. `README.md` do `faucetchain-protocol`
+### 2. O `README.md` e o cabeçalho de `Zarsea/faucetchain`
 
-Sozinho já transforma o link. Estrutura do briefing, na ordem dele, com a
+Sozinho já transforma o link. **Antes de escrever uma linha**, dois cliques que
+custam nada e são a primeira coisa que o juiz vê: o cabeçalho hoje diz
+*"No description, website, or topics provided"*.
+
+- Description: `Micro-distribution that settles on Solana. Faucets pay from a campaign vault against a Merkle root, and the program refuses a root the vault cannot cover.`
+- Topics: `solana`, `anchor`, `merkle-proof`, `faucet`, `micro-payments`, `appchain`
+- Website: o link público, quando existir Estrutura do briefing, na ordem dele, com a
 tabela de status corrigida e **a linha da Solana incluída**.
 
 O diagrama Mermaid: o briefing pede
@@ -151,7 +172,14 @@ Nenhum teste que passe por estar vazio.
 
 ### 6. Resto da higiene
 
-`CONTRIBUTING.md`, descrição e topics da org, README no `FaucetWeb`.
+`CONTRIBUTING.md`. **Nada de descrição e topics na org** enquanto o nome dela
+servir o produto de outra pessoa.
+
+O `FaucetWeb` já tem um README de 21 linhas, e ele é honesto — diz que o repo é
+build-only e que não há chave privada ali. O que falta nele é a única frase que
+importa agora: que os airdrops saem de uma API de terceiro, e que aquele site
+não é a FaucetChain deste whitepaper. **Ou isso, ou despublicar a página** até
+depois do prazo.
 
 ---
 
