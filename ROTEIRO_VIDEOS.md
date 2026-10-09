@@ -119,8 +119,13 @@ to find out what the pitch has to claim.
 
 ## 3. Pitch, aim for 2 minutes
 
-One Colosseum post says 2 minutes for this hackathon while the hackathon page
-says 2–3. Two passes either rule.
+**Settled 9 October, from Colosseum's canonical FAQ:** the portal asks for "a
+two-to-three-minute presentation video", and calls it "one of the first
+resources judges review, so it should be clear, concise, and high quality".
+Two minutes still passes, and the extra minute is available if the pitch needs
+it.
+
+The same answer caps the demo at "no more than three minutes".
 
 **This one cannot be written yet, and the reason is the point of the next
 section.**

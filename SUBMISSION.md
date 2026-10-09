@@ -93,19 +93,46 @@ answered before the paragraph can be written honestly.
 
 Backed: the description already in the draft. Reusable as the spine.
 
-**Question:** which of the three customers does this lead with — the faucet
-operator, the sponsor funding a campaign, or the person clicking? The product
-serves all three and a paragraph can only open with one.
+**Decided 9 October: it opens with the person clicking.** The whitepaper and
+the README already do, and a paragraph that contradicts them costs more than
+the choice gains. The sentence to build from is theirs: someone earns for
+weeks and finds out at withdrawal that the money was never there.
+
+The cost of that choice, worth knowing while writing: the person clicking is
+not who adopts and not who pays. The operator and the sponsor have to appear by
+the second paragraph, or the field describes a consumer product.
+
+Material, all verified:
+
+- the failure mode — a private balance nobody can check
+- the split — distribution on the appchain, custody on Solana, one 32-byte
+  root crossing
+- the refusal — `vault.amount >= committed - paid + total_amount`, enforced by
+  the program, not reported by us
 
 ### `whyNow`
 
 Backed: nothing. This field is about timing and the repository has no opinion
 about timing.
 
-**Questions:** what changed recently that makes this possible or necessary now?
-Candidates worth checking before claiming: the cost of a Solana transaction
-versus 2022, compressed state making per-user records affordable, or something
-specific happening to faucet payouts. Pick the one that is actually true.
+**Decided 9 October: the cost of a withdrawal, measured rather than argued.**
+
+A payout costs **1,573,440 lamports**, the same for both that have happened.
+**95% of it is the one-time rent of the recipient's token account**, charged
+once per person per token; the transaction fee itself is 85,000. And the fee
+payer is a separate signer from the recipient, so a relayer covers both and
+**somebody holding zero SOL receives the token** — which the 5 October
+withdrawal demonstrates on a wallet with no SOL at all.
+
+That is what makes a per-user on-chain record affordable for rewards worth
+fractions of a cent. On a chain where each payout costs dollars, this design
+does not close.
+
+**Say it as economics, not as a trend.** Fee-payer separation is not new to
+Solana, and claiming that something changed last quarter is the kind of
+sentence a judge checks. What is defensible is the measurement: here is what it
+costs, here is why that number is what makes it possible, and here is the
+transaction. Anything beyond that is invention.
 
 ### `marketValidation`
 
@@ -174,23 +201,68 @@ traction is the easiest claim in the submission to puncture; presenting them as
 
 ### `competition`
 
-Backed: nothing yet. Copilot's project evidence would answer "who has tried
-this at Colosseum before" — **the evidence routes are returning 401 today**
-(see the note at the end), so this field has no research behind it yet.
+**Researched 9 October.** Copilot's evidence routes answered this time; the
+401s of 3 October are gone. Searched winning projects across every hackathon
+for faucet, micro-distribution, airdrop-with-proof and reward-settlement work.
 
-**Question meanwhile:** who does a faucet operator use *today* instead of this?
-FaucetPay is the obvious incumbent and the comparison is the point: it is a
-custodial payout processor, this is a settlement guarantee. Name it rather than
-claiming an empty field.
+**What a faucet operator uses today: FaucetPay.** Not a guess — it is what our
+own partner uses to pay its users, and `faucetpay.py` integrates with it for
+identity. It is a custodial payout processor: it holds the money and pays when
+it decides. That is the comparison, and it is the whole argument. Naming the
+incumbent is stronger than claiming the field is empty.
+
+**The closest Colosseum precedent is [Torque](https://colosseum.com/projects/explore/torque)**
+(Renaissance 2024, Infrastructure winner): an onchain offers protocol paying
+conditional, pay-per-action rewards from an escrow contract, verified by
+onchain proofs and tracked with cNFTs. Sponsor funds escrow, user performs
+action, chain verifies — nearly our shape.
+
+Where it differs, and this is the sentence the field needs: Torque pays for
+*marketing actions it defines*. This settles a debt a faucet *already owes*,
+and the difference lands in the program, not the distribution — ours refuses a
+root the vault cannot cover, so the operator cannot promise what it does not
+hold. Torque is customer acquisition; this is a solvency guarantee.
+
+Three more worth knowing, because a judge may raise them:
+
+- **[Ore](https://colosseum.com/projects/explore/ore)** (Renaissance 2024,
+  grand prize) — smart-contract proof of work issuing personalized challenges
+  so consumer hardware can mine. The nearest thing to Proof of Claim, and the
+  comparison to prepare: Ore's work *is* the product; ours gates a claim so
+  automated farming costs what human use costs.
+- **[Zoneless](https://colosseum.com/projects/explore/zoneless)** (Frontier
+  2026, public goods) — open-source payout infrastructure, a drop-in Stripe
+  Connect replacement paying USDC to sellers by API. Same "payout rail behind
+  an API" shape, a different customer, and no reserve check.
+- **[Merit by Frankie Labs](https://colosseum.com/projects/explore/merit-by-frankie-labs)**
+  (Renaissance 2024) — non-transferable on-chain points with a partner
+  launchpad and API keys. The points-and-partner-API half, without settlement.
+
+**What this research does not establish.** It covers Colosseum's own record of
+*winning* projects. Non-winning entries, and everything built outside these
+hackathons, are not in it. Saying "nobody has done this" would not be supported
+by what was checked; saying "the closest precedents are these, and here is the
+line between them" is.
 
 ### `monetization`
 
 Backed: the 80/20 split is in the code — `USER_SHARE = 80`,
 `TREASURY_SHARE = 20`, and the treasury's share is staked, not sold.
 
-**Question:** is that the business model, or is it the network's continuity
-funding with the business model still to come? The draft should not imply the
-first if the answer is the second.
+**Decided 9 October: continuity funding, with the revenue model still to
+come.** The 80/20 is how a drip splits — the user's share and the treasury's.
+It feeds the treasury; it is not a price anybody pays.
+
+The revenue the whitepaper names is the treasury staking its own capital, with
+the yield funding the reward budget. **Section 9 labels that "designed, not
+built",** so the form has to label it the same way. A field claiming revenue
+that the paper calls a model is the exact contradiction the third done-criterion
+exists to catch.
+
+What can be said without qualification: users never deposit, never stake and
+hold no position, so they carry no risk — the capital and the slashing exposure
+belong to whoever chose them. That is a real property of the design and it is
+built.
 
 ### `teamCommitment`
 
@@ -301,6 +373,47 @@ category is set but a track is not.
 
 ---
 
+## What the judges are told to look for
+
+Read from Colosseum's canonical FAQ on 9 October, `program=hackathon`. It
+changes how two fields should be written, and raises one question this file had
+not asked.
+
+**"Insight: does the founding team have some unique insight based on their deep
+understanding of the problem space? Is there a new technology, or a new trend
+that creates an opportunity?"** This is the criterion `whyNow` is scored
+against, and it asks for insight *or* a new technology — not necessarily a
+trend. The measured cost of a withdrawal is an answer to the second half.
+
+**"Founder + Market Fit: does the team have the right skills and experience to
+succeed in this market, and why is it motivated to solve this problem?"**
+Zarsea has been in faucets since 2017 and building since 2022. That is already
+on the Colosseum profile and it is the strongest founder-market-fit evidence
+this submission has. It should not be left sitting in a profile field.
+
+**"Traction: does the product already have demand or revenue? If so, how
+durable are its revenue and user base?"** Note the "if so" — the question
+allows a no. Five users and 75 claims paid by the partner, with the
+qualifications already written above, is a truthful answer to a question that
+does not demand a big number.
+
+**On the repository, the FAQ asks to see that the team "were the ones to do
+this work, rather than a third party."**
+
+Every commit in this repository since September carries
+`Co-Authored-By: Claude`. That is accurate and it is visible on the GitHub
+contributor list. **This file will not recommend hiding it** — rewriting that
+history would contradict the one thing this project is actually about, and
+section 11 of the whitepaper exists because we chose the opposite habit.
+
+But it is better said by us than discovered by a judge. **Decide how to say
+it** in `additionalInfo` or wherever the form allows: what the team designed
+and decided, and what the tooling executed. The honest version is not a
+weakness — the architecture decisions, the audit that found our own false root
+count, and every judgement call in `PENDING.md` are the team's.
+
+---
+
 ## Order of work
 
 **By Sunday 4 October:**
@@ -323,11 +436,13 @@ category is set but a track is not.
 
 ## What is not verified here
 
-Colosseum's **evidence routes returned 401 all through 3 October** —
-`/search/projects` and `/faqs` both — while `/me` worked, so the draft above is
-first-hand and the research is not. That costs two things: the `competition`
-field has no precedent research behind it, and the hackathon's own FAQ wording
-on deadlines and judging could not be re-read from source. The 23:59 PT deadline
-above is from the rules read on 28 September, not re-verified today.
+Colosseum's evidence routes returned 401 all through 3 October. **Retried on
+9 October and they answer** — the connection reports `evidence:read`, and
+`competition` above now carries real precedent research.
 
-Worth retrying before the prose fields are written.
+**The deadline is now verified from source.** Copilot's `eventDates` for
+`crypto-worlds-fair` gives `submissionDeadline: 2026-10-13T06:59:00.000Z`,
+which is 23:59 PDT on 12 October — exactly what this file has been carrying
+since 28 September. The hackathon opened 2026-09-14T15:00Z.
+
+Nothing in this file is now resting on an unverified date.
