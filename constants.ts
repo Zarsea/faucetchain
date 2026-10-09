@@ -60,16 +60,16 @@ mindmap
       Proof of Claim
         Keccak puzzle in the browser
         Hourly quota of 2000 CLAIM
-        Difficulty rises as it is spent
+        Difficulty rises with use
       Sentinel
         Timing and clustering
         Per-IP wallet cap
       Micro-claims
-        Partner faucets over one HTTP call
+        Partner faucets, one HTTP call
         Campaign drip, 80/20
     Settlement on Solana
       Campaign vault
-        Authority is the campaign, not a key
+        Authority is the campaign itself
       Merkle root per batch
         Reserve check before publishing
       Withdrawal
@@ -166,16 +166,16 @@ mindmap
       Proof of Claim
         Desafio keccak no navegador
         Cota horaria de 2000 CLAIM
-        Dificuldade sobe conforme e gasta
+        Dificuldade sobe com o uso
       Sentinel
         Ritmo e agrupamento
         Teto de carteiras por IP
       Microclaims
-        Torneiras parceiras por uma chamada HTTP
+        Torneiras parceiras, uma chamada HTTP
         Gotejamento de campanha, 80/20
     Liquidacao na Solana
       Cofre da campanha
-        A autoridade e a campanha, nao uma chave
+        A autoridade e a propria campanha
       Raiz de Merkle por lote
         Prova de reserva antes de publicar
       Saque

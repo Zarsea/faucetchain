@@ -173,7 +173,19 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                             transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                             transformOrigin: 'center center'
                         }}
-                        className="flex justify-center items-center pointer-events-none w-full h-full"
+                        // O mermaid devolve o SVG no tamanho natural dele e com
+                        // `max-width` do proprio desenho -- o mindmap do
+                        // ecossistema sai com 1137x628. Num painel mais estreito
+                        // e de 450px de altura com `overflow-hidden`, o que passa
+                        // da borda some: os rotulos da direita e do fundo chegam
+                        // cortados no meio da palavra, e quem olha nao tem como
+                        // saber que falta coisa.
+                        //
+                        // Estas quatro regras obrigam o desenho a caber no
+                        // quadro, sempre, qualquer que seja o diagrama. O zoom e
+                        // o arraste continuam valendo para quem quiser detalhe.
+                        className="flex justify-center items-center pointer-events-none w-full h-full
+                                   [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
                         dangerouslySetInnerHTML={{ __html: svgCode }}
                     />
                 )}
@@ -210,7 +222,10 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                     {title}
                 </h3>
                 
-                <div className="bg-brand-bg/50 rounded-2xl border border-brand-border h-[450px] relative overflow-hidden flex-1 shadow-inner">
+                {/* 450px espremia uma arvore de 25 nos. O mindmap do ecossistema
+                    tem 628px de altura natural; abaixo disso ele encolhe tanto
+                    que os rotulos ficam ilegiveis mesmo sem corte. */}
+                <div className="bg-brand-bg/50 rounded-2xl border border-brand-border h-[560px] relative overflow-hidden flex-1 shadow-inner">
                     <DiagramViewer inFullscreen={false} />
                 </div>
 
