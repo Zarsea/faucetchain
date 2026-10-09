@@ -204,15 +204,21 @@ country, and the country is already set separately.
 
 ### A disambiguation to put wherever the form allows it
 
-**The repository link is `https://github.com/Zarsea/faucetchain`.** Not the
-`FaucetChain` organisation: its only repository publishes `faucet.chains.my`,
-a testnet faucet whose drips come from `faucet-edisontkp.vercel.app`, operated
-by EdisonTKP and unconnected to this project. A judge following the org link
-lands on a faucet that gives away test tokens on ten networks instead of on
-this protocol.
+**The repository link is `https://github.com/Zarsea/faucetchain`,** and the
+form must be changed if it says anything else.
 
-The README now opens with the same disambiguation, because a judge who
-searches the name will find that site before this one.
+There is a GitHub organisation called `FaucetChain`. **It is not ours.** Its
+only repository publishes `faucet.chains.my`, a testnet faucet whose drips come
+from `faucet-edisontkp.vercel.app`, operated by EdisonTKP. The domain is not
+ours either — `chains.my` runs on a Cloudflare account we do not hold. Three
+separate things carrying the name, none of them connected to this project by
+code, infrastructure, operator or control.
+
+A judge following a link to that organisation lands on a faucet giving away
+test tokens on ten networks, which is not this protocol and would read as the
+project being far less than the form claims. The README now opens with the same
+disambiguation, because anyone searching the name finds that site before this
+one.
 
 ### `repoContext`
 

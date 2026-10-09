@@ -67,44 +67,41 @@ ficam como estão.
 
 ---
 
-## Decisão prévia: **não** consolidar na org — revertida em 9 de outubro
+## A premissa do briefing caiu: a org não é sua
 
-O briefing manda mover o conteúdo para `github.com/FaucetChain`, e eu
-concordei com isso em 8 de outubro. **Estava errado, e o motivo só apareceu ao
-abrir o site que a org publica.**
+Confirmado com você em 9 de outubro, e verificado onde dava:
 
-O único repositório da org, `FaucetWeb`, tem um `public/CNAME` apontando para
-`faucet.chains.my`, e o GitHub Pages publica ali uma torneira de testnet. Essa
-torneira não distribui nada por conta própria: o `.env.production` aponta
-`VITE_FAUCET_API` para `https://faucet-edisontkp.vercel.app`, que **não é
-nosso**. O cabeçalho daquele site diz, em HTML:
+| | |
+|---|---|
+| `github.com/FaucetChain` | **não é sua** |
+| `chains.my`, na Cloudflare | **não é seu** |
+| `faucet-edisontkp.vercel.app` | **não é seu** |
+| `Zarsea/faucetchain` | seu — 137 commits, MIT, CI verde |
 
-```html
-<header class="brand">
-  <span class="mark">FaucetChain</span>
-  <a class="host" href="https://edisontkp.com">EdisonTKP</a>
-</header>
-```
+O briefing abre com *"fazer com que `github.com/FaucetChain` sustente o que o
+perfil do fundador afirma"*. Esse vínculo não existe: o perfil `Zarsea` está
+vazio — sem nome, bio, empresa ou site — e não tem nenhuma org pública. Quem
+escreveu o briefing viu uma org com o nome FaucetChain e presumiu que fosse
+sua.
 
-Um terceiro opera uma torneira de testnet multi-chain sob o nome FaucetChain,
-e um site da nossa org, no nosso domínio, serve a interface dela chamando a
-API dela. Para quem visita, parece que nós operamos aquilo.
+**Tudo que o briefing manda fazer na org está morto.** Criar
+`faucetchain-protocol` lá, preencher descrição e topics, pôr README no
+`FaucetWeb`, arquivar o repositório pessoal — nada disso é possível, porque
+você não tem acesso de escrita a nenhum desses lugares.
 
-Três consequências, em ordem de urgência:
+### O que sobra, e é mais simples
 
-1. **O link do formulário da Colosseum aponta para a org.** Um juiz que clique
-   não encontra este projeto; encontra uma torneira que dá tokens de teste em
-   dez redes. Trocar o link é a ação mais valiosa desta lista inteira.
-2. **`faucet.chains.my` depende de um estranho.** Se ele desligar ou mudar a
-   API, o site quebra — no nosso domínio, com a nossa marca.
-3. **O nome está em uso por outro.** Isso é questão de identidade e não trava a
-   hackathon, mas quem pesquisar "FaucetChain" vai achar aquilo.
+O trabalho inteiro acontece em `Zarsea/faucetchain`, que já é o repositório que
+o briefing queria construir. E uma coisa fica mais urgente do que era: **o
+formulário da Colosseum está apontando para a organização de um estranho.**
+Trocar esse link vale mais do que todo o resto da lista somada.
 
-**Recomendação revertida:** manter `Zarsea/faucetchain` como o endereço
-oficial e apontar o formulário para lá. Não mover nada para a org enquanto o
-nome dela servir o produto de outra pessoa. O repositório pessoal tem 137
-commits, licença MIT, CI verde e toda a documentação — ele já é o repositório
-que o briefing queria construir.
+### O que não é problema de hackathon, mas é problema
+
+Três coisas com o nome FaucetChain em público, nenhuma delas sua, e uma delas
+uma org no GitHub. Isso não trava a submissão depois que o link for corrigido,
+mas define o que qualquer pessoa encontra ao procurar o projeto. É assunto de
+identidade e de marca, para depois do dia 12.
 
 ## Ordem de execução
 
@@ -172,14 +169,12 @@ Nenhum teste que passe por estar vazio.
 
 ### 6. Resto da higiene
 
-`CONTRIBUTING.md`. **Nada de descrição e topics na org** enquanto o nome dela
-servir o produto de outra pessoa.
+`CONTRIBUTING.md`, e **o seu perfil do GitHub**, que hoje está vazio: sem nome,
+bio, empresa ou site. Um juiz que clique no autor de 137 commits encontra uma
+página em branco. É um dos cliques mais baratos desta lista.
 
-O `FaucetWeb` já tem um README de 21 linhas, e ele é honesto — diz que o repo é
-build-only e que não há chave privada ali. O que falta nele é a única frase que
-importa agora: que os airdrops saem de uma API de terceiro, e que aquele site
-não é a FaucetChain deste whitepaper. **Ou isso, ou despublicar a página** até
-depois do prazo.
+Nada a fazer no `FaucetWeb` nem na org — não são suas. A desambiguação já
+está no topo do nosso README, que é o lugar onde ela depende só de nós.
 
 ---
 
