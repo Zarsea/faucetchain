@@ -86,6 +86,28 @@ prova que o volume está montado.
 
 ---
 
+## O container serve a API, e só
+
+Hoje um processo só faz as duas coisas: a API responde em `/api/*` e, no resto,
+devolve o frontend de `dist/`. É por isso que o endereço do ngrok abre o
+explorer no navegador.
+
+**Depois do deploy isso se separa em dois endereços.** O `.dockerignore` deixa
+`dist/` de fora da imagem de propósito — o build do frontend vai para a Vercel.
+A API trata isso bem (`if os.path.isdir("dist")`, no fim do `api_server.py`):
+sem a pasta, ela serve só as rotas e não quebra.
+
+O que muda na prática:
+
+| | Antes | Depois |
+|---|---|---|
+| API | ngrok → :8010 | `https://<app>.fly.dev` |
+| Explorer | o mesmo endereço | a Vercel |
+
+E o explorer precisa saber o endereço novo: é a `VITE_API_URL` no build dele,
+e o domínio dele precisa estar em `ALLOWED_ORIGINS` aqui. As duas pontas, ou o
+navegador toma erro de CORS.
+
 ## Os segredos
 
 Nove variáveis. **Três são chaves privadas** e não podem aparecer em log,

@@ -217,3 +217,10 @@ Spoken on camera, a number cannot be corrected. **Re-read 8 October:**
 | the withdrawal waiting for the camera | 15,424,575 units, batch 21 | `GET /api/solana/proof/{address}`, for `0xb3dff5d3…` |
 
 Re-run them the morning of the shoot. Four changed between 4 and 8 October.
+
+**And run `npm run build` before filming anything that shows a screen.** The
+server hands the browser whatever is in `dist/`, and `dist/` only changes when
+somebody builds it. On 9 October the public URL was still serving the 2 October
+bundle: the old ecosystem diagram, a "Reward Halving" section that describes a
+mechanism the server never had, and "FaucetChain L1" twice — a week of
+corrections invisible to anyone who opened the link, including us.
