@@ -209,6 +209,6 @@ Spoken on camera, a number cannot be corrected. **Re-read 8 October:**
 | registered faucets (one is a real partner) | 6 | `GET /api/faucethub/faucets` |
 | FaucetHunter escrow vs debt | 21,079.72 against 22.00 | same |
 | $CLAIM minted of the 99M cap | 78,077.24 | `python reconcile.py` |
-| the withdrawal waiting for the camera | 15,424,575 units, batch 21 | `GET /api/solana/proof/0xb3dff5d3…` |
+| the withdrawal waiting for the camera | 15,424,575 units, batch 21 | `GET /api/solana/proof/{address}`, for `0xb3dff5d3…` |
 
 Re-run them the morning of the shoot. Four changed between 4 and 8 October.

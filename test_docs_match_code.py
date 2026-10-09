@@ -49,6 +49,10 @@ PARAM = re.compile(r"\{[^}/]+\}")
 RETIRED = {
     "/api/defi/stake": "removed 2026-09-20; never debited a balance",
     "/api/defi/unstake": "removed 2026-09-20; never debited a balance",
+    "/api/faucethub/reveal-key":
+        "removed 2026-10-08; it returned the live API key, which meant the key "
+        "had to sit in the database in clear. Only its sha256 is stored now, so "
+        "there is nothing left to reveal",
 }
 
 
