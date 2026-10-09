@@ -109,19 +109,30 @@ specific happening to faucet payouts. Pick the one that is actually true.
 
 ### `marketValidation`
 
-Backed, and strongly: **a faucet in production, with real users, already sends
-claims to this chain over one HTTP call.** That is unusually good validation
-and should be said plainly.
+Backed: **a faucet in production sends claims to this chain over one HTTP
+call, made after its own commit.** faucethunter.net opened for testing in early
+September 2026, has **five registered users**, and has paid them **more than 75
+claims**.
 
-**What it needs from you**, because it is in FaucetHunter's database and not in
-this repository:
+Two qualifications, and they are not optional — a judge will find both.
 
-- How many registered users does faucethunter.net have?
-- How many claims a day does it serve?
-- How long has it been running?
-- **Has any faucet operator outside the team said they want this?** One named
-  operator is worth more than any number above, and its absence is the first
-  thing a judge will ask about.
+**The 75 were paid by the faucet, not by us.** FaucetHunter pays through
+FaucetPay, its own rail, with its own money; our FaucetPay integration proves
+an identity and moves nothing (`faucetpay.py`: "No money moves through this
+module"). They prove a real operator runs a real faucet and really pays. They
+do not prove FaucetChain distributed anything. Presenting them as our volume is
+the easiest claim here to puncture.
+
+**Five users is small, so lead with what it does prove: the integration cost.**
+A working faucet added this chain with one call, kept its own payouts, kept
+custody of its own money, and stays up if we go down
+(`test_partner_survives_outage.py`). That argument does not need scale to be
+true, and scale would not make it truer.
+
+**Still open, and the first thing a judge asks:** no faucet operator outside
+the team has said they want this. Say it as the next milestone rather than let
+it be discovered. One named outside operator is worth more than any number on
+this page.
 
 ### `traction`
 
@@ -129,9 +140,14 @@ Backed, re-read from the ledger on 8 October: 6 published roots, 113 reward
 rows, 4,262,207,812 units credited, 39 linked Solana addresses, 6 registered
 faucets, 26 sealed blocks, two real withdrawals by real wallets.
 
-Say **one** of those six faucets is a partner with its own audience. The other
-five are ours, for testing. "Six partner faucets" is the easiest sentence in
-this submission to puncture.
+Say **one** of those six faucets is a partner with its own audience — five
+registered users, 75+ claims paid, running since early September. The other
+five faucets are ours, for testing. "Six partner faucets" is the easiest
+sentence in this submission to puncture.
+
+And keep the two sides apart: those 113 reward rows are what **this chain**
+credited. The 75 claims are what **the faucet** paid through FaucetPay. Adding
+them together would be the second easiest.
 
 **This file said 19 until 4 October, and that was wrong.** Fourteen batches
 carried a `published_signature` for a transaction that does not exist on devnet

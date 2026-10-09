@@ -150,8 +150,10 @@ true.
 ### What is already answered, and verifiable
 
 - **A faucet in production sends claims to this chain**, over one HTTP call
-  after its own commit. That is unusually strong demand evidence and it should
-  be said first.
+  after its own commit. faucethunter.net opened for testing in early September
+  2026, has **five registered users**, and has paid them **more than 75
+  claims**. Say it first, and say it in that order: the integration, then the
+  scale, so nobody hears a claim of scale.
 - **The integration cost**, which is the distribution argument: one call, the
   partner's money never moves, and the partner stays up if we go down
   (`test_partner_survives_outage.py`).
@@ -160,18 +162,29 @@ true.
   token-account rent and charged once per person per token. That number is why
   a withdrawal minimum exists.
 
-### What is not answered, and only you can
+### Two things to say about those 75, before anyone asks
 
-Four questions, and the pitch has a hole until they have numbers:
+**They were paid by the faucet, not by us.** FaucetHunter pays through
+FaucetPay, with its own money. Our FaucetPay integration proves an identity and
+moves nothing. So 75 claims prove a real operator runs a real faucet and really
+pays — not that FaucetChain distributed them. On camera that distinction costs
+one sentence and buys the whole argument; skipping it costs the argument.
 
-1. How many registered users does faucethunter.net have?
-2. How many claims a day does it serve?
-3. How long has it been running?
-4. **Has any faucet operator outside the team said they want this?**
+**Five users is small, and the number is the point.** What it demonstrates is
+the integration cost, which does not need scale to be true. A pitch that leads
+with "five users" sounds weak; one that leads with "a working faucet added us
+in one call and kept custody of its own money, and here is the one running it"
+does not.
 
-The fourth is the one a judge asks first. One named operator outside the team
-is worth more than any number above, and its absence is the obvious question
-about a project whose demand evidence is a single partner.
+### What is still not answered, and only you can
+
+**Has any faucet operator outside the team said they want this?**
+
+Today the answer is no. It is the first thing a judge asks about a project
+whose demand evidence is a single partner. Prepare the sentence: the rail is
+proved on chain, the first partner is in production, and the next milestone is
+the second operator. Said that way the absence is a roadmap. Said as though
+nobody asked, it is the hole.
 
 ### The trap to avoid
 
