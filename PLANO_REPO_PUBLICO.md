@@ -1,4 +1,4 @@
-# Plano — o repositório público na org FaucetChain
+# Plano — o repositório público do projeto
 
 Prazo: **12 de outubro de 2026, 23h59 PDT.** Faltam quatro dias.
 
@@ -110,12 +110,19 @@ embutidas.
 
 ### 1. Segurança — antes de tudo
 
-- [ ] Varrer `FaucetWeb` **e o histórico dele** por `.env`, chaves e credenciais
-      do FaucetPay. `git log -p | grep` não basta: usar busca no histórico
-      completo.
-- [ ] Se achar qualquer credencial, **rotacionar antes** de qualquer outra
-      etapa. Remover do histórico não a torna segura; ela já esteve pública.
-- [ ] `.gitignore` de Node/TypeScript no repo novo.
+- [x] **Varredura de credenciais, feita em 8 de outubro.** Clonei o `FaucetWeb`
+      e varri o histórico inteiro — 7 commits, 20 arquivos, 167 KB de blobs —
+      por chaves privadas, `AKIA`, `sk-`, `ghp_`, JWT e arrays de keypair.
+      Zero ocorrências, e o workflow nunca referenciou um secret. O
+      `.env.production` que está versionado contém só variáveis `VITE_*`, que o
+      Vite embute no bundle por construção. **Nada a rotacionar.**
+
+      A varredura perdeu o sentido como tarefa depois, porque o repositório não
+      é seu. Fica registrada porque a resposta é útil de qualquer forma: não há
+      credencial sua exposta ali.
+
+- [x] **O mesmo em `Zarsea/faucetchain`**, antes do push de 8 de outubro:
+      nenhum `.env`, keypair ou credencial versionada.
 
 Em `Zarsea/faucetchain` esta varredura já foi feita em 8 de outubro antes do
 push: nenhum `.env`, keypair ou credencial versionada.
@@ -190,8 +197,9 @@ Os três do briefing, mantidos:
 E um quarto, que é onde este plano quase falhou:
 
 - [ ] **Um juiz que leia o whitepaper e depois abra o repositório encontra os
-      mesmos números?** Supply, raízes publicadas, usuários da parceira. Se a
-      org disser `TBD` e o whitepaper disser 99M, a terceira pergunta já falhou.
+      mesmos números?** Supply, raízes publicadas, usuários da parceira. Duas
+      páginas suas que discordem num número derrubam a terceira pergunta
+      sozinhas.
 
 ---
 
