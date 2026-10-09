@@ -163,25 +163,34 @@ fly logs | grep -i epoch
 
 ---
 
-## O que eu não consegui verificar
+## O que foi testado, e o que não
 
-**A imagem não foi construída.** O Docker Desktop não estava rodando na máquina
-onde isto foi escrito, então `docker build` nunca executou. Primeira coisa a
-fazer:
+A imagem foi construída e executada em 9 de outubro, não só escrita.
 
-```bash
-docker build -f deploy/Dockerfile -t faucetchain-api .
-```
+| Verificação | Resultado |
+|---|---|
+| `docker build` | passa |
+| Tamanho da imagem | **186 MB** |
+| `.env` dentro da imagem | ausente |
+| `blockchain.db` dentro da imagem | ausente |
+| Sobe com volume montado | sim |
+| `GET /api/faucethub/faucets` | **200** |
+| `GET /api/solana/campaigns` | **5 campanhas, lidas do volume** |
+| Keypair escrita pelo entrypoint | permissão `600`, em `tmpfs` |
+| Dependências que precisam de compilador | **nenhuma** — 40 wheels, zero fonte |
 
-O que **foi** verificado, para você não perder tempo com o suspeito óbvio:
-nenhuma dependência precisa de compilador. `pip download --only-binary=:all:`
-mirando `manylinux2014_x86_64` e cp311 resolve as 40 wheels sem erro, e esse
-flag falha alto se alguma tivesse que compilar. `solders` e `bcrypt` chegam
-pela ABI estável (`cp310-abi3`, `cp39-abi3`), então procurar "cp311" no nome
-do arquivo engana.
+**Uma coisa o teste pegou e vale você saber**, porque era uma afirmação minha
+sobre chave privada: a primeira versão do entrypoint escrevia as keypairs em
+`/run/keys`, dizendo que era memória. **Não é.** Dentro desta imagem, `df -T`
+reporta `/run` e `/tmp` como `overlay` — a camada gravável do container, que é
+disco. Só `/dev/shm` é `tmpfs`. Uma chave privada escrita no overlay toca disco
+e pode sobreviver numa camada ou num snapshot.
 
-`entrypoint.sh` passa no `sh -n`. O `fly.toml` não foi validado contra a CLI da
-Fly.
+Corrigido: as duas chaves vão para `/dev/shm/keys`, confirmado como `tmpfs` com
+permissão `600`.
+
+**O que não foi testado:** o `fly.toml` não passou pela CLI da Fly, e o deploy
+em si nunca rodou. O container foi exercitado localmente, não na plataforma.
 
 ## Perguntas que só você responde
 

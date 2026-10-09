@@ -9,21 +9,28 @@ set -eu
 # so the two keys are written to a file here, at boot, and the variables the
 # app reads are pointed at them.
 #
-# /run is tmpfs: this never reaches the mounted volume, never reaches a
-# snapshot, and is gone when the machine stops. umask 077 before writing, so
-# the file is never briefly world-readable.
+# /dev/shm, and not /run or /tmp, because only /dev/shm is really memory.
+#
+# Checked inside this image: `df -T` reports /run and /tmp as `overlay`, the
+# container's writable layer, which is a disk. /dev/shm reports `tmpfs`. A
+# private key written to the overlay touches a disk and can survive in a layer
+# or a snapshot; written here it exists in memory, never reaches the mounted
+# volume, and is gone when the machine stops.
+#
+# umask 077 first, so the file is never even briefly world-readable.
+KEYS=/dev/shm/keys
 umask 077
-mkdir -p /run/keys
+mkdir -p "$KEYS"
 
 if [ -n "${OPERATOR_KEYPAIR_JSON:-}" ]; then
-  printf '%s' "$OPERATOR_KEYPAIR_JSON" > /run/keys/operator.json
-  SETTLEMENT_OPERATOR_KEYPAIR=/run/keys/operator.json
+  printf '%s' "$OPERATOR_KEYPAIR_JSON" > "$KEYS/operator.json"
+  SETTLEMENT_OPERATOR_KEYPAIR="$KEYS/operator.json"
   export SETTLEMENT_OPERATOR_KEYPAIR
 fi
 
 if [ -n "${RELAYER_KEYPAIR_JSON:-}" ]; then
-  printf '%s' "$RELAYER_KEYPAIR_JSON" > /run/keys/relayer.json
-  SETTLEMENT_RELAYER_KEYPAIR=/run/keys/relayer.json
+  printf '%s' "$RELAYER_KEYPAIR_JSON" > "$KEYS/relayer.json"
+  SETTLEMENT_RELAYER_KEYPAIR="$KEYS/relayer.json"
   export SETTLEMENT_RELAYER_KEYPAIR
 fi
 
