@@ -2,21 +2,26 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-    CubeIcon,
-    SparklesIcon,
-    SignalIcon,
-    CreditCardIcon,
+    ArrowPathIcon,
+    ArrowUpRightIcon,
+    BeakerIcon,
+    BoltIcon,
+    BookOpenIcon,
+    ChartBarIcon,
+    ChartPieIcon,
+    CheckCircleIcon,
     CodeBracketIcon,
     CpuChipIcon,
-    BookOpenIcon,
+    CreditCardIcon,
+    CubeIcon,
     DocumentTextIcon,
-    ChartBarIcon,
-    BoltIcon,
-    WalletIcon,
-    BeakerIcon,
-    GlobeAltIcon
-,
-    ShieldCheckIcon
+    GlobeAltIcon,
+    InformationCircleIcon,
+    MagnifyingGlassPlusIcon,
+    ShieldCheckIcon,
+    SignalIcon,
+    SparklesIcon,
+    WalletIcon
 } from './IconComponents';
 
 interface TabsProps {
@@ -28,38 +33,63 @@ interface TabsProps {
     onExpandedChange?: (expanded: boolean) => void;
 }
 
-const TAB_ICONS: Record<string, React.ReactNode> = {
-    'Dashboard': <ChartBarIcon className="w-5 h-5" />,
-    'Block Explorer': <CubeIcon className="w-5 h-5 text-brand-primary" />,
-    'Mining Hub': <CpuChipIcon className="w-5 h-5" />,
-    'Connect a Faucet': <ShieldCheckIcon className="w-5 h-5 text-brand-success" />,
-    'Address Tracker': <SignalIcon className="w-5 h-5" />,
-    'Staking Vault': <CubeIcon className="w-5 h-5" />,
-    'Bounty Board': <BoltIcon className="w-5 h-5" />,
-    'AI Agent': <SparklesIcon className="w-5 h-5" />,
-    'Wallet Explorer': <WalletIcon className="w-5 h-5" />,
-    'Network Status': <SignalIcon className="w-5 h-5" />,
-    'Faucet': <CreditCardIcon className="w-5 h-5" />,
-    'Tokenomics': <CreditCardIcon className="w-5 h-5" />,
-    'Smart Contract': <CodeBracketIcon className="w-5 h-5" />,
-    'AI Module': <CpuChipIcon className="w-5 h-5" />,
-    'Whitepaper': <BookOpenIcon className="w-5 h-5" />,
-    'Technical Specs': <BeakerIcon className="w-5 h-5" />,
-    'API Docs': <DocumentTextIcon className="w-5 h-5" />,
-    'General Article': <GlobeAltIcon className="w-5 h-5" />,
-    'Infra Monitor': <SignalIcon className="w-5 h-5" />,
+type IconComponent = React.FC<{ className?: string }>;
+
+/** Um ícone por tela, e nenhum repetido: antes CubeIcon aparecia em três itens,
+ *  SignalIcon em três e CreditCardIcon em dois, com um quarto cubo servindo de
+ *  fallback — o que fazia a coluna inteira parecer a mesma coisa vinte vezes.
+ *  A cor fica fora daqui: quem decide a cor é o estado do botão, não o mapa. */
+const TAB_ICONS: Record<string, IconComponent> = {
+    'Dashboard': ChartBarIcon,
+    'Solana Payouts': CreditCardIcon,
+    'Settlement Ledger': CheckCircleIcon,
+    'Faucet': BoltIcon,
+    'AutoClaim Hub': ArrowPathIcon,
+    'Bounty Board': SparklesIcon,
+    'Connect a Faucet': ShieldCheckIcon,
+    'Staking Vault': CubeIcon,
+    'AI Agent': CpuChipIcon,
+    'Wallet Explorer': WalletIcon,
+    'Address Tracker': MagnifyingGlassPlusIcon,
+    'Network Status': SignalIcon,
+    'Infra Monitor': GlobeAltIcon,
+    'Whitepaper': BookOpenIcon,
+    'General Article': InformationCircleIcon,
+    'Tokenomics': ChartPieIcon,
+    'Smart Contract': CodeBracketIcon,
+    'AI Module': BeakerIcon,
+    'Technical Specs': DocumentTextIcon,
+    'API Docs': ArrowUpRightIcon
 };
+
+/** A ordem de leitura da barra. O App continua dono de QUAIS telas existem; isto
+ *  é dono de COMO elas se leem — dinheiro liquidando primeiro, documentação por
+ *  último. Uma tela que não esteja listada aqui cai no último grupo, então
+ *  acrescentar uma entrada em TABS nunca a faz desaparecer da navegação. */
+const GROUPS: { key: string; fallback: string; tabs: string[] }[] = [
+    { key: 'settlement', fallback: 'Settlement', tabs: ['Solana Payouts', 'Settlement Ledger'] },
+    { key: 'earn', fallback: 'Earn', tabs: ['Faucet', 'AutoClaim Hub', 'Bounty Board'] },
+    { key: 'operate', fallback: 'Operate', tabs: ['Connect a Faucet', 'Staking Vault', 'AI Agent'] },
+    { key: 'explore', fallback: 'Explore', tabs: ['Wallet Explorer', 'Address Tracker', 'Network Status', 'Infra Monitor'] },
+    { key: 'reference', fallback: 'Reference', tabs: ['Whitepaper', 'General Article', 'Tokenomics', 'Smart Contract', 'AI Module', 'Technical Specs', 'API Docs'] }
+];
+
+/** O Dashboard não entra em grupo: é a tela de entrada, e dar um rótulo de seção
+ *  a um único item é enfeite, não informação. */
+const LEAD_TAB = 'Dashboard';
 
 export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExpandedChange }) => {
     const { t } = useTranslation();
     const [hoveredTab, setHoveredTab] = useState<string | null>(null);
-    // Collapsed until the pointer arrives. It used to start false, so the rail
-    // opened to 240px on load and sat on top of the header logo at x=202.
-    const [isCollapsed, setIsCollapsed] = useState(true);
+    // Aberta por padrão. Fechada-com-abre-no-hover escondia os vinte rótulos até
+    // alguém passar o mouse, e fazia a barra pular a cada vez que o ponteiro a
+    // cruzava. Quem quer a coluna estreita fecha no botão, de propósito.
+    const [isCollapsed, setIsCollapsed] = useState(false);
 
-    const setExpanded = (expanded: boolean) => {
-        setIsCollapsed(!expanded);
-        onExpandedChange?.(expanded);
+    const toggle = () => {
+        const next = !isCollapsed;
+        setIsCollapsed(next);
+        onExpandedChange?.(!next);
     };
 
     const getLabel = (key: string) => {
@@ -69,100 +99,142 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
         return t(`tabs.${formattedKey}`, { defaultValue: key });
     };
 
+    // As seções são montadas a partir do que o App entregou, preservando a ordem
+    // de leitura acima e varrendo o resto para o fim.
+    const presentes = new Set(tabs);
+    const agrupados = new Set<string>([LEAD_TAB]);
+    const secoes = GROUPS.map((grupo) => {
+        const itens = grupo.tabs.filter((tab) => presentes.has(tab));
+        itens.forEach((tab) => agrupados.add(tab));
+        return { ...grupo, itens };
+    }).filter((grupo) => grupo.itens.length > 0);
+    const restantes = tabs.filter((tab) => !agrupados.has(tab));
+    if (restantes.length > 0) {
+        secoes.push({ key: 'other', fallback: 'Other', tabs: restantes, itens: restantes });
+    }
+
+    const renderItem = (tabKey: string) => {
+        const isActive = activeTab === tabKey;
+        const isHovered = hoveredTab === tabKey;
+        const Icon = TAB_ICONS[tabKey] || CubeIcon;
+
+        return (
+            <button
+                key={tabKey}
+                onClick={() => setActiveTab(tabKey)}
+                onMouseEnter={() => setHoveredTab(tabKey)}
+                onMouseLeave={() => setHoveredTab(null)}
+                aria-current={isActive ? 'page' : undefined}
+                className={`
+                    relative w-full flex items-center rounded-xl transition-colors duration-200
+                    ${isCollapsed ? 'px-3 py-2.5 justify-center' : 'gap-3 pl-4 pr-3 py-2'}
+                    ${isActive
+                        ? 'bg-brand-primary/15 text-white'
+                        : 'text-brand-muted hover:bg-white/[0.04] hover:text-brand-secondary'
+                    }
+                `}
+                title={isCollapsed ? getLabel(tabKey) : undefined}
+            >
+                {/* O único movimento autoral da barra: a marca ativa cresce do
+                    centro em vez de aparecer pronta. 160ms, uma curva só. */}
+                <span
+                    aria-hidden="true"
+                    className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-brand-primary
+                        transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]
+                        ${isActive ? 'scale-y-100' : 'scale-y-0'}
+                    `}
+                />
+
+                {/* Um ícone, não dois. O desfoque duplicado atrás de cada ícone
+                    era decoração que engrossava o traço e borrava a forma. */}
+                <Icon
+                    className={`w-[18px] h-[18px] flex-shrink-0 transition-colors duration-200
+                        ${isActive ? 'text-brand-primary' : isHovered ? 'text-brand-secondary' : 'text-brand-muted'}
+                    `}
+                />
+
+                <span className={`
+                    text-[13px] whitespace-nowrap overflow-hidden transition-all duration-300
+                    ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}
+                    ${isActive ? 'font-semibold' : 'font-medium'}
+                `}>
+                    {getLabel(tabKey)}
+                </span>
+
+                {isCollapsed && isHovered && (
+                    <span className="absolute left-full ml-3 px-3 py-1.5 bg-brand-card border border-brand-border rounded-lg shadow-lift whitespace-nowrap z-[100] animate-fadeIn pointer-events-none">
+                        <span className="text-xs font-semibold text-white">{getLabel(tabKey)}</span>
+                    </span>
+                )}
+            </button>
+        );
+    };
+
     return (
         <nav
-            className={`fixed left-0 top-0 h-screen z-[100] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
-                glass border-r border-brand-primary/20
+            aria-label="FaucetChain"
+            className={`fixed left-0 top-0 h-screen z-[100] flex flex-col transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+                glass border-r border-brand-border
                 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}
             `}
-            onMouseEnter={() => setExpanded(true)}
-            onMouseLeave={() => setExpanded(false)}
         >
-            {/* Logo / Brand */}
-            <div className="px-4 py-6 border-b border-brand-border/30 flex items-center gap-3 overflow-hidden">
+            {/* Marca */}
+            <div className={`px-4 py-5 border-b border-brand-border/60 flex items-center overflow-hidden ${isCollapsed ? 'justify-center px-0' : 'gap-3'}`}>
                 {/* A logo, nao um icone generico dentro de um quadrado colorido.
                     Ela se anima sozinha no SVG, entao nao ha estado aqui; quem
                     pediu menos movimento recebe a versao parada pelo proprio
                     arquivo. */}
                 <img src="/faucetchain-logo-animated.svg" alt="FaucetChain"
                      width={24} height={36}
-                     className="h-9 w-auto flex-shrink-0" />
-                <div className={`transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                    <h1 className="text-sm font-black text-white tracking-tight leading-none">FaucetChain</h1>
-                    <span className="text-[9px] font-bold text-brand-primary uppercase tracking-[0.2em]">Explorer V3</span>
+                     className="h-8 w-auto flex-shrink-0" />
+                <div className={`min-w-0 transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
+                    <h1 className="text-sm font-semibold text-white tracking-tight leading-tight">FaucetChain</h1>
+                    {/* A camada e o token, não a versão do explorer. A faixa de
+                        status e o header, logo à direita, já dizem "micro-
+                        distribution" e "settles on Solana"; dizer de novo aqui
+                        punha a mesma frase três vezes na mesma tela. */}
+                    <span className="text-[10px] font-medium text-brand-muted leading-tight">L1 · $CLAIM</span>
                 </div>
             </div>
 
-            {/* Navigation Items */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 space-y-1 scrollbar-hide">
-                {tabs.map((tabKey) => {
-                    const isActive = activeTab === tabKey;
-                    const isHovered = hoveredTab === tabKey;
-                    const icon = TAB_ICONS[tabKey] || <CubeIcon className="w-5 h-5" />;
+            {/* A barra de rolagem fina fica visível: com vinte itens o último
+                grupo cai abaixo da dobra, e esconder a barra escondia junto o
+                aviso de que há mais coisa embaixo. */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-3 [scrollbar-width:thin] [scrollbar-color:#1C2E3D_transparent]">
+                {presentes.has(LEAD_TAB) && renderItem(LEAD_TAB)}
 
-                    return (
-                        <button
-                            key={tabKey}
-                            onClick={() => setActiveTab(tabKey)}
-                            onMouseEnter={() => setHoveredTab(tabKey)}
-                            onMouseLeave={() => setHoveredTab(null)}
-                            className={`
-                                relative w-full flex items-center gap-3 rounded-xl transition-all duration-300 ease-out group neon-border-dynamic
-                                ${isCollapsed ? 'px-3 py-3 justify-center' : 'px-3 py-2.5'}
-                                ${isActive
-                                    ? 'bg-brand-primary/20 text-brand-primary shadow-glow-primary'
-                                    : 'text-brand-muted hover:bg-brand-primary/10 hover:text-white'
-                                }
-                            `}
-                            title={isCollapsed ? getLabel(tabKey) : undefined}
-                        >
-                            {/* Active indicator bar */}
-                            {isActive && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-brand-primary rounded-r-full shadow-[0_0_8px_rgba(var(--brand-primary-rgb),0.5)]" />
-                            )}
-
-                            {/* Icon with hover glow */}
-                            <div className={`
-                                relative flex-shrink-0 transition-all duration-200
-                                ${isActive ? 'text-brand-primary' : ''}
-                                ${isHovered && !isActive ? 'text-white scale-110' : ''}
-                            `}>
-                                {icon}
-                                {/* Glow on hover */}
-                                {(isHovered || isActive) && (
-                                    <div className={`absolute inset-0 blur-md opacity-40 pointer-events-none ${isActive ? 'text-brand-primary' : 'text-white'}`}>
-                                        {icon}
-                                    </div>
-                                )}
+                {secoes.map((grupo) => (
+                    <div key={grupo.key} className="mt-5 first:mt-3">
+                        {isCollapsed ? (
+                            // Sem rótulo não sobra espaço para texto; o que separa
+                            // os grupos na coluna estreita é a linha.
+                            <div aria-hidden="true" className="mx-3 mb-2 border-t border-brand-border/60" />
+                        ) : (
+                            <div className="px-4 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-muted/70">
+                                {t(`navGroups.${grupo.key}`, { defaultValue: grupo.fallback })}
                             </div>
-
-                            {/* Label */}
-                            <span className={`
-                                text-[13px] font-semibold whitespace-nowrap transition-all duration-300 overflow-hidden
-                                ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}
-                                ${isActive ? 'font-bold' : ''}
-                            `}>
-                                {getLabel(tabKey)}
-                            </span>
-
-                            {/* Hover tooltip when collapsed */}
-                            {isCollapsed && isHovered && (
-                                <div className="absolute left-full ml-3 px-3 py-1.5 bg-brand-surface border border-brand-border rounded-lg shadow-2xl whitespace-nowrap z-[100] animate-fadeIn pointer-events-none">
-                                    <span className="text-xs font-bold text-white">{getLabel(tabKey)}</span>
-                                    <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-2 h-2 bg-brand-surface border-l border-b border-brand-border rotate-45" />
-                                </div>
-                            )}
-                        </button>
-                    );
-                })}
+                        )}
+                        <div className="space-y-0.5">
+                            {grupo.itens.map(renderItem)}
+                        </div>
+                    </div>
+                ))}
             </div>
 
-            {/* Footer */}
-            <div className={`px-4 py-4 border-t border-brand-border/30 overflow-hidden transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-brand-primary animate-pulseGlow" />
-                    <span className="text-[10px] font-bold text-brand-primary uppercase tracking-widest whitespace-nowrap neon-text">FaucetChain Network</span>
-                </div>
+            {/* Rodapé: só o controle da própria barra. O estado da rede é da
+                faixa no topo da página, que já o anuncia em letra maior. */}
+            <div className="border-t border-brand-border/60 px-3 py-2 flex items-center justify-end">
+                <button
+                    onClick={toggle}
+                    aria-expanded={!isCollapsed}
+                    title={isCollapsed ? 'Expand' : 'Collapse'}
+                    className={`flex-shrink-0 p-2 rounded-lg text-brand-muted hover:text-brand-secondary hover:bg-white/[0.04] transition-colors ${isCollapsed ? 'mx-auto' : ''}`}
+                >
+                    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.75} stroke="currentColor" className="w-4 h-4" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round"
+                              d={isCollapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'} />
+                    </svg>
+                </button>
             </div>
         </nav>
     );

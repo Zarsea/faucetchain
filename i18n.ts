@@ -7,6 +7,13 @@ const resourcesEn = {
         header: {
             title: "FaucetChain",
         },
+        navGroups: {
+            settlement: "Settlement",
+            earn: "Earn",
+            operate: "Operate",
+            explore: "Explore",
+            reference: "Reference"
+        },
         tabs: {
             Dashboard: "Dashboard",
             ConnectaFaucet: "Connect a Faucet",
@@ -172,6 +179,13 @@ const resourcesPt = {
         header: {
             title: "FaucetChain",
         },
+        navGroups: {
+            settlement: "Liquidação",
+            earn: "Ganhar",
+            operate: "Operar",
+            explore: "Explorar",
+            reference: "Referência"
+        },
         tabs: {
             Dashboard: "Painel Principal",
             ConnectaFaucet: "Conectar Torneira",
@@ -336,6 +350,13 @@ const resourcesEs = {
     translation: {
         header: {
             title: "FaucetChain",
+        },
+        navGroups: {
+            settlement: "Liquidación",
+            earn: "Ganar",
+            operate: "Operar",
+            explore: "Explorar",
+            reference: "Referencia"
         },
         tabs: {
             Dashboard: "Panel Principal",

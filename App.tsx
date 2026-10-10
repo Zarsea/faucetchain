@@ -54,7 +54,7 @@ const TABS = [
 const AppContent: React.FC = () => {
     const [activeTab, setActiveTab] = React.useState(TABS[0]);
     const [isDappsOpen, setIsDappsOpen] = React.useState(false);
-    const [sidebarExpanded, setSidebarExpanded] = React.useState(false);
+    const [sidebarExpanded, setSidebarExpanded] = React.useState(true);
 
     const renderContent = () => {
         switch (activeTab) {
