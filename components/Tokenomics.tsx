@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { CodeBlock } from './CodeBlock';
-import { YAML_CODE, DIAGRAMS } from '../constants';
+import { YAML_CODE, diagrams } from '../constants';
 import { SectionCard } from './SectionCard';
 import { CreditCardIcon, SignalIcon, ChartBarIcon, CubeIcon, BookOpenIcon, BoltIcon, ChartPieIcon } from './IconComponents';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Area, AreaChart } from 'recharts';
@@ -294,7 +294,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                  <div className="lg:col-span-2">
                     <MermaidDiagram 
-                        code={(DIAGRAMS[lang as keyof typeof DIAGRAMS] || DIAGRAMS['en']).TOKENOMICS_FLOW_CODE} 
+                        code={diagrams(lang).TOKENOMICS_FLOW_CODE} 
                         title={t('tokenomics.flowTitle')} 
                         icon={<SignalIcon className="w-5 h-5"/>}
                         prompt="Explain how the $CLAIM token flows from user claims into the Ecosystem Fund and Team wallet. Why is the 60/40 split used?"
@@ -310,7 +310,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-12">
                 <div className="lg:col-span-2 space-y-6">
                     <MermaidDiagram 
-                        code={(DIAGRAMS[lang as keyof typeof DIAGRAMS] || DIAGRAMS['en']).TREASURY_ALLOCATION_DIAGRAM} 
+                        code={diagrams(lang).TREASURY_ALLOCATION_DIAGRAM} 
                         title={t('tokenomics.distTitle')} 
                         icon={<CreditCardIcon className="w-5 h-5"/>}
                         prompt="Why is a majority (60%) of the block rewards allocated to an Ecosystem Fund instead of distributed entirely to miners/validators?"

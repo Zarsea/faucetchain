@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import mermaid from 'mermaid';
 import { DIAGRAMS } from '../constants';
+import { useLanguage } from './LanguageContext';
 import { 
     ChartBarIcon, 
     MagnifyingGlassPlusIcon, 
@@ -45,6 +46,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
     icon,
     prompt
 }) => {
+    const { lang } = useLanguage();
     const [scale, setScale] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -208,7 +210,9 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
             
             {!inFullscreen && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-brand-muted opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-bold tracking-widest whitespace-nowrap">
-                    Arraste para mover • Pinça/Scroll para zoom
+                    {lang === 'en'
+                        ? 'Drag to pan • Pinch/Scroll to zoom'
+                        : 'Arraste para mover • Pinça/Scroll para zoom'}
                 </div>
             )}
         </div>

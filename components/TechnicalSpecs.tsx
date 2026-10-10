@@ -66,7 +66,9 @@ export const TechnicalSpecs: React.FC = () => {
                 <div className="lg:col-span-5 flex flex-col gap-8">
                     <SectionCard title="Protocol Parameters" icon={<CpuChipIcon className="w-6 h-6"/>}>
                         <p className="text-sm text-brand-muted leading-relaxed mb-4">
-                            Constantes de rede fixas que garantem finalidade sub-3s e gerenciamento eficiente de estado.
+                            {lang === 'en'
+                                ? 'Fixed network constants: sub-3s finality and the bounds the sealer works inside.'
+                                : 'Constantes de rede fixas: finalidade sub-3s e os limites dentro dos quais o selador trabalha.'}
                         </p>
                         <SpecTable data={networkSpecs} />
                     </SectionCard>

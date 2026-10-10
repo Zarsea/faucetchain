@@ -2,7 +2,7 @@
 import React from 'react';
 import { SparklesIcon, WalletIcon, SignalIcon, ArrowPathIcon } from './IconComponents';
 import { MermaidDiagram } from './MermaidDiagram';
-import { DIAGRAMS } from '../constants';
+import { diagrams } from '../constants';
 import { useLanguage } from './LanguageContext';
 
 export const ClaimEventSection: React.FC = () => {
@@ -131,7 +131,7 @@ export const ClaimEventSection: React.FC = () => {
                     <div className="lg:col-span-7 flex flex-col h-full">
                         <div className="sticky top-24">
                             <MermaidDiagram 
-                                code={DIAGRAMS[lang].CLAIM_EVENT_DIAGRAM} 
+                                code={diagrams(lang).CLAIM_EVENT_DIAGRAM} 
                                 title={lang === 'en' ? "Protocol Execution Flow" : "Fluxo de Execução do Protocolo"}
                                 prompt="Analyze the chronological sequence of the Claim Event. Why is the 60/40 split handled at step 2 specifically?"
                             />

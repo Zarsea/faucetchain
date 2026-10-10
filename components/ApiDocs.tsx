@@ -1,109 +1,168 @@
 
 import React from 'react';
 import { SectionCard } from './SectionCard';
-import { CodeBracketIcon, ArrowPathIcon, GlobeAltIcon, ShieldCheckIcon } from './IconComponents';
+import { CodeBracketIcon, GlobeAltIcon, ShieldCheckIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
-import { DIAGRAMS } from '../constants';
+import { diagrams } from '../constants';
 import { MermaidDiagram } from './MermaidDiagram';
 
 export const ApiDocs: React.FC = () => {
     const { lang } = useLanguage();
+    // O padrão do projeto, e com ele a limitação do projeto: quem escolhe
+    // espanhol recebe português. A correção disso é maior do que esta tela.
+    const T = (en: string, pt: string) => (lang === 'en' ? en : pt);
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
             <div className="animate-fadeIn">
-                <h2 className="text-3xl font-bold text-brand-secondary mb-4">Documentação da API V3</h2>
+                <h2 className="text-3xl font-bold text-brand-secondary mb-4">
+                    {T('FaucetHub API', 'API do FaucetHub')}
+                </h2>
                 <p className="text-brand-muted mb-6 text-lg leading-relaxed">
-                    A FaucetChain permite que **Hubs de Terceiros** se conectem para minerar blocos através da reputação. 
-                    Abaixo, veja como configurar seu Hub para farmar $CLAIM via provas de participação.
+                    {T(
+                        'Two calls connect a faucet to FaucetChain: one to register and get a key, one per claim. ' +
+                        'The second runs after your own payout is already recorded, so nothing you owe a user ever waits on us.',
+                        'Duas chamadas conectam uma torneira à FaucetChain: uma para registrar e receber a chave, ' +
+                        'uma por claim. A segunda roda depois que o seu pagamento já foi registrado, então nada que ' +
+                        'você deve ao usuário espera por nós.'
+                    )}
                 </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    {/* HUB INTEGRATION SECTION */}
-                    <SectionCard title="Conectar Novo Hub (Onboarding)" icon={<GlobeAltIcon className="w-5 h-5 text-brand-primary"/>}>
+                    <SectionCard
+                        title={T('Step 1 — Register the faucet', 'Passo 1 — Registrar a torneira')}
+                        icon={<GlobeAltIcon className="w-5 h-5" />}
+                    >
                         <p className="text-sm text-brand-muted mb-4">
-                            Para começar a farmar, seu Hub deve ser autorizado pela governança. Uma vez autorizado, você pode enviar lotes de claims assinados.
+                            {T(
+                                'The key is shown once, here and at rotation. Only its sha256 is stored, so nothing can reveal it later.',
+                                'A chave aparece uma vez, aqui e na rotação. Só o sha256 dela é guardado, então nada a revela depois.'
+                            )}
                         </p>
                         <div className="bg-brand-bg p-4 rounded-xl border border-brand-border mb-6">
-                            <p className="text-[10px] font-black text-brand-primary uppercase mb-2">Endpoint de Registro</p>
-                            <code className="text-xs font-mono text-brand-secondary">POST /v1/hubs/auth</code>
-                            <pre className="mt-3 text-[10px] text-brand-muted bg-brand-bg/50 p-2 rounded">
+                            <code className="text-xs font-mono text-brand-primary">POST /api/faucethub/register</code>
+                            <pre className="mt-3 text-[10px] text-brand-muted bg-brand-bg/50 p-2 rounded overflow-x-auto">
 {`{
-    "hub_address": "0xSeuHub...",
-    "public_key": "ed25519_...",
-    "reputation_source": "SocialMedia/IoT/Git"
+    "name": "My Faucet",
+    "wallet_address": "0x84da..."
+}
+
+→ 200
+{
+    "status": "success",
+    "api_key": "fch_a1b2c3…",   // 64 hex, shown once
+    "wallet_address": "0x84da..."
 }`}
                             </pre>
                         </div>
-                        <MermaidDiagram 
-                            code={DIAGRAMS[lang].HUB_INTEGRATION_DIAGRAM} 
-                            title={lang === 'en' ? "Hub-to-L1 Synchronization" : "Sincronização Hub-para-L1"}
+                        <MermaidDiagram
+                            code={diagrams(lang).HUB_INTEGRATION_DIAGRAM}
+                            title={T('Faucet-to-L1 synchronization', 'Sincronização Torneira-para-L1')}
                         />
                     </SectionCard>
 
-                    <SectionCard title="Get Latest Block" icon={<CodeBracketIcon className="w-5 h-5"/>}>
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="font-mono text-xs bg-brand-bg px-2 py-1 rounded border border-brand-border text-brand-primary">GET /v1/blocks/latest</p>
-                        </div>
-                        <pre className="mt-4 p-4 bg-brand-bg rounded-md text-xs text-brand-secondary/90 overflow-x-auto border border-brand-border font-mono scrollbar-thin">
-                            <code>
-{`{
-    "height": "6789012",
-    "hash": "0x7d4b2e...",
-    "transactions": [
-        {
-            "hash": "0x9e8d7...",
-            "gasLimit": "30000",
-            "chainId": 1042,
-            "inputData": "0xa905..."
-        }
+                    <SectionCard
+                        title={T('Step 2 — One call per claim', 'Passo 2 — Uma chamada por claim')}
+                        icon={<CodeBracketIcon className="w-5 h-5" />}
+                    >
+                        <p className="text-sm text-brand-muted mb-3">
+                            {T(
+                                '`amount` is how much work the click represents, between 0 and 100. It is not what the user earns: ' +
+                                'the network computes that from the campaign budget, the days left and how many people are taking part.',
+                                '`amount` é quanto de trabalho o clique representa, entre 0 e 100. Não é o que o usuário ganha: ' +
+                                'a rede calcula isso a partir do orçamento da campanha, dos dias restantes e de quantas pessoas participam.'
+                            )}
+                        </p>
+                        <div className="bg-brand-bg p-4 rounded-xl border border-brand-border">
+                            <code className="text-xs font-mono text-brand-primary">POST /api/faucethub/microclaim</code>
+                            <pre className="mt-3 text-[10px] text-brand-muted bg-brand-bg/50 p-2 rounded overflow-x-auto">
+{`X-Api-Key: fch_a1b2c3…
+Content-Type: application/json
+
+{
+    "user_wallet": "7xKX…",   // Solana address, or a 0x FaucetChain one
+    "amount": 1
+}
+
+→ 200
+{
+    "user_address": "0x6f9b…c41e",
+    "campaigns": [
+        { "campaign_id": 990001, "amount": 4.82, "treasury": 1.2, "funding": "vault" }
     ]
 }`}
-                            </code>
-                        </pre>
+                            </pre>
+                        </div>
                     </SectionCard>
-                    
-                    <SectionCard title="Submit Batch Claim (Hub Farming)" icon={<ShieldCheckIcon className="w-5 h-5 text-green-400"/>}>
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="font-mono text-xs bg-brand-bg px-2 py-1 rounded border border-brand-border text-brand-primary">POST /v1/claims/submit</p>
-                        </div>
-                        <p className="text-sm mt-2 text-brand-muted">
-                            Este é o endpoint principal para "farmar". Você envia um **Merkle Root** representando centenas de atividades.
+
+                    <SectionCard
+                        title={T('Step 3 — Rotate a lost key', 'Passo 3 — Rotacionar uma chave perdida')}
+                        icon={<ShieldCheckIcon className="w-5 h-5" />}
+                    >
+                        <p className="text-sm text-brand-muted mb-3">
+                            {T(
+                                'There is nothing to reveal, so a lost key is replaced rather than recovered. The owning wallet signs for it.',
+                                'Não há o que revelar, então uma chave perdida é substituída, não recuperada. A carteira dona assina por ela.'
+                            )}
                         </p>
-                        <div className="mt-4 p-4 bg-brand-bg rounded-md border border-brand-border">
-                             <pre className="text-xs font-mono text-brand-secondary">
-{`{
-    "hub_id": "0xSeuHub...",
-    "merkle_root": "0x4f2d7a...",
-    "total_weight": 1500.25,
-    "proof_signature": "0x7b8c...",
-    "timestamp": 1722253810
-}`}
-                             </pre>
-                        </div>
-                        <div className="mt-6 p-4 bg-brand-surface border border-brand-border rounded-lg">
+                        <div className="bg-brand-bg p-4 rounded-xl border border-brand-border">
+                            <code className="text-xs font-mono text-brand-primary">POST /api/faucethub/regenerate-key</code>
                         </div>
                     </SectionCard>
                 </div>
 
                 <div className="lg:col-span-1 space-y-6">
-                    <SectionCard title="Manual do Hub" icon={<GlobeAltIcon className="w-5 h-5 text-brand-primary" />}>
+                    <SectionCard
+                        title={T('The two rules', 'As duas regras')}
+                        icon={<ShieldCheckIcon className="w-5 h-5" />}
+                    >
                         <div className="space-y-4">
                             <div className="p-3 bg-brand-primary/5 border border-brand-primary/20 rounded-xl">
-                                 <h4 className="text-[10px] font-black text-brand-primary uppercase mb-1">Passo 1: Identidade</h4>
-                                 <p className="text-[11px] text-brand-muted leading-relaxed">Crie um par de chaves Ed25519. Este será o 'RG' do seu Hub na rede.</p>
+                                <h4 className="text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1">
+                                    {T('Call it after your commit', 'Chame depois do seu commit')}
+                                </h4>
+                                <p className="text-[11px] text-brand-muted leading-relaxed">
+                                    {T(
+                                        'Your payout is recorded before FaucetChain is even looked up. A payment cannot depend on somebody else’s uptime.',
+                                        'O seu pagamento é registrado antes de a FaucetChain sequer ser consultada. Um pagamento não pode depender do uptime de outro.'
+                                    )}
+                                </p>
                             </div>
                             <div className="p-3 bg-brand-primary/5 border border-brand-primary/20 rounded-xl">
-                                 <h4 className="text-[10px] font-black text-brand-primary uppercase mb-1">Passo 2: Stake Mínimo</h4>
-                                 <p className="text-[11px] text-brand-muted leading-relaxed">Todo Hub precisa de 10k $CLAIM em stake para garantir a veracidade dos dados (Anti-Spam).</p>
+                                <h4 className="text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1">
+                                    {T('Swallow the error', 'Engula o erro')}
+                                </h4>
+                                <p className="text-[11px] text-brand-muted leading-relaxed">
+                                    {T(
+                                        'Four-second timeout, log and return. If your faucet stops paying when ours is down, the integration is wrong.',
+                                        'Timeout de quatro segundos, registre e retorne. Se a sua torneira para de pagar quando a nossa cai, a integração está errada.'
+                                    )}
+                                </p>
                             </div>
-                            <div className="p-3 bg-brand-primary/5 border border-brand-primary/20 rounded-xl">
-                                 <h4 className="text-[10px] font-black text-brand-primary uppercase mb-1">Passo 3: Farming</h4>
-                                 <p className="text-[11px] text-brand-muted leading-relaxed">Comece a enviar Provas de Claim. A cada bloco validado, seu Hub recebe 40% da recompensa proporcional.</p>
+                            <div className="p-3 bg-brand-surface border border-brand-border rounded-xl">
+                                <h4 className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">
+                                    {T('429 is not a failure', '429 não é falha')}
+                                </h4>
+                                <p className="text-[11px] text-brand-muted leading-relaxed">
+                                    {T(
+                                        'It is the five-minute per-user cooldown on this side. Treat it as “nothing to do”, not as an error to log.',
+                                        'É o cooldown de cinco minutos por usuário deste lado. Trate como “nada a fazer”, não como erro para registrar.'
+                                    )}
+                                </p>
                             </div>
                         </div>
+                    </SectionCard>
+
+                    <SectionCard title={T('Full guide', 'Guia completo')} icon={<GlobeAltIcon className="w-5 h-5" />}>
+                        <p className="text-[11px] text-brand-muted leading-relaxed">
+                            {T(
+                                'Working cURL, JavaScript, Python and PHP implementations, and the address derivation, are in ',
+                                'Implementações prontas em cURL, JavaScript, Python e PHP, e a derivação de endereço, estão em '
+                            )}
+                            <code className="font-mono text-brand-primary">FaucetHub_Integration_Guide.md</code>.
+                        </p>
                     </SectionCard>
                 </div>
             </div>

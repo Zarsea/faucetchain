@@ -222,6 +222,18 @@ pie title "Divisao proposta do teto de 99M, ainda nao decidida"
   }
 };
 
+/**
+ * Os diagramas existem em en e pt. Pedir outro idioma devolvia undefined, e a
+ * primeira leitura de chave derrubava o app inteiro: em espanhol a tela
+ * Settlement Architecture virava tela branca com
+ * "Cannot read properties of undefined (reading 'MINDMAP_CODE')".
+ *
+ * O ingles e a queda porque e a versao canonica, e e o idioma do evento.
+ */
+export function diagrams(lang: string) {
+  return DIAGRAMS[lang as keyof typeof DIAGRAMS] ?? DIAGRAMS.en;
+}
+
 // Estes dois trechos mostravam codigo que nao existe.
 //
 // O primeiro era um `calculate_adaptive_v2_weight` em Rust, exibido com o

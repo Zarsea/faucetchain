@@ -15,7 +15,7 @@ import {
 } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { ClaimEventSection } from './ClaimEventSection';
-import { DIAGRAMS, POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
+import { diagrams, POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
 import { CodeBlock } from './CodeBlock';
 
 export const GeneralArticle: React.FC = () => {
@@ -138,7 +138,7 @@ export const GeneralArticle: React.FC = () => {
                     </div>
                     <div className="w-full h-full min-h-[600px] bg-brand-bg/50 rounded-[2rem] border border-brand-border/40 p-4">
                         <MermaidDiagram 
-                            code={DIAGRAMS[lang].MINDMAP_CODE} 
+                            code={diagrams(lang).MINDMAP_CODE} 
                             title={lang === 'en' ? "Full Ecosystem Topology" : "Topologia Completa do Ecossistema"} 
                         />
                     </div>
@@ -176,7 +176,7 @@ export const GeneralArticle: React.FC = () => {
                     </div>
                     <div className="lg:w-2/3 h-full min-h-[500px]">
                         <MermaidDiagram 
-                            code={DIAGRAMS[lang].CLAIM_LIFECYCLE_DETAILED_CODE} 
+                            code={diagrams(lang).CLAIM_LIFECYCLE_DETAILED_CODE} 
                             title={lang === 'en' ? "Full Execution Pipeline" : "Pipeline de Execução Completo"} 
                             prompt="Deconstruct the sequence from Minting to Yield. Why is Treasury Settlement the penultimate step before Yield generation?"
                         />

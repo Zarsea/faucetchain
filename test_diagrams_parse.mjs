@@ -50,4 +50,29 @@ for (const { nome, codigo } of achados) {
   }
 }
 console.log(ruins ? `\n${ruins} diagrama(s) com erro de sintaxe` : '\ntodos analisam sem erro');
-process.exit(ruins ? 1 : 0);
+
+// Um idioma sem diagrama nao pode derrubar a pagina.
+//
+// DIAGRAMS tem en e pt. Ate 10/10/2026 cinco telas liam DIAGRAMS[lang] direto,
+// entao em espanhol a leitura devolvia undefined e a primeira chave lancava:
+// "Cannot read properties of undefined (reading 'MINDMAP_CODE')". O React saia
+// inteiro do ar -- tela branca na Settlement Architecture, com o seletor de
+// idioma junto, de onde nao havia como voltar.
+//
+// Prova de que morde: tirar o `?? DIAGRAMS.en` do acessor, ou devolver uma
+// tela a ler DIAGRAMS[lang], faz este script sair com codigo 1.
+let frageis = 0;
+if (!/export function diagrams\b[\s\S]{0,400}?\?\? DIAGRAMS\.en/.test(src)) {
+    console.log('\nERRO  constants.ts nao exporta diagrams() com queda para o ingles');
+    frageis++;
+}
+for (const arq of fs.readdirSync(path.join(RAIZ, 'components')).filter((f) => f.endsWith('.tsx'))) {
+    const texto = fs.readFileSync(path.join(RAIZ, 'components', arq), 'utf8');
+    if (/DIAGRAMS\s*\[/.test(texto)) {
+        console.log(`ERRO  components/${arq} le DIAGRAMS[...] direto; use diagrams(lang)`);
+        frageis++;
+    }
+}
+if (!frageis) console.log('diagrams(): nenhuma tela le DIAGRAMS[lang] direto');
+
+process.exit(ruins || frageis ? 1 : 0);

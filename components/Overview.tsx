@@ -4,7 +4,7 @@ import { SectionCard } from './SectionCard';
 import { MermaidDiagram } from './MermaidDiagram';
 import { CubeIcon, ShieldCheckIcon, SignalIcon, CreditCardIcon, SparklesIcon, ChartBarIcon, CpuChipIcon, BoltIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
-import { DIAGRAMS } from '../constants';
+import { diagrams } from '../constants';
 import { useNetwork } from './NetworkContext';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; accent?: string }> = ({ label, value, icon, accent = "text-brand-primary" }) => (
@@ -128,7 +128,7 @@ export const Overview: React.FC = () => {
 
                 <div className="lg:col-span-7 h-full">
                     <MermaidDiagram 
-                        code={DIAGRAMS[lang].MERMAID_CODE} 
+                        code={diagrams(lang).MERMAID_CODE} 
                         title="V3 Consensus Evolution Flow" 
                         prompt="Explique por que a garantia de pagamento da FaucetChain mora no programa da Solana e não nesta cadeia, e o que o programa recusa fazer."
                     />
