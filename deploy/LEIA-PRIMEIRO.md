@@ -110,13 +110,12 @@ navegador toma erro de CORS.
 
 ## Os segredos
 
-Dez variáveis. **Três são chaves privadas** e não podem aparecer em log,
+Nove variáveis. **Três são chaves privadas** e não podem aparecer em log,
 imagem, ou no git.
 
 ```bash
 fly secrets set \
   SOLANA_RPC_URL="..." \
-  FAUCETCHAIN_RPC_URL="..." \
   PASSWORD_SALT="..." \
   SETTLEMENT_OPERATOR_TOKEN="..." \
   SETTLEMENT_CAMPAIGN_SPONSOR="..." \
@@ -141,6 +140,17 @@ provar.
 
 Os valores estão no `.env` da máquina do Zarsea. Peça a ele; não estão no
 repositório e não devem passar por chat.
+
+**`FAUCETCHAIN_RPC_URL` saiu desta lista.** Ela estava aqui apontando para
+`localhost:8545`, e nenhum código do servidor a lê — a única referência no
+repositório é `legacy/evm/hardhat.config.ts`, que não entra no container. Pedir
+uma variável que não faz nada custa o tempo de quem tenta descobrir o que pôr
+nela, e dentro de um container `localhost:8545` nunca seria nada de qualquer
+forma.
+
+**Todas as nove podem ser mudadas depois do deploy.** `fly secrets set` aceita
+uma variável a qualquer momento e reinicia a máquina com o valor novo, então
+nada aqui precisa estar perfeito na primeira subida.
 
 **`ALLOWED_ORIGINS` é obrigatória e não aceita `*`.** O servidor levanta
 `RuntimeError` no boot se encontrar `*` com credenciais ligadas. O padrão é
