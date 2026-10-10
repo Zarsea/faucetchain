@@ -52,39 +52,52 @@ O destino é o diretório que o `entrypoint.sh` usa como working directory —
 directory que decide onde o banco vive. Tem que ser um volume que sobrevive a
 restart, não a camada de escrita do container.
 
-### Se for Fly.io
+### Docker na tua máquina (é o teu caso)
 
 ```bash
-fly sftp shell -a <app>
-# dentro do shell:
-put /caminho/local/blockchain.db /data/blockchain.db
-
-# conferir
-fly ssh console -a <app> -C "sha256sum /data/blockchain.db"
-fly ssh console -a <app> -C "ls -la /data/"
-fly apps restart <app>
-```
-
-### Se for Docker num servidor
-
-```bash
-# descobrir o nome e onde o volume esta montado
+# onde o volume esta montado
 docker ps
 docker inspect <container> --format '{{json .Mounts}}'
+```
 
-# o container pode estar rodando; para antes para o SQLite nao ficar
-# com o arquivo meio trocado
+Se aparecer uma pasta do host no `Source` (algo como
+`-v /home/voce/faucetchain/data:/data`), **o caminho mais simples é copiar
+direto nessa pasta**, com o container parado:
+
+```bash
+docker stop <container>
+rm -f /caminho/do/host/blockchain.db-wal /caminho/do/host/blockchain.db-shm
+cp blockchain.db /caminho/do/host/blockchain.db
+docker start <container>
+```
+
+Se for volume nomeado do Docker, sem pasta do host:
+
+```bash
 docker stop <container>
 docker cp blockchain.db <container>:/data/blockchain.db
 docker start <container>
-
-# conferir
 docker exec <container> sha256sum /data/blockchain.db
 ```
 
-Se o volume estiver mapeado para uma pasta do host (`-v /algum/caminho:/data`),
-copia direto para `/algum/caminho/blockchain.db` com o container parado — é mais
-simples e dá no mesmo.
+**Para o container antes de copiar.** Trocar o arquivo embaixo de um SQLite
+aberto deixa o processo lendo um banco que já não existe, e o que ele escrever
+depois vai para lugar nenhum.
+
+### Se não estiver em Docker, e sim python direto
+
+O banco vai na pasta de onde o `uvicorn` foi iniciado — `get_db_connection()`
+usa caminho **relativo**. Para o processo, copia o arquivo por cima, sobe de
+novo.
+
+### Se um dia for Fly.io
+
+```bash
+fly sftp shell -a <app>
+put /caminho/local/blockchain.db /data/blockchain.db
+fly ssh console -a <app> -C "sha256sum /data/blockchain.db"
+fly apps restart <app>
+```
 
 **Cuidado com os arquivos ao lado.** Se existirem `blockchain.db-wal` ou
 `blockchain.db-shm` no destino, apaga os dois junto com o banco velho antes de
@@ -139,6 +152,37 @@ curl https://www.faucetchain.com.br/api/solana/ledger/652608
 
 Tem que vir `"on_chain"` preenchido, com `root_count: 2`. Se vier nulo, o
 container não está conseguindo ler a devnet.
+
+---
+
+## O notebook é o risco maior, e não é sobre hoje
+
+Isto não é crítica ao que foi feito: subiu rápido, o domínio está certo e o
+TLS funciona. É sobre o que acontece depois que a gente fechar o laptop.
+
+O `LEIA-PRIMEIRO.md` começa dizendo por que esta entrega existe: *"a API roda na
+máquina do Zarsea atrás de um túnel ngrok. Ela caiu três vezes."* Trocamos um
+notebook com ngrok por outro notebook com Cloudflare. O túnel ficou melhor; a
+máquina embaixo dele continua sendo um notebook.
+
+Os juízes abrem o link quando quiserem, inclusive de madrugada e inclusive
+depois do prazo. Se o notebook dormir, perder o wi-fi, atualizar o Windows ou
+só fechar, o que eles veem é uma página morta — e nada avisa ninguém.
+
+**O mínimo, se for ficar no notebook:**
+
+- desligar suspensão e hibernação, inclusive ao fechar a tampa
+- manter na tomada e no cabo de rede, não no wi-fi
+- subir o container com `--restart unless-stopped`
+- o túnel da Cloudflare como serviço (`cloudflared service install`), não como
+  comando numa janela aberta
+- desligar reinício automático por atualização do sistema
+
+**O que resolve de vez:** o `Dockerfile` e o `fly.toml` nesta pasta foram
+escritos para isso. A imagem é a mesma que já está rodando aí; é `fly launch`
+com o `fly.toml` existente, os sete secrets, e subir o banco. Quem já
+containerizou faz em menos de meia hora, e aí o link não depende de ninguém
+estar acordado.
 
 ---
 
