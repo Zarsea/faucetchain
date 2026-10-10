@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
 /* Global styles */
 :root {
@@ -18,16 +18,16 @@
 
 body {
     margin: 0;
-    font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
         'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
         sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: var(--brand-bg);
     color: var(--brand-secondary);
-    background-image: radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.08) 0%, transparent 60%),
-                      radial-gradient(circle at 100% 100%, rgba(138, 43, 226, 0.08) 0%, transparent 50%),
-                      linear-gradient(to bottom, transparent, rgba(5, 5, 10, 1) 100%);
+    background-image: radial-gradient(circle at 50% 0%, rgba(43, 159, 232, 0.08) 0%, transparent 60%),
+                      radial-gradient(circle at 100% 100%, rgba(153, 69, 255, 0.06) 0%, transparent 50%),
+                      linear-gradient(to bottom, transparent, #070f16 100%);
     background-attachment: fixed;
 }
 
@@ -39,21 +39,16 @@ h1, h2, h3, h4, h5, h6 {
     font-family: 'JetBrains Mono', monospace;
 }
 
-/* Glassmorphism & Cyberpunk Effects */
-.glass {
-    background: rgba(13, 14, 21, 0.6);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(0, 240, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5), inset 0 0 10px rgba(0, 240, 255, 0.02);
-}
+/* .glass e .shadow-glow-primary moraram aqui com os valores da paleta antiga
+   -- ciano #00F0FF -- e venciam os do index.html por ordem de carga. O
+   shadow-glow-primary e usado em treze arquivos, entao treze telas brilhavam
+   em ciano enquanto a marca dizia azul. Os dois passam a ser do tema do
+   Tailwind, declarados uma vez no index.html.
 
-.shadow-glow-primary {
-    box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
-}
-
+   O accent fica porque tem uso proprio no GeneralArticle, mas no azul do
+   accent da marca: era vermelho neon #FF003C atras de um ponto azul. */
 .shadow-glow-accent {
-    box-shadow: 0 0 25px rgba(255, 0, 60, 0.5);
+    box-shadow: 0 0 22px -6px rgba(43, 159, 232, 0.45);
 }
 
 .animate-pulseGlow {
@@ -71,13 +66,6 @@ h1, h2, h3, h4, h5, h6 {
     background: linear-gradient(-45deg, #0078cf, #2b9fe8, #0c1620, #0078cf);
     background-size: 400% 400%;
     animation: liquidFlow 14s ease infinite;
-}
-
-/* Cinco sombras empilhadas apagavam a própria letra. O nome fica porque o
-   markup usa, mas agora é peso e cor, que é como tipografia destaca. */
-.neon-text {
-    color: #d6e0f6;
-    text-shadow: 0 1px 12px rgba(43, 159, 232, 0.35);
 }
 
 .neon-border-dynamic {
