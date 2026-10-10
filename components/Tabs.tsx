@@ -180,12 +180,12 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
         >
             {/* Marca */}
             <div className={`px-4 py-5 border-b border-brand-border/60 flex items-center overflow-hidden ${isCollapsed ? 'justify-center px-0' : 'gap-3'}`}>
-                {/* A logo, nao um icone generico dentro de um quadrado colorido.
-                    Ela se anima sozinha no SVG, entao nao ha estado aqui; quem
-                    pediu menos movimento recebe a versao parada pelo proprio
-                    arquivo. */}
-                <img src="/faucetchain-logo-animated.svg" alt="FaucetChain"
-                     width={24} height={36}
+                {/* A mesma marca do cabecalho. Duas marcas diferentes a 240px
+                    uma da outra -- uma gota com elo ali, uma gota sem elo aqui
+                    -- lem como dois produtos. A animacao do SVG anterior se
+                    perde; a coerencia vale mais que ela. */}
+                <img src="/faucetchain-mark.png" alt="FaucetChain"
+                     width={18} height={32}
                      className="h-8 w-auto flex-shrink-0" />
                 <div className={`min-w-0 transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
                     <h1 className="text-sm font-semibold text-white tracking-tight leading-tight">FaucetChain</h1>

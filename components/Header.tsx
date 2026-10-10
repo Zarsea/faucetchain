@@ -151,16 +151,28 @@ export const Header: React.FC = () => {
             </div>
             <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                    {/* A logo oficial. A historia de liquidacao na Solana ja e
-                        contada pelo chip ao lado, entao a marca aqui pode ser a
-                        marca. */}
-                    <img src="/faucetchain-logo-animated.svg" alt="FaucetChain"
-                         width={26} height={42}
-                         className="h-10 w-auto hover:scale-105 transition-transform" />
+                    {/* A marca da logo oficial: a gota com o F e o elo de
+                        corrente, que a versao anterior nao trazia. Só a marca,
+                        não o lockup inteiro -- nele o wordmark tem 50px de 295,
+                        e numa barra desta altura isso desenha letras de 7px.
+                        O wordmark fica como texto ao lado: nitido em qualquer
+                        zoom e acompanha o tema. */}
+                    <img src="/faucetchain-mark.png" alt="FaucetChain"
+                         width={25} height={44}
+                         className="h-11 w-auto hover:scale-105 transition-transform" />
                     <div>
-                        <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center drop-shadow-lg">
-                            <span className="text-white">FAUCET</span>
-                            <span className="text-brand-primary">CHAIN</span>
+                        <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center gap-2 drop-shadow-lg">
+                            <span className="flex items-center">
+                                <span className="text-white">FAUCET</span>
+                                <span className="text-brand-primary">CHAIN</span>
+                            </span>
+                            {/* Ambar, nao azul da marca: o selo precisa ler como
+                                aviso, nao como enfeite. Quem abre isto precisa
+                                saber, na primeira olhada, que o dinheiro aqui
+                                nao e dinheiro. */}
+                            <span className="inline-flex items-center rounded-md border border-brand-warn/40 bg-brand-warn/10 px-2 py-1 text-[9px] font-bold uppercase leading-none tracking-[0.18em] text-brand-warn">
+                                Testnet
+                            </span>
                         </h1>
                         <div className="hidden md:flex items-center gap-2 mt-0.5">
                             {/* Era "Hybrid PoC-V3 Consensus". O consenso existe e a eleicao e
