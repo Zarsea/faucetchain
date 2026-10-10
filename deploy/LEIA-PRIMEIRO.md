@@ -110,7 +110,7 @@ navegador toma erro de CORS.
 
 ## Os segredos
 
-Nove variáveis. **Três são chaves privadas** e não podem aparecer em log,
+Dez variáveis. **Três são chaves privadas** e não podem aparecer em log,
 imagem, ou no git.
 
 ```bash
@@ -120,11 +120,24 @@ fly secrets set \
   PASSWORD_SALT="..." \
   SETTLEMENT_OPERATOR_TOKEN="..." \
   SETTLEMENT_CAMPAIGN_SPONSOR="..." \
+  SETTLEMENT_TREASURY_SOLANA="..." \
   PRIVATE_KEY="..." \
   OPERATOR_KEYPAIR_JSON="$(cat /caminho/operator.json)" \
   RELAYER_KEYPAIR_JSON="$(cat /caminho/relayer.json)" \
   ALLOWED_ORIGINS="https://<o-dominio-do-explorer-na-vercel>"
 ```
+
+**`SETTLEMENT_TREASURY_SOLANA` não pode faltar, e a falta dela é silenciosa.**
+Ela é o endereço Solana da tesouraria. Sem ela, `_flush_treasury_share` desiste
+na primeira linha: a fatia de 20% de cada campanha continua a ser debitada do
+orçamento do parceiro e acumula em `campaign_budget.treasury_owed`, mas nunca
+vira folha de recompensa e nunca é paga. Nada quebra, nada aparece no log, e a
+tesouraria simplesmente para de cobrar — aconteceu entre os lotes 18 e 21, com
+70,8 milhões de unidades represadas antes de alguém reparar.
+
+Não é a carteira de ninguém que também recebe pagamento de usuário: misturar as
+duas apaga a separação 80/20 no ledger, que é o que o projeto existe para
+provar.
 
 Os valores estão no `.env` da máquina do Zarsea. Peça a ele; não estão no
 repositório e não devem passar por chat.
