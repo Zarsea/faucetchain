@@ -28,7 +28,12 @@ const src = fs.readFileSync(path.join(RAIZ, 'constants.ts'), 'utf8');
 const bloco = src.slice(src.indexOf('export const DIAGRAMS'), src.indexOf('export const POC_WEIGHT_LOGIC_CODE'));
 
 // Extrai cada NOME: `...` do objeto.
-const achados = [...bloco.matchAll(/(\w+):\s*`([\s\S]*?)`/g)].map(m => ({ nome: m[1], codigo: m[2] }));
+//
+// Os comentarios saem antes. Uma linha de prosa como "as funcoes tambem nao:
+// `merit_points`" casa com o mesmo padrao e vira um diagrama fantasma chamado
+// "nao", que falha com "No diagram type detected" -- ja aconteceu.
+const semComentarios = bloco.replace(/^\s*\/\/.*$/gm, '');
+const achados = [...semComentarios.matchAll(/(\w+):\s*`([\s\S]*?)`/g)].map(m => ({ nome: m[1], codigo: m[2] }));
 console.log(`diagramas encontrados: ${achados.length}`);
 
 const mermaid = (await import('mermaid')).default;

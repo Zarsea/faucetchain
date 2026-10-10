@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { SectionCard } from './SectionCard';
 import { MermaidDiagram } from './MermaidDiagram';
 import { 
@@ -11,106 +11,62 @@ import {
     ArrowPathIcon, 
     SparklesIcon, 
     ChartBarIcon, 
-    XMarkIcon,
-    BoltIcon
+    XMarkIcon
 } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { ClaimEventSection } from './ClaimEventSection';
 import { DIAGRAMS, POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
-import { useNetwork } from './NetworkContext';
 import { CodeBlock } from './CodeBlock';
 
 export const GeneralArticle: React.FC = () => {
     const { lang } = useLanguage();
-    const { addBlockManually } = useNetwork();
-    const [showPoCModal, setShowPoCModal] = useState(false);
-    const [formData, setFormData] = useState({
-        txHash: '',
-        timestamp: new Date().toISOString().slice(0, 16),
-        activity: ''
-    });
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const t = lang === 'en' ? {
-        title: "L1 Architectural Protocol",
+        title: "Settlement Architecture",
         subtitle: "How a click becomes a proof, and a proof becomes a payment",
-        hubTitle: "Decentralized Reputation Hubs",
-        hubDesc: "External entities acting as Merit Aggregators, bridging off-chain utility into on-chain influence through verifiable proofs.",
+        hubTitle: "Partner faucets",
+        hubDesc: "A faucet that already has an audience connects with one HTTP call, made after its own commit. Its money never moves, and it stays up if this chain goes down.",
         lifecycleTitle: "Detailed Execution Lifecycle",
-        lifecycleDesc: "A granular end-to-end view of the Claim Event pipeline, illustrating the path from user submission to treasury vault settlement and yield automation.",
-        weightTitle: "PoC Weight Formula",
-        weightDesc: "Algorithmic merit scoring that values consistent, long-term network stability over pure capital dominance.",
-        paramActivity: "Decay Dynamics",
-        paramActivityDesc: "Historical claims lose value exponentially (e^-λt), ensuring network renewal.",
-        paramFreq: "Loyalty Multipliers",
-        paramFreqDesc: "Bonus influence for nodes with high-density consecutive block participation.",
-        paramUptime: "Liveness Factor",
-        paramUptimeDesc: "A core multiplier directly proportional to the validator's heartbeat consistency.",
-        aiRepTitle: "Sentinel AI Scoring",
-        aiRepDesc: "The proprietary AI weight modulator that audits identities across multiple vectors to ensure true decentralization.",
-        aiParamOnChain: "Deep Chain Scan",
-        aiParamOnChainDesc: "Analysis of transactional depth, contract diversity, and wallet maturity.",
-        aiParamIdentity: "Sovereign ID",
-        aiParamIdentityDesc: "Multi-factor verification confirming operator humanhood via external DID bridges.",
-        aiParamSocial: "Graph Resistance",
-        aiParamSocialDesc: "Sybil detection via connectivity clustering and entropy analysis of node relations.",
-        pocSubmitBtn: "Submit Proof of Claim",
-        modalTitle: "PoC Verification Request",
-        modalLabelTx: "Transaction Hash",
-        modalLabelTime: "Activity Timestamp",
-        modalLabelDetails: "Activity Details",
-        modalPlaceholderDetails: "Describe the verifiable contribution (e.g., node uptime, governance voting, app interaction)...",
-        modalSubmit: "Broadcast to Network",
-        modalSuccess: "Proof accepted. It is credited off-chain now, and settles on Solana with the next batch."
+        lifecycleDesc: "The path a claim takes: credited on the appchain, summed into a Merkle tree when the batch closes, published as a root on Solana, and withdrawn against a proof.",
+        weightTitle: "Who seals the block",
+        weightDesc: "A node's weight in the draw is 1 + min(stake, cap). The +1 keeps a node with no capital in the running; the cap stops whoever locks the most from sealing every round.",
+        paramActivity: "The hour gets expensive",
+        paramActivityDesc: "The claim puzzle costs one more bit of work for every 25% of the hourly quota spent, up to three. Each bit doubles the work.",
+        paramFreq: "A ceiling on the hour",
+        paramFreqDesc: "At most 2,000 $CLAIM an hour across every faucet connected to the network. A botnet cannot drain a day of emission in ten minutes.",
+        paramUptime: "Paid by uptime share",
+        paramUptimeDesc: "The epoch pool is split between online nodes in proportion to the seconds each was actually up, and it is bounded by the same hourly quota.",
+        aiRepTitle: "Sentinel",
+        aiRepDesc: "A filter, not a gate. It scores accounts that look automated, and the limits that actually hold are arithmetic — they work whether or not it classifies correctly.",
+        aiParamOnChain: "Claim timing",
+        aiParamOnChainDesc: "Claims arriving on a rhythm no hand produces are scored as a pattern, by similarity across the sequence.",
+        aiParamIdentity: "Proof of work in the browser",
+        aiParamIdentityDesc: "A keccak puzzle before the server records anything, so automated farming costs what human use costs.",
+        aiParamSocial: "One IP, few wallets",
+        aiParamSocialDesc: "A hard cap on how many distinct wallets one address can claim to in an hour. Arithmetic, and covered by a test that fails if the limit stops working.",
     } : {
-        title: "Protocolo de Arquitetura L1",
+        title: "Arquitetura de Liquidação",
         subtitle: "Como um clique vira prova, e a prova vira pagamento",
-        hubTitle: "Hubs de Reputação Descentralizados",
-        hubDesc: "Entidades externas atuando como Agregadores de Mérito, conectando utilidade off-chain em influência on-chain via provas verificáveis.",
+        hubTitle: "Torneiras parceiras",
+        hubDesc: "Uma torneira que já tem público se conecta com uma chamada HTTP, feita depois do commit dela. O dinheiro dela não se move, e ela continua de pé se esta cadeia cair.",
         lifecycleTitle: "Ciclo de Execução Detalhado",
-        lifecycleDesc: "Uma visão granular ponta-a-ponta do pipeline do Evento de Reivindicação, ilustrando o caminho desde a submissão do usuário até a liquidação no tesouro e automação de rendimento.",
-        weightTitle: "Fórmula de Peso PoC",
-        weightDesc: "Pontuação de mérito algorítmica que valoriza a estabilidade de rede consistente e de longo prazo sobre o domínio puro de capital.",
-        paramActivity: "Dinâmica de Decaimento",
-        paramActivityDesc: "Reivindicações históricas perdem valor exponencialmente (e^-λt), garantindo a renovação da rede.",
-        paramFreq: "Multiplicadores de Fidelidade",
-        paramFreqDesc: "Influência bônus para nós com alta densidade de participação em blocos consecutivos.",
-        paramUptime: "Fator de Liveness",
-        paramUptimeDesc: "Um multiplicador central diretamente proporcional à consistência do heartbeat do validador.",
-        aiRepTitle: "Score IA Sentinela",
-        aiRepDesc: "O modulador de peso IA proprietário que audita identidades em múltiplos vetores para garantir a verdadeira descentralização.",
-        aiParamOnChain: "Escaneamento Profundo",
-        aiParamOnChainDesc: "Análise da profundidade transacional, diversidade de contratos e maturidade da carteira.",
-        aiParamIdentity: "ID Soberana",
-        aiParamIdentityDesc: "Verificação multi-fatorial confirmando a humanidade do operador via bridges de DID externas.",
-        aiParamSocial: "Resistência de Grafo",
-        aiParamSocialDesc: "Detecção Sybil via agrupamento de conectividade e análise de entropia das relações dos nós.",
-        pocSubmitBtn: "Submeter Prova de Mérito",
-        modalTitle: "Solicitação de Verificação PoC",
-        modalLabelTx: "Hash da Transação",
-        modalLabelTime: "Timestamp da Atividade",
-        modalLabelDetails: "Detalhes da Atividade",
-        modalPlaceholderDetails: "Descreva a contribuição verificável (ex: uptime do nó, votação em governança, interação com dApp)...",
-        modalSubmit: "Transmitir para a Rede",
-        modalSuccess: "Prova aceita. É creditada fora da cadeia agora, e liquida na Solana no próximo lote."
-    };
-
-    const handlePoCSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        
-        // Simulate network broadcast
-        setTimeout(() => {
-            addBlockManually("POC_V3_POC_VALIDATOR", 1);
-            setIsSubmitting(false);
-            setShowPoCModal(false);
-            setFormData({
-                txHash: '',
-                timestamp: new Date().toISOString().slice(0, 16),
-                activity: ''
-            });
-            alert(t.modalSuccess);
-        }, 2000);
+        lifecycleDesc: "O caminho de um claim: creditado na appchain, somado numa árvore de Merkle quando o lote fecha, publicado como raiz na Solana, e sacado contra uma prova.",
+        weightTitle: "Quem sela o bloco",
+        weightDesc: "O peso de um nó no sorteio é 1 + min(stake, teto). O +1 mantém no páreo quem não tem capital; o teto impede que quem trava mais sele todas as rodadas.",
+        paramActivity: "A hora vai encarecendo",
+        paramActivityDesc: "O desafio do claim custa um bit a mais de trabalho a cada 25% da cota da hora gasta, até três. Cada bit dobra o trabalho.",
+        paramFreq: "Um teto para a hora",
+        paramFreqDesc: "No máximo 2.000 $CLAIM por hora somando todas as torneiras conectadas. Uma botnet não drena a emissão de um dia em dez minutos.",
+        paramUptime: "Pago por fatia de uptime",
+        paramUptimeDesc: "O pool da época é dividido entre os nós online na proporção dos segundos que cada um ficou de pé, e é limitado pela mesma cota horária.",
+        aiRepTitle: "Sentinel",
+        aiRepDesc: "Um filtro, não uma tranca. Ele pontua contas que parecem automatizadas, e os limites que de fato seguram são aritmética — valem classificando certo ou errado.",
+        aiParamOnChain: "Ritmo dos claims",
+        aiParamOnChainDesc: "Claims que chegam num ritmo que mão nenhuma produz são pontuados como padrão, por similaridade ao longo da sequência.",
+        aiParamIdentity: "Trabalho no navegador",
+        aiParamIdentityDesc: "Um desafio keccak antes de o servidor registrar qualquer coisa, para que farmar automatizado custe o que custa o uso humano.",
+        aiParamSocial: "Um IP, poucas carteiras",
+        aiParamSocialDesc: "Teto rígido de quantas carteiras distintas um endereço pode reivindicar numa hora. Aritmética, e coberta por teste que falha se o limite parar de funcionar.",
     };
 
     return (
@@ -142,15 +98,7 @@ export const GeneralArticle: React.FC = () => {
                             "Meritocracy encoded in the ledger."
                         </p>
                     </div>
-                    <div className="relative z-10 mt-8">
-                        <button 
-                            onClick={() => setShowPoCModal(true)}
-                            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-brand-primary text-brand-bg font-black rounded-2xl hover:bg-white hover:shadow-glow-primary transition-all active:scale-95 uppercase tracking-wider text-sm"
-                        >
-                            <BoltIcon className="w-5 h-5" />
-                            {t.pocSubmitBtn}
-                        </button>
-                    </div>
+                    
                 </div>
 
                 <div className="p-8 glass border border-brand-accent/20 rounded-[2.5rem] relative overflow-hidden group hover:border-brand-accent/50 transition-all duration-700">
@@ -212,15 +160,15 @@ export const GeneralArticle: React.FC = () => {
                         <div className="space-y-4 pt-4">
                             <div className="flex gap-4 items-start">
                                 <div className="mt-1.5 w-2 h-2 rounded-full bg-brand-primary shadow-glow-primary flex-shrink-0"></div>
-                                <p className="text-sm text-brand-secondary font-medium">Automatic 60/40 reward splitting for immediate ecosystem liquidity.</p>
+                                <p className="text-sm text-brand-secondary font-medium">Each drip splits 80 to the user, 20 to the treasury — USER_SHARE and TREASURY_SHARE, in distribution.py.</p>
                             </div>
                             <div className="flex gap-4 items-start">
                                 <div className="mt-1.5 w-2 h-2 rounded-full bg-brand-accent shadow-glow-accent flex-shrink-0"></div>
-                                <p className="text-sm text-brand-secondary font-medium">Native DEX Aggregation for real-time stablecoin hedging.</p>
+                                <p className="text-sm text-brand-secondary font-medium">The program refuses a root its vault cannot cover, so the reserve is checked on Solana rather than reported by us.</p>
                             </div>
                             <div className="flex gap-4 items-start">
                                 <div className="mt-1.5 w-2 h-2 rounded-full bg-brand-success shadow-glow-primary flex-shrink-0"></div>
-                                <p className="text-sm text-brand-secondary font-medium">Multi-vault settlement securing protocol longevity and non-volatile growth.</p>
+                                <p className="text-sm text-brand-secondary font-medium">The fee payer is a separate signer from the recipient, so somebody holding zero SOL still collects.</p>
                             </div>
                         </div>
                         <div className="pt-6">
@@ -237,79 +185,22 @@ export const GeneralArticle: React.FC = () => {
             </div>
 
             {/* Modal de Submissão PoC */}
-            {showPoCModal && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
-                    <div className="absolute inset-0 bg-brand-bg/90 backdrop-blur-md" onClick={() => !isSubmitting && setShowPoCModal(false)}></div>
-                    <div className="relative glass border border-brand-primary/30 rounded-[2.5rem] p-10 max-w-2xl w-full shadow-glow-primary animate-slideUp overflow-hidden">
-                        <div className="absolute -top-24 -left-24 w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl animate-pulse"></div>
-                        <button 
-                            disabled={isSubmitting}
-                            onClick={() => setShowPoCModal(false)} 
-                            className="absolute top-8 right-8 text-brand-muted hover:text-white transition-colors"
-                        >
-                            <XMarkIcon className="w-8 h-8" />
-                        </button>
+            {/* O botao "Submit Proof of Claim" e o modal dele sairam em
+                9 de outubro de 2026.
 
-                        <div className="relative z-10 space-y-8">
-                            <div className="flex items-center gap-6">
-                                <div className="p-4 bg-brand-primary/10 rounded-2xl border border-brand-primary/20">
-                                    <SparklesIcon className="w-8 h-8 text-brand-primary" />
-                                </div>
-                                <div>
-                                    <h3 className="text-3xl font-black text-white uppercase tracking-tighter">{t.modalTitle}</h3>
-                                    <p className="text-brand-muted text-sm font-bold uppercase tracking-widest">{lang === 'en' ? 'Direct L1 Transmission' : 'Transmissão Direta L1'}</p>
-                                </div>
-                            </div>
+                Eles nao transmitiam nada. `handlePoCSubmit` esperava dois
+                segundos com `setTimeout`, chamava `addBlockManually`, que so
+                incrementa um contador e insere um bloco num array do React,
+                e entao mostrava um alerta dizendo "Proof accepted. It is
+                credited off-chain now, and settles on Solana with the next
+                batch." Nada saia do navegador: nenhuma requisicao, nenhum
+                credito, nenhum lote.
 
-                            <form onSubmit={handlePoCSubmit} className="space-y-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] ml-2">{t.modalLabelTx}</label>
-                                    <input 
-                                        required
-                                        type="text"
-                                        placeholder="0x..."
-                                        className="w-full bg-brand-bg/80 border border-brand-border/60 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-brand-primary transition-colors font-mono text-sm"
-                                        value={formData.txHash}
-                                        onChange={(e) => setFormData({...formData, txHash: e.target.value})}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] ml-2">{t.modalLabelTime}</label>
-                                    <input 
-                                        required
-                                        type="datetime-local"
-                                        className="w-full bg-brand-bg/80 border border-brand-border/60 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-brand-primary transition-colors font-mono text-sm"
-                                        value={formData.timestamp}
-                                        onChange={(e) => setFormData({...formData, timestamp: e.target.value})}
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-brand-primary uppercase tracking-[0.2em] ml-2">{t.modalLabelDetails}</label>
-                                    <textarea 
-                                        required
-                                        rows={4}
-                                        placeholder={t.modalPlaceholderDetails}
-                                        className="w-full bg-brand-bg/80 border border-brand-border/60 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-brand-primary transition-colors text-sm leading-relaxed"
-                                        value={formData.activity}
-                                        onChange={(e) => setFormData({...formData, activity: e.target.value})}
-                                    />
-                                </div>
-
-                                <button 
-                                    disabled={isSubmitting}
-                                    type="submit"
-                                    className="w-full flex items-center justify-center gap-4 py-5 bg-brand-primary text-brand-bg font-black rounded-[1.5rem] hover:bg-white hover:shadow-glow-primary transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-sm"
-                                >
-                                    {isSubmitting ? <ArrowPathIcon className="w-6 h-6 animate-spin" /> : <SignalIcon className="w-6 h-6" />}
-                                    {t.modalSubmit}
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            )}
+                Um botao que afirma ter feito o que nao fez e pior do que
+                nenhum botao, e contradiz a unica coisa que este projeto
+                afirma sobre si mesmo. Um claim de verdade entra pela
+                torneira parceira, e o caminho inteiro esta desenhado logo
+                acima. */}
 
             {/* PoC Weight Detail - Interactive Grid */}
             <div className="glass border border-brand-border/40 rounded-[3rem] p-10 shadow-2xl">
@@ -350,8 +241,8 @@ export const GeneralArticle: React.FC = () => {
                         <div className="sticky top-24">
                             <CodeBlock 
                                 code={POC_WEIGHT_LOGIC_CODE} 
-                                language="rust" 
-                                title="consensus/src/weight_modulator.rs" 
+                                language="python" 
+                                title="api_server.py — sealer_weight" 
                             />
                         </div>
                     </div>
@@ -405,7 +296,7 @@ export const GeneralArticle: React.FC = () => {
                             <CodeBlock 
                                 code={AI_REPUTATION_LOGIC_CODE} 
                                 language="python" 
-                                title="proposta — não existe no repositório" 
+                                title="api_server.py — claim_ip_allowed" 
                             />
                             <div className="p-8 bg-brand-surface/40 rounded-[2rem] border border-brand-border text-center space-y-2">
                                 <p className="text-xs font-black text-brand-muted uppercase tracking-[0.2em]">Desenho, não serviço</p>

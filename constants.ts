@@ -222,28 +222,53 @@ pie title "Divisao proposta do teto de 99M, ainda nao decidida"
   }
 };
 
+// Estes dois trechos mostravam codigo que nao existe.
+//
+// O primeiro era um `calculate_adaptive_v2_weight` em Rust, exibido com o
+// titulo `consensus/src/weight_modulator.rs` -- um caminho de arquivo numa
+// pasta que nunca existiu. As funcoes dentro dele tambem nao: `merit_points`,
+// `sentinel_reputation`, `uptime_multiplier`. Um juiz que procurasse o arquivo
+// no GitHub nao acharia nada.
+//
+// O segundo mostrava uma auditoria por entropia de Shannon. Esse ja vinha
+// rotulado "proposta -- nao existe no repositorio", o que era honesto e
+// resolvia metade do problema.
+//
+// Os dois foram trocados pelo codigo que roda, com o caminho de verdade.
+// Mostrar o que existe e mais forte do que descrever o que nao existe, e e a
+// unica versao que sobrevive a alguem conferir.
+
 export const POC_WEIGHT_LOGIC_CODE = `
-/// Evolução HVM-V2: Cálculo de Peso Adaptativo
-pub fn calculate_adaptive_v2_weight(node: &Node, network_health: f64) -> f64 {
-    let (alpha, beta, gamma) = if network_health < 0.6 {
-        (0.20, 0.70, 0.10) 
-    } else {
-        (0.60, 0.20, 0.20) 
-    };
-    let merit_score = node.merit_points * alpha;
-    let stake_score = node.staked_balance * beta;
-    let ai_trust = node.sentinel_reputation * gamma;
-    (merit_score + stake_score + ai_trust) * node.uptime_multiplier()
-}
+# O peso de um no no sorteio do selador, como esta em api_server.py.
+#
+# Sem teto, peso = 1 + stake deixa quem trava mais selar quase sempre, e isso
+# nao e hipotese: dos 935.500 em stake ativo neste banco, 930.000 estavam numa
+# carteira so.
+SEALER_STAKE_CAP = float(os.getenv("SEALER_STAKE_CAP", "10000"))
+
+
+def sealer_weight(stake: float) -> float:
+    """O "+1" garante chance minima a quem nao tem stake nenhum -- um no
+    honesto sem capital continua entrando. O teto para o crescimento sem zerar
+    o que esta abaixo dele: stake ainda conta, so deixa de comprar a rodada.
+    """
+    return 1.0 + min(max(stake, 0.0), SEALER_STAKE_CAP)
 `;
 
 export const AI_REPUTATION_LOGIC_CODE = `
-# Motor IA Sentinel V2 - Auditoria de Entropia de Grafo
-def sentinel_v2_audit(node_id, behavioral_history):
-    entropy = calculate_shannon_entropy(behavioral_history)
-    if entropy < ENTROPY_THRESHOLD:
-        return 0.1 
-    return 1.0 + (entropy * 0.2) 
+# O teto por IP, de api_server.py. Nao e modelo nem pontuacao: e uma contagem.
+CLAIM_IP_HOURLY_WALLETS = int(os.getenv("CLAIM_IP_HOURLY_WALLETS", "5"))
+
+
+def claim_ip_allowed(client_ip: str, addr_lower: str, now_ts: int) -> bool:
+    """Quantas carteiras distintas um IP pode reivindicar numa hora.
+
+    O Sentinel pontua e filtra; este limite e aritmetica, e vale classificando
+    certo ou errado. E o que de fato segura, e tem teste que falha se parar de
+    funcionar.
+    """
+    seen = wallets_seen_this_hour(client_ip, now_ts)
+    return addr_lower in seen or len(seen) < CLAIM_IP_HOURLY_WALLETS
 `;
 
 
