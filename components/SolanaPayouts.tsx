@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Transaction } from '@solana/web3.js';
-import { solanaProvider, encodeSignature } from '../utils/solanaWallet';
+import { solanaProvider, encodeSignature, connectedSigner } from '../utils/solanaWallet';
 import { SectionCard } from './SectionCard';
 import {
     ArrowUpRightIcon,
@@ -152,6 +152,24 @@ export const SolanaPayouts: React.FC = () => {
         setError(null);
         setBusy(`claim-${batchId}`);
         try {
+            // The button is enabled by `linked`, which the sequencer knows and
+            // this browser does not: a reload clears the wallet connection but
+            // not the link, and once a wallet is linked this screen stops
+            // offering a connect button. Without this, every visit after the
+            // linking one asked the wallet to sign having never connected.
+            const signer = await connectedSigner(solana, wallet);
+            if (signer !== wallet) setWallet(signer);
+            // claim_reward derives the leaf from whoever signs. A different
+            // account in Phantom therefore does not pay the wrong wallet — the
+            // program rejects it, after the user has already approved and the
+            // relayer has already paid the fee. Saying it here costs nothing.
+            if (linked && signer !== linked) {
+                throw new Error(
+                    `The wallet is on ${short(signer)}, but this reward belongs to ` +
+                    `${short(linked)}. Switch account in your wallet and try again.`
+                );
+            }
+
             const prepared = await fetch(`${API_BASE_URL}/api/solana/relay/prepare`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

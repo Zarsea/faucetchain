@@ -60,6 +60,9 @@ jobs:
           npm ci
           python scripts/check_messages.py
 
+      - name: Nothing asks the wallet to sign before it has connected
+        run: node test_connected_signer.mjs
+
   program:
     name: Solana program
     runs-on: ubuntu-latest

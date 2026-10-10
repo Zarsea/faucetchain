@@ -6,7 +6,10 @@ import { keccak256 } from 'ethers';
 // withdrawing.
 export interface SolanaProvider {
     publicKey?: { toString(): string };
-    connect(): Promise<{ publicKey: { toString(): string } }>;
+    // `onlyIfTrusted` restores an approval the user already gave this origin
+    // without showing them a popup. It rejects when there is none, which is the
+    // signal to ask properly.
+    connect(options?: { onlyIfTrusted?: boolean }): Promise<{ publicKey: { toString(): string } }>;
     signTransaction(transaction: Transaction): Promise<Transaction>;
     signMessage(message: Uint8Array, display?: string): Promise<{ signature: Uint8Array }>;
 }
@@ -20,6 +23,31 @@ declare global {
 
 export function solanaProvider(): SolanaProvider | null {
     return window.solana ?? window.solflare ?? null;
+}
+
+/**
+ * The account that will sign, after making sure the wallet has authorized this
+ * tab to ask.
+ *
+ * Phantom answers signTransaction with "The requested method and/or account has
+ * not been authorized by the user" when nothing connected first. A page reload
+ * clears that authorization while the server-side link survives, so a screen
+ * that decides what to offer from the link alone will happily show a button
+ * that cannot work.
+ *
+ * `known` is the account this tab already connected to, when it has; passing it
+ * avoids a second round trip to the wallet.
+ */
+export async function connectedSigner(
+    provider: SolanaProvider,
+    known?: string | null
+): Promise<string> {
+    if (known) return known;
+    // Silent when the user already trusted this origin; rejects when they have
+    // not, which is when it is right to show them a popup.
+    const restored = await provider.connect({ onlyIfTrusted: true }).catch(() => null);
+    const { publicKey } = restored ?? (await provider.connect());
+    return publicKey.toString();
 }
 
 /**

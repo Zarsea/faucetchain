@@ -82,3 +82,6 @@ mining-node/.node_token*
 # Saida do playwright-cli: snapshots e logs de console de cada sessao de
 # navegador. Diagnostico de um momento, nao do projeto.
 .playwright-cli/
+
+# Pacote temporario do test_connected_signer.mjs; o teste o apaga sozinho.
+.sw-test.mjs
