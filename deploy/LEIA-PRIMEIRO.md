@@ -110,8 +110,7 @@ navegador toma erro de CORS.
 
 ## Os segredos
 
-Nove variáveis. **Três são chaves privadas** e não podem aparecer em log,
-imagem, ou no git.
+Sete variáveis. **Uma só é chave privada**, e é a do relayer.
 
 ```bash
 fly secrets set \
@@ -120,11 +119,24 @@ fly secrets set \
   SETTLEMENT_OPERATOR_TOKEN="..." \
   SETTLEMENT_CAMPAIGN_SPONSOR="..." \
   SETTLEMENT_TREASURY_SOLANA="..." \
-  PRIVATE_KEY="..." \
-  OPERATOR_KEYPAIR_JSON="$(cat /caminho/operator.json)" \
   RELAYER_KEYPAIR_JSON="$(cat /caminho/relayer.json)" \
   ALLOWED_ORIGINS="https://<o-dominio-do-explorer-na-vercel>"
 ```
+
+Das sete, **três não são segredo nenhum**: `SOLANA_RPC_URL` é um endpoint
+público, e `SETTLEMENT_CAMPAIGN_SPONSOR` e `SETTLEMENT_TREASURY_SOLANA` são
+endereços Solana, que qualquer um lê na cadeia. Podem ir por qualquer canal.
+
+**A chave do operador NÃO entra aqui, e isso é deliberado.** `api_server.py`
+carrega uma keypair só — a do relayer, em `_relayer()`. A do operador é usada
+exclusivamente por `publish_root.py`, `scripts/demo_settlement.py` e
+`scripts/name_existing_mint.py`, que rodam na máquina do Zarsea, nunca no
+container. E ela é a **autoridade de upgrade do programa**: quem a tem pode
+substituir o programa on-chain. Não há motivo para ela sair daquela máquina, e
+o `entrypoint.sh` já a trata como opcional, então omiti-la não quebra o boot.
+
+**`PRIVATE_KEY` também saiu.** Só `legacy/evm/anchor_service.py` a lê, e o
+notário EVM não roda no container.
 
 **`SETTLEMENT_TREASURY_SOLANA` não pode faltar, e a falta dela é silenciosa.**
 Ela é o endereço Solana da tesouraria. Sem ela, `_flush_treasury_share` desiste
@@ -138,8 +150,26 @@ Não é a carteira de ninguém que também recebe pagamento de usuário: mistura
 duas apaga a separação 80/20 no ledger, que é o que o projeto existe para
 provar.
 
-Os valores estão no `.env` da máquina do Zarsea. Peça a ele; não estão no
-repositório e não devem passar por chat.
+Os valores estão no `.env` da máquina do Zarsea.
+
+**Como a chave do relayer chega aqui.** Em ordem de preferência:
+
+1. **Ela não chega.** O Zarsea entra na org da Fly e roda o `fly secrets set`
+   ele mesmo. É grátis, leva um convite, e o segredo nunca sai da máquina dele
+   nem passa por canal nenhum. É a única opção em que não há o que vazar.
+2. **Arquivo cifrado**, com a senha por outro canal que não o do arquivo. Ex.:
+   `age -p relayer.json > relayer.age`, manda o `.age` por onde quiser e dita a
+   senha por telefone. Quem interceptar um dos dois não tem nada.
+3. **Link de segredo com expiração** de um gerenciador de senhas (Bitwarden
+   Send, 1Password). Expira sozinho e não fica no histórico de ninguém.
+
+**Não** por WhatsApp, Telegram, e-mail, Discord ou conversa com assistente: tudo
+isso guarda, faz backup e indexa. Um segredo colado ali deixa de ser segredo e
+não há como despublicar.
+
+O `.env` inteiro não deve ser enviado de jeito nenhum — ele carrega caminhos e
+chaves que o container não usa, incluindo a autoridade de upgrade do programa.
+Mandar sete valores é menos trabalho e muito menos risco do que mandar o arquivo.
 
 **`FAUCETCHAIN_RPC_URL` saiu desta lista.** Ela estava aqui apontando para
 `localhost:8545`, e nenhum código do servidor a lê — a única referência no
