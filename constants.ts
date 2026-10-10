@@ -366,7 +366,7 @@ class SentinelV2Engine:
 
 export const YAML_CODE = `
 protocol_evolution:
-  version: "2.0.0-HVM"
+  version: "devnet"
   consensus: "Proof of Claim + stake-weighted sealing"
   security_audit: "Sentinel AI Integrated"
 `;
@@ -404,17 +404,17 @@ pub token_program: Interface<'info, TokenInterface>,
 
 export const TRANSLATIONS = {
   en: {
-    headerTitle: "FaucetChain Evolution V2",
+    headerTitle: "FaucetChain",
     wallet: {
       connect: "Connect Architect Wallet",
       searchPlaceholder: "Scan L1 Address (0x...)",
-      reputation: "Sentinel V2 Score",
-      staked: "Staked Capital V2",
+      reputation: "Sentinel Score",
+      staked: "Staked Capital",
       activity: "Merit Propagation",
       analysis: "Forensic AI Analysis"
     },
     tabs: {
-      Overview: "V2 Overview",
+      Overview: "Overview",
       WalletExplorer: "Architect Explorer",
       GeneralArticle: "Settlement Architecture",
       NetworkStatus: "System Pulse",
@@ -429,7 +429,7 @@ export const TRANSLATIONS = {
       AIAgent: "AI Agent Sentinel"
     },
     tokenomics: {
-      title: "HVM-V3 PoC Yield Logic",
+      title: "Proof of Claim Yield Logic",
       desc: "A hybrid Proof of Claim consensus, funded by staking the treasury's own capital rather than anyone else's.",
       fixedSupplyTitle: "Immutable Supply Constraint",
       fixedSupplyDesc: "Fixed 99 Million CLAIM limit. Opt-in Burn only, operating natively at $0 Internal Gas Fees.",
@@ -441,8 +441,8 @@ export const TRANSLATIONS = {
       ecoFundDesc: "FaucetChain acts as a giant vault, locking external inflationary PoS assets and redistributing cross-chain yields back to the network."
     },
     faucet: {
-      title: "V2 Merit Faucet",
-      desc: "Claim testnet merit to simulate participation in the HVM-V2 ecosystem.",
+      title: "Merit Faucet",
+      desc: "Claim testnet merit to try the flow this network runs on.",
       cardTitle: "Request Merit Tokens",
       labelAddress: "L1 Wallet Address",
       btnClaim: "Mint 10.0 Merit CLAIM",
@@ -450,14 +450,14 @@ export const TRANSLATIONS = {
       successTitle: "Audit Passed",
       successDesc: "Merit tokens minted. Reputation index updated.",
       txHash: "Consensus Hash:",
-      testnetNote: "V2 test tokens are purely for architectural simulation."
+      testnetNote: "Test tokens on a public testnet. $CLAIM has no market price."
     },
     aiChat: {
       title: "Sentinel Recursive AI",
       desc: "Neural interface for protocol architecture and cross-layer analysis.",
       placeholder: "Initialize architectural query...",
       btnSend: "Transmit",
-      welcome: "Neural links established. I am the Sentinel V2 Recursive Intelligence. How shall we deconstruct the protocol state today?",
+      welcome: "Neural links established. I am Sentinel. How shall we deconstruct the protocol state today?",
       suggestions: {
         code: "Analyze State Transition Entropy",
         math: "Synthesize Adaptive Weight Dynamics",
@@ -466,17 +466,17 @@ export const TRANSLATIONS = {
     }
   },
   pt: {
-    headerTitle: "FaucetChain Evolução V2",
+    headerTitle: "FaucetChain",
     wallet: {
       connect: "Conectar Carteira Arquiteto",
       searchPlaceholder: "Escaneamento L1 (0x...)",
-      reputation: "Score Sentinela V2",
-      staked: "Capital em Stake V2",
+      reputation: "Score Sentinela",
+      staked: "Capital em Stake",
       activity: "Propagação de Mérito",
       analysis: "Análise Forense de IA"
     },
     tabs: {
-      Overview: "Visão Geral V2",
+      Overview: "Visão Geral",
       WalletExplorer: "Explorador Arquiteto",
       GeneralArticle: "Arquitetura de Liquidação",
       NetworkStatus: "Pulso do Sistema",
@@ -491,7 +491,7 @@ export const TRANSLATIONS = {
       AIAgent: "IA Agente Sentinela"
     },
     tokenomics: {
-      title: "Economia HVM-V3 PoC",
+      title: "Economia do Proof of Claim",
       desc: "Consenso L1 via Proof of Claim com Acumulador de Riquezas (Vault) de ativos externos.",
       fixedSupplyTitle: "Suprimento Limitado a 99M",
       fixedSupplyDesc: "Hardcap rígido de 99 Milhões de CLAIM. Zero Auto-Burn. O ecossistema suporta apenas Opt-in Burn sob Taxa $0 Interna.",
@@ -503,8 +503,8 @@ export const TRANSLATIONS = {
       ecoFundDesc: "O protocolo absorve Tokens PoS externos depreciáveis no Vault, distribuindo um Yield multi-chain ao invés de drenar o eco-sistema local."
     },
     faucet: {
-      title: "Faucet de Mérito V2",
-      desc: "Reivindique mérito de testnet para simular a participação no ecossistema HVM-V2.",
+      title: "Faucet de Mérito",
+      desc: "Reivindique mérito de testnet para experimentar o fluxo que esta rede roda.",
       cardTitle: "Solicitar Tokens de Mérito",
       labelAddress: "Endereço da Carteira L1",
       btnClaim: "Mintar 10.0 CLAIM de Mérito",
@@ -512,14 +512,14 @@ export const TRANSLATIONS = {
       successTitle: "Auditoria Aprovada",
       successDesc: "Tokens de mérito mintados. Índice de reputação atualizado.",
       txHash: "Hash de Consenso:",
-      testnetNote: "Tokens de teste V2 são puramente para simulação arquitetônica."
+      testnetNote: "Tokens de teste numa rede pública. O $CLAIM não tem preço de mercado."
     },
     aiChat: {
       title: "Sentinela IA Recursiva",
       desc: "Interface neural para arquitetura de protocolo e análise entre camadas.",
       placeholder: "Inicializar consulta arquitetônica...",
       btnSend: "Transmitir",
-      welcome: "Links neurais estabelecidos. Eu sou a Inteligência Recursiva Sentinela V2. Como vamos desconstruir o estado do protocolo hoje?",
+      welcome: "Links neurais estabelecidos. Eu sou o Sentinel. Como vamos desconstruir o estado do protocolo hoje?",
       suggestions: {
         code: "Analisar Entropia de Transição de Estado",
         math: "Sintetizar Dinâmica de Pesos Adaptativos",

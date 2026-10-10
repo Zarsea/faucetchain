@@ -5,7 +5,7 @@ import { initReactI18next } from 'react-i18next';
 const resourcesEn = {
     translation: {
         header: {
-            title: "FaucetChain Evolution V2",
+            title: "FaucetChain",
         },
         tabs: {
             Dashboard: "Dashboard",
@@ -15,7 +15,7 @@ const resourcesEn = {
             AddressTracker: "Address Tracker",
             StakingVault: "Staking Vault",
             BountyBoard: "Bounty Board",
-            Overview: "V2 Overview",
+            Overview: "Overview",
             WalletExplorer: "Architect Explorer",
             GeneralArticle: "Settlement Architecture",
             NetworkStatus: "System Pulse",
@@ -32,8 +32,8 @@ const resourcesEn = {
         wallet: {
             connect: "Connect Architect Wallet",
             searchPlaceholder: "Scan L1 Address (0x...)",
-            reputation: "Sentinel V2 Score",
-            staked: "Staked Capital V2",
+            reputation: "Sentinel Score",
+            staked: "Staked Capital",
             activity: "Merit Propagation",
             analysis: "Forensic AI Analysis",
             l1Explorer: "L1 Chain Explorer"
@@ -99,14 +99,14 @@ const resourcesEn = {
             createToGenerate: "Create a staking position to generate your first UTXO."
         },
         faucet: {
-            title: "V2 Merit Faucet",
-            desc: "Claim testnet merit to simulate participation in the HVM-V2 ecosystem.",
+            title: "Merit Faucet",
+            desc: "Claim testnet merit to try the flow this network runs on.",
             cardTitle: "Request Merit Tokens",
             labelAddress: "L1 Wallet Address",
             btnClaim: "Mint 10.0 Merit CLAIM",
             btnProcessing: "Auditing via Sentinel...",
             txHash: "Consensus Hash:",
-            testnetNote: "V2 test tokens are purely for architectural simulation."
+            testnetNote: "Test tokens on a public testnet. $CLAIM has no market price."
         },
         tokenomics: {
             title: "Yield Economics",
@@ -170,7 +170,7 @@ const resourcesEn = {
 const resourcesPt = {
     translation: {
         header: {
-            title: "FaucetChain Evolução V2",
+            title: "FaucetChain",
         },
         tabs: {
             Dashboard: "Painel Principal",
@@ -180,7 +180,7 @@ const resourcesPt = {
             AddressTracker: "Rastreador L1",
             StakingVault: "Vault de Staking",
             BountyBoard: "Quadro de Bounties",
-            Overview: "Visão Geral V2",
+            Overview: "Visão Geral",
             WalletExplorer: "Explorador L1",
             GeneralArticle: "Arquitetura de Liquidação",
             NetworkStatus: "Pulso do Sistema",
@@ -197,8 +197,8 @@ const resourcesPt = {
         wallet: {
             connect: "Conectar Carteira",
             searchPlaceholder: "Escanear Endereço L1 (0x...)",
-            reputation: "Score Sentinela V2",
-            staked: "Capital em Stake V2",
+            reputation: "Score Sentinela",
+            staked: "Capital em Stake",
             activity: "Propagação de Mérito",
             analysis: "Análise Forense de IA",
             l1Explorer: "Explorador de Rede L1"
@@ -264,14 +264,14 @@ const resourcesPt = {
             createToGenerate: "Crie uma posição de staking ao lado para gerar seu primeiro UTXO."
         },
         faucet: {
-            title: "Faucet de Mérito V2",
-            desc: "Reivindique mérito de testnet para simular a participação no ecossistema HVM-V2.",
+            title: "Faucet de Mérito",
+            desc: "Reivindique mérito de testnet para experimentar o fluxo que esta rede roda.",
             cardTitle: "Solicitar Tokens de Mérito",
             labelAddress: "Endereço L1",
             btnClaim: "Mintar 10.0 CLAIM de Mérito",
             btnProcessing: "Auditando via Sentinela...",
             txHash: "Hash de Consenso:",
-            testnetNote: "Tokens de teste V2 são puramente para simulação arquitetônica."
+            testnetNote: "Tokens de teste numa rede pública. O $CLAIM não tem preço de mercado."
         },
         tokenomics: {
             title: "Economia de Yield",
@@ -335,7 +335,7 @@ const resourcesPt = {
 const resourcesEs = {
     translation: {
         header: {
-            title: "FaucetChain Evolución V2",
+            title: "FaucetChain",
         },
         tabs: {
             Dashboard: "Panel Principal",
@@ -344,7 +344,7 @@ const resourcesEs = {
             AddressTracker: "Rastreador L1",
             StakingVault: "Bóveda de Staking",
             BountyBoard: "Tablero de Bounties",
-            Overview: "Visión General V2",
+            Overview: "Visión General",
             WalletExplorer: "Explorador L1",
             GeneralArticle: "Arquitectura de Liquidación",
             NetworkStatus: "Pulso del Sistema",
@@ -361,8 +361,8 @@ const resourcesEs = {
         wallet: {
             connect: "Conectar Billetera",
             searchPlaceholder: "Escanear Dirección L1 (0x...)",
-            reputation: "Puntaje Centinela V2",
-            staked: "Capital en Stake V2",
+            reputation: "Puntaje Centinela",
+            staked: "Capital en Stake",
             activity: "Propagación de Mérito",
             analysis: "Análisis Forense de IA",
             l1Explorer: "Explorador de Red L1"
@@ -428,14 +428,14 @@ const resourcesEs = {
             createToGenerate: "Cree una posición de staking para generar su primer UTXO."
         },
         faucet: {
-            title: "Faucet de Mérito V2",
-            desc: "Reclame mérito de testnet para simular la participación en el ecosistema HVM-V2.",
+            title: "Faucet de Mérito",
+            desc: "Reclame mérito de testnet para probar el flujo que esta red ejecuta.",
             cardTitle: "Solicitar Tokens de Mérito",
             labelAddress: "Dirección L1",
             btnClaim: "Acuñar 10.0 CLAIM de Mérito",
             btnProcessing: "Auditando vía Centinela...",
             txHash: "Hash de Consenso:",
-            testnetNote: "Los tokens de prueba V2 son puramente para simulación arquitectónica."
+            testnetNote: "Tokens de prueba en una red pública. El $CLAIM no tiene precio de mercado."
         },
         tokenomics: {
             title: "Economía de Yield",
