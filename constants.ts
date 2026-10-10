@@ -406,7 +406,7 @@ export const TRANSLATIONS = {
   en: {
     headerTitle: "FaucetChain",
     wallet: {
-      connect: "Connect Architect Wallet",
+      connect: "Connect Wallet",
       searchPlaceholder: "Scan L1 Address (0x...)",
       reputation: "Sentinel Score",
       staked: "Staked Capital",
@@ -468,7 +468,7 @@ export const TRANSLATIONS = {
   pt: {
     headerTitle: "FaucetChain",
     wallet: {
-      connect: "Conectar Carteira Arquiteto",
+      connect: "Conectar Carteira",
       searchPlaceholder: "Escaneamento L1 (0x...)",
       reputation: "Score Sentinela",
       staked: "Capital em Stake",

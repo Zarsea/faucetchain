@@ -1063,8 +1063,9 @@ async def get_my_api_key(wallet: str):
     This used to return `api_key` to anyone who asked, keyed on the faucet's
     wallet address -- which GET /api/faucethub/faucets publishes. Reading the
     directory was enough to take over any partner faucet and distribute in its
-    name. The key now comes from POST /api/faucethub/reveal-key, which makes
-    the owning wallet sign for it.
+    name. Nothing reveals a key now: only its sha256 is stored, so the key is
+    shown once at registration and once at POST /api/faucethub/regenerate-key,
+    and whoever loses it rotates it.
 
     What stays here is not secret: the directory already names the faucet, and
     these are counters against it.

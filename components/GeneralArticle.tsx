@@ -128,7 +128,7 @@ export const GeneralArticle: React.FC = () => {
                             <CubeIcon className="w-10 h-10 text-brand-primary" />
                         </div>
                         <h2 className="text-4xl font-black text-white tracking-tighter leading-none">
-                            {lang === 'en' ? "V3 Architecture Mindmap" : "Mapa Mental da Arquitetura V3"}
+                            {lang === 'en' ? "Architecture Mindmap" : "Mapa Mental da Arquitetura"}
                         </h2>
                         <p className="text-brand-muted text-lg max-w-2xl">
                             {lang === 'en' 
