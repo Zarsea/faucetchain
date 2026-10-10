@@ -118,7 +118,7 @@ export const WalletExplorer: React.FC = () => {
             {/* ═══════════ SEARCH HERO ═══════════ */}
             <div className="max-w-3xl mx-auto text-center space-y-6">
                 <div className="space-y-3">
-                    <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter">
+                    <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tighter">
                         {t('walletExplorer.title')}
                     </h2>
                     <p className="text-brand-muted text-sm max-w-xl mx-auto leading-relaxed">
@@ -146,7 +146,7 @@ export const WalletExplorer: React.FC = () => {
                         )}
                         <button
                             type="submit"
-                            className="bg-brand-primary text-brand-bg px-6 py-2.5 rounded-lg font-black text-xs uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50 flex-shrink-0"
+                            className="bg-brand-primary text-brand-bg px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-white transition-all active:scale-95 disabled:opacity-50 flex-shrink-0"
                             disabled={loading}
                         >
                             {loading ? <LoadingIcon className="w-4 h-4 animate-spin" /> : t('walletExplorer.searchBtn')}
@@ -174,17 +174,17 @@ export const WalletExplorer: React.FC = () => {
                                     <WalletIcon className="w-5 h-5 text-brand-bg" />
                                 </div>
                                 <div>
-                                    <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block">
+                                    <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block">
                                         {t('walletExplorer.primaryAddress')}
                                     </span>
                                     <p className="font-mono text-xs text-brand-primary break-all leading-relaxed">{wallet.address}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3 sm:ml-auto flex-shrink-0">
-                                <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${wallet.isValidator ? 'bg-brand-success/10 text-brand-success border border-brand-success/20' : 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20'}`}>
+                                <div className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${wallet.isValidator ? 'bg-brand-success/10 text-brand-success border border-brand-success/20' : 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20'}`}>
                                     {wallet.isValidator ? t('walletExplorer.validator') : t('walletExplorer.user')}
                                 </div>
-                                <div className="px-3 py-1 bg-brand-surface/60 rounded-full text-[9px] font-black text-brand-muted uppercase tracking-widest border border-brand-border/30">
+                                <div className="px-3 py-1 bg-brand-surface/60 rounded-full text-[9px] font-bold text-brand-muted uppercase tracking-widest border border-brand-border/30">
                                     Rank #{wallet.rank}
                                 </div>
                             </div>
@@ -195,11 +195,10 @@ export const WalletExplorer: React.FC = () => {
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Total Balance */}
                         <div className="glass border border-brand-primary/30 rounded-xl p-5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 rounded-full blur-2xl group-hover:bg-brand-primary/10 transition-colors"></div>
-                            <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block mb-2">
+                            <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block mb-2">
                                 {t('walletExplorer.totalBalance')}
                             </span>
-                            <p className="text-2xl font-black text-white font-mono tracking-tight">
+                            <p className="text-2xl font-bold text-white font-mono tracking-tight tabular">
                                 {formatNumber(wallet.balanceClaim)}
                             </p>
                             <span className="text-[10px] font-bold text-brand-primary">$CLAIM</span>
@@ -207,10 +206,10 @@ export const WalletExplorer: React.FC = () => {
 
                         {/* Claims Revenue */}
                         <div className="glass border border-brand-border/40 rounded-xl p-5">
-                            <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block mb-2">
+                            <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block mb-2">
                                 {t('walletExplorer.fromClaims')}
                             </span>
-                            <p className="text-2xl font-black text-brand-secondary font-mono tracking-tight">
+                            <p className="text-2xl font-bold text-brand-secondary font-mono tracking-tight tabular">
                                 {formatNumber(balanceBreakdown?.claims_total || 0)}
                             </p>
                             <span className="text-[10px] font-bold text-brand-muted">Merit Faucet</span>
@@ -218,10 +217,10 @@ export const WalletExplorer: React.FC = () => {
 
                         {/* Mining Revenue */}
                         <div className="glass border border-brand-border/40 rounded-xl p-5">
-                            <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block mb-2">
+                            <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block mb-2">
                                 {t('walletExplorer.fromMining')}
                             </span>
-                            <p className="text-2xl font-black text-brand-secondary font-mono tracking-tight">
+                            <p className="text-2xl font-bold text-brand-secondary font-mono tracking-tight tabular">
                                 {formatNumber(balanceBreakdown?.mining_total || 0)}
                             </p>
                             <span className="text-[10px] font-bold text-brand-muted">AutoClaim</span>
@@ -229,10 +228,10 @@ export const WalletExplorer: React.FC = () => {
 
                         {/* Transfers */}
                         <div className="glass border border-brand-border/40 rounded-xl p-5">
-                            <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block mb-2">
+                            <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block mb-2">
                                 {t('walletExplorer.transfersIn')}
                             </span>
-                            <p className="text-2xl font-black text-brand-secondary font-mono tracking-tight">
+                            <p className="text-2xl font-bold text-brand-secondary font-mono tracking-tight tabular">
                                 {formatNumber(balanceBreakdown?.incoming_total || 0)}
                             </p>
                             <span className="text-[10px] font-bold text-brand-muted">Received</span>
@@ -243,14 +242,13 @@ export const WalletExplorer: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Sentinel Reputation */}
                         <div className="glass border border-brand-accent/30 rounded-xl p-6 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-28 h-28 bg-brand-accent/5 rounded-full blur-3xl"></div>
                             <div className="flex items-center justify-between mb-4 relative z-10">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-brand-accent/10 rounded-lg border border-brand-accent/20">
                                         <SparklesIcon className="w-5 h-5 text-brand-accent" />
                                     </div>
                                     <div>
-                                        <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block">
+                                        <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block">
                                             {t('walletExplorer.sentinelScore')}
                                         </span>
                                         <p className="text-[10px] text-brand-muted">
@@ -259,7 +257,7 @@ export const WalletExplorer: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="relative">
-                                    <span className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-br from-brand-accent to-brand-primary">
+                                    <span className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-brand-accent to-brand-primary tabular">
                                         {wallet.reputationScore}
                                     </span>
                                     <div className="absolute -top-1 -right-2 p-1 bg-brand-success/20 rounded-full border border-brand-success/40">
@@ -285,19 +283,19 @@ export const WalletExplorer: React.FC = () => {
                                     <SignalIcon className="w-5 h-5 text-brand-success" />
                                 </div>
                                 <div>
-                                    <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.15em] block">
+                                    <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.15em] block">
                                         {t('dashboard.myStaking')}
                                     </span>
                                     <p className="text-[10px] text-brand-muted">Yield: 12% APR</p>
                                 </div>
                             </div>
-                            <p className="text-3xl font-black text-white font-mono tracking-tight mb-3">
+                            <p className="text-3xl font-bold text-white font-mono tracking-tight mb-3 tabular">
                                 {wallet.stakedAmount.toLocaleString()} <span className="text-xs text-brand-muted">$CLAIM</span>
                             </p>
                             <div className="flex items-center gap-3 pt-3 border-t border-brand-border/20">
                                 <ArrowPathIcon className="w-3.5 h-3.5 text-brand-muted" />
                                 <div>
-                                    <span className="text-[9px] font-black text-brand-muted uppercase tracking-[0.1em] block">{t('walletExplorer.recentActivities')}</span>
+                                    <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.1em] block">{t('walletExplorer.recentActivities')}</span>
                                     <span className="text-xs font-bold text-brand-secondary font-mono">
                                         {new Date(wallet.lastActivity).toLocaleDateString()} @ {new Date(wallet.lastActivity).toLocaleTimeString()}
                                     </span>
@@ -314,7 +312,7 @@ export const WalletExplorer: React.FC = () => {
                                 <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary border border-brand-primary/20">
                                     <SparklesIcon className="w-5 h-5" />
                                 </div>
-                                <h3 className="text-base font-black text-brand-secondary tracking-tight">{t('dashboard.sentinelAnalysis')}</h3>
+                                <h3 className="text-base font-bold text-brand-secondary tracking-tight">{t('dashboard.sentinelAnalysis')}</h3>
                             </div>
                         </div>
                     </div>
@@ -326,10 +324,10 @@ export const WalletExplorer: React.FC = () => {
                                 <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary border border-brand-primary/20">
                                     <SignalIcon className="w-4 h-4" />
                                 </div>
-                                <h3 className="text-sm font-black text-brand-secondary uppercase tracking-wider">
+                                <h3 className="text-sm font-bold text-brand-secondary uppercase tracking-wider">
                                     {t('walletExplorer.recentActivities')}
                                 </h3>
-                                <span className="ml-auto text-[9px] font-black text-brand-muted bg-brand-surface px-2.5 py-1 rounded-md border border-brand-border/30">
+                                <span className="ml-auto text-[9px] font-bold text-brand-muted bg-brand-surface px-2.5 py-1 rounded-md border border-brand-border/30">
                                     {transactions.length} TXs
                                 </span>
                             </div>
@@ -337,10 +335,10 @@ export const WalletExplorer: React.FC = () => {
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="border-b border-brand-border/30 bg-brand-bg/40">
-                                            <th className="px-6 py-3 text-[9px] font-black text-brand-muted uppercase tracking-widest">TX Hash</th>
-                                            <th className="px-4 py-3 text-[9px] font-black text-brand-muted uppercase tracking-widest">Block</th>
-                                            <th className="px-4 py-3 text-[9px] font-black text-brand-muted uppercase tracking-widest">From / To</th>
-                                            <th className="px-6 py-3 text-[9px] font-black text-brand-muted uppercase tracking-widest text-right">Value</th>
+                                            <th className="px-6 py-3 text-[9px] font-bold text-brand-muted uppercase tracking-widest">TX Hash</th>
+                                            <th className="px-4 py-3 text-[9px] font-bold text-brand-muted uppercase tracking-widest">Block</th>
+                                            <th className="px-4 py-3 text-[9px] font-bold text-brand-muted uppercase tracking-widest">From / To</th>
+                                            <th className="px-6 py-3 text-[9px] font-bold text-brand-muted uppercase tracking-widest text-right">Value</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-brand-border/15">
@@ -372,10 +370,10 @@ export const WalletExplorer: React.FC = () => {
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-3.5 text-right">
-                                                    <span className="font-mono text-xs font-black text-white">
+                                                    <span className="font-mono text-xs font-bold text-white">
                                                         {tx.value?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
                                                     </span>
-                                                    <span className={`text-[9px] font-black uppercase tracking-widest ml-1.5 ${tx.tx_type === 'CLAIM' ? 'text-brand-primary' : tx.tx_type === 'MINING_FEE' ? 'text-brand-accent' : 'text-brand-success'}`}>
+                                                    <span className={`text-[9px] font-bold uppercase tracking-widest ml-1.5 ${tx.tx_type === 'CLAIM' ? 'text-brand-primary' : tx.tx_type === 'MINING_FEE' ? 'text-brand-accent' : 'text-brand-success'}`}>
                                                         {tx.tx_type || 'TX'}
                                                     </span>
                                                 </td>
@@ -396,7 +394,7 @@ export const WalletExplorer: React.FC = () => {
                         <MagnifyingGlassPlusIcon className="w-24 h-24 text-brand-muted group-hover:scale-110 transition-transform duration-700" />
                         <div className="absolute inset-0 bg-brand-primary rounded-full blur-[60px] opacity-20 animate-pulseGlow"></div>
                     </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-widest">
+                    <h3 className="text-xl font-bold text-white uppercase tracking-widest">
                         {t('walletExplorer.awaitingCommand')}
                     </h3>
                     <p className="max-w-sm text-brand-muted mt-3 text-sm leading-relaxed">

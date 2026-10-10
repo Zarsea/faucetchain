@@ -107,7 +107,7 @@ const Address: React.FC<{ role: string; what: string; address: string }> = ({ ro
 const Figure: React.FC<{ label: string; value: string; hint?: string }> = ({ label, value, hint }) => (
     <div className="bg-brand-bg/40 border border-brand-border/40 rounded-2xl px-5 py-4">
         <p className="text-brand-muted text-xs uppercase tracking-widest">{label}</p>
-        <p className="text-2xl font-black text-white mt-1 tabular-nums">{value}</p>
+        <p className="text-2xl font-bold text-white mt-1 tabular-nums">{value}</p>
         {hint && <p className="text-brand-muted text-xs mt-1">{hint}</p>}
     </div>
 );
@@ -166,11 +166,11 @@ export const SettlementLedger: React.FC = () => {
 
     if (campaigns.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-brand-surface/20 border-2 border-dashed border-brand-border rounded-[2.5rem] text-center max-w-2xl mx-auto animate-fadeIn">
+            <div className="flex flex-col items-center justify-center p-12 bg-brand-surface/20 border-2 border-dashed border-brand-border rounded-2xl text-center max-w-2xl mx-auto animate-fadeIn">
                 <div className="w-20 h-20 bg-brand-primary/10 rounded-full flex items-center justify-center mb-6">
                     <CubeIcon className="w-10 h-10 text-brand-primary opacity-50" />
                 </div>
-                <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Settlement Ledger</h2>
+                <h2 className="text-2xl font-bold uppercase tracking-tighter settle-text">Settlement Ledger</h2>
                 <p className="text-brand-muted mt-4 leading-relaxed">
                     No campaign has been registered on this sequencer yet. Once a partner funds a
                     vault, everything it owes and everything it has paid shows up here — read from
@@ -184,13 +184,11 @@ export const SettlementLedger: React.FC = () => {
     const outstanding = state ? state.committed - state.paid : 0;
 
     return (
-        <div className="space-y-8 animate-fadeIn">
-            <div className="bg-brand-surface border border-brand-border/50 p-8 rounded-[2.5rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-80 h-80 bg-sol-purple/10 rounded-full -mr-40 -mt-40 blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-sol-green/10 rounded-full -ml-32 -mb-32 blur-3xl"></div>
+        <div className="space-y-8 rise">
+            <div className="bg-brand-surface border border-brand-border/50 p-8 rounded-2xl relative overflow-hidden">
                 <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
-                        <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Settlement Ledger</h2>
+                        <h2 className="text-2xl font-bold uppercase tracking-tighter settle-text">Settlement Ledger</h2>
                         {ledger && (
                             <p className="text-white font-bold mt-2">
                                 Campaign {ledger.campaign_id} pays{' '}

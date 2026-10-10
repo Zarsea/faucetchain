@@ -45,8 +45,12 @@
             'sol-mid': '#5497D5'
           },
           fontFamily: {
-            sans: ['Inter', 'system-ui', 'sans-serif'],
-            mono: ['Fira Code', 'monospace']
+            // Archivo no lugar do Inter. Inter e a face que todo dashboard
+            // usa; o eixo de largura do Archivo da aperto aos titulos sem
+            // tracking negativo exagerado, e e o que separa esta tela das
+            // outras do mesmo setor.
+            sans: ['Archivo', 'system-ui', 'sans-serif'],
+            mono: ['Fira Code', 'ui-monospace', 'monospace']
           },
           // Elevação no lugar de brilho. Brilho faz tudo flutuar no mesmo
           // plano e envelheceu; sombra com direção diz o que está acima do quê,
@@ -102,11 +106,55 @@
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Archivo carrega o eixo de largura: os títulos usam a variante estreita,
+         que é o que dá o aperto institucional sem recorrer a tracking negativo
+         exagerado. Inter sai; Fira Code fica, e só para dado e endereço. -->
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
       body {
         scrollbar-width: thin;
         scrollbar-color: #1C2E3D transparent;
+      }
+
+      /* As partes que o navegador desenha também carregam o design. São as
+         primeiras a denunciar uma interface montada em vez de construída, e as
+         que quase ninguém tematiza. */
+      ::selection {
+        background: rgba(43, 159, 232, 0.28);
+        color: #EAF2FF;
+      }
+      input, textarea {
+        caret-color: #2B9FE8;
+      }
+      :focus-visible {
+        outline: 2px solid #2B9FE8;
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      /* Dígito de largura fixa onde números se empilham: sem isso a coluna
+         dança a cada atualização, e este produto atualiza em tempo real. */
+      .tabular, table td, table th {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Um movimento, não um efeito por seção: a entrada é a mesma curva em
+         todo lugar, exponencial a partir de um estado já visível, para que
+         nada chegue invisível se o script falhar. */
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: none; }
+      }
+      .rise {
+        animation: rise 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .rise-2 { animation-delay: 60ms; }
+      .rise-3 { animation-delay: 120ms; }
+      .rise-4 { animation-delay: 180ms; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .rise, .rise-2, .rise-3, .rise-4 {
+          animation: none;
+        }
       }
       ::-webkit-scrollbar {
         width: 8px;

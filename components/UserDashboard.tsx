@@ -42,7 +42,7 @@ const WatchedAddressesWidget: React.FC<{ onNavigate: (tab: string) => void }> = 
                 ].map((s, i) => (
                     <div key={i} className="p-3 bg-brand-bg/50 border border-brand-border/30 rounded-xl text-center">
                         <span className="text-sm">{s.icon}</span>
-                        <p className="text-lg font-black text-white font-mono">{s.value}</p>
+                        <p className="text-lg font-bold text-white font-mono">{s.value}</p>
                         <span className="text-[9px] font-bold text-brand-muted uppercase tracking-widest">{s.label}</span>
                     </div>
                 ))}
@@ -117,7 +117,7 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
     return (
         <div className="space-y-4">
             <div>
-                <label className="text-[10px] font-black text-brand-muted uppercase mb-1 block">{t('transfer.destAddress')}</label>
+                <label className="text-[10px] font-bold text-brand-muted uppercase mb-1 block">{t('transfer.destAddress')}</label>
                 <input 
                     type="text" 
                     value={receiver}
@@ -127,7 +127,7 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
                 />
             </div>
             <div>
-                <label className="text-[10px] font-black text-brand-muted uppercase mb-1 block">{t('transfer.amount')}</label>
+                <label className="text-[10px] font-bold text-brand-muted uppercase mb-1 block">{t('transfer.amount')}</label>
                 <input 
                     type="number" 
                     value={amount}
@@ -148,7 +148,7 @@ const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => v
             <button
                 onClick={handleTransfer}
                 disabled={status.type === 'loading'}
-                className="w-full px-4 py-3 bg-brand-primary text-brand-bg font-black rounded-xl hover:bg-white hover:shadow-glow-primary transition-all active:scale-95 text-xs uppercase tracking-widest disabled:opacity-50 disabled:pointer-events-none mt-2 flex justify-center gap-2"
+                className="w-full px-4 py-3 bg-brand-primary text-brand-bg font-bold rounded-xl hover:bg-white hover:shadow-glow-primary transition-all active:scale-95 text-xs uppercase tracking-widest disabled:opacity-50 disabled:pointer-events-none mt-2 flex justify-center gap-2"
             >
                 {status.type === 'loading' ? <LoadingIcon className="w-4 h-4 animate-spin" /> : <ArrowUpRightIcon className="w-4 h-4" />}
                 {status.type === 'loading' ? t('transfer.processing') : t('transfer.transferBtn')}
@@ -199,8 +199,8 @@ const StakingSummaryWidget: React.FC<{ userAddress: string; onNavigate: (tab: st
                     { label: 'Yield Est.', value: `+${yieldEst.toFixed(2)}`, unit: '$CLAIM', color: 'text-brand-success' },
                 ].map((s, i) => (
                     <div key={i} className="p-3 bg-brand-bg/50 border border-brand-border/30 rounded-xl text-center">
-                        <p className={`text-base font-black font-mono ${s.color}`}>{s.value}</p>
-                        <span className="text-[8px] font-black text-brand-muted uppercase tracking-widest block">{s.label}</span>
+                        <p className={`text-base font-bold font-mono ${s.color}`}>{s.value}</p>
+                        <span className="text-[8px] font-bold text-brand-muted uppercase tracking-widest block">{s.label}</span>
                         <span className="text-[8px] text-brand-muted">{s.unit}</span>
                     </div>
                 ))}
@@ -327,21 +327,21 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
 
     if (!isConnected) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-brand-surface/20 border-2 border-dashed border-brand-border rounded-[2.5rem] text-center max-w-2xl mx-auto animate-fadeIn">
+            <div className="flex flex-col items-center justify-center p-12 bg-brand-surface/20 border-2 border-dashed border-brand-border rounded-2xl text-center max-w-2xl mx-auto animate-fadeIn">
                 <div className="w-20 h-20 bg-brand-primary/10 rounded-full flex items-center justify-center mb-6">
                     <WalletIcon className="w-10 h-10 text-brand-primary opacity-50" />
                 </div>
-                <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{t('dashboard.welcome')}</h2>
+                <h2 className="text-2xl font-bold text-white uppercase tracking-tighter">{t('dashboard.welcome')}</h2>
                 <p className="text-brand-muted mt-4 mb-8 leading-relaxed">
                     {t('dashboard.welcomeDesc')}
                 </p>
                 <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
                     <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
-                        <span className="text-[10px] font-black text-brand-primary uppercase block">{t('dashboard.network')}</span>
+                        <span className="text-[10px] font-bold text-brand-primary uppercase block">{t('dashboard.network')}</span>
                         <span className="text-xs font-bold text-white">FaucetChain L1 · settles on Solana</span>
                     </div>
                     <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
-                        <span className="text-[10px] font-black text-brand-primary uppercase block">{t('dashboard.consensus')}</span>
+                        <span className="text-[10px] font-bold text-brand-primary uppercase block">{t('dashboard.consensus')}</span>
                         <span className="text-xs font-bold text-white">Proof of Claim</span>
                     </div>
                 </div>
@@ -352,35 +352,42 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
     return (
         <div className="space-y-8 animate-fadeIn">
             {/* Header: User Profile Summary */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-brand-surface border border-brand-border/50 p-8 rounded-[2.5rem] relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-                <div className="flex items-center gap-6 relative z-10">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center p-0.5 shadow-glow-primary/20">
-                        <div className="w-full h-full bg-brand-bg rounded-[0.9rem] flex items-center justify-center">
-                            <CubeIcon className="w-8 h-8 text-brand-primary" />
-                        </div>
+            {/* O cabeçalho carregava um halo `blur-3xl` atrás do título e um
+                gradiente no ícone. Os dois faziam o bloco parecer flutuar sem
+                dizer o que está acima do quê; a elevação agora é só a borda,
+                declarada uma vez. Raio de 40px para 16px: 40 é o raio de um
+                cartão de marketing, não de um painel que se lê. */}
+            <div className="rise flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-brand-surface border border-brand-border/50 p-8 rounded-2xl">
+                <div className="flex items-center gap-5">
+                    <div className="w-14 h-14 rounded-xl bg-brand-bg border border-brand-primary/25 flex items-center justify-center flex-none">
+                        <CubeIcon className="w-7 h-7 text-brand-primary" />
                     </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-white tracking-tighter uppercase">{t('dashboard.title')}</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs font-mono text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md border border-brand-primary/20">
-                                {userAddress?.substring(0, 10)}...{userAddress?.substring(userAddress.length - 8)}
+                    <div className="min-w-0">
+                        {/* O peso vem da escala, não de pôr font-bold em tudo:
+                            quando todo título é o mais pesado que existe, nenhum
+                            é. */}
+                        <h2 className="text-2xl font-bold text-white tracking-tight">{t('dashboard.title')}</h2>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-xs font-mono text-brand-mid break-all">
+                                {userAddress?.substring(0, 10)}…{userAddress?.substring(userAddress.length - 8)}
                             </span>
-                            {authMethod === 'WALLET' && <ShieldCheckIcon className="w-4 h-4 text-brand-success" />}
+                            {authMethod === 'WALLET' && (
+                                <ShieldCheckIcon className="w-4 h-4 text-brand-success flex-none" />
+                            )}
                         </div>
                     </div>
                 </div>
 
-                <div className="flex gap-3 relative z-10">
+                <div className="flex gap-3 flex-none">
                     <button
                         onClick={() => onNavigate('Faucet')}
-                        className="px-6 py-3 bg-brand-primary text-brand-bg font-black rounded-xl hover:bg-white hover:shadow-glow-primary transition-all active:scale-95 text-xs uppercase tracking-widest"
+                        className="px-6 py-3 bg-brand-primary text-brand-bg font-semibold rounded-xl hover:bg-white transition-colors active:scale-[0.98] text-sm"
                     >
                         {t('dashboard.validateMerit')}
                     </button>
                     <button
                         onClick={() => { setRefreshTick(t => t + 1); }}
-                        className="p-3 bg-brand-bg border border-brand-border rounded-xl text-brand-muted hover:text-brand-primary transition-all"
+                        className="p-3 bg-brand-bg border border-brand-border rounded-xl text-brand-muted hover:text-brand-primary hover:border-brand-primary/40 transition-colors"
                         title="Atualizar dados"
                     >
                         <ArrowPathIcon className="w-5 h-5" />
@@ -388,25 +395,25 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 rise rise-2">
                 {/* Left Column: Balances & Stats */}
                 <div className="lg:col-span-1 space-y-6">
                     <SectionCard title={t('dashboard.portfolio')} icon={<ChartBarIcon className="w-5 h-5 text-brand-primary" />}>
                         <div className="space-y-4">
                             <div className="p-5 bg-brand-bg/50 border border-brand-border/40 rounded-2xl group hover:border-brand-primary/30 transition-all">
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className="text-[10px] font-black text-brand-muted uppercase">{t('dashboard.nativeGas')}</span>
+                                    <span className="text-[10px] font-bold text-brand-muted uppercase">{t('dashboard.nativeGas')}</span>
                                     <span className="text-[10px] bg-brand-border/50 px-2 py-0.5 rounded-md">Gasless L1</span>
                                 </div>
-                                <div className="text-3xl font-black text-white font-mono">$0 <span className="text-sm font-bold text-brand-muted">GAS</span></div>
+                                <div className="text-3xl font-bold text-white font-mono tabular">$0 <span className="text-sm font-bold text-brand-muted">GAS</span></div>
                             </div>
 
                             <div className="p-5 bg-brand-primary/5 border border-brand-primary/20 rounded-2xl group hover:border-brand-primary/50 transition-all">
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className="text-[10px] font-black text-brand-primary uppercase">{t('dashboard.merit')}</span>
+                                    <span className="text-[10px] font-bold text-brand-primary uppercase">{t('dashboard.merit')}</span>
                                     <SparklesIcon className="w-4 h-4 text-brand-primary animate-pulse" />
                                 </div>
-                                <div className="text-3xl font-black text-brand-primary font-mono">{balanceClaim.toFixed(2)} <span className="text-sm font-bold text-brand-muted">$CLAIM</span></div>
+                                <div className="text-3xl font-bold text-brand-primary font-mono tabular">{balanceClaim.toFixed(2)} <span className="text-sm font-bold text-brand-muted">$CLAIM</span></div>
                                 {/* Aqui ficava "~${(balanceClaim * 0.12).toFixed(2)}": doze
                                     centavos por $CLAIM, escritos a mao. Nenhum mercado
                                     precifica este token, entao qualquer numero em dolar
@@ -418,10 +425,10 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                     <div className={`mt-3 p-2.5 rounded-lg border ${pending.sealers > 0
                                         ? 'bg-sky-500/10 border-sky-500/30'
                                         : 'bg-amber-500/10 border-amber-500/30'}`}>
-                                        <p className={`text-[10px] font-black uppercase tracking-wide ${pending.sealers > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
+                                        <p className={`text-[10px] font-bold uppercase tracking-wide ${pending.sealers > 0 ? 'text-sky-400' : 'text-amber-400'}`}>
                                             {t('dashboard.pendingTitle')}
                                         </p>
-                                        <p className={`text-lg font-black font-mono mt-0.5 ${pending.sealers > 0 ? 'text-sky-300' : 'text-amber-300'}`}>
+                                        <p className={`text-lg font-bold font-mono mt-0.5 ${pending.sealers > 0 ? 'text-sky-300' : 'text-amber-300'}`}>
                                             {pending.amount.toFixed(2)} <span className="text-[10px] font-bold">$CLAIM</span>
                                         </p>
                                         <p className={`text-[10px] leading-relaxed mt-1 ${pending.sealers > 0 ? 'text-sky-200/80' : 'text-amber-200/80'}`}>
@@ -433,10 +440,10 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                 )}
                                 {lockedAsFaucet > 0 && (
                                     <div className="mt-3 p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                                        <p className="text-[10px] font-black text-amber-400 uppercase tracking-wide">
+                                        <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wide">
                                             {t('dashboard.lockedTitle')}
                                         </p>
-                                        <p className="text-lg font-black text-amber-300 font-mono mt-0.5">
+                                        <p className="text-lg font-bold text-amber-300 font-mono mt-0.5">
                                             {lockedAsFaucet.toFixed(2)} <span className="text-[10px] font-bold">$CLAIM</span>
                                         </p>
                                         <p className="text-[10px] text-amber-200/80 leading-relaxed mt-1">
@@ -474,8 +481,8 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                     <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={364} strokeDashoffset={364 - (364 * reputation / 100)} className="text-brand-primary transition-all duration-1000" />
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-2xl font-black text-white">{reputation}%</span>
-                                    <span className="text-[8px] font-black text-brand-muted uppercase">Auditado</span>
+                                    <span className="text-2xl font-bold text-white tabular">{reputation}%</span>
+                                    <span className="text-[8px] font-bold text-brand-muted uppercase">Auditado</span>
                                 </div>
                             </div>
                             <p className="text-xs text-brand-muted italic leading-relaxed px-4">
@@ -517,12 +524,12 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                                         <ArrowUpRightIcon className="w-4 h-4" />}
                                             </div>
                                             <div>
-                                                <div className="text-xs font-black text-white uppercase tracking-tight">{tx.type} {tx.amount} $CLAIM</div>
+                                                <div className="text-xs font-bold text-white uppercase tracking-tight">{tx.type} {tx.amount} $CLAIM</div>
                                                 <div className="text-[10px] text-brand-muted font-mono">{tx.hash} • {tx.time}</div>
                                             </div>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="px-2 py-0.5 bg-brand-success/10 text-brand-success text-[9px] font-black border border-brand-success/20 rounded-md">
+                                            <span className="px-2 py-0.5 bg-brand-success/10 text-brand-success text-[9px] font-bold border border-brand-success/20 rounded-md">
                                                 {tx.status}
                                             </span>
                                             <ArrowUpRightIcon className="w-3 h-3 text-brand-muted mt-2 opacity-0 group-hover:opacity-100 transition-all" />
