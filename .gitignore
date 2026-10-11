@@ -13,7 +13,12 @@ lerna-debug.log*
 *.db
 *.db-shm
 *.db-wal
-!blockchain.db
+# A excecao `!blockchain.db` viveu aqui entre 10 e 11/10/2026, para o DoniJR
+# poder fazer deploy a partir do git. O historico foi reescrito com
+# git-filter-repo e o banco saiu dos tres commits que o carregavam: ele tem
+# e-mails reais e hashes bcrypt, e este repositorio e publico.
+#
+# Se voltar a precisar entregar o banco, mande o ARQUIVO, nao o commit.
 .venv/
 __pycache__/
 artifacts/
