@@ -419,6 +419,39 @@ def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
     assert uptime == 0, uptime
 
 
+def test_node_lookup_nao_entrega_o_token(client):
+    """A rota publica do no nao pode devolver node_token.
+
+    Ela fazia SELECT * em active_miners e devolvia a linha inteira, entao quem
+    soubesse um endereco de carteira recebia o token do no dela -- e esse token
+    e o que require_node_token compara em /heartbeat, /explore e /disconnect.
+    Saber o endereco bastava para inflar uptime alheio, minerar no lugar do dono
+    e derrubar o no dele.
+
+    Achado do DoniJR em 10/10/2026. Morde se alguem voltar ao SELECT *.
+    """
+    carteira = "0x" + "77" * 20
+    node = "fcn-vazamento-token"
+    r = client.post("/api/mining/register", json={
+        "node_id": node, "wallet_address": carteira, "node_name": "no-de-teste",
+    })
+    assert r.status_code == 200, r.text
+
+    # O registro devolve o token uma vez, de proposito: e o dono recebendo o dele.
+    emitido = r.json().get("node_token")
+    assert emitido, "o registro deveria emitir um token para o dono"
+
+    r = client.get(f"/api/mining/node/{carteira}")
+    assert r.status_code == 200, r.text
+    corpo = r.json()
+    assert corpo, "deveria listar o no recem-registrado"
+
+    for no in corpo:
+        assert "node_token" not in no, f"node_token vazou na rota publica: {list(no)}"
+        # E nenhum campo pode carregar o valor por outro nome.
+        assert emitido not in str(no), "o token apareceu na resposta sob outra chave"
+
+
 def wallet_of(node_id):
     conn = db()
     row = conn.execute("SELECT wallet_address FROM active_miners WHERE node_id = ?",

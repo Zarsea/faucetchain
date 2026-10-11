@@ -4818,8 +4818,21 @@ async def get_node_info(address: str):
     current_ts = int(datetime.now().timestamp())
     timeout = MINING_CONFIG["heartbeat_timeout"]
 
+    # Lista explicita, e nao SELECT *, porque active_miners carrega node_token.
+    #
+    # Esta rota e publica e devolvia a linha inteira: qualquer um que soubesse um
+    # endereco de carteira recebia o token do no dela. Esse token e o que
+    # require_node_token compara em /api/mining/heartbeat, /explore e /disconnect,
+    # entao vazar equivale a entregar o no -- da para inflar uptime alheio, minerar
+    # no lugar do dono e derrubar o no dele.
+    #
+    # Uma coluna nova em active_miners NAO entra aqui sozinha, que e o ponto: o
+    # SELECT * fazia o contrario, adotava qualquer segredo que aparecesse depois.
     c.execute(
-        "SELECT * FROM active_miners WHERE wallet_address = ? ORDER BY registered_at DESC",
+        """SELECT node_id, wallet_address, node_name, registered_at, last_heartbeat,
+                  total_uptime_seconds, epoch_uptime_seconds, total_earned,
+                  epochs_active, is_online, cpu_load, memory_free, version
+             FROM active_miners WHERE wallet_address = ? ORDER BY registered_at DESC""",
         (address.strip().lower(),)
     )
     rows = c.fetchall()
