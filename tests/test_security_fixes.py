@@ -419,6 +419,42 @@ def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
     assert uptime == 0, uptime
 
 
+def test_resposta_carrega_os_cabecalhos_de_seguranca(client):
+    """CSP e amigos em toda resposta, com a saida de dados fechada.
+
+    O achado do DoniJR (10/10/2026) e que o token de sessao fica no
+    localStorage por sete dias, entao um XSS futuro o roubaria. Guardar em
+    cookie HttpOnly e a correcao de raiz e continua por fazer -- mexe no fluxo
+    de autenticacao inteiro.
+
+    O que da para fechar sem isso e a SAIDA: roubar exige mandar o token para
+    fora. Com connect-src 'self' e img-src sem host externo, fetch, XHR,
+    WebSocket e beacon de imagem para dominio de terceiro sao recusados pelo
+    navegador. Verificado em Chrome: os tres vetores bloqueados.
+
+    'unsafe-inline' e 'unsafe-eval' estao em script-src de proposito, porque a
+    configuracao do Tailwind e inline e o CDN dele compila em tempo de
+    execucao. Enfraquece a defesa contra injecao, nao a defesa contra saida.
+    """
+    r = client.get("/api/faucethub/faucets")
+
+    csp = r.headers.get("content-security-policy", "")
+    assert csp, "sem Content-Security-Policy"
+    # O que impede o token de sair.
+    assert "connect-src 'self'" in csp, csp
+    assert "img-src 'self' data: blob:" in csp, csp
+    # Nenhum host externo pode entrar nessas duas sem quebrar a promessa acima.
+    saida = [d for d in csp.split(";") if d.strip().startswith(("connect-src", "img-src"))]
+    for d in saida:
+        assert "http://" not in d and "https://" not in d, f"host externo na saida: {d}"
+    # Enquadramento e sniffing.
+    assert "frame-ancestors 'none'" in csp, csp
+    assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("x-frame-options") == "DENY"
+    assert r.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+    assert "max-age=" in r.headers.get("strict-transport-security", ""), "sem HSTS"
+
+
 def test_registro_de_no_tem_teto_por_ip_mas_reconexao_nao(client):
     """Criar no novo tem teto por IP; reconectar um existente nao.
 

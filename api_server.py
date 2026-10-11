@@ -111,6 +111,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Cabecalhos de seguranca, montados a partir do que a pagina realmente carrega.
+#
+# Levantado no navegador, nao suposto: script vem de cdn.tailwindcss.com e da
+# propria origem; estilo de fonts.googleapis.com; fonte de fonts.gstatic.com;
+# imagem e fetch so da propria origem.
+#
+# `'unsafe-inline'` em script e inevitavel enquanto a configuracao do Tailwind
+# for um <script> inline no index.html, e `'unsafe-eval'` enquanto o CDN do
+# Tailwind compilar classe em tempo de execucao. Isso enfraquece a defesa
+# contra injecao de script, mas NAO e o que esta em jogo aqui: o achado e que
+# um XSS futuro roubaria o token de sessao do localStorage, e roubar exige
+# MANDAR o token para fora. `connect-src 'self'` e `img-src` sem host externo
+# fecham a saida -- fetch, XHR, WebSocket e beacon de imagem para dominio de
+# terceiro sao recusados pelo navegador.
+#
+# Guardar a sessao em cookie HttpOnly seria a correcao de raiz, e continua por
+# fazer: mexe no fluxo de autenticacao inteiro e nao se faz na vespera.
+CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+])
+
+# includeSubDomains fica de fora de proposito: forca HTTPS em todo subdominio de
+# faucetchain.com.br, e um subdominio ainda em HTTP sairia do ar sem aviso. Sem
+# preload pelo mesmo motivo -- a lista de preload e dificil de desfazer.
+# Navegador ignora HSTS recebido por HTTP (RFC 6797), entao mandar sempre e seguro.
+HSTS = "max-age=15552000"
+
+
+@app.middleware("http")
+async def cabecalhos_de_seguranca(request: Request, call_next):
+    resposta = await call_next(request)
+    resposta.headers.setdefault("Content-Security-Policy", CSP)
+    resposta.headers.setdefault("Strict-Transport-Security", HSTS)
+    resposta.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resposta.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resposta.headers.setdefault("X-Frame-Options", "DENY")
+    return resposta
+
+
 # An unhandled exception skips the CORS middleware, so the browser sees an
 # opaque "Failed to fetch" and the real error never reaches the screen. This
 # turns it into an ordinary response, which the middleware then decorates.
