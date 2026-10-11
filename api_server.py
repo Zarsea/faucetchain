@@ -5502,17 +5502,19 @@ async def get_cyberdrip_profile(wallet: str):
     row = c.fetchone()
 
     if not row:
-        # Create fresh profile
+        # Um GET nao grava.
+        #
+        # Esta rota criava o perfil e cunhava o NFT de quem ainda nao existia, e
+        # e publica: gerar enderecos validos ao acaso fazia o SQLite crescer sem
+        # teto, uma linha de perfil e uma de NFT por endereco inventado. O teste
+        # que procura rota perigosa olha POST, PUT, PATCH e DELETE, entao nao via
+        # esta. Achado do DoniJR em 10/10/2026.
+        #
+        # A resposta nao muda: o perfil zerado abaixo e identico ao que a linha
+        # recem-criada produzia. So deixou de ser persistido. Quem reivindica de
+        # verdade passa por record_cyberdrip_claim, que cria o perfil e cunha o
+        # FIRST_CONTACT -- e la ha um claim por tras, nao uma visita.
         now_ts = int(_time.time())
-        c.execute("INSERT INTO cyberdrip_profiles (wallet, created_at) VALUES (?, ?)", (wallet_lower, now_ts))
-        
-        # Auto-mint First Contact NFT
-        c.execute("""
-            INSERT OR IGNORE INTO cyberdrip_nfts (wallet, nft_id, name, type, description, acquired_at) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (wallet_lower, "FIRST_CONTACT", "Primeiro Contato L2", "HOLDER", "O registro inicial na sub-rede gamificada.", now_ts))
-        
-        conn.commit()
         profile = {
             "wallet": wallet_lower,
             "total_claims": 0, "total_earned": 0.0,
@@ -5633,6 +5635,16 @@ async def record_cyberdrip_claim(req: CyberDripClaimEvent):
     profile_row = c.fetchone()
     if not profile_row:
         c.execute("INSERT INTO cyberdrip_profiles (wallet, created_at) VALUES (?, ?)", (wallet_lower, now_ts))
+        # O "Primeiro Contato" nasce aqui, e nao na leitura do perfil, que era
+        # onde ficava: ali bastava visitar com um endereco inventado para cunhar
+        # um NFT. Aqui ha um micro-claim por tras, que e o que o nome promete.
+        c.execute(
+            """INSERT OR IGNORE INTO cyberdrip_nfts
+                   (wallet, nft_id, name, type, description, acquired_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (wallet_lower, "FIRST_CONTACT", "Primeiro Contato L2", "HOLDER",
+             "O registro inicial na sub-rede gamificada.", now_ts),
+        )
         conn.commit()
         c.execute("SELECT * FROM cyberdrip_profiles WHERE wallet = ?", (wallet_lower,))
         profile_row = c.fetchone()

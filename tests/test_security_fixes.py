@@ -419,6 +419,42 @@ def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
     assert uptime == 0, uptime
 
 
+def test_ler_perfil_cyberdrip_nao_grava(client):
+    """GET de perfil nao pode criar perfil nem cunhar NFT.
+
+    A rota e publica e criava a linha de quem ainda nao existia, mais um NFT
+    "Primeiro Contato": gerar enderecos validos ao acaso fazia o banco crescer
+    sem teto. O teste de rotas perigosas nao pegava, porque olha POST, PUT,
+    PATCH e DELETE. Achado do DoniJR em 10/10/2026.
+
+    Morde se alguem devolver o INSERT ao GET.
+    """
+    carteira = "0x" + "5c" * 20
+
+    def contar():
+        conn = db()
+        p = conn.execute("SELECT COUNT(*) FROM cyberdrip_profiles WHERE wallet = ?",
+                         (carteira,)).fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) FROM cyberdrip_nfts WHERE wallet = ?",
+                         (carteira,)).fetchone()[0]
+        conn.close()
+        return p, n
+
+    assert contar() == (0, 0), "a carteira do teste ja existia"
+
+    # Tres leituras: se gravasse, a primeira ja criaria.
+    for _ in range(3):
+        r = client.get(f"/api/cyberdrip/profile/{carteira}")
+        assert r.status_code == 200, r.text
+        corpo = r.json()
+        assert corpo["wallet"] == carteira
+        assert corpo["total_claims"] == 0
+
+    perfis, nfts = contar()
+    assert perfis == 0, f"a leitura criou {perfis} perfil(is)"
+    assert nfts == 0, f"a leitura cunhou {nfts} NFT(s)"
+
+
 def test_node_lookup_nao_entrega_o_token(client):
     """A rota publica do no nao pode devolver node_token.
 
