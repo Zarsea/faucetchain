@@ -311,29 +311,29 @@ export const SettlementLedger: React.FC = () => {
                 icon={<CubeIcon className="w-6 h-6" />}
             >
                 <p className="text-sm text-brand-muted mb-4 max-w-3xl">
-                    Quem recebeu de verdade, e quanto. Cada linha existe porque uma
-                    transferência foi assinada e confirmada na Solana — a assinatura abaixo
-                    abre no explorer e mostra a mesma coisa sem passar por este servidor.
-                    Uma raiz publicada diz quanto a campanha <em>deve</em>; esta tabela diz
-                    quanto ela <em>pagou</em>.
+                    Who was actually paid, and how much. Every row exists because a transfer
+                    was signed and confirmed on Solana — the signature beside it opens in the
+                    explorer and shows the same thing without passing through this server.
+                    A published root says what the campaign <em>owes</em>; this table says
+                    what it <em>paid</em>.
                 </p>
 
                 {!ledger?.payouts?.length ? (
                     <p className="text-brand-muted">
-                        Nenhuma retirada foi assinada nesta campanha ainda. As raízes abaixo
-                        já prometem valor; ninguém o recolheu.
+                        No withdrawal has been signed on this campaign yet. The roots below
+                        already promise value; nobody has collected it.
                     </p>
                 ) : (
                     <>
                         <div className="flex flex-wrap gap-6 mb-4 text-sm">
                             <span className="text-brand-muted">
-                                total pago{' '}
+                                paid out{' '}
                                 <span className="text-white font-mono font-bold tabular-nums">
                                     {(ledger.paid_total / UNIT).toFixed(6)}
                                 </span>
                             </span>
                             <span className="text-brand-muted">
-                                destinatários{' '}
+                                recipients{' '}
                                 <span className="text-white font-mono font-bold">{ledger.paid_recipients}</span>
                             </span>
                         </div>
@@ -341,10 +341,10 @@ export const SettlementLedger: React.FC = () => {
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="text-left text-[11px] uppercase tracking-widest text-brand-muted">
-                                        <th className="py-2 pr-4">para</th>
-                                        <th className="py-2 pr-4 text-right">unidades</th>
-                                        <th className="py-2 pr-4">raiz</th>
-                                        <th className="py-2">assinatura</th>
+                                        <th className="py-2 pr-4">to</th>
+                                        <th className="py-2 pr-4 text-right">units</th>
+                                        <th className="py-2 pr-4">root</th>
+                                        <th className="py-2">signature</th>
                                     </tr>
                                 </thead>
                                 <tbody>

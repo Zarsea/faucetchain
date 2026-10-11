@@ -8071,7 +8071,18 @@ async def prepare_relayed_claim(req: RelayPrepareRequest):
     from solders.message import Message
     from solders.transaction import Transaction
 
-    blockhash = _rpc_or_503(chain, "getLatestBlockhash", [{"commitment": "confirmed"}])["value"]["blockhash"]
+    # `finalized`, e nao `confirmed`, apesar de ser um blockhash mais velho.
+    #
+    # Com `confirmed` vem o bloco mais recente que ESTE no viu, e o no que
+    # recebe o envio pode nao te-lo visto ainda -- a transacao volta com
+    # BlockhashNotFound sem nada de errado nela. Num RPC publico, onde a
+    # consulta e o envio caem em nos diferentes, isso acontece de verdade:
+    # aconteceu aqui em 11/10/2026, no meio de uma gravacao.
+    #
+    # O finalizado tem ~32 slots a menos de vida util, mas todo no o conhece.
+    # Trocar vida util por ser encontrado e o negocio certo, porque o que
+    # consome a janela nao e a rede: e a pessoa lendo o popup da carteira.
+    blockhash = _rpc_or_503(chain, "getLatestBlockhash", [{"commitment": "finalized"}])["value"]["blockhash"]
     message = Message.new_with_blockhash(
         [instruction], relayer.pubkey(), Hash.from_string(blockhash)
     )
@@ -8206,14 +8217,32 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
     except Exception as e:
         audit_logger.warning(f"Could not price the relayed withdrawal: {e!r}")
 
-    signature = _rpc_or_503(
-        chain,
-        "sendTransaction",
-        [
-            base64.b64encode(bytes(transaction)).decode(),
-            {"encoding": "base64", "preflightCommitment": "confirmed"},
-        ],
-    )
+    try:
+        signature = _rpc_or_503(
+            chain,
+            "sendTransaction",
+            [
+                base64.b64encode(bytes(transaction)).decode(),
+                {"encoding": "base64", "preflightCommitment": "confirmed"},
+            ],
+        )
+    except HTTPException as e:
+        # BlockhashNotFound nao e defeito do saque: e a janela da Solana
+        # fechando entre montar a transacao e envia-la (~60s). O que consome
+        # essa janela e a pessoa lendo o popup da carteira, e o erro cru do RPC
+        # nao diz nada disso a quem esta olhando a tela.
+        #
+        # Nada foi gasto e nada foi perdido: a assinatura cobre o blockhash, e
+        # um blockhash morto nao executa. A recompensa continua reivindicavel.
+        if "BlockhashNotFound" in str(e.detail):
+            raise HTTPException(
+                status_code=409,
+                detail=("A janela desta transação expirou antes do envio — a Solana "
+                        "aceita um blockhash por cerca de um minuto. Nada foi gasto e "
+                        "a recompensa continua lá. Clique em sacar de novo e aprove "
+                        "na carteira sem demorar."),
+            )
+        raise
 
     try:
         conn3 = get_db_connection()

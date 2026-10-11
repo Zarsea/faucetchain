@@ -299,8 +299,8 @@ export const GeneralArticle: React.FC = () => {
                                 title="api_server.py — claim_ip_allowed" 
                             />
                             <div className="p-8 bg-brand-surface/40 rounded-[2rem] border border-brand-border text-center space-y-2">
-                                <p className="text-xs font-black text-brand-muted uppercase tracking-[0.2em]">Desenho, não serviço</p>
-                                <p className="text-[10px] text-brand-muted font-bold">Nenhum processo lê reputação hoje. O sorteio do selador pesa 1 + stake.</p>
+                                <p className="text-xs font-black text-brand-muted uppercase tracking-[0.2em]">Design, not a running service</p>
+                                <p className="text-[10px] text-brand-muted font-bold">No process reads reputation today. The sealer draw weighs 1 + stake.</p>
                             </div>
                         </div>
                     </div>
