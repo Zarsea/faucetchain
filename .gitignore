@@ -13,6 +13,7 @@ lerna-debug.log*
 *.db
 *.db-shm
 *.db-wal
+!blockchain.db
 .venv/
 __pycache__/
 artifacts/
