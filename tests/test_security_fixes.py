@@ -419,6 +419,55 @@ def test_a_node_that_reconnects_pays_the_wallet_it_arrives_with(client):
     assert uptime == 0, uptime
 
 
+def test_registro_de_no_tem_teto_por_ip_mas_reconexao_nao(client):
+    """Criar no novo tem teto por IP; reconectar um existente nao.
+
+    O registro nao prova posse da carteira, e assinar nao resolveria o Sybil --
+    quem inventa as carteiras assina por todas. O que serve e encarecer volume.
+
+    A reconexao fica de fora porque o minerador chama /register a cada start,
+    com cinco tentativas: um teto cego trancaria o dono reiniciando o proprio
+    no. Achado do DoniJR em 10/10/2026, corrigido por teto em vez de assinatura.
+    """
+    # O balde e por IP e todos os testes chegam pelo mesmo cliente, entao este
+    # comeca e termina com ele limpo -- senao outro teste gasta a cota deste, e
+    # este gasta a dos que vierem depois. Foi o que aconteceu na primeira versao.
+    srv._rate_windows["mining_register"].clear()
+    teto = srv.MINING_REGISTER_HOURLY_PER_IP
+    tokens = {}
+
+    # Ate o teto, cada no novo entra. Carteira diferente a cada um, para nao
+    # esbarrar no limite por carteira antes do limite por IP.
+    for i in range(teto):
+        node = f"fcn-teto-{i}"
+        r = client.post("/api/mining/register", json={
+            "node_id": node,
+            "wallet_address": "0x" + f"{i:02x}" * 20,
+            "node_name": f"no-{i}",
+        })
+        assert r.status_code == 200, f"no {i} deveria entrar: {r.text}"
+        tokens[node] = r.json()["node_token"]
+
+    # O seguinte bate no teto.
+    r = client.post("/api/mining/register", json={
+        "node_id": "fcn-teto-excedente",
+        "wallet_address": "0x" + "ee" * 20,
+        "node_name": "excedente",
+    })
+    assert r.status_code == 429, f"deveria recusar o no {teto + 1}: {r.status_code}"
+
+    # Mas reconectar um no ja existente continua passando, com o token dele.
+    node = "fcn-teto-0"
+    r = client.post("/api/mining/register",
+                    json={"node_id": node, "wallet_address": "0x" + "00" * 20,
+                          "node_name": "no-0"},
+                    headers={"X-Node-Token": tokens[node]})
+    assert r.status_code == 200, f"reconexao nao pode ser barrada pelo teto: {r.text}"
+    assert r.json()["status"] == "reconnected", r.json()
+
+    srv._rate_windows["mining_register"].clear()
+
+
 def test_ler_perfil_cyberdrip_nao_grava(client):
     """GET de perfil nao pode criar perfil nem cunhar NFT.
 

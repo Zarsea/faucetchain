@@ -630,6 +630,10 @@ REGISTER_HOURLY_PER_IP = int(os.getenv("REGISTER_HOURLY_PER_IP", "10"))
 TRACKER_HOURLY_PER_IP = int(os.getenv("TRACKER_HOURLY_PER_IP", "60"))
 HOLDINGS_HOURLY_PER_IP = int(os.getenv("HOLDINGS_HOURLY_PER_IP", "120"))
 MINING_HOURLY_PER_NODE = int(os.getenv("MINING_HOURLY_PER_NODE", "300"))
+# Nos NOVOS por IP por hora. Reconectar um no existente nao conta, entao reiniciar
+# o minerador quantas vezes quiser nao esbarra nisto. Oito deixa folga para quem
+# roda varios nos legitimos numa maquina e ainda assim encarece registro em massa.
+MINING_REGISTER_HOURLY_PER_IP = int(os.getenv("MINING_REGISTER_HOURLY_PER_IP", "8"))
 RATE_LIMIT_WINDOW = timedelta(minutes=1)  # Time window
 
 # Explore rate limiting (per node_id, in-memory)
@@ -4568,6 +4572,28 @@ async def register_miner(req: MiningRegisterRequest, request: Request,
         conn.close()
         return {"status": "reconnected", "node_id": req.node_id,
                 "wallet_address": wallet, "node_token": issued_token}
+
+    # Daqui para baixo cria no NOVO, e so este caminho tem teto por IP.
+    #
+    # O registro nao prova posse da carteira: nao ha assinatura, e o teto de nos
+    # por carteira nao impede gerar carteiras. Assinar tambem nao resolveria o
+    # Sybil -- quem inventa as carteiras assina por todas elas -- entao o que
+    # serve e encarecer o volume, que e o que um teto por IP faz.
+    #
+    # A reconexao fica de fora de proposito: o no chama /register a cada start,
+    # com cinco tentativas, e um teto aqui trancaria o dono reiniciando o
+    # proprio minerador. Aquele caminho ja exige o node_token.
+    #
+    # Nao fecha quem tem muitos IPs. Fecha o registro em massa de um ponto so,
+    # que e o ataque barato. O resto pede barreira economica -- stake ou convite
+    # -- e isso e decisao de produto, nao correcao.
+    if not within_rate("mining_register", client_ip, MINING_REGISTER_HOURLY_PER_IP):
+        conn.close()
+        raise HTTPException(
+            status_code=429,
+            detail=("Too many new nodes registered from this address. Reconnecting "
+                    "an existing node is not affected; wait before creating another."),
+        )
 
     current_ts = int(datetime.now().timestamp())
     # Returned once, here. Every later call from this node carries it.
