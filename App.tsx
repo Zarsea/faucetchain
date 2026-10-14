@@ -4,16 +4,16 @@ import './i18n';
 import { Header } from './components/Header';
 import { Tabs } from './components/Tabs';
 import { Overview } from './components/Overview';
-import { CodeViewer } from './components/CodeViewer';
-import { Tokenomics } from './components/Tokenomics';
-import { Whitepaper } from './components/Whitepaper';
-import { NetworkStatus } from './components/NetworkStatus';
+const CodeViewer = React.lazy(() => import('./components/CodeViewer').then(m => ({ default: m.CodeViewer })));
+const Tokenomics = React.lazy(() => import('./components/Tokenomics').then(m => ({ default: m.Tokenomics })));
+const Whitepaper = React.lazy(() => import('./components/Whitepaper').then(m => ({ default: m.Whitepaper })));
+const NetworkStatus = React.lazy(() => import('./components/NetworkStatus').then(m => ({ default: m.NetworkStatus })));
 import { Faucet } from './components/Faucet';
-import { ApiDocs } from './components/ApiDocs';
-import { GeneralArticle } from './components/GeneralArticle';
+const ApiDocs = React.lazy(() => import('./components/ApiDocs').then(m => ({ default: m.ApiDocs })));
+const GeneralArticle = React.lazy(() => import('./components/GeneralArticle').then(m => ({ default: m.GeneralArticle })));
 import { LanguageProvider } from './components/LanguageContext';
 import { NetworkProvider } from './components/NetworkContext';
-import { TechnicalSpecs } from './components/TechnicalSpecs';
+const TechnicalSpecs = React.lazy(() => import('./components/TechnicalSpecs').then(m => ({ default: m.TechnicalSpecs })));
 import { WalletExplorer } from './components/WalletExplorer';
 import { AIChatAgent } from './components/AIChatAgent';
 import { UserDashboard } from './components/UserDashboard';
@@ -131,7 +131,15 @@ const AppContent: React.FC = () => {
                 <Header />
                 <main className="container mx-auto px-6 py-8 max-w-7xl">
                     <div key={activeTab} className="animate-slideUpFadeIn">
-                        {renderContent()}
+                        {/* Sem a fronteira, o primeiro clique numa tela sob demanda
+                            quebra em vez de esperar o pedaco chegar. */}
+                        <React.Suspense fallback={
+                            <div className="flex items-center justify-center py-20">
+                                <p className="text-brand-muted text-sm">Loading...</p>
+                            </div>
+                        }>
+                            {renderContent()}
+                        </React.Suspense>
                     </div>
                 </main>
             </div>

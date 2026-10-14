@@ -1140,8 +1140,31 @@ const formataCobertura = (c: number): string =>
                                         <p className="text-purple-200 font-bold text-sm">Total pending: {l2Balances.total_pending.toLocaleString()} CLAIM</p>
                                     </div>
 
+                                    {/* Saldo zero era um beco: a tela dizia que nao havia nada
+                                        e parava ai, justamente para quem acabou de chegar e e
+                                        quem mais precisa de direcao. As torneiras ja estao
+                                        carregadas na memoria desta tela; so faltava oferece-las. */}
                                     {l2Balances.faucets.length === 0 && (
-                                        <p className="text-purple-500 text-sm text-center py-4">No pending virtual balance for this address.</p>
+                                        <div className="py-5 text-center">
+                                            <p className="text-purple-400 text-sm">
+                                                Nothing here yet. Claim on any faucet below and the balance shows up here.
+                                            </p>
+                                            {faucets.filter(f => f.site_url).length > 0 && (
+                                                <div className="flex flex-wrap justify-center gap-2 mt-4">
+                                                    {faucets.filter(f => f.site_url).map((f, i) => (
+                                                        <a
+                                                            key={i}
+                                                            href={f.site_url!}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-600/25 border border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/35 whitespace-nowrap"
+                                                        >
+                                                            {f.name} &rarr;
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
 
                                     {l2Balances.faucets.map((entry, idx) => (

@@ -20,40 +20,28 @@ Cloudflare. Cosmético, mas é a primeira coisa que um avaliador técnico vê.
 
 ---
 
-## Desempenho — sem dono ainda
-
-### 2. Carga inicial de 6790ms
-
-É o número que mais pesa na primeira impressão e eu não investiguei a causa.
-O bundle passa de 500kB (o Vite avisa no build). Candidatos: falta de
-code-splitting, Tailwind via CDN, Mermaid no bundle principal.
-
-### 3. "Solana Program" renderiza em 1190ms com zero chamadas de API
-
-Não é rede e não é Mermaid — esse componente não tem nenhum diagrama. É
-renderização pura e a causa é desconhecida. Vale um profile antes de mexer.
-
-### 4. "Tokenomics" em 1417ms
-
-Tem Mermaid, que compila o diagrama na thread principal. Candidato a
-renderização assíncrona ou a imagem pré-renderizada.
-
----
-
-## Produto
-
-### 5. Usuário novo não encontra nenhuma torneira
-
-`GET /api/faucethub/microclaim/balance/{wallet}` filtra `virtual_balance > 0`.
-Quem chega com zero em tudo vê *"Nenhum saldo virtual pendente"* e não recebe
-caminho nenhum.
-
-O quadro público no portão (corrigido em 14/10) ajuda, mas só aparece para quem
-abre a FaucetHub. A tela de saldo em si continua muda para quem tem zero.
-
----
-
 ## Resolvido
+
+- ~~Carga inicial de 6790ms~~ → bundle de entrada de **2210 KB para 1744 KB**,
+  14/10. Sete telas passaram a carregar sob demanda, e o `recharts` (337 KB) saiu
+  da primeira pintura junto com os modulos do d3 que ele puxa. O numero final em
+  producao so da para medir depois do deploy: 6790ms foi medido com rede real.
+
+- ~~Usuario novo nao encontra nenhuma torneira~~ → resolvido, 14/10. Saldo zero
+  agora oferece as torneiras com link, em vez de dizer "nada pendente" e parar.
+
+- ~~"Solana Program" renderiza em 1190ms com zero chamadas~~ e
+  ~~"Tokenomics" em 1417ms~~ → **nao existiam.** Remedindo com todas as
+  requisicoes visiveis, e nao so as de `/api/`: Solana Program leva **159ms** com
+  1 requisicao, Tokenomics **257ms** com 8. Os chunks do Mermaid carregam na
+  primeira tela que precisa deles, e na varredura original essas duas calhavam de
+  estar no fim da sequencia — herdaram um custo que qualquer tela teria pago. O
+  Dashboard, que na primeira medicao aparecia com 141ms, agora marca 629ms pelo
+  mesmo motivo, so que invertido.
+
+  Fica a lição, que é a mesma do WebSocket: **medicao que filtra o que observa
+  mede o filtro, nao o sistema.** Contar so `/api/` escondeu exatamente o que
+  causava a lentidao.
 
 - ~~Cabeçalhos de segurança duplicados~~ → Transform Rules removidas da
   Cloudflare, 14/10. CSP e HSTS voltam uma vez cada.
