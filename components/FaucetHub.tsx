@@ -21,6 +21,7 @@ interface FaucetData {
     owed: number;                  // o que a torneira deve aos usuarios, medido
     coverage: number | null;       // caucao / divida; null quando nao se deve nada
     status: string;
+    site_url: string | null;       // null quando a torneira nao cadastrou site
     recent_txs: number;
     settlements: number;
     volume_settled: number;
@@ -56,6 +57,9 @@ interface L2UserBalance {
     claim_count: number;
     can_withdraw: boolean;
     min_withdraw: number;
+    site_url: string | null;
+    missing_to_withdraw: number;
+    next_claim_at: number | null;
 }
 
 interface L2BalanceResponse {
@@ -342,6 +346,17 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
 // dívida a porcentagem deixa de informar: o que importa é a ordem de grandeza,
 // e "1.053×" diz isso numa olhada. Abaixo de dez, a porcentagem é a leitura
 // natural -- 80% coberto é uma frase que se entende.
+// Quanto falta do cooldown de 300s, ou vazio se ja liberou. Devolve texto
+// porque e so isso que o card precisa -- numero cru aqui viraria formatacao
+// repetida em tres lugares.
+const cooldownRestante = (next: number | null): string => {
+    if (!next) return '';
+    const s = next - Math.floor(Date.now() / 1000);
+    if (s <= 0) return '';
+    const m = Math.floor(s / 60);
+    return m > 0 ? `${m}m${String(s % 60).padStart(2, '0')}s` : `${s}s`;
+};
+
 const formataCobertura = (c: number): string =>
     c >= 10
         ? `${c.toLocaleString(undefined, { maximumFractionDigits: 0 })}×`
@@ -475,7 +490,7 @@ const formataCobertura = (c: number): string =>
     if (!isConnected || !userAddress) {
         return (
             <div className="fixed inset-0 z-50 bg-[#02000A] text-purple-100 flex items-center justify-center font-sans p-6">
-                <div className="max-w-xl w-full bg-purple-950/20 border-2 border-dashed border-purple-500/30 rounded-[2rem] p-10 text-center">
+                <div className="max-w-2xl w-full bg-purple-950/20 border-2 border-dashed border-purple-500/30 rounded-[2rem] p-10 text-center max-h-[92vh] overflow-y-auto">
                     <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
                         🔑
                     </div>
@@ -497,6 +512,48 @@ const formataCobertura = (c: number): string =>
                     >
                         ← Voltar
                     </button>
+
+                    {/* O paragrafo acima promete que o quadro continua publico. Ele ja
+                        estava carregado em memoria -- as cinco chamadas de leitura
+                        rodam no mount, antes deste portao -- e mesmo assim a tela so
+                        mostrava a parede. Prometer uma coisa e entregar outra e pior
+                        que nao prometer. */}
+                    {faucets.length > 0 && (
+                        <div className="mt-10 text-left">
+                            <p className="text-purple-400/60 text-[11px] uppercase tracking-[0.2em] font-bold mb-3">
+                                Quadro público · {faucets.length} torneiras
+                            </p>
+                            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                                {faucets.map((f, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-3 p-3 bg-purple-900/25 border border-purple-500/10 rounded-xl">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h4 className="font-bold text-purple-100 text-sm truncate">{f.name}</h4>
+                                                {f.site_url && (
+                                                    <a
+                                                        href={f.site_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 whitespace-nowrap"
+                                                    >
+                                                        claimar →
+                                                    </a>
+                                                )}
+                                            </div>
+                                            <p className="text-purple-500 text-[10px] mt-0.5">
+                                                {f.coverage === null
+                                                    ? 'nada devido ainda'
+                                                    : `deve ${f.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · ${formataCobertura(f.coverage)} caucionado`}
+                                            </p>
+                                        </div>
+                                        <p className="text-purple-200 font-bold text-xs whitespace-nowrap">
+                                            {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})} CLAIM
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         );
@@ -679,7 +736,22 @@ const formataCobertura = (c: number): string =>
                                                 💧
                                             </div>
                                             <div>
-                                                <h4 className="font-bold text-purple-100 text-sm">{faucet.name}</h4>
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-bold text-purple-100 text-sm">{faucet.name}</h4>
+                                                    {/* stopPropagation porque o card inteiro seleciona a torneira:
+                                                        sem isto, abrir o site tambem trocaria a selecao por baixo. */}
+                                                    {faucet.site_url && (
+                                                        <a
+                                                            href={faucet.site_url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 whitespace-nowrap"
+                                                        >
+                                                            claimar →
+                                                        </a>
+                                                    )}
+                                                </div>
                                                 <span className={`text-xs font-semibold ${faucet.status === 'Ativa' ? 'text-green-400' : 'text-yellow-400'}`}>
                                                     • {faucet.status}
                                                 </span>
@@ -1084,19 +1156,38 @@ const formataCobertura = (c: number): string =>
                                             <div className="flex items-center space-x-4">
                                                 <div className="text-right">
                                                     <p className="text-purple-100 font-bold text-sm">{entry.virtual_balance.toLocaleString()} CLAIM</p>
-                                                    <p className="text-purple-500 text-[10px]">Min: {entry.min_withdraw}</p>
+                                                    <p className="text-purple-500 text-[10px]">
+                                                        {entry.can_withdraw
+                                                            ? `Min: ${entry.min_withdraw}`
+                                                            : `Faltam ${entry.missing_to_withdraw.toLocaleString()} para sacar`}
+                                                    </p>
                                                 </div>
-                                                <button 
-                                                    onClick={() => handleL2Withdraw(entry.faucet_wallet)}
-                                                    disabled={!entry.can_withdraw}
-                                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                                                        entry.can_withdraw 
-                                                            ? 'bg-green-600/30 border border-green-500/50 text-green-300 hover:bg-green-500/40' 
-                                                            : 'bg-purple-900/30 border border-purple-500/10 text-purple-500 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    {entry.can_withdraw ? "Sacar → L1" : "Abaixo do mín."}
-                                                </button>
+                                                {/* Quando nao da para sacar, o caminho e claimar mais -- e e
+                                                    la que o botao leva. Antes a tela dizia "abaixo do minimo"
+                                                    e terminava a conversa. */}
+                                                {entry.can_withdraw ? (
+                                                    <button
+                                                        onClick={() => handleL2Withdraw(entry.faucet_wallet)}
+                                                        className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-green-600/30 border border-green-500/50 text-green-300 hover:bg-green-500/40"
+                                                    >
+                                                        Sacar → L1
+                                                    </button>
+                                                ) : entry.site_url ? (
+                                                    <a
+                                                        href={entry.site_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-cyan-600/25 border border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/35 whitespace-nowrap"
+                                                    >
+                                                        {cooldownRestante(entry.next_claim_at)
+                                                            ? `Libera em ${cooldownRestante(entry.next_claim_at)}`
+                                                            : `Claimar em ${entry.faucet_name} →`}
+                                                    </a>
+                                                ) : (
+                                                    <span className="px-4 py-2 rounded-lg text-xs font-bold bg-purple-900/30 border border-purple-500/10 text-purple-500">
+                                                        Abaixo do mín.
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

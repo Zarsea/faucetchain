@@ -11,22 +11,27 @@ export const DIAGRAMS = {
   en: {
     MERMAID_CODE: `
 flowchart TD
-    A["A click on a partner faucet"] --> B["Keccak puzzle in the browser"]
+    P["Partner faucet pays its own user, on its own rail"] --> PC["One HTTP call, after that payment cleared"]
+    A["A click on the built-in faucet"] --> B["Keccak puzzle in the browser"]
     B --> C{"Sentinel: timing, clustering, per-IP"}
     C -- "automated" --> D["Scored down, claim refused"]
     C -- "human" --> E["Claim accepted"]
 
-    subgraph Sealing
-        E --> F["Block sealed"]
-        G["Staked CLAIM, capped weight"] --> F
-    end
-
-    F --> H["80 percent to the user, 20 to the miner"]
+    PC --> K["Credited on the appchain"]
+    E --> K
+    K --> H["80 percent to the user, 20 to the treasury"]
     H --> I["Hourly quota spent, difficulty rises"]
+
+    subgraph Sealing["Sealing: paid from the epoch reward, not from the split"]
+        K --> F["Block sealed"]
+        G["Staked CLAIM, capped weight"] --> F
+        F --> M["Miner fee"]
+    end
     `,
     HUB_INTEGRATION_DIAGRAM: `
 flowchart LR
-    F["Partner faucet"] -- "one HTTP call, X-Api-Key" --> A["POST /microclaim"]
+    F["Partner faucet"] -- "1. pays its user, on its own rail" --> U["Their user, already paid"]
+    F -- "2. one HTTP call, X-Api-Key, after that" --> A["POST /microclaim"]
     A --> C["Credited on the appchain"]
     C --> B["Batch closes: Merkle tree"]
     B --> R["Root published on Solana"]
@@ -117,22 +122,27 @@ pie title "Proposed split of the 99M cap, not yet committed"
   pt: {
     MERMAID_CODE: `
 flowchart TD
-    A["Um clique numa torneira parceira"] --> B["Desafio keccak no navegador"]
+    P["Torneira parceira paga o usuario dela, no trilho dela"] --> PC["Uma chamada HTTP, depois que esse pagamento saiu"]
+    A["Um clique na torneira interna"] --> B["Desafio keccak no navegador"]
     B --> C{"Sentinel: ritmo, agrupamento, por IP"}
     C -- "automatizado" --> D["Pontuado para baixo, claim recusado"]
     C -- "humano" --> E["Claim aceito"]
 
-    subgraph Selagem
-        E --> F["Bloco selado"]
-        G["CLAIM em stake, peso com teto"] --> F
-    end
-
-    F --> H["80 por cento para o usuario, 20 para o minerador"]
+    PC --> K["Creditado na appchain"]
+    E --> K
+    K --> H["80 por cento para o usuario, 20 para a tesouraria"]
     H --> I["Cota da hora gasta, dificuldade sobe"]
+
+    subgraph Selagem["Selagem: paga pela recompensa de epoca, nao pelo split"]
+        K --> F["Bloco selado"]
+        G["CLAIM em stake, peso com teto"] --> F
+        F --> M["Taxa do minerador"]
+    end
     `,
     HUB_INTEGRATION_DIAGRAM: `
 flowchart LR
-    F["Torneira parceira"] -- "uma chamada HTTP, X-Api-Key" --> A["POST /microclaim"]
+    F["Torneira parceira"] -- "1. paga o usuario dela, no trilho dela" --> U["Usuario dela, ja pago"]
+    F -- "2. uma chamada HTTP, X-Api-Key, depois disso" --> A["POST /microclaim"]
     A --> C["Creditado na appchain"]
     C --> B["Lote fecha: arvore de Merkle"]
     B --> R["Raiz publicada na Solana"]

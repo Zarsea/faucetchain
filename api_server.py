@@ -278,6 +278,13 @@ def init_faucet_registry_table():
             registered_at INTEGER NOT NULL
         )
     ''')
+    # O registro guardava nome e carteira, e nenhum caminho de volta ate a
+    # torneira. O painel mostrava os fundos dela e o usuario nao tinha como
+    # chegar la para claimar -- um beco visivel na propria tela.
+    try:
+        c.execute("ALTER TABLE faucet_registry ADD COLUMN site_url TEXT")
+    except sqlite3.OperationalError:
+        pass  # coluna ja existe
     conn.commit()
     conn.close()
 
@@ -993,6 +1000,7 @@ def get_address_transactions(address: str, limit: int = 50):
 class FaucetRegisterRequest(BaseModel):
     name: str
     wallet_address: str
+    site_url: Optional[str] = None
 
 @app.post("/api/faucethub/register")
 async def register_faucet(req: FaucetRegisterRequest, request: Request):
@@ -1011,9 +1019,9 @@ async def register_faucet(req: FaucetRegisterRequest, request: Request):
     try:
         timestamp = int(datetime.now().timestamp())
         c.execute('''
-            INSERT INTO faucet_registry (name, wallet_address, registered_at)
-            VALUES (?, ?, ?)
-        ''', (req.name, wallet_lower, timestamp))
+            INSERT INTO faucet_registry (name, wallet_address, registered_at, site_url)
+            VALUES (?, ?, ?, ?)
+        ''', (req.name, wallet_lower, timestamp, (req.site_url or '').strip() or None))
         c.execute('''
             INSERT INTO faucet_api_keys (faucet_wallet, api_key_hash, created_at)
             VALUES (?, ?, ?)
@@ -1040,7 +1048,7 @@ async def get_faucets():
     c = conn.cursor()
     
     try:
-        c.execute("SELECT name, wallet_address, registered_at FROM faucet_registry ORDER BY registered_at DESC")
+        c.execute("SELECT name, wallet_address, registered_at, site_url FROM faucet_registry ORDER BY registered_at DESC")
         faucets = c.fetchall()
     except sqlite3.OperationalError:
         conn.close()
@@ -1102,7 +1110,8 @@ async def get_faucets():
             "recent_txs": tx_count,
             "settlements": settle_count,
             "volume_settled": round(settle_volume, 4),
-            "registered_at": row["registered_at"]
+            "registered_at": row["registered_at"],
+            "site_url": row["site_url"]
         })
         
     conn.close()
@@ -1897,7 +1906,7 @@ async def get_microclaim_balance(user_wallet: str):
         c.execute('''
             SELECT ml.faucet_wallet, ml.virtual_balance, ml.total_claimed,
                    ml.total_withdrawn, ml.claim_count, ml.last_claim_at,
-                   fr.name as faucet_name
+                   fr.name as faucet_name, fr.site_url
             FROM microclaims_ledger ml
             LEFT JOIN faucet_registry fr ON ml.faucet_wallet = fr.wallet_address
             WHERE ml.user_wallet = ? AND ml.virtual_balance > 0
@@ -1920,7 +1929,14 @@ async def get_microclaim_balance(user_wallet: str):
             "total_withdrawn": round(row["total_withdrawn"], 4),
             "claim_count": row["claim_count"],
             "can_withdraw": balance >= MIN_WITHDRAW_AMOUNT,
-            "min_withdraw": MIN_WITHDRAW_AMOUNT
+            "min_withdraw": MIN_WITHDRAW_AMOUNT,
+            # Sem estes tres a tela so sabia dizer "abaixo do minimo", que e um
+            # beco: o usuario ficava sabendo que nao pode sacar e nao ficava
+            # sabendo o que fazer a respeito.
+            "site_url": row["site_url"],
+            "missing_to_withdraw": round(max(0.0, MIN_WITHDRAW_AMOUNT - balance), 4),
+            "next_claim_at": (row["last_claim_at"] + MICROCLAIM_COOLDOWN)
+                             if row["last_claim_at"] else None
         })
     
     conn.close()
