@@ -47,7 +47,7 @@ flowchart TD
     end
 
     Batch --> Check{"Does the vault cover what is promised?"}
-    Check -- "no" --> Refuse["InsufficientReserve: root refused"]
+    Check -- "no" --> Refuse["InsufficientReserve"]
     Check -- "yes" --> Root["Root published on Solana"]
 
     subgraph OnSolana
@@ -70,11 +70,11 @@ mindmap
         Timing and clustering
         Per-IP wallet cap
       Micro-claims
-        Partner faucets, one HTTP call
+        Partner faucets
         Campaign drip, 80/20
     Settlement on Solana
       Campaign vault
-        Authority is the campaign itself
+        Campaign is the authority
       Merkle root per batch
         Reserve check before publishing
       Withdrawal
@@ -103,7 +103,7 @@ sequenceDiagram
     S->>U: Tokens, with the relayer paying the fee
     `,
     TOKENOMICS_FLOW_CODE: `
-flowchart LR
+flowchart TD
     Q["Hourly ceiling of 2000 CLAIM"] --> C["Claims across every faucet"]
     C --> U["80 percent to the user"]
     C --> T["20 percent to the treasury"]
@@ -158,7 +158,7 @@ flowchart TD
     end
 
     Batch --> Check{"O cofre cobre o que foi prometido?"}
-    Check -- "nao" --> Refuse["InsufficientReserve: raiz recusada"]
+    Check -- "nao" --> Refuse["InsufficientReserve"]
     Check -- "sim" --> Root["Raiz publicada na Solana"]
 
     subgraph NaSolana
@@ -181,11 +181,11 @@ mindmap
         Ritmo e agrupamento
         Teto de carteiras por IP
       Microclaims
-        Torneiras parceiras, uma chamada HTTP
+        Torneiras parceiras
         Gotejamento de campanha, 80/20
     Liquidacao na Solana
       Cofre da campanha
-        A autoridade e a propria campanha
+        A campanha e a autoridade
       Raiz de Merkle por lote
         Prova de reserva antes de publicar
       Saque
@@ -214,7 +214,7 @@ sequenceDiagram
     S->>U: Tokens, com o relayer pagando a taxa
     `,
     TOKENOMICS_FLOW_CODE: `
-flowchart LR
+flowchart TD
     Q["Teto horario de 2000 CLAIM"] --> C["Claims em todas as torneiras"]
     C --> U["80 por cento para o usuario"]
     C --> T["20 por cento para a tesouraria"]

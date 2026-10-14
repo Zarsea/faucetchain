@@ -498,19 +498,19 @@ const formataCobertura = (c: number): string =>
                         FaucetHub Core
                     </h2>
                     <p className="text-purple-300/70 mt-4 leading-relaxed">
-                        Este é o console de quem opera uma torneira: chave de API, caução e
-                        saque. Entre na sua conta para abrir — cada ação aqui é assinada pela
-                        carteira dona da torneira, e sem conta não há o que assinar.
+                        This is the console for whoever runs a faucet: API key, reserve and payout.
+                        Sign in to open it. Every action here is signed by the wallet that owns
+                        the faucet, and without an account there is nothing to sign.
                     </p>
                     <p className="text-purple-400/50 text-xs mt-6 leading-relaxed">
-                        O quadro de torneiras continua público, com saldo, dívida e cobertura
-                        de cada uma. Ele é para auditar, e auditar não pede login.
+                        The faucet board below stays public, with each one's balance, debt and
+                        coverage. It is there to be audited, and auditing asks for no login.
                     </p>
                     <button
                         onClick={onBack}
                         className="mt-8 px-6 py-3 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-500/30 text-purple-100 rounded-xl text-sm font-bold transition-colors"
                     >
-                        ← Voltar
+                        ← Back
                     </button>
 
                     {/* O paragrafo acima promete que o quadro continua publico. Ele ja
@@ -521,7 +521,7 @@ const formataCobertura = (c: number): string =>
                     {faucets.length > 0 && (
                         <div className="mt-10 text-left">
                             <p className="text-purple-400/60 text-[11px] uppercase tracking-[0.2em] font-bold mb-3">
-                                Quadro público · {faucets.length} torneiras
+                                Public board · {faucets.length} faucets
                             </p>
                             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                                 {faucets.map((f, i) => (
@@ -536,14 +536,14 @@ const formataCobertura = (c: number): string =>
                                                         rel="noopener noreferrer"
                                                         className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 whitespace-nowrap"
                                                     >
-                                                        claimar →
+                                                        claim →
                                                     </a>
                                                 )}
                                             </div>
                                             <p className="text-purple-500 text-[10px] mt-0.5">
                                                 {f.coverage === null
-                                                    ? 'nada devido ainda'
-                                                    : `deve ${f.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · ${formataCobertura(f.coverage)} caucionado`}
+                                                    ? 'nothing owed yet'
+                                                    : `owes ${f.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · ${formataCobertura(f.coverage)} covered`}
                                             </p>
                                         </div>
                                         <p className="text-purple-200 font-bold text-xs whitespace-nowrap">
@@ -631,14 +631,14 @@ const formataCobertura = (c: number): string =>
                             <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
                                 {loading ? "..." : totalSettlements}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">Liquidações na chain</p>
+                            <p className="text-purple-400 text-xs mt-1">On-chain settlements</p>
                         </div>
                         <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
                             <h3 className="text-purple-400 text-xs font-semibold mb-1">API Keys Ativas</h3>
                             <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
                                 {loading ? "..." : faucets.length}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">Integrações conectadas</p>
+                            <p className="text-purple-400 text-xs mt-1">Connected integrations</p>
                         </div>
                     </div>
 
@@ -670,7 +670,7 @@ const formataCobertura = (c: number): string =>
                                                     required
                                                 />
                                                 <input 
-                                                    type="text" placeholder="Endereço da Carteira (0x...)" value={newWallet}
+                                                    type="text" placeholder="Wallet address (0x...)" value={newWallet}
                                                     onChange={e => setNewWallet(e.target.value)}
                                                     className="w-full bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
                                                     required
@@ -685,9 +685,9 @@ const formataCobertura = (c: number): string =>
                                         <div className="space-y-3">
                                             <div className="flex items-center space-x-2 mb-2">
                                                 <span className="text-green-400 text-lg">✅</span>
-                                                <h3 className="font-bold text-green-300 text-sm">Faucet Registrada com Sucesso!</h3>
+                                                <h3 className="font-bold text-green-300 text-sm">Faucet registered</h3>
                                             </div>
-                                            <p className="text-purple-300 text-xs">Sua API Key foi gerada. Guarde-a em local seguro — ela não será exibida novamente.</p>
+                                            <p className="text-purple-300 text-xs">Your API key is ready. Store it somewhere safe: it will not be shown again.</p>
                                             <div className="bg-black/40 rounded-lg p-3 border border-purple-500/30 flex items-center justify-between">
                                                 <code className="text-green-400 text-xs font-mono break-all flex-1 mr-2">{generatedKey}</code>
                                                 <button 
@@ -717,9 +717,9 @@ const formataCobertura = (c: number): string =>
                             )}
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-3">
-                                {loading && !faucets.length && <p className="text-purple-400/80 text-sm text-center py-8">Lendo atividade espiritual da rede...</p>}
+                                {loading && !faucets.length && <p className="text-purple-400/80 text-sm text-center py-8">Reading network activity...</p>}
                                 {!loading && faucets.length === 0 && (
-                                    <p className="text-purple-400/80 text-sm text-center py-8">Nenhuma Faucet registrada ainda.</p>
+                                    <p className="text-purple-400/80 text-sm text-center py-8">No faucet registered yet.</p>
                                 )}
                                 {faucets.map((faucet, idx) => (
                                     <div 
@@ -748,7 +748,7 @@ const formataCobertura = (c: number): string =>
                                                             onClick={(e) => e.stopPropagation()}
                                                             className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 whitespace-nowrap"
                                                         >
-                                                            claimar →
+                                                            claim →
                                                         </a>
                                                     )}
                                                 </div>
@@ -763,7 +763,7 @@ const formataCobertura = (c: number): string =>
                                             {/* Sem declaracao nao ha cobertura a mostrar, e inventar 0%
                                                 acusaria a torneira de nao honrar algo que nunca prometeu. */}
                                             {faucet.coverage === null ? (
-                                                <p className="text-purple-400/50 text-xs">nada devido ainda</p>
+                                                <p className="text-purple-400/50 text-xs">nothing owed yet</p>
                                             ) : (
                                                 <p className={`text-xs font-semibold ${faucet.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
                                                     deve {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {formataCobertura(faucet.coverage)} caucionado
@@ -958,7 +958,7 @@ const formataCobertura = (c: number): string =>
                                                         }}
                                                         disabled={reserveSaving || f.reserve <= f.owed}
                                                         title={f.reserve <= f.owed
-                                                            ? "Não há excedente: a caução já é igual ou menor que a dívida."
+                                                            ? "No surplus: the reserve already equals or sits below the debt."
                                                             : undefined}
                                                         className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
                                                     >
@@ -974,13 +974,13 @@ const formataCobertura = (c: number): string =>
                                                         }}
                                                         disabled={reserveSaving || f.owed > 0}
                                                         title={f.owed > 0
-                                                            ? `Não dá: esta torneira deve ${f.owed} aos usuários, e a caução não desce abaixo da dívida.`
+                                                            ? `Not possible: this faucet owes ${f.owed} to its users, and the reserve does not go below the debt.`
                                                             : undefined}
                                                         className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
                                                     >
                                                         Soltar tudo
                                                         <span className="block text-[10px] font-normal text-purple-400">
-                                                            {f.owed > 0 ? "bloqueado pela dívida" : "nada devido"}
+                                                            {f.owed > 0 ? "blocked by debt" : "nothing owed"}
                                                         </span>
                                                     </button>
                                                 </div>
@@ -1010,7 +1010,7 @@ const formataCobertura = (c: number): string =>
                                         painel "Reserva declarada" os dois nomes se confundiam, e medem
                                         coisas diferentes: aqui e o que a rede deve, por ativo; la e o que
                                         uma torneira diz guardar. O rotulo agora diz qual dos dois e. */}
-                                    <span className="mr-2 text-lg">🔒</span> Solvência da rede, por ativo
+                                    <span className="mr-2 text-lg">🔒</span> Network solvency, by asset
                                 </h2>
 
                                 <div className="relative h-48 w-full bg-purple-900/20 rounded-xl border border-purple-500/20 flex flex-col items-center justify-center overflow-hidden">
@@ -1027,12 +1027,12 @@ const formataCobertura = (c: number): string =>
                                         </div>
                                     </div>
                                     <div className="mt-4 text-center relative z-10 px-4">
-                                        <p className="text-purple-200 font-bold tracking-widest uppercase text-xs">Solvência por ativo</p>
+                                        <p className="text-purple-200 font-bold tracking-widest uppercase text-xs">Solvency by asset</p>
                                         <p className="text-purple-400 text-[10px] mt-1">
                                             {!por ? 'Sem leitura do servidor.'
                                                 : por.allSolvent === null
-                                                    ? 'Um ou mais ativos não puderam ser lidos. Não saber não é o mesmo que estar coberto.'
-                                                    : `${(por.assets || []).length} ativo(s). Cada reserva responde só pela dívida na própria moeda.`}
+                                                    ? 'One or more assets could not be read. Not knowing is not the same as being covered.'
+                                                    : `${(por.assets || []).length} asset(s). Each reserve answers only for the debt in its own currency.`}
                                         </p>
                                     </div>
                                 </div>
@@ -1056,7 +1056,7 @@ const formataCobertura = (c: number): string =>
                                                     : a.solvent === false ? 'text-red-300 border-red-500/40 bg-red-900/20'
                                                     : 'text-yellow-300 border-yellow-500/40 bg-yellow-900/20'
                                                 }`}>
-                                                    {a.solvent === true ? 'coberto' : a.solvent === false ? `falta ${Number(a.shortfall).toLocaleString()}` : 'não lido'}
+                                                    {a.solvent === true ? 'covered' : a.solvent === false ? `short ${Number(a.shortfall).toLocaleString()}` : 'not read'}
                                                 </span>
                                             </div>
                                         ))}
@@ -1108,11 +1108,11 @@ const formataCobertura = (c: number): string =>
 
                         {/* User Lookup */}
                         <div className="bg-purple-900/30 rounded-xl p-5 border border-purple-500/20">
-                            <h3 className="text-sm font-semibold text-purple-200 mb-3">🔍 Consultar Saldo Virtual do Usuário</h3>
+                            <h3 className="text-sm font-semibold text-purple-200 mb-3">🔍 Look up a user's virtual balance</h3>
                             <div className="flex gap-3">
                                 <input 
                                     type="text" 
-                                    placeholder="Endereço da Carteira do Usuário (0x...)" 
+                                    placeholder="User wallet address (0x...)" 
                                     value={l2LookupWallet}
                                     onChange={e => setL2LookupWallet(e.target.value)}
                                     className="flex-1 bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
@@ -1136,12 +1136,12 @@ const formataCobertura = (c: number): string =>
                             {l2Balances && !l2Loading && (
                                 <div className="mt-5 space-y-3">
                                     <div className="flex items-center justify-between">
-                                        <p className="text-purple-300 text-xs">Usuário: <code className="text-purple-100 font-mono">{l2Balances.user.slice(0, 10)}...{l2Balances.user.slice(-6)}</code></p>
-                                        <p className="text-purple-200 font-bold text-sm">Total Pendente: {l2Balances.total_pending.toLocaleString()} CLAIM</p>
+                                        <p className="text-purple-300 text-xs">User: <code className="text-purple-100 font-mono">{l2Balances.user.slice(0, 10)}...{l2Balances.user.slice(-6)}</code></p>
+                                        <p className="text-purple-200 font-bold text-sm">Total pending: {l2Balances.total_pending.toLocaleString()} CLAIM</p>
                                     </div>
 
                                     {l2Balances.faucets.length === 0 && (
-                                        <p className="text-purple-500 text-sm text-center py-4">Nenhum saldo virtual pendente para este endereço.</p>
+                                        <p className="text-purple-500 text-sm text-center py-4">No pending virtual balance for this address.</p>
                                     )}
 
                                     {l2Balances.faucets.map((entry, idx) => (
@@ -1150,7 +1150,7 @@ const formataCobertura = (c: number): string =>
                                                 <div className="w-9 h-9 rounded-lg bg-purple-700/40 flex items-center justify-center border border-purple-500/30 text-base">💧</div>
                                                 <div>
                                                     <h4 className="font-bold text-purple-100 text-sm">{entry.faucet_name}</h4>
-                                                    <p className="text-purple-500 text-[10px]">{entry.claim_count} claims | Sacado: {entry.total_withdrawn.toLocaleString()}</p>
+                                                    <p className="text-purple-500 text-[10px]">{entry.claim_count} claims | withdrawn: {entry.total_withdrawn.toLocaleString()}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-4">
@@ -1159,7 +1159,7 @@ const formataCobertura = (c: number): string =>
                                                     <p className="text-purple-500 text-[10px]">
                                                         {entry.can_withdraw
                                                             ? `Min: ${entry.min_withdraw}`
-                                                            : `Faltam ${entry.missing_to_withdraw.toLocaleString()} para sacar`}
+                                                            : `${entry.missing_to_withdraw.toLocaleString()} short of the minimum`}
                                                     </p>
                                                 </div>
                                                 {/* Quando nao da para sacar, o caminho e claimar mais -- e e
@@ -1170,7 +1170,7 @@ const formataCobertura = (c: number): string =>
                                                         onClick={() => handleL2Withdraw(entry.faucet_wallet)}
                                                         className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-green-600/30 border border-green-500/50 text-green-300 hover:bg-green-500/40"
                                                     >
-                                                        Sacar → L1
+                                                        Withdraw → L1
                                                     </button>
                                                 ) : entry.site_url ? (
                                                     <a
@@ -1180,12 +1180,12 @@ const formataCobertura = (c: number): string =>
                                                         className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-cyan-600/25 border border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/35 whitespace-nowrap"
                                                     >
                                                         {cooldownRestante(entry.next_claim_at)
-                                                            ? `Libera em ${cooldownRestante(entry.next_claim_at)}`
+                                                            ? `Unlocks in ${cooldownRestante(entry.next_claim_at)}`
                                                             : `Claimar em ${entry.faucet_name} →`}
                                                     </a>
                                                 ) : (
                                                     <span className="px-4 py-2 rounded-lg text-xs font-bold bg-purple-900/30 border border-purple-500/10 text-purple-500">
-                                                        Abaixo do mín.
+                                                        Below minimum
                                                     </span>
                                                 )}
                                             </div>
@@ -1201,9 +1201,9 @@ const formataCobertura = (c: number): string =>
                         <div className="flex items-center justify-between mb-6">
                             <div>
                                 <h2 className="text-xl font-bold text-purple-200 flex items-center">
-                                    <span className="mr-2 text-lg">🛰️</span> Monitor de Fidelidade & Tráfego L2
+                                    <span className="mr-2 text-lg">🛰️</span> L2 loyalty and traffic monitor
                                 </h2>
-                                <p className="text-xs text-purple-400 mt-1">Conexões físicas da rede e rank de fidelidade dos usuários</p>
+                                <p className="text-xs text-purple-400 mt-1">Physical network connections and user loyalty ranking</p>
                             </div>
                             <button 
                                 onClick={() => { fetchLeaderboard(); fetchActivityLinks(); }}
@@ -1224,7 +1224,7 @@ const formataCobertura = (c: number): string =>
                                         <thead className="bg-purple-950/40 text-purple-400 font-bold uppercase">
                                             <tr>
                                                 <th className="px-4 py-3">Rank</th>
-                                                <th className="px-4 py-3">Usuário</th>
+                                                <th className="px-4 py-3">User</th>
                                                 <th className="px-4 py-3">Faucet Principal</th>
                                                 <th className="px-4 py-3 text-right">Claims</th>
                                                 <th className="px-4 py-3 text-right">Total Farmado</th>
@@ -1234,7 +1234,7 @@ const formataCobertura = (c: number): string =>
                                             {leaderboard.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={5} className="px-4 py-8 text-center text-purple-500 italic">
-                                                        Nenhum usuário registrado no ledger.
+                                                        No user registered in the ledger.
                                                     </td>
                                                 </tr>
                                             ) : (
@@ -1287,7 +1287,7 @@ const formataCobertura = (c: number): string =>
                             {/* SVG Interactive Traffic Map */}
                             <div className="space-y-4 flex flex-col">
                                 <h3 className="text-sm font-bold text-purple-300 flex items-center">
-                                    <span className="mr-2">🗺️</span> Mapa de Tráfego e Conexões L2 &rarr; L1
+                                    <span className="mr-2">🗺️</span> Traffic and connection map, L2 &rarr; L1
                                 </h3>
                                 <div className="flex-1 min-h-[300px] border border-purple-500/20 rounded-xl bg-black/40 relative overflow-hidden flex items-center justify-center p-4 shadow-inner">
                                     {/* SVG Canvas */}

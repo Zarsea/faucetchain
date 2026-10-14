@@ -40,10 +40,10 @@ const apps = [
     {
         id: 'faucethub',
         title: 'FaucetHub',
-        desc: 'Monitoramento L1, Prova de Reserva (PoR) e Registro. O santuário central.',
+        desc: 'L1 monitoring, Proof of Reserve and the faucet registry. The core console.',
         icon: '🌐',
         category: 'l1',
-        tag: 'Nativo L1',
+        tag: 'L1 Native',
         color: 'from-purple-600 to-indigo-600',
         glow: 'rgba(99,102,241,0.5)',
         available: true,
@@ -51,10 +51,10 @@ const apps = [
     {
         id: 'faucetswap',
         title: 'FaucetSwap DEX',
-        desc: 'A primeira DEX nativa. Gasless trading e liquidez.',
+        desc: 'The first native DEX. Gasless trading and liquidity.',
         icon: '💱',
         category: 'l1',
-        tag: 'Em Breve',
+        tag: 'Coming Soon',
         color: 'from-blue-600 to-cyan-500',
         glow: 'rgba(6,182,212,0.5)',
         available: false,
@@ -62,10 +62,10 @@ const apps = [
     {
         id: 'claimnfts',
         title: 'ClaimNFTs',
-        desc: 'Mercado de colecionáveis digitais on-chain.',
+        desc: 'An on-chain marketplace for digital collectibles.',
         icon: '🖼️',
         category: 'l1',
-        tag: 'Em Breve',
+        tag: 'Coming Soon',
         color: 'from-pink-600 to-rose-500',
         glow: 'rgba(244,63,94,0.5)',
         available: false,
@@ -73,10 +73,10 @@ const apps = [
     {
         id: 'faucetinternal',
         title: 'CyberDrip Terminal',
-        desc: 'Faucet L2 gamificada. Missões diárias, Rank de EXP e Interceptação de Dados.',
+        desc: 'Gamified L2 faucet. Daily missions, EXP ranking and data interception.',
         icon: '💻',
         category: 'l2',
-        tag: 'Ativo L2',
+        tag: 'L2 Live',
         color: 'from-green-500 to-emerald-600',
         glow: 'rgba(16,185,129,0.5)',
         available: true,
@@ -84,10 +84,10 @@ const apps = [
     {
         id: 'retrodrip',
         title: 'Retro Drip L2',
-        desc: 'Faucet nostálgica 8-bits. Farming com arcades clássicos e leaderboards.',
+        desc: 'An 8-bit throwback faucet. Farming through classic arcades and leaderboards.',
         icon: '👾',
         category: 'l2',
-        tag: 'L2 Futuro',
+        tag: 'L2 Planned',
         color: 'from-yellow-500 to-orange-500',
         glow: 'rgba(245,158,11,0.5)',
         available: false,
@@ -95,7 +95,7 @@ const apps = [
     {
         id: 'devhub',
         title: 'SDK & Deploy',
-        desc: 'Crie seu próprio DApp ou Faucet L2 gamificada utilizando os recursos on-chain.',
+        desc: 'Build your own DApp or gamified L2 faucet on the on-chain primitives.',
         icon: '🛠️',
         category: 'dev',
         tag: 'Dev Tools',
@@ -197,9 +197,9 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
                     </div>
                     
                     <nav className="flex-1 px-4 space-y-2">
-                        <SidebarItem id="all" label="Visão Geral" icon="🌌" active={activeCategory === 'all'} onClick={() => setActiveCategory('all')} />
+                        <SidebarItem id="all" label="Overview" icon="🌌" active={activeCategory === 'all'} onClick={() => setActiveCategory('all')} />
                         <div className="pt-4 pb-2 px-4">
-                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Infraestrutura</p>
+                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Infrastructure</p>
                         </div>
                         <SidebarItem id="l1" label="L1 Core Network" icon="⚡" active={activeCategory === 'l1'} onClick={() => setActiveCategory('l1')} />
                         <SidebarItem id="l2" label="L2 Ecosystem" icon="🎮" active={activeCategory === 'l2'} onClick={() => setActiveCategory('l2')} />
@@ -212,7 +212,7 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
                             className="w-full py-3.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all duration-300 flex items-center justify-center space-x-3 text-sm font-semibold text-gray-300 hover:text-white hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)] group"
                         >
                             <span className="group-hover:-translate-x-1 transition-transform">⏏</span>
-                            <span>Sair do Sistema</span>
+                            <span>Exit</span>
                         </button>
                     </div>
                 </div>
@@ -224,13 +224,13 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
                         {/* Header Context */}
                         <div className="mb-12 animate-fadeIn" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
                             <h2 className="text-4xl font-extrabold text-white mb-3 tracking-tight">
-                                {activeCategory === 'all' && 'Todos os Aplicativos'}
-                                {activeCategory === 'l1' && 'Infraestrutura L1 Nativa'}
-                                {activeCategory === 'l2' && 'Ecossistema L2 Gamificado'}
+                                {activeCategory === 'all' && 'All Apps'}
+                                {activeCategory === 'l1' && 'Native L1 Infrastructure'}
+                                {activeCategory === 'l2' && 'Gamified L2 Ecosystem'}
                                 {activeCategory === 'dev' && 'Developer Tools'}
                             </h2>
                             <p className="text-gray-400 text-lg font-medium max-w-2xl">
-                                Selecione uma aplicação para interagir com os protocolos nativos e hubs de distribuição da rede FaucetChain.
+                                Pick an app to work with the native protocols and distribution hubs on the FaucetChain network.
                             </p>
                         </div>
 

@@ -41,7 +41,7 @@ onde = 'ambiente';
 const titulo = await pagina.locator('h1, h2').first().innerText().catch(() => '(sem titulo)');
 console.log(`ambiente: "${titulo.split('\n')[0].slice(0, 50)}"\n`);
 
-const cats = ['Visão Geral', 'L1 Core Network', 'L2 Ecosystem', 'Developer Hub'];
+const cats = ['Overview', 'L1 Core Network', 'L2 Ecosystem', 'Developer Hub'];
 console.log('categoria             blocos  indisponiveis');
 console.log('-'.repeat(48));
 for (const cat of cats) {
@@ -60,7 +60,7 @@ for (const cat of cats) {
 // O caminho que importa: chegar na FaucetHub
 onde = 'faucethub';
 console.log('');
-await pagina.getByText('Visão Geral', { exact: true }).first().click().catch(() => {});
+await pagina.getByText('Overview', { exact: true }).first().click().catch(() => {});
 await pagina.waitForTimeout(700);
 const bloco = pagina.getByText('FaucetHub', { exact: true }).first();
 if (!(await bloco.count())) {

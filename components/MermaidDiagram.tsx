@@ -54,6 +54,36 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [svgCode, setSvgCode] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
+    const palcoRef = useRef<HTMLDivElement>(null);
+
+    // As regras de `max-width` abaixo prendem a CAIXA do svg na moldura, e a
+    // caixa de fato cabe. O que escapa e o conteudo pintado fora do viewBox que
+    // o mermaid declarou: no mindmap os rotulos das pontas chegam cortados no
+    // meio da palavra, e quem olha nao tem como saber que falta coisa. CSS nao
+    // alcanca isso, porque o recorte acontece dentro do proprio SVG.
+    //
+    // Aqui o viewBox e refeito a partir do desenho que existe de verdade, medido
+    // depois de pronto. Serve para qualquer diagrama, sem depender de encurtar
+    // rotulo -- encurtar, alias, chegou a piorar, porque o layout do mindmap se
+    // reorganiza e joga outro no para fora.
+    useEffect(() => {
+        if (!svgCode) return;
+        const svg = palcoRef.current?.querySelector('svg');
+        if (!svg) return;
+        let caixa: DOMRect | undefined;
+        try {
+            caixa = (svg as unknown as SVGGraphicsElement).getBBox();
+        } catch {
+            return;  // getBBox lanca se o svg ainda nao esta no layout
+        }
+        if (!caixa || !caixa.width || !caixa.height) return;
+        const folga = 14;
+        svg.setAttribute('viewBox',
+            `${caixa.x - folga} ${caixa.y - folga} ${caixa.width + folga * 2} ${caixa.height + folga * 2}`);
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    }, [svgCode]);
 
     useEffect(() => {
         const renderDiagram = async () => {
@@ -186,6 +216,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                         // Estas quatro regras obrigam o desenho a caber no
                         // quadro, sempre, qualquer que seja o diagrama. O zoom e
                         // o arraste continuam valendo para quem quiser detalhe.
+                        ref={palcoRef}
                         className="flex justify-center items-center pointer-events-none w-full h-full
                                    [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
                         dangerouslySetInnerHTML={{ __html: svgCode }}
