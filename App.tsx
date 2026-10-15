@@ -127,7 +127,10 @@ const AppContent: React.FC = () => {
             {/* Main content. The margin tracks the rail rather than staying at 72px:
                 the rail is fixed and sits above this, so a stale margin let it cover
                 the header logo whenever it opened. */}
-            <div className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] relative z-10 ${sidebarExpanded ? 'ml-[240px]' : 'ml-[72px]'}`}>
+            <div className={`transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] relative z-10 ml-0 ${sidebarExpanded ? 'md:ml-[240px]' : 'md:ml-[72px]'}`}>
+                {/* O botao da gaveta fica fixo no topo esquerdo abaixo de `md`.
+                    Sem esta faixa ele cobriria a marca do cabecalho. */}
+                <div className="h-14 md:hidden" />
                 <Header />
                 <main className="container mx-auto px-6 py-8 max-w-7xl">
                     <div key={activeTab} className="animate-slideUpFadeIn">

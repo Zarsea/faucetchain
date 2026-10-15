@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ArrowPathIcon,
@@ -78,6 +78,10 @@ const GROUPS: { key: string; fallback: string; tabs: string[] }[] = [
  *  a um único item é enfeite, não informação. */
 const LEAD_TAB = 'Dashboard';
 
+/** Em que grupo uma tela mora. Devolve undefined para o Dashboard e para
+ *  qualquer tela que ainda nao foi classificada. */
+const grupoDe = (tab: string) => GROUPS.find((g) => g.tabs.includes(tab))?.key;
+
 export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExpandedChange }) => {
     const { t } = useTranslation();
     const [hoveredTab, setHoveredTab] = useState<string | null>(null);
@@ -85,6 +89,35 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
     // alguém passar o mouse, e fazia a barra pular a cada vez que o ponteiro a
     // cruzava. Quem quer a coluna estreita fecha no botão, de propósito.
     const [isCollapsed, setIsCollapsed] = useState(false);
+    // A barra e fixa e tem 240px. Num telefone de 390 isso e 62% da tela, e o
+    // conteudo ficava nos 150 que sobravam -- texto quebrando numa palavra por
+    // linha. Abaixo de `md` ela vira gaveta: fora da tela por padrao, por cima
+    // do conteudo quando aberta, e fecha ao escolher um item, porque gaveta que
+    // fica aberta depois da escolha esconde justamente o que a pessoa foi ver.
+    const [gavetaAberta, setGavetaAberta] = useState(false);
+    // Vinte itens abertos de uma vez davam 967px de lista. Num notebook de 768
+    // isso escondia 331px -- o grupo Reference inteiro, sem nada na tela dizendo
+    // que ele existia. Fechado, cada grupo mostra quantas telas tem dentro, o
+    // que diz mais em uma linha do que sete linhas abaixo da dobra.
+    const [abertos, setAbertos] = useState<Set<string>>(() => {
+        const chave = grupoDe(activeTab);
+        return new Set(chave ? [chave] : []);
+    });
+
+    // Navegacao vinda de fora da barra (um link do Dashboard, por exemplo) abre
+    // o grupo de destino. Sem isto a barra passa a mentir sobre onde a pessoa
+    // esta: item ativo escondido dentro de uma secao fechada.
+    useEffect(() => {
+        const chave = grupoDe(activeTab);
+        if (!chave) return;
+        setAbertos((antes) => (antes.has(chave) ? antes : new Set(antes).add(chave)));
+    }, [activeTab]);
+
+    const alternarGrupo = (chave: string) => setAbertos((antes) => {
+        const proximo = new Set(antes);
+        proximo.has(chave) ? proximo.delete(chave) : proximo.add(chave);
+        return proximo;
+    });
 
     const toggle = () => {
         const next = !isCollapsed;
@@ -121,13 +154,13 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
         return (
             <button
                 key={tabKey}
-                onClick={() => setActiveTab(tabKey)}
+                onClick={() => { setActiveTab(tabKey); setGavetaAberta(false); }}
                 onMouseEnter={() => setHoveredTab(tabKey)}
                 onMouseLeave={() => setHoveredTab(null)}
                 aria-current={isActive ? 'page' : undefined}
                 className={`
                     relative w-full flex items-center rounded-xl transition-colors duration-200
-                    ${isCollapsed ? 'px-3 py-2.5 justify-center' : 'gap-3 pl-4 pr-3 py-2'}
+                    ${isCollapsed ? 'px-3 py-2.5 justify-center' : 'gap-3 pl-4 pr-3 py-2 min-h-[44px] md:min-h-0'}
                     ${isActive
                         ? 'bg-brand-primary/15 text-white'
                         : 'text-brand-muted hover:bg-white/[0.04] hover:text-brand-secondary'
@@ -171,11 +204,37 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
     };
 
     return (
+        <>
+            {/* So no telefone: o botao que abre, e o fundo que fecha ao tocar fora. */}
+            <button
+                onClick={() => setGavetaAberta(true)}
+                aria-label="Open menu"
+                className={`md:hidden fixed top-3 left-3 z-[110] w-11 h-11 rounded-xl
+                    glass border border-brand-border flex items-center justify-center
+                    text-brand-secondary active:scale-95 transition
+                    ${gavetaAberta ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            >
+                <span className="block w-5 space-y-[5px]">
+                    <span className="block h-[2px] bg-current rounded" />
+                    <span className="block h-[2px] bg-current rounded" />
+                    <span className="block h-[2px] bg-current rounded" />
+                </span>
+            </button>
+
+            {gavetaAberta && (
+                <div
+                    onClick={() => setGavetaAberta(false)}
+                    className="md:hidden fixed inset-0 z-[99] bg-black/60 backdrop-blur-sm"
+                />
+            )}
+
         <nav
             aria-label="FaucetChain"
-            className={`fixed left-0 top-0 h-screen z-[100] flex flex-col transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
+            className={`fixed left-0 top-0 h-screen z-[100] flex flex-col
+                transition-[width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
                 glass border-r border-brand-border
                 ${isCollapsed ? 'w-[72px]' : 'w-[240px]'}
+                ${gavetaAberta ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0
             `}
         >
             {/* Marca */}
@@ -197,33 +256,63 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                 </div>
             </div>
 
-            {/* A barra de rolagem fina fica visível: com vinte itens o último
-                grupo cai abaixo da dobra, e esconder a barra escondia junto o
-                aviso de que há mais coisa embaixo. */}
+            {/* A rolagem fina continua aqui para quem abre varios grupos de
+                uma vez. Em repouso a lista cabe inteira em qualquer tela. */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden py-3 px-3 [scrollbar-width:thin] [scrollbar-color:#1C2E3D_transparent]">
                 {presentes.has(LEAD_TAB) && renderItem(LEAD_TAB)}
 
-                {secoes.map((grupo) => (
-                    <div key={grupo.key} className="mt-5 first:mt-3">
-                        {isCollapsed ? (
-                            // Sem rótulo não sobra espaço para texto; o que separa
-                            // os grupos na coluna estreita é a linha.
-                            <div aria-hidden="true" className="mx-3 mb-2 border-t border-brand-border/60" />
-                        ) : (
-                            <div className="px-4 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-muted/70">
-                                {t(`navGroups.${grupo.key}`, { defaultValue: grupo.fallback })}
-                            </div>
-                        )}
-                        <div className="space-y-0.5">
-                            {grupo.itens.map(renderItem)}
+                {secoes.map((grupo) => {
+                    // Na coluna estreita nao ha o que dobrar: sao vinte icones e
+                    // nenhum rotulo, e esconde-los atras de um clique invisivel
+                    // deixaria a barra sem navegacao nenhuma.
+                    const aberto = isCollapsed || abertos.has(grupo.key);
+                    const temAtiva = grupo.itens.includes(activeTab);
+                    return (
+                        <div key={grupo.key} className="mt-3 first:mt-2">
+                            {isCollapsed ? (
+                                // Sem rótulo não sobra espaço para texto; o que separa
+                                // os grupos na coluna estreita é a linha.
+                                <div aria-hidden="true" className="mx-3 mb-2 border-t border-brand-border/60" />
+                            ) : (
+                                <button
+                                    onClick={() => alternarGrupo(grupo.key)}
+                                    aria-expanded={aberto}
+                                    className={`w-full flex items-center gap-2 px-4 rounded-lg
+                                        min-h-[44px] md:min-h-0 md:py-1.5
+                                        text-[10px] font-semibold uppercase tracking-[0.14em]
+                                        transition-colors hover:bg-white/[0.03] hover:text-brand-secondary
+                                        ${temAtiva ? 'text-brand-primary/90' : 'text-brand-muted/70'}`}
+                                >
+                                    <span className="flex-1 text-left">
+                                        {t(`navGroups.${grupo.key}`, { defaultValue: grupo.fallback })}
+                                    </span>
+                                    {/* A contagem só aparece fechado. Aberto, os itens
+                                        estão à vista e o número viraria ruído. */}
+                                    {!aberto && (
+                                        <span className="tabular font-bold text-brand-muted/60">{grupo.itens.length}</span>
+                                    )}
+                                    <svg viewBox="0 0 24 24" fill="none" strokeWidth={2.5} stroke="currentColor"
+                                         className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${aberto ? 'rotate-90' : ''}`}
+                                         aria-hidden="true">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            )}
+                            {aberto && (
+                                <div className="space-y-0.5 mt-0.5">
+                                    {grupo.itens.map(renderItem)}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Rodapé: só o controle da própria barra. O estado da rede é da
                 faixa no topo da página, que já o anuncia em letra maior. */}
-            <div className="border-t border-brand-border/60 px-3 py-2 flex items-center justify-end">
+            {/* Escondido no telefone: encolher para 72px dentro de uma gaveta
+                nao serve para nada -- a gaveta ja sai inteira da tela. */}
+            <div className="hidden md:flex border-t border-brand-border/60 px-3 py-2 items-center justify-end">
                 <button
                     onClick={toggle}
                     aria-expanded={!isCollapsed}
@@ -237,5 +326,6 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                 </button>
             </div>
         </nav>
+        </>
     );
 };

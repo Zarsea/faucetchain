@@ -8,7 +8,20 @@
     <!-- The small mark: the full one carries Solana's three bars, which cannot
          survive a 16px tab. -->
     <link rel="icon" type="image/svg+xml" href="/faucetchain-mark-small.svg" />
-    <link rel="apple-touch-icon" href="/faucetchain-solana-1024.png" />
+    <!-- 192 em vez da de 1024: o iOS reduz a imagem de qualquer jeito, e a de
+         1024 custa 240 KB no primeiro acesso para virar um icone de 60px. -->
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Instalavel no celular. A barra do sistema recebe o fundo da marca; sem
+         isto o Android pinta branco em volta de uma interface escura. -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#070F16" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="FaucetChain" />
+    <!-- "black" e nao "black-translucent": translucido joga o conteudo por
+         baixo do relogio do iPhone, e esta tela tem cabecalho no topo. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
     window.tailwind = window.tailwind || {};
@@ -169,5 +182,15 @@
 <body class="bg-brand-bg text-brand-secondary selection:bg-brand-primary/30">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
+<script>
+  // Registro depois do load, de proposito: o service worker nao e o que o
+  // usuario esta esperando ver, e baixa-lo junto com o primeiro paint atrasa
+  // exatamente a tela que ele existe para acelerar.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js').catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>
