@@ -1112,7 +1112,7 @@ const formataCobertura = (c: number): string =>
                             <div className="flex gap-3">
                                 <input 
                                     type="text" 
-                                    placeholder="User wallet address (0x...)" 
+                                    placeholder="User wallet address (0x...)"
                                     value={l2LookupWallet}
                                     onChange={e => setL2LookupWallet(e.target.value)}
                                     className="flex-1 bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"

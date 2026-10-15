@@ -8,6 +8,12 @@ fastapi==0.135.1
 uvicorn==0.42.0
 pydantic==2.12.5
 
+# uvicorn nao fala WebSocket sozinho. Sem esta linha a rota /ws/network sobe,
+# responde, e recusa o upgrade -- o painel perde a atualizacao de bloco em tempo
+# real e nada no log diz o porque. Esteve assim ate 15/10/2026, consertado a mao
+# no container antes de chegar aqui.
+websockets==15.0.1
+
 # The appchain's signatures: EIP-191 over the sentences in settlement.py.
 eth-account==0.13.7
 # keccak256, for the Merkle tree and for deriving an account from a Solana
