@@ -271,6 +271,23 @@ class MinerCore extends EventEmitter {
             return false;
         }
 
+        // Checar so se esta vazio deixava passar os dois erros de primeira vez
+        // que de fato acontecem: deixar o endereco de exemplo do .env.example, e
+        // colar um endereco truncado. Os dois registravam um no contra um
+        // endereco que nao e de ninguem, e a recompensa ia para la sem volta --
+        // a falha aparecia depois, no servidor, como um 400 sem explicacao.
+        const exemplo = /^0x(YourWalletHere|SuaCarteiraAqui)$/i;
+        if (exemplo.test(this.wallet)) {
+            this.emit('error', { type: 'config',
+                message: 'WALLET_ADDRESS is still the example value. Put your own address in .env' });
+            return false;
+        }
+        if (!/^0x[0-9a-fA-F]{40}$/.test(this.wallet)) {
+            this.emit('error', { type: 'config',
+                message: `WALLET_ADDRESS does not look like an address: ${this.wallet}` });
+            return false;
+        }
+
         this.isRunning = true;
         this.startTime = Date.now();
         this.heartbeatCount = 0;

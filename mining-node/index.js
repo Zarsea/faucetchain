@@ -114,7 +114,7 @@ miner.on('stopped', (info) => {
     console.log('');
     console.log('');
     log('warn', 'Desconectando da rede...');
-    log('info', `Sessão finalizada — Uptime: ${chalk.white(info.totalUptimeFormatted)}`);
+    log('info', `Session ended — uptime: ${chalk.white(info.totalUptimeFormatted)}`);
     log('coin', `Total minerado: ${chalk.yellow(info.totalEarned.toFixed(4))} CLAIM`);
     console.log('');
 });
@@ -122,11 +122,11 @@ miner.on('stopped', (info) => {
 miner.on('error', (err) => {
     if (err.type === 'config') {
         log('error', err.message);
-        log('info', `Copie ${chalk.cyan('.env.example')} para ${chalk.cyan('.env')} e preencha`);
+        log('info', `Copy ${chalk.cyan('.env.example')} to ${chalk.cyan('.env')} and put your wallet address in it`);
         process.exit(1);
     } else if (err.type === 'connection') {
         log('error', err.message);
-        log('warn', 'Verifique se o api_server.py está rodando');
+        log('warn', 'Check your internet connection, and that API_URL in .env is correct');
     } else {
         log('error', `${err.type}: ${err.message}`);
     }
