@@ -55,7 +55,8 @@ the content.
       list most of them. [SUBMISSION.md](SUBMISSION.md) has them one by one.
       The team's three backgrounds are already on their Colosseum profiles.
 
-Os três roteiros, com tempos e falas, estão em [ROTEIRO_VIDEOS.md](ROTEIRO_VIDEOS.md).
+Os três roteiros, com tempos e falas, saíram do repositório em 15/10 junto com
+o resto do material de produção dos vídeos.
 Esta lista continua sendo a ordem de filmagem do demo; aquele arquivo diz o que
 se fala por cima dela, e por que o pitch não pode ser escrito antes do
 go-to-market.
