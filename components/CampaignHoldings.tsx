@@ -94,10 +94,10 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
                 <span className="text-[10px] uppercase tracking-widest text-brand-muted">Solana devnet</span>
             </div>
             <p className="text-brand-muted text-xs mt-2 leading-relaxed max-w-2xl">
-                Estes não são $CLAIM. São tokens de quem patrocinou a campanha, e é o
-                que carrega valor — o $CLAIM é a unidade com que esta rede mede trabalho.
-                O caminho é sempre o mesmo: o clique credita aqui, o lote vira uma raiz
-                publicada na Solana, e o saque leva para a sua carteira.
+                These are not $CLAIM. They are the tokens of whoever funded the campaign, and
+                they are what carries value: $CLAIM is the unit this network measures work in.
+                The path is always the same. The click credits here, the batch becomes a root
+                published on Solana, and the withdrawal takes it to your wallet.
             </p>
 
             {tokens === null && (
@@ -106,8 +106,8 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
 
             {tokens?.length === 0 && (
                 <p className="text-brand-muted text-sm mt-6">
-                    Nenhuma campanha pagou esta conta ainda. Um clique numa torneira
-                    matriculada numa campanha financiada é o que começa isto.
+                    No campaign has paid this account yet. A click on a faucet enrolled in a
+                    funded campaign is what starts it.
                 </p>
             )}
 
@@ -142,9 +142,9 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
                         </a>
                         {!t.name && (
                             <p className="text-yellow-200/70 text-[10px] mt-2 leading-relaxed">
-                                Este mint não tem metadados na Solana, então aparece sem nome aqui
-                                e sem nome na sua carteira também. Quem o emitiu é quem pode
-                                resolver isso.
+                                This mint has no metadata on Solana, so it shows up unnamed here and
+                                unnamed in your wallet too. Whoever issued it is who can fix
+                                that.
                             </p>
                         )}
                     </div>

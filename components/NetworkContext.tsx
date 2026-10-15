@@ -44,7 +44,7 @@ interface NetworkContextType {
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 
 export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [anomaly, setAnomaly] = useState<Anomaly>({ type: 'NONE', severity: 'LOW', timestamp: Date.now(), description: 'Rede estável.' });
+    const [anomaly, setAnomaly] = useState<Anomaly>({ type: 'NONE', severity: 'LOW', timestamp: Date.now(), description: 'Network stable.' });
     const [metrics, setMetrics] = useState<NetworkMetrics>({
         blockHeight: 0,
         activeValidators: 0,
@@ -89,21 +89,21 @@ export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children })
 
         switch (type) {
             case 'CONGESTION':
-                desc = 'Pico de tráfego detectado nos Hubs externos.';
+                desc = 'Traffic spike detected on external hubs.';
                 severity = 'MEDIUM';
                 break;
             case 'VALIDATOR_DROP':
-                desc = 'Desconexão massiva de nós PoS detectada.';
+                desc = 'Mass disconnection of PoS nodes detected.';
                 severity = 'CRITICAL';
                 break;
             default:
-                desc = 'Estável.';
+                desc = 'Stable.';
                 severity = 'LOW';
         }
 
         setAnomaly({ type, severity, timestamp: Date.now(), description: desc });
         setTimeout(() => {
-            setAnomaly({ type: 'NONE', severity: 'LOW', timestamp: Date.now(), description: 'Rede estável.' });
+            setAnomaly({ type: 'NONE', severity: 'LOW', timestamp: Date.now(), description: 'Network stable.' });
         }, 15000);
     };
 

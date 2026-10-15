@@ -377,7 +377,7 @@ export const Simulation: React.FC = () => {
                                 </ResponsiveContainer>
                             </div>
                             <p className="text-xs text-brand-muted mt-4 text-center italic">
-                                Gráfico mostra a quantidade de nós em cada faixa de peso híbrido. Maior dispersão (Gini baixo) indica uma rede mais descentralizada.
+                                The chart shows how many nodes sit in each hybrid-weight band. A wider spread (lower Gini) means a more decentralised network.
                             </p>
                         </SectionCard>
                     </div>
@@ -389,7 +389,7 @@ export const Simulation: React.FC = () => {
                         </div>
                         <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">Command Center: Simulation</h3>
                         <p className="text-brand-muted max-w-sm mt-4 leading-relaxed font-medium">
-                            Rode "Running today" para ver a distribuição de poder que a regra atual produz — peso = 1 + stake, sem teto. "Proposed" mostra o que mérito e reputação mudariam, e nenhum dos dois existe no servidor ainda.
+                            Run "Running today" to see the power distribution the current rule produces: weight = 1 + stake, with no cap. "Proposed" shows what merit and reputation would change, and neither exists on the server yet.
                         </p>
                         <div className="mt-8 flex gap-3">
                             <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">No Hardware Mining</span>

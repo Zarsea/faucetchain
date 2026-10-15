@@ -144,7 +144,7 @@ export const Faucet: React.FC = () => {
             let claimSigTimestamp: number | null = null;
 
             if (authMethod === 'WALLET') {
-                if (typeof window.ethereum === 'undefined') throw new Error("MetaMask não encontrado");
+                if (typeof window.ethereum === 'undefined') throw new Error("MetaMask not found");
 
                 const provider = new ethers.BrowserProvider(window.ethereum);
                 const signer = await provider.getSigner();
@@ -198,7 +198,7 @@ export const Faucet: React.FC = () => {
 
         } catch (error) {
             console.error("Erro no Claim:", error);
-            alert("Falha ao processar transação: " + (error as any).message);
+            alert("Could not process the transaction: " + (error as any).message);
             setIsLoading(false);
         }
     };
@@ -219,7 +219,7 @@ export const Faucet: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Painel de Controle de Claim */}
                 <div className="lg:col-span-1">
-                    <SectionCard title="Minting de Mérito" icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
+                    <SectionCard title="Merit minting" icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
                         <div className="space-y-6">
                             <div className="p-5 bg-brand-bg/60 border border-brand-border/40 rounded-2xl text-center">
                                 <span className="text-[10px] font-black text-brand-muted uppercase tracking-[0.2em] mb-1 block">Recompensa do Bloco Atual</span>
@@ -229,14 +229,14 @@ export const Faucet: React.FC = () => {
                                 <div className="mt-2 h-1.5 w-full bg-brand-border rounded-full overflow-hidden">
                                     <div className="bg-brand-primary h-full transition-all duration-1000" style={{ width: `${Math.max(5, 100 - (metrics.blockHeight / 2))}%` }}></div>
                                 </div>
-                                <p className="text-[10px] text-brand-muted mt-2 italic">A emissão decresce a cada bloco minerado.</p>
+                                <p className="text-[10px] text-brand-muted mt-2 italic">Emission decreases with every mined block.</p>
                             </div>
 
                             {!isConnected ? (
                                 <div className="p-6 border-2 border-dashed border-brand-border rounded-2xl text-center bg-brand-surface/20">
                                     <BoltIcon className="w-10 h-10 text-brand-muted mx-auto mb-4 opacity-50" />
-                                    <p className="text-sm font-bold text-brand-muted mb-4">Autenticação Necessária</p>
-                                    <p className="text-xs text-brand-muted mb-4 leading-relaxed">Conecte-se com Google ou E-mail para habilitar o mint de mérito.</p>
+                                    <p className="text-sm font-bold text-brand-muted mb-4">Sign in required</p>
+                                    <p className="text-xs text-brand-muted mb-4 leading-relaxed">Sign in with Google or email to enable merit minting.</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -250,13 +250,13 @@ export const Faucet: React.FC = () => {
 
                                     {!epochActive && (
                                         <div className="p-3 bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs rounded-xl mb-2 text-center animate-pulse">
-                                            ⚠️ Bloco da Hora atual ESGOTADO. Faucet Chain em Hiato. Retorne na próxima hora!
+                                            ⚠️ This hour’s block is spent. FaucetChain is idle until the next one.
                                         </div>
                                     )}
 
                                     {isCooldownActive && epochActive && (
                                         <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-xs rounded-xl mb-2 text-center animate-pulse">
-                                            ⏱️ Cooldown Ativo: O PoC liberará seus hashes na próxima hora!
+                                            ⏱️ Cooldown active. Proof of Claim releases your hashes next hour.
                                         </div>
                                     )}
 
@@ -270,7 +270,7 @@ export const Faucet: React.FC = () => {
                                                 ? <span className="text-xs font-mono">{pocStatus}</span>
                                                 : <LoadingIcon className="w-5 h-5 animate-spin mx-auto" />)
                                             : "REIVINDICAR MÉRITO V3"}
-                                        {isPending && <span className="block mt-1 text-[10px] text-brand-bg opacity-80">⛏️ Expandindo Mempool. Aguardando Nós...</span>}
+                                        {isPending && <span className="block mt-1 text-[10px] text-brand-bg opacity-80">⛏️ Expanding the mempool. Waiting for nodes…</span>}
                                     </button>
                                 </div>
                             )}
@@ -278,9 +278,9 @@ export const Faucet: React.FC = () => {
                             {isSuccess && (
                                 <div className="p-4 bg-brand-success/10 border border-brand-success/30 rounded-xl animate-slideUp">
                                     <div className="flex items-center gap-2 text-brand-success font-black text-xs uppercase mb-1">
-                                        <CheckCircleIcon className="w-4 h-4" /> Mintagem e Exploração Completas
+                                        <CheckCircleIcon className="w-4 h-4" /> Minting and exploration complete
                                     </div>
-                                    <p className="text-[10px] text-brand-muted">Sua Prova de Mérito foi validada e envelopada em um Bloco PoC por um Nó Minerador da rede.</p>
+                                    <p className="text-[10px] text-brand-muted">Your Proof of Merit was validated and sealed into a PoC block by a mining node on the network.</p>
                                 </div>
                             )}
                         </div>
@@ -310,7 +310,7 @@ export const Faucet: React.FC = () => {
                             </div>
 
                             <div className="p-5 bg-brand-bg/40 border border-brand-border/40 rounded-xl">
-                                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-1">Participação na Rede</span>
+                                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-1">Network share</span>
                                 <div className="text-lg font-black text-brand-secondary">
                                     {claims.length} <span className="text-xs text-brand-muted">Claims Verificados</span>
                                 </div>
@@ -325,14 +325,14 @@ export const Faucet: React.FC = () => {
                                     <tr>
                                         <th className="px-4 py-3 border-b border-brand-border">Bloco Clamado</th>
                                         <th className="px-4 py-3 border-b border-brand-border">Unidades Mintadas</th>
-                                        <th className="px-4 py-3 border-b border-brand-border">TX Hash do Mérito</th>
+                                        <th className="px-4 py-3 border-b border-brand-border">Merit tx hash</th>
                                         <th className="px-4 py-3 border-b border-brand-border">Status Sentinel</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {claims.length === 0 ? (
                                         <tr>
-                                            <td colSpan={4} className="px-4 py-10 text-center text-brand-muted italic">Nenhuma atividade registrada no ledger V3. Conecte-se e inicie o claim.</td>
+                                            <td colSpan={4} className="px-4 py-10 text-center text-brand-muted italic">No activity recorded in the V3 ledger yet. Sign in and start claiming.</td>
                                         </tr>
                                     ) : (
                                         claims.map((claim, idx) => (
@@ -364,7 +364,7 @@ export const Faucet: React.FC = () => {
                         <div className="space-y-1">
                             <h4 className="text-sm font-black text-brand-secondary uppercase tracking-tight">Reestabelecimento de Rede Derivada</h4>
                             <p className="text-xs text-brand-muted leading-relaxed">
-                                Ao ativar um <b>Hub Externo</b>, você estabelece uma camada L2 derivada da <b>FaucetChain</b> principal. O travamento de <b>10.000 tokens</b> atua como garantia econômica, permitindo que seu Hub processe Provas de Mérito agregadas com autoridade descentralizada.
+                                Activating an <b>external hub</b> sets up an L2 layer derived from the main <b>FaucetChain</b>. Locking <b>10,000 tokens</b> acts as economic collateral, letting your hub process aggregated Proofs of Merit with decentralised authority.
                             </p>
                         </div>
                     </div>

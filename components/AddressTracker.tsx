@@ -57,7 +57,7 @@ interface ActivityData {
 
 const CATEGORIES = [
     { key: 'all', label: 'Todos', icon: '🌐' },
-    { key: 'user', label: 'Usuários', icon: '👤' },
+    { key: 'user', label: 'Users', icon: '👤' },
     { key: 'miner', label: 'Mineradores', icon: '⛏️' },
     { key: 'hub', label: 'Hubs Externas', icon: '🔗' },
     { key: 'custom', label: 'Custom', icon: '🏷️' },
@@ -138,7 +138,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                 setAddError(data.detail || 'Erro ao adicionar');
             }
         } catch (err) {
-            setAddError('Servidor não acessível');
+            setAddError('Server unreachable');
         } finally {
             setAddLoading(false);
         }
@@ -198,7 +198,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                         </div>
                     </div>
                     <p className="text-brand-muted max-w-xl leading-relaxed">
-                        Monitore carteiras de usuários, mineradores e hubs conectadas à rede FaucetChain. Rastreie transações, rewards e atividade de staking em tempo real.
+                        Track wallets of users, miners and hubs connected to the FaucetChain network. Follow transactions, rewards and staking activity in real time.
                     </p>
                 </div>
             </div>
@@ -208,7 +208,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {[
                         { label: 'Total', value: summary.total, icon: '📋', color: 'border-brand-border/50' },
-                        { label: 'Usuários', value: summary.users, icon: '👤', color: 'border-blue-500/30 bg-blue-500/5' },
+                        { label: 'Users', value: summary.users, icon: '👤', color: 'border-blue-500/30 bg-blue-500/5' },
                         { label: 'Mineradores', value: summary.miners, icon: '⛏️', color: 'border-amber-500/30 bg-amber-500/5' },
                         { label: 'Hubs', value: summary.hubs, icon: '🔗', color: 'border-purple-500/30 bg-purple-500/5' },
                         { label: 'Custom', value: summary.custom, icon: '🏷️', color: 'border-brand-border/50' },
@@ -225,13 +225,13 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
             )}
 
             {/* Add Address Form */}
-            <SectionCard title="Adicionar Endereço" icon={<WalletIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title="Add address" icon={<WalletIcon className="w-5 h-5 text-brand-primary" />}>
                 <form onSubmit={handleAdd} className="flex flex-col md:flex-row gap-3 mt-2">
                     <input
                         type="text"
                         value={newAddress}
                         onChange={e => setNewAddress(e.target.value)}
-                        placeholder="0x... endereço da carteira"
+                        placeholder="0x... wallet address"
                         className="flex-1 bg-brand-bg/80 border border-brand-border/50 rounded-xl px-4 py-3 text-sm text-brand-secondary font-mono focus:outline-none focus:border-brand-primary/50 placeholder:text-brand-muted/50"
                     />
                     <input
@@ -246,7 +246,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                         onChange={e => setNewCategory(e.target.value)}
                         className="md:w-40 bg-brand-bg/80 border border-brand-border/50 rounded-xl px-4 py-3 text-sm text-brand-secondary focus:outline-none focus:border-brand-primary/50 appearance-none cursor-pointer"
                     >
-                        <option value="user">👤 Usuário</option>
+                        <option value="user">👤 User</option>
                         <option value="miner">⛏️ Minerador</option>
                         <option value="hub">🔗 Hub Externa</option>
                         <option value="custom">🏷️ Custom</option>
@@ -291,8 +291,8 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                     {addresses.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
                             <MagnifyingGlassPlusIcon className="w-20 h-20 text-brand-muted mb-4" />
-                            <h3 className="text-lg font-black text-white uppercase tracking-widest">Nenhum Endereço</h3>
-                            <p className="text-brand-muted mt-2 max-w-sm">Adicione endereços de carteiras para começar a rastrear atividade na FaucetChain.</p>
+                            <h3 className="text-lg font-black text-white uppercase tracking-widest">No addresses</h3>
+                            <p className="text-brand-muted mt-2 max-w-sm">Add wallet addresses to start tracking activity on FaucetChain.</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -356,7 +356,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                 {selectedAddress && (
                     <div className="lg:col-span-7 space-y-4 animate-slideUp">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-black text-white tracking-tight">Atividade do Endereço</h3>
+                            <h3 className="text-lg font-black text-white tracking-tight">Address activity</h3>
                             <button
                                 onClick={() => setSelectedAddress(null)}
                                 className="p-2 text-brand-muted hover:text-white rounded-lg hover:bg-brand-bg/60 transition-all"
@@ -378,7 +378,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                                 {/* Activity Summary */}
                                 <div className="grid grid-cols-3 gap-3">
                                     {[
-                                        { label: 'Transações', value: activity.total_txs, icon: <BoltIcon className="w-4 h-4 text-brand-accent" /> },
+                                        { label: 'Transactions', value: activity.total_txs, icon: <BoltIcon className="w-4 h-4 text-brand-accent" /> },
                                         { label: 'Claims', value: activity.total_claims, icon: <SparklesIcon className="w-4 h-4 text-brand-primary" /> },
                                         { label: 'Rewards', value: activity.total_mining_rewards, icon: <CubeIcon className="w-4 h-4 text-amber-400" /> },
                                     ].map((s, i) => (
@@ -393,7 +393,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
 
                                 {/* Recent Transactions */}
                                 {activity.transactions.length > 0 && (
-                                    <SectionCard title="Transações Recentes" icon={<BoltIcon className="w-4 h-4 text-brand-accent" />}>
+                                    <SectionCard title="Recent transactions" icon={<BoltIcon className="w-4 h-4 text-brand-accent" />}>
                                         <div className="space-y-2 mt-2 max-h-[250px] overflow-y-auto scrollbar-hide">
                                             {activity.transactions.map((tx: any, i: number) => (
                                                 <div key={i} className="flex items-center justify-between p-3 bg-brand-bg/30 rounded-xl border border-brand-border/20">
@@ -471,7 +471,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                                 {activity.total_txs === 0 && activity.total_claims === 0 && activity.total_mining_rewards === 0 && activity.staking_positions.length === 0 && (
                                     <div className="text-center py-12 opacity-40">
                                         <CubeIcon className="w-16 h-16 text-brand-muted mx-auto mb-3" />
-                                        <p className="text-sm text-brand-muted">Nenhuma atividade registrada para este endereço</p>
+                                        <p className="text-sm text-brand-muted">No activity recorded for this address</p>
                                     </div>
                                 )}
                             </div>

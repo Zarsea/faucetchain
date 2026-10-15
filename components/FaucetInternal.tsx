@@ -247,7 +247,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                         <span className="w-2 h-2 bg-pink-500 mr-2 animate-ping"></span>
                         DATA INTERCEPT
                       </h2>
-                      <p className="text-[9px] text-pink-600 uppercase tracking-widest mt-1">Isolamento de Pacotes Críticos</p>
+                      <p className="text-[9px] text-pink-600 uppercase tracking-widest mt-1">Critical packet isolation</p>
                     </div>
                     <div className={`text-3xl font-black tracking-widest ${drip.minigameTimeLeft <= 3 ? 'text-red-500 animate-pulse' : 'text-green-400'}`}>
                       00:{drip.minigameTimeLeft.toString().padStart(2, '0')}
@@ -260,7 +260,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                       <p className="text-2xl font-black text-cyan-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">{drip.minigameScore}</p>
                     </div>
                     <p className="text-[9px] text-gray-400 max-w-[200px] text-right">
-                      Colete dados (<span className="text-green-400 font-bold">Verde</span>). Evite malwares (<span className="text-red-500 font-bold">Vermelho</span>). O multiplicador será aplicado no DRIP.
+                      Collect data (<span className="text-green-400 font-bold">green</span>). Avoid malware (<span className="text-red-500 font-bold">red</span>). The multiplier applies to the DRIP.
                     </p>
                   </div>
                   
@@ -301,7 +301,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                   <table className="w-full text-left">
                     <thead>
                       <tr className="border-b border-purple-500/20">
-                        {['Rank', 'Identidade', 'Total Farmado', 'Streak', 'Nível'].map(h => (
+                        {['Rank', 'Identity', 'Total farmed', 'Streak', 'Level'].map(h => (
                           <th key={h} className="pb-3 text-[9px] font-bold text-purple-500 uppercase tracking-widest px-2">{h}</th>
                         ))}
                       </tr>
@@ -346,7 +346,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
             
             <h2 className="text-xl font-black text-pink-400 tracking-[0.2em] mb-2 uppercase">Booster Shop</h2>
             <p className="text-[10px] text-gray-400 mb-6 leading-relaxed">
-              Adquira módulos de amplificação temporária. Tokens gastos possuem mecânica deflacionária: <span className="text-pink-400 font-bold">30-50% são queimados</span> permanentemente do suprimento L1.
+              Buy temporary amplification modules. Spent tokens are deflationary: <span className="text-pink-400 font-bold">30-50% is burned</span> permanently from the L1 supply.
             </p>
 
             <div className="space-y-3 max-h-[50vh] overflow-y-auto custom-scrollbar pr-2">

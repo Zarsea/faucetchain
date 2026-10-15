@@ -97,7 +97,7 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
                                     })}
                                 </div>
                                 <div className="mt-3 text-xs text-brand-muted flex justify-between">
-                                    <span>30 dias atrás</span>
+                                    <span>30 days ago</span>
                                     <span>Hoje</span>
                                 </div>
                             </div>
@@ -159,7 +159,7 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
                             )) : (
                                 <div className="col-span-full py-12 text-center text-brand-muted border-2 border-dashed border-brand-border/30 rounded-2xl flex flex-col items-center">
                                     <span className="text-4xl mb-2 opacity-50">📭</span>
-                                    <p className="text-sm">Nenhum NFT de Gamificação encontrado.</p>
+                                    <p className="text-sm">No gamification NFT found.</p>
                                     <p className="text-xs opacity-50">Mantenha seu streak ou alcance novos Ranks para ganhar.</p>
                                 </div>
                             )}

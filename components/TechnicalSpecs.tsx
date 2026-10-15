@@ -75,7 +75,7 @@ export const TechnicalSpecs: React.FC = () => {
 
                     <SectionCard title="Cryptography & Privacy" icon={<ShieldCheckIcon className="w-6 h-6"/>}>
                         <p className="text-sm text-brand-muted leading-relaxed mb-4">
-                            Primitivas criptográficas modernas otimizadas para velocidade de verificação e resistência futura.
+                            Modern cryptographic primitives, tuned for verification speed and future resistance.
                         </p>
                         <SpecTable data={cryptographySpecs} />
                     </SectionCard>
@@ -109,7 +109,7 @@ export const TechnicalSpecs: React.FC = () => {
                             <span className="block text-brand-primary text-sm uppercase tracking-[0.2em] font-bold mt-2">LSM-Tree Storage Engine</span>
                         </h3>
                         <p className="text-brand-muted text-base leading-relaxed">
-                            O motor de armazenamento LSM-Tree é otimizado para gravações sequenciais e consultas de estado ultra-rápidas, essencial para o re-indexamento contínuo de pesos PoC e dados de reputação IA.
+                            The LSM-Tree storage engine is tuned for sequential writes and very fast state reads, which is what the continuous re-indexing of PoC weights and reputation data needs.
                         </p>
                         <div className="pt-4 grid grid-cols-1 gap-3">
                              <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-brand-secondary bg-brand-bg/60 p-3 rounded-xl border border-brand-border/40">
@@ -133,7 +133,7 @@ export const TechnicalSpecs: React.FC = () => {
                                     <h4 className="font-bold text-brand-secondary">World State Root</h4>
                                 </div>
                                 <p className="text-sm text-brand-muted leading-relaxed">
-                                    Representação global do ledger via Sparse Merkle Tree (SMT), permitindo provas de exclusão e inclusão em tempo logarítmico para clientes leves e hubs de reputação.
+                                    A global view of the ledger as a Sparse Merkle Tree, which gives light clients and reputation hubs both inclusion and exclusion proofs in logarithmic time.
                                 </p>
                             </div>
 
@@ -145,7 +145,7 @@ export const TechnicalSpecs: React.FC = () => {
                                     <h4 className="font-bold text-brand-secondary">Bloom Filters</h4>
                                 </div>
                                 <p className="text-sm text-brand-muted leading-relaxed">
-                                    Filtros probabilísticos para evitar buscas desnecessárias em disco durante a validação de claims, reduzindo o I/O da base de dados em até 85% em condições de alta carga.
+                                    Probabilistic filters that avoid pointless disk lookups while validating claims, cutting database I/O by up to 85% under heavy load.
                                 </p>
                             </div>
                         </div>

@@ -65,7 +65,7 @@ export const BlockViewer: React.FC = () => {
                     Live Block Explorer
                 </h2>
                 <p className="text-brand-muted mt-2">
-                    Visualização em tempo real da atividade de mineração e exploração de blocos na FaucetChain.
+                    A real-time view of mining and block exploration activity on FaucetChain.
                 </p>
             </div>
 
@@ -85,7 +85,7 @@ export const BlockViewer: React.FC = () => {
                             <div>
                                 <div className="text-[10px] font-black tracking-widest text-brand-primary uppercase mb-1 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></span>
-                                    Explorando Próximo Bloco
+                                    Exploring the next block
                                 </div>
                                 <h3 className="text-4xl font-black text-brand-secondary">
                                     #{formatNumber(nextBlockHeight, lang)}
@@ -101,7 +101,7 @@ export const BlockViewer: React.FC = () => {
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Nós Minerando</p>
+                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Nodes mining</p>
                                 <p className="text-xl font-mono text-brand-secondary flex items-center gap-2">
                                     <CpuChipIcon className="w-4 h-4 text-brand-primary" />
                                     {miningStats?.nodesOnline || 0} Ativos
@@ -160,7 +160,7 @@ export const BlockViewer: React.FC = () => {
                             
                             <div className="grid grid-cols-3 gap-6 w-full md:w-auto text-center md:text-right">
                                 <div>
-                                    <p className="text-[10px] uppercase text-brand-muted tracking-wider mb-1">Transações</p>
+                                    <p className="text-[10px] uppercase text-brand-muted tracking-wider mb-1">Transactions</p>
                                     <p className="font-mono text-brand-secondary">{block.txs}</p>
                                 </div>
                                 <div>
@@ -179,7 +179,7 @@ export const BlockViewer: React.FC = () => {
                     
                     {recentBlocks.length === 0 && (
                         <div className="py-8 text-center text-brand-muted">
-                            Nenhum bloco encontrado ou carregando...
+                            No blocks found, or still loading…
                         </div>
                     )}
                 </div>
