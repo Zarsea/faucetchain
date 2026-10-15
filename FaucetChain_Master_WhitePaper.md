@@ -210,14 +210,20 @@ The distinction matters more than the roadmap, so it comes first.
   any more, and there is no fallback to address-only
 - Rate limits on the relayer and on the proof endpoint
 - Deployed on devnet as `64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`, with
-  six roots published and two withdrawals settled by real wallets
+  seven roots published and two withdrawals settled by real wallets
 
 **Running outside a test, and how small that is**
 
-One faucet is connected in production. faucethunter.net opened for testing in
-early September 2026, has **five registered users**, and has paid **more than
-75 claims** to them. It sends each claim to this chain over one HTTP call made
-after its own commit.
+One faucet is connected in production, and it is ours. faucethunter.net was
+built by the same person who wrote this chain: it is a pilot, not a third party
+that chose to integrate, and no external faucet has integrated yet. We built
+both sides because nobody connects a settlement layer that has not settled
+anything. Converting faucets we do not own is the work ahead, and it is the
+honest measure of whether this works.
+
+With that said: faucethunter.net opened for testing in early September 2026, has
+**five registered users**, and has paid **more than 75 claims** to them. It sends
+each claim to this chain over one HTTP call made after its own commit.
 
 Two things have to be said about those 75, in this order.
 

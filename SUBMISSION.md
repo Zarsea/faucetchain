@@ -143,6 +143,11 @@ claims**.
 
 Two qualifications, and they are not optional — a judge will find both.
 
+**FaucetHunter is ours.** It was built by the same person who wrote this chain,
+so it is a pilot rather than a third party that chose to integrate, and no
+external faucet has integrated yet. The numbers below are real, and the
+relationship behind them is stated here so nobody has to discover it.
+
 **The 75 were paid by the faucet, not by us.** FaucetHunter pays through
 FaucetPay, its own rail, with its own money; our FaucetPay integration proves
 an identity and moves nothing (`faucetpay.py`: "No money moves through this

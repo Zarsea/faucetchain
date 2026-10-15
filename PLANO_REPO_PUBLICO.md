@@ -2,6 +2,12 @@
 
 Prazo: **12 de outubro de 2026, 23h59 PDT.** Faltam quatro dias.
 
+> **Documento datado de 8 de outubro de 2026.** Os numeros daqui ficaram para
+> tras e nao devem ser copiados: o plano fala em 6 raizes, 137 commits e cinco
+> usuarios. Em 14 de outubro sao **7 raizes, 175 commits e 16 carteiras**. Para
+> numero atual, a fonte e o sistema; o README tem a tabela conferida. O valor
+> deste arquivo e o raciocinio e a ordem de execucao, nao os valores.
+
 Organizado a partir do briefing de execução, com uma correção que precisa ser
 lida antes de qualquer etapa.
 
