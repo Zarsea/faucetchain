@@ -36,6 +36,50 @@ Two layers, each doing what it is good at:
 Partner funds never cross a bridge. They enter the vault and leave it to the
 users. The only thing that moves between the layers is a 32-byte root.
 
+## What is running, and what is not
+
+Everything below is on **devnet**, and every number here can be checked without
+asking us for anything.
+
+| | |
+|---|---|
+| Live testnet | [faucetchain.com.br](https://www.faucetchain.com.br) |
+| Program | [`64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm`](https://explorer.solana.com/address/64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm?cluster=devnet) |
+| Settlement batches built | 22 |
+| Merkle roots published on-chain | 7 |
+| Wallets that have claimed | 16 |
+| Claims recorded | 95 |
+| $CLAIM emitted | 167,000.80 of a fixed **99,000,000** cap (`MAX_SUPPLY`) |
+
+One batch, end to end, in case the table reads like a claim rather than a fact.
+Batch 22 released 178,914,405 units against one root in two leaves. 136,174,606
+went to the user. The other 42,739,799 is the treasury's leaf and is still in
+the vault, because the program derives each leaf from the signer: a user key
+cannot reach the treasury's share, and neither can our own backend. The 80/20
+split is a number the vault enforces, not a promise the server makes.
+
+[See the transaction.](https://explorer.solana.com/tx/5SdHzdvfMh8Y666LsvEwxT9za8ukGF1i2KFfKut14HjB9Tkj2bjfkcY54w7TnCy1DTDbCfwfherZQ74hja9bQgoe?cluster=devnet)
+
+### The integration, stated plainly
+
+[FaucetHunter](https://faucethunter.net) is the faucet feeding this. It is a
+real faucet with real users, paying them real withdrawals through FaucetPay on
+its own rail, and **it is ours** — the same person wrote both. It is a pilot,
+not a third party that chose to integrate, and no external faucet has integrated
+yet. We built both sides because nobody connects a settlement layer that has not
+settled anything.
+
+Two numbers get confused easily, so they are kept apart: what FaucetHunter pays
+its users through FaucetPay is its own business and its own money, and what
+crosses into FaucetChain is the campaign reward that follows. Only the second
+one is distribution by this project.
+
+### What is deliberately not done
+
+Devnet, a test treasury key, small volume, and no revenue. Campaign budgets are
+funded by hand rather than self-service. The supply cap is fixed in code, but
+genesis distribution is still specification, not behaviour.
+
 ## How a payout happens
 
 1. A partner opens a campaign and funds its vault (`create_campaign`,
