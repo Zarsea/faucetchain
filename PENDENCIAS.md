@@ -11,36 +11,32 @@ revisão do Donizete de 15/10.
 
 ## Em aberto
 
-### 1. O beacon da Cloudflare, e o que ele custa — decisão do time
+### 1. Desligar o Web Analytics da Cloudflare — Donizete
 
-O Web Analytics da Cloudflare é bloqueado pelo CSP e enche o console de erro
-vermelho. O Donizete já liberou `static.cloudflareinsights.com` no servidor para
-calar o erro. **Em 15/10 isso não entrou no Git, e o motivo importa.**
+**Decidido em 15/10.** O CSP fica como está; o Web Analytics sai.
 
-Liberar esse host desfaz uma mitigação que existe por causa de um achado do
-próprio Donizete, de 10/10: o token de sessão fica sete dias no `localStorage`,
-então um XSS futuro o roubaria. A correção de raiz é cookie `HttpOnly` e continua
-por fazer, porque mexe no fluxo de autenticação inteiro. O que dava para fechar
-sem ela era a **saída** — roubar o token exige mandá-lo para fora, e
-`connect-src 'self'` faz o navegador recusar fetch, XHR, WebSocket e beacon de
-imagem para domínio de terceiro.
+No painel da Cloudflare, em `faucetchain.com.br` → **Analytics & Logs** → **Web
+Analytics**, desligar o site. Isso remove o script `beacon.min.js` que a Cloudflare
+injeta na página, e com ele o erro vermelho no console.
 
-`tests/test_security_fixes.py` tem um teste guardando exatamente isso. Ao liberar
-o domínio, ele falha com "host externo na saida" — foi escrito para pegar essa
-mudança, e pegou.
+**Por que não o contrário.** Liberar `static.cloudflareinsights.com` no CSP, como
+foi feito no servidor para calar o erro, desfaz uma mitigação que existe por causa
+de um achado do próprio Donizete, de 10/10: o token de sessão fica sete dias no
+`localStorage`, então um XSS futuro o roubaria. A correção de raiz é cookie
+`HttpOnly` e continua por fazer. O que dá para fechar sem ela é a **saída** —
+roubar o token exige mandá-lo para fora, e `connect-src 'self'` faz o navegador
+recusar fetch, XHR, WebSocket e beacon de imagem para domínio de terceiro.
 
-As três saídas, em ordem de preferência:
+`tests/test_security_fixes.py` guarda isso e falha com "host externo na saida" se
+alguém liberar o domínio. O teste foi escrito para pegar essa mudança, e pegou.
 
-1. **Desligar o Web Analytics no painel da Cloudflare.** O erro de console some,
-   o CSP continua fechado, nada a decidir depois. Custo: ninguém mede acesso.
-2. **Trocar o `localStorage` por cookie `HttpOnly`** e aí liberar o beacon sem
-   custo. É a correção de raiz, e é trabalho de verdade.
-3. **Liberar o domínio e afrouxar o teste**, registrando a troca por escrito.
-   Legítimo se o time decidir que métrica de acesso vale mais que essa defesa,
-   mas é uma decisão de segurança e não um ajuste de configuração.
+**Conferir depois:** abrir `www.faucetchain.com.br` com o DevTools e confirmar que
+não há mais erro de CSP sobre `cloudflareinsights`. Enquanto o Analytics estiver
+ligado e o CSP fechado, o erro continua.
 
-Enquanto não houver decisão, Git e produção discordam neste ponto — o que o
-Donizete levantou com razão. A escolha 1 resolve as duas coisas de uma vez.
+**O que se perde:** a contagem de acesso da Cloudflare. Se ela fizer falta, a
+alternativa sem custo de segurança é trocar o `localStorage` por cookie `HttpOnly`
+e aí liberar o beacon — correção de raiz, trabalho de verdade, e não urgente.
 
 ## Resolvido
 
