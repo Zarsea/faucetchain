@@ -22,6 +22,7 @@ except ImportError:  # the appchain still starts; PASSWORD_SALT must then be exp
 
 import calendar
 import distribution  # how much one click of a campaign budget is worth
+import webhooks      # avisos para a torneira parceira (inerte sem o segredo)
 import faucetpay    # identity against FaucetPay; moves no money
 import social_auth  # signing in through a platform, proved rather than announced
 import settlement  # the sentences wallets sign live here, shared with the browser
@@ -890,12 +891,35 @@ class AddDocumentRequest(BaseModel):
 # Update existing startup to include DB initialization if needed
 @app.get("/api/health")
 async def root():
-    """Health check endpoint."""
+    """Health check endpoint.
+
+    "indexer_db" media a busca vetorial, nao o banco do indexer, e chamava de
+    "error" uma funcionalidade opcional que simplesmente nao esta instalada em
+    producao. Quem lia via a palavra error ao lado da palavra db e ia procurar
+    um banco quebrado que nunca existiu.
+
+    Agora cada campo mede o que o nome dele diz. "indexer_db" continua
+    existindo porque ja ha quem leia este endpoint, mas passou a responder
+    sobre o banco de verdade.
+    """
+    try:
+        conn = get_db_connection()
+        try:
+            conn.execute("SELECT 1 FROM transactions LIMIT 1").fetchone()
+            indexer = "active"
+        finally:
+            conn.close()
+    except Exception:
+        indexer = "error"
+
     return {
         "status": "online",
         "service": "FaucetChain Vector Knowledge API",
         "version": "1.1.0",
-        "indexer_db": "active" if kb else "error"
+        "indexer_db": indexer,
+        # Opcional: sem as dependencias de vetor a API inteira funciona, so a
+        # busca semantica fica fora. Ausente nao e falha.
+        "vector_search": "active" if kb else "unavailable",
     }
 
 @app.post("/api/vector-search", response_model=List[SearchResult])
@@ -1258,6 +1282,157 @@ def faucet_owed(conn, faucet_wallet: str) -> float:
     except sqlite3.OperationalError:
         return 0.0
     return float(row[0] or 0.0)
+
+
+def _torneira_do_usuario(conn, conta: str) -> str:
+    """A torneira parceira, se este usuario for dela. Senao, string vazia.
+
+    Um usuario pode ter claimado em varias torneiras, e so os saques da
+    parceira sao dela para receber. O registro de campanha entra na conta
+    porque desde o claim separado por token existe usuario que so tem claim de
+    campanha e nenhuma linha no livro de $CLAIM.
+    """
+    alvo = webhooks.torneira()
+    if not alvo:
+        return ""
+    for sql in ("SELECT 1 FROM microclaims_ledger WHERE faucet_wallet = ? AND user_wallet = ?",
+                "SELECT 1 FROM campaign_claim_cooldown WHERE faucet_wallet = ? AND user_wallet = ?"):
+        try:
+            if conn.execute(sql, (alvo, conta)).fetchone():
+                return alvo
+        except sqlite3.OperationalError:
+            pass
+    return ""
+
+
+def _avisar_saque(tipo: str, faucet: str, conta: str, quantia: float, token: str,
+                  tx_hash: str, reason: str = None):
+    """Avisa a parceira sobre um saque de $CLAIM de um usuario dela.
+
+    Nunca levanta: um saque ja liquidado nao pode falhar porque o aviso falhou.
+    Enfileira e volta; quem envia e o laco de fundo.
+    """
+    alvo = webhooks.torneira()
+    if not alvo or not webhooks.configurado() or (faucet or "").lower() != alvo:
+        return
+    try:
+        conn = get_db_connection()
+        try:
+            linha = conn.execute(
+                "SELECT solana_address FROM solana_links WHERE user_address = ?",
+                (conta,)).fetchone()
+            if not linha:
+                # solana_address e obrigatorio do outro lado -- e por ele que a
+                # parceira acha o usuario dela. Sem ele o evento chegaria
+                # inutil. E o mesmo buraco que deixa recompensa de campanha
+                # parada sem liquidar, entao fica no log, nomeado.
+                audit_logger.warning(
+                    "Webhook %s nao enviado: %s nao tem carteira Solana ligada", tipo, conta)
+                return
+            dados = {
+                "solana_address": linha["solana_address"],
+                "account": conta,
+                "amount": quantia,
+                "token": token,
+                "tx_hash": tx_hash,
+                "faucet_wallet": alvo,
+            }
+            if reason:
+                dados["reason"] = reason
+            webhooks.enfileirar(conn, tipo, dados)
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        audit_logger.warning("Webhook %s nao foi enfileirado: %r", tipo, e)
+
+
+def _avisar_saque_de_token(signature: str, recipient: str, mint: str, bruto: int):
+    """withdrawal.settled de um saque de token, vindo do relayer.
+
+    O relayer so conhece a carteira Solana; o resto (de quem e a conta, de qual
+    torneira, e qual token) sai do banco. Nunca levanta.
+    """
+    alvo = webhooks.torneira()
+    if not alvo or not webhooks.configurado():
+        return
+    try:
+        conn = get_db_connection()
+        try:
+            linha = conn.execute(
+                "SELECT user_address FROM solana_links WHERE solana_address = ? "
+                "ORDER BY linked_at LIMIT 1", (recipient,)).fetchone()
+            if not linha:
+                return
+            conta = linha["user_address"]
+            if _torneira_do_usuario(conn, conta) != alvo:
+                return  # usuario de outra torneira: nao e evento dela
+            t = conn.execute("SELECT symbol, decimals FROM token_registry WHERE mint = ?",
+                             (mint,)).fetchone() if mint else None
+            casas = t["decimals"] if t else 0
+            webhooks.enfileirar(conn, "withdrawal.settled", {
+                "solana_address": recipient,
+                "account": conta,
+                # unidades legiveis, nao a menor unidade: o outro lado le 10.0
+                "amount": bruto / (10 ** casas) if casas else float(bruto),
+                "token": (t["symbol"] if t else None) or "TOKEN",
+                "tx_hash": signature,
+                "faucet_wallet": alvo,
+            })
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        audit_logger.warning("Webhook withdrawal.settled (token) nao enfileirado: %r", e)
+
+
+async def _conferir_reserva_da_parceira():
+    """Avisa quando a torneira parceira deixa, ou volta, a cobrir o que deve.
+
+    So na MUDANCA de estado: mandar a cada verificacao faria a parceira pausar
+    e despausar o credito dela o dia inteiro.
+
+    A condicao e `caucao + saldo livre < divida`, que e exatamente a conta que
+    o saque faz para decidir se consegue pagar -- primeiro a caucao, depois o
+    saldo livre. O pedido falava em "liquidez nao cobre o que deve" e mandava
+    junto um coverage que no painel e caucao/divida; sao duas contas diferentes,
+    e o exemplo do pedido nao fechava com nenhuma das duas. Os tres numeros vao
+    no evento, mais a caucao, para o outro lado poder conferir qual usou.
+    """
+    alvo = webhooks.torneira()
+    if not alvo or not webhooks.configurado():
+        return
+    conn = get_db_connection()
+    try:
+        devido = faucet_owed(conn, alvo)
+        caucao = faucet_escrow(conn, alvo)
+        saldo = await get_user_balance(alvo)
+        livre = saldo["total_claim"]
+        cobertura = settlement.reserve_coverage(caucao, devido)
+
+        # Sem divida nao ha descoberto. Cobertura None nao e falha.
+        novo = "ok" if devido <= 0 or (caucao + livre) >= devido else "low"
+        linha = conn.execute("SELECT state FROM faucet_reserve_state WHERE faucet_wallet = ?",
+                             (alvo,)).fetchone()
+        # Comeca em "ok": assim o primeiro aviso de uma instalacao nova so sai
+        # se houver mesmo descoberto, e nao um reserve_ok do nada.
+        antigo = linha["state"] if linha else "ok"
+        if novo == antigo:
+            return
+
+        conn.execute(
+            "INSERT INTO faucet_reserve_state (faucet_wallet, state, changed_at) "
+            "VALUES (?, ?, ?) ON CONFLICT(faucet_wallet) DO UPDATE SET "
+            "state = excluded.state, changed_at = excluded.changed_at",
+            (alvo, novo, int(_time.time())))
+        webhooks.enfileirar(
+            conn,
+            "faucet.reserve_low" if novo == "low" else "faucet.reserve_ok",
+            {"faucet_wallet": alvo, "liquidity": livre, "escrow": round(caucao, 4),
+             "owed": round(devido, 4), "coverage": cobertura})
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def faucet_escrow(conn, faucet_wallet: str) -> float:
@@ -1725,6 +1900,11 @@ def faucet_user_address(given: str) -> str:
 class MicroClaimRequest(BaseModel):
     user_wallet: str
     amount: float
+    # Uma torneira que da um claim por token precisa dizer o que este clique e.
+    # Ausentes os dois, nada muda: o clique paga $CLAIM e toda campanha, que e
+    # o que as outras torneiras ja esperam deste endpoint.
+    campaigns: Optional[bool] = None    # False: paga $CLAIM e nenhuma campanha
+    campaign_id: Optional[int] = None   # paga so esta campanha, e nenhum $CLAIM
 
 @app.post("/api/faucethub/microclaim")
 async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = Header(None)):
@@ -1735,7 +1915,19 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
     if not x_api_key:
         raise HTTPException(status_code=401, detail="Missing X-Api-Key header")
     
-    if req.amount <= 0 or req.amount > 100:
+    # Os dois campos juntos pedem coisas opostas do mesmo clique. Recusar e
+    # melhor que escolher um: escolhido em silencio, o parceiro so descobre
+    # pelo saldo que nao bate, dias depois.
+    if req.campaign_id is not None and req.campaigns is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Send either 'campaign_id' (pays one campaign, no $CLAIM) or "
+                   "'campaigns' (pays $CLAIM, no campaign), not both")
+
+    # Com campaign_id nao ha $CLAIM para creditar, entao amount nao tem efeito
+    # e nao e validado. Recusar um clique por um campo que ele nao usa e
+    # recusar por engano.
+    if req.campaign_id is None and (req.amount <= 0 or req.amount > 100):
         raise HTTPException(status_code=400, detail="Amount must be between 0 and 100")
     
     # Authenticate
@@ -1756,12 +1948,22 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
         raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
 
     try:
-        result = _credit_microclaim(conn, faucet_wallet, user_lower, req.amount)
-        # The same click that mints $CLAIM also draws from every campaign this
-        # faucet carries. One action, paid twice: the network's own token for
-        # the work, and the partner's token from the budget they committed.
-        result["campaigns"], result["campaigns_skipped"] = _campaign_drip(
-            conn, faucet_wallet, user_lower)
+        if req.campaign_id is not None:
+            result = _claim_one_campaign(conn, faucet_wallet, user_lower, req.campaign_id)
+        else:
+            result = _credit_microclaim(conn, faucet_wallet, user_lower, req.amount)
+            if req.campaigns is False:
+                # O clique pagou $CLAIM e so isso. As duas listas vao vazias de
+                # proposito: chave ausente e indistinguivel de campanha que nao
+                # pagou, e o parceiro le as duas da mesma forma.
+                result["campaigns"], result["campaigns_skipped"] = [], []
+            else:
+                # The same click that mints $CLAIM also draws from every campaign
+                # this faucet carries. One action, paid twice: the network's own
+                # token for the work, and the partner's token from the budget
+                # they committed.
+                result["campaigns"], result["campaigns_skipped"] = _campaign_drip(
+                    conn, faucet_wallet, user_lower)
         conn.execute('''
             UPDATE faucet_api_keys SET total_requests = total_requests + 1, last_used = ?
             WHERE api_key_hash = ?
@@ -1774,6 +1976,127 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
     # something visible instead of a reward quietly going somewhere else.
     result["user_address"] = user_lower
     return result
+
+
+def _claim_one_campaign(conn, faucet_wallet: str, user_lower: str, campaign_id: int) -> dict:
+    """Paga uma campanha, e nada mais. Nao credita $CLAIM.
+
+    O relogio so anda quando houve pagamento: campanha sem orcamento devolvendo
+    429 na tentativa seguinte puniria a torneira por uma falta do patrocinador,
+    e esconderia o motivo real atras de um codigo de espera.
+    """
+    c = conn.cursor()
+    now = int(_time.time())
+
+    c.execute("SELECT 1 FROM campaign_faucets WHERE campaign_id = ? AND faucet_wallet = ?",
+              (campaign_id, faucet_wallet.lower()))
+    if not c.fetchone():
+        raise HTTPException(
+            status_code=400,
+            detail=f"This faucet is not enrolled in campaign {campaign_id}")
+
+    c.execute("SELECT last_claim_at FROM campaign_claim_cooldown "
+              "WHERE campaign_id = ? AND faucet_wallet = ? AND user_wallet = ?",
+              (campaign_id, faucet_wallet.lower(), user_lower))
+    row = c.fetchone()
+    if row and row["last_claim_at"]:
+        elapsed = now - row["last_claim_at"]
+        if elapsed < MICROCLAIM_COOLDOWN:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Cooldown active for campaign {campaign_id}. "
+                       f"Wait {MICROCLAIM_COOLDOWN - elapsed}s before next claim.")
+
+    # O carimbo fica no _campaign_drip, junto do pagamento: campanha que nao
+    # pagou nao adianta o relogio, entao orcamento vazio devolve o motivo real
+    # na tentativa seguinte em vez de um 429 que culparia a torneira por uma
+    # falta do patrocinador.
+    credited, skipped = _campaign_drip(conn, faucet_wallet, user_lower, now=now,
+                                       only_campaign=campaign_id)
+
+    c.execute("SELECT virtual_balance FROM microclaims_ledger "
+              "WHERE faucet_wallet = ? AND user_wallet = ?", (faucet_wallet, user_lower))
+    saldo = c.fetchone()
+
+    return {
+        "status": "success",
+        "faucet": faucet_wallet,
+        "user": user_lower,
+        # Este clique nao paga $CLAIM, de proposito. O saldo vai junto porque o
+        # parceiro le o mesmo campo nos dois tipos de claim.
+        "credited": 0.0,
+        "virtual_balance": saldo["virtual_balance"] if saldo else 0.0,
+        "campaigns": credited,
+        "campaigns_skipped": skipped,
+        "next_claim_in": MICROCLAIM_COOLDOWN,
+    }
+
+
+@app.get("/api/faucethub/my-campaigns")
+async def my_campaigns(x_api_key: Optional[str] = Header(None)):
+    """As campanhas em que a torneira dona da chave esta inscrita.
+
+    Existe para a torneira montar a tela dela antes de cobrar: que tokens
+    carrega, quanto um clique pagaria agora e, quando nao pagaria, por que.
+    Sem isto o parceiro so descobre que uma campanha secou no claim que
+    falhou, depois de ja ter prometido o token ao usuario dele.
+
+    A estimativa sai da mesma funcao que credita de verdade, com write=False.
+    Uma segunda conta aqui divergiria da primeira com o tempo, e quem leria a
+    divergencia e o usuario do parceiro.
+    """
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing X-Api-Key header")
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute("SELECT faucet_wallet FROM faucet_api_keys WHERE api_key_hash = ? AND is_active = 1",
+              (_hash_token(x_api_key),))
+    key_row = c.fetchone()
+    if not key_row:
+        conn.close()
+        raise HTTPException(status_code=401, detail="Invalid or inactive API key")
+    faucet_wallet = key_row["faucet_wallet"]
+    now = int(_time.time())
+
+    try:
+        c.execute(
+            "SELECT f.campaign_id, s.mint, s.name AS campaign_name, "
+            "       t.name AS token_name, t.symbol, t.decimals "
+            "FROM campaign_faucets f "
+            "LEFT JOIN settlement_campaigns s ON s.campaign_id = f.campaign_id "
+            "LEFT JOIN token_registry t ON t.mint = s.mint "
+            "WHERE f.faucet_wallet = ? ORDER BY f.campaign_id",
+            (faucet_wallet.lower(),))
+        linhas = c.fetchall()
+
+        saida = []
+        for r in linhas:
+            pago, recusa = _campaign_quote(c, r["campaign_id"], now, write=False)
+            orc = c.execute("SELECT funding FROM campaign_budget WHERE campaign_id = ?",
+                            (r["campaign_id"],)).fetchone()
+            saida.append({
+                "campaign_id": r["campaign_id"],
+                "mint": r["mint"],
+                # A campanha costuma nascer sem nome proprio; o nome que o
+                # usuario reconhece e o do token.
+                "name": r["campaign_name"] or r["token_name"],
+                "symbol": r["symbol"],
+                "decimals": r["decimals"],
+                "funding": orc["funding"] if orc else None,
+                "per_click_estimate": pago["to_user"] if pago else 0,
+                "cooldown_seconds": MICROCLAIM_COOLDOWN,
+                # "active", ou o mesmo motivo que o claim devolveria em
+                # campaigns_skipped. Sao seis motivos, nao quatro:
+                # "rate_rounds_to_zero" e "user_share_rounds_to_zero" tambem
+                # param o pagamento, e chamar isso de "active" seria prometer
+                # um clique que nao paga.
+                "status": "active" if pago else recusa["reason"],
+                "detail": None if pago else recusa["detail"],
+            })
+    finally:
+        conn.close()
+    return {"campaigns": saida}
 
 
 def _credit_microclaim(conn, faucet_wallet: str, user_lower: str, amount: float) -> dict:
@@ -2037,6 +2360,14 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
         balance_info = await get_user_balance(faucet_lower)
         if balance_info["total_claim"] < withdraw_amount:
             conn.close()
+            # A recusa que a parceira precisa saber: o usuario dela pediu e nao
+            # recebeu, e a causa e desta ponta. As outras recusas deste endpoint
+            # (abaixo do minimo, assinatura invalida) nao sao enviadas de
+            # proposito -- a tela dela ja as impede, e virariam ruido que
+            # esconde esta.
+            _avisar_saque("withdrawal.failed", faucet_lower, user_lower,
+                          withdraw_amount, "CLAIM", "",
+                          reason="Faucet reserve insufficient")
             raise HTTPException(
                 status_code=400,
                 detail=(f"Faucet cannot cover this withdrawal. Escrowed: {round(escrowed, 4)}, "
@@ -2085,10 +2416,17 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
         conn.commit()
     except Exception as e:
         conn.close()
+        _avisar_saque("withdrawal.failed", faucet_lower, user_lower,
+                      withdraw_amount, "CLAIM", "", reason=f"Settlement error: {e}")
         raise HTTPException(status_code=500, detail=f"Withdrawal failed: {e}")
     
     conn.close()
     
+    # Depois do commit e depois do close, como manda o pedido: enfileirar e
+    # um INSERT proprio e nunca entra na transacao do saque.
+    _avisar_saque("withdrawal.settled", faucet_lower, user_lower,
+                  withdraw_amount, "CLAIM", tx_hash)
+
     audit_logger.info(f"L2_WITHDRAW: {faucet_lower} -> {user_lower} | {withdraw_amount} CLAIM | tx={tx_hash}")
     
     return {
@@ -4131,6 +4469,56 @@ def init_bounties_table():
     ''')
     conn.commit()
     conn.close()
+
+# A cada 5s a fila e drenada; a reserva e conferida a cada 60s, porque ela
+# custa uma leitura de saldo e nao muda de segundo em segundo.
+WEBHOOK_TICK = int(os.getenv("WEBHOOK_TICK_SECONDS", "5"))
+WEBHOOK_RESERVA_A_CADA = 12
+
+
+async def _laco_webhooks():
+    """Entrega o que esta na fila e observa a reserva da parceira.
+
+    Vive separado dos handlers de proposito: o envio tem timeout de 10s e
+    reentregas de ate 12 horas, e nada disso pode acontecer dentro de um
+    request de saque.
+    """
+    import httpx
+
+    voltas = 0
+    async with httpx.AsyncClient() as cliente:
+        while True:
+            await asyncio.sleep(WEBHOOK_TICK)
+            if not webhooks.configurado():
+                continue
+            try:
+                conn = get_db_connection()
+                try:
+                    await webhooks.drenar(conn, cliente)
+                finally:
+                    conn.close()
+                voltas += 1
+                if voltas % WEBHOOK_RESERVA_A_CADA == 0:
+                    await _conferir_reserva_da_parceira()
+            except Exception as e:
+                audit_logger.warning("Laco de webhooks tropecou: %r", e)
+
+
+@app.on_event("startup")
+async def startup_webhooks():
+    try:
+        conn = get_db_connection()
+        webhooks.criar_tabelas(conn)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"\u26a0\ufe0f Failed to init webhook tables: {e}")
+        return
+    if webhooks.configurado():
+        asyncio.create_task(_laco_webhooks())
+        print(f"\U0001f4ec Webhooks para {webhooks.torneira() or '(torneira nao definida)'} "
+              f"-> {webhooks.url()}")
+
 
 @app.on_event("startup")
 async def startup_bounties():
@@ -6412,6 +6800,20 @@ def init_settlement_tables():
         )
     ''')
 
+    # Cooldown proprio do claim por campanha, separado do cooldown do $CLAIM.
+    # Uma torneira que da um claim por token tem claims diferentes acontecendo
+    # no mesmo minuto; se dividissem um relogio so, o claim de moeda bloquearia
+    # o claim de token -- que e exatamente o que a separacao existe para evitar.
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS campaign_claim_cooldown (
+            campaign_id   INTEGER NOT NULL,
+            faucet_wallet TEXT NOT NULL,
+            user_wallet   TEXT NOT NULL,
+            last_claim_at INTEGER NOT NULL,
+            PRIMARY KEY (campaign_id, faucet_wallet, user_wallet)
+        )
+    ''')
+
     # One row per day per campaign, so participation is measured from real
     # traffic instead of assumed. The first day runs on the default and
     # corrects itself from the second.
@@ -7195,7 +7597,97 @@ def _roll_month_if_needed(c, row, now: int):
     return carried, 0
 
 
-def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None):
+def _campaign_quote(c, campaign_id: int, now: int, write: bool = True):
+    """Quanto um clique nesta campanha pagaria agora, ou por que nao pagaria.
+
+    Devolve (pagamento, recusa). Um dos dois e sempre None.
+
+    Esta conta vivia dentro do _campaign_drip. Saiu de la quando a torneira
+    passou a poder perguntar antes de cobrar, em /api/faucethub/my-campaigns:
+    estimativa feita por uma conta e credito feito por outra divergem com o
+    tempo, e quem le a divergencia e o parceiro, no numero que ele mostra para
+    o usuario dele.
+
+    write=False responde sem tocar no banco. O unico efeito que a leitura
+    deixaria e a virada de mes, e virar o mes porque alguem consultou nao e
+    coisa que um GET deva fazer.
+    """
+    def recusa(reason, detail):
+        return None, {"campaign_id": campaign_id, "reason": reason, "detail": detail}
+
+    c.execute("SELECT * FROM campaign_budget WHERE campaign_id = ?", (campaign_id,))
+    row = c.fetchone()
+    if not row:
+        return recusa("no_budget",
+                      "This faucet is enrolled, but the campaign has no budget set yet")
+    if row["ends_at"] and now > row["ends_at"]:
+        return recusa("window_closed", f"The campaign window closed at {row['ends_at']}")
+
+    if write:
+        rolled, spent_month = _roll_month_if_needed(c, row, now)
+    elif row["month_key"] == _month_key(now):
+        rolled, spent_month = row["rolled_over"], row["spent_month"]
+    else:
+        # A mesma conta de _roll_month_if_needed, sem gravar.
+        rolled = max(0, row["monthly_cap"] + row["rolled_over"] - row["spent_month"])
+        spent_month = 0
+
+    total_left = row["total_budget"] - row["spent_total"]
+    if total_left <= 0:
+        return recusa("budget_spent", f"The whole budget of {row['total_budget']} is spent")
+    allowance = distribution.month_budget(total_left, row["monthly_cap"], rolled)
+    month_left = max(0, allowance - spent_month)
+    if month_left <= 0:
+        return recusa("month_spent",
+                      f"This month's allowance of {allowance} is spent; "
+                      f"{total_left} remains for later months")
+
+    # Participation and active users come from yesterday's traffic, so the
+    # rate answers to what people actually did rather than to a guess.
+    day = _time.strftime("%Y-%m-%d", _time.gmtime(now))
+    prev = _time.strftime("%Y-%m-%d", _time.gmtime(now - 86400))
+    c.execute("SELECT claims, users FROM campaign_traffic WHERE campaign_id = ? AND day = ?",
+              (campaign_id, prev))
+    y = c.fetchone()
+    rate_part = distribution.participation(y["claims"], y["users"]) if y else distribution.DEFAULT_PARTICIPATION
+
+    c.execute(
+        "SELECT COUNT(DISTINCT user_address) FROM settlement_rewards "
+        "WHERE campaign_id = ? AND created_at >= ?",
+        (campaign_id, now - 86400),
+    )
+    active = c.fetchone()[0] or 0
+
+    dias = _days_left_in_month(now)
+    gross = distribution.per_click(month_left, dias, active, rate_part)
+    gross = distribution.credit(gross, month_left)
+    if gross <= 0:
+        # The rate is truncated to an integer, so a day's share spread over
+        # the expected clicks can land under one unit. Nothing is debited --
+        # but a sponsor seeing no payout and no reason would have no way to
+        # find out it was arithmetic and not a bug.
+        return recusa("rate_rounds_to_zero",
+                      f"{month_left} over {dias} day(s) across the expected clicks "
+                      f"is less than one unit per click; raise the monthly cap or "
+                      f"use a token with more decimals")
+
+    to_user, to_treasury = distribution.split(gross)
+    if to_user <= 0:
+        # Gross of 1 splits 80/20 into 0 and 1: the user's share truncates
+        # away while the treasury keeps the unit. Saying so is the whole
+        # point -- this is the case that passed every day of September and
+        # failed on 1 October without anybody being told why.
+        return recusa("user_share_rounds_to_zero",
+                      f"The gross of {gross} per click leaves the user nothing after "
+                      f"the {distribution.USER_SHARE}/{distribution.TREASURY_SHARE} "
+                      f"split; raise the monthly cap or use a token with more decimals")
+
+    return {"campaign_id": campaign_id, "gross": gross, "to_user": to_user,
+            "to_treasury": to_treasury, "funding": row["funding"], "day": day}, None
+
+
+def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None,
+                   only_campaign: int = None):
     """Credit every campaign this faucet carries.
 
     Returns (credited, skipped). Both matter: a campaign that pays nothing
@@ -7206,6 +7698,10 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None)
     Never credits past the budget: publishing a root the vault cannot cover is
     refused on-chain, and that refusal costs everyone in the batch, not only
     whoever tipped it over.
+
+    only_campaign limita a uma campanha. E o que sustenta o claim separado por
+    token: a torneira que da um claim por moeda cobra uma campanha de cada vez,
+    e nao todas de uma vez como faz o claim comum.
     """
     now = now or int(_time.time())
     c = conn.cursor()
@@ -7214,101 +7710,56 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None)
         (faucet_wallet.lower(),),
     )
     campaigns = [r[0] for r in c.fetchall()]
+    if only_campaign is not None:
+        campaigns = [cid for cid in campaigns if cid == only_campaign]
     credited = []
     skipped = []
 
-    def skip(cid, reason, detail):
-        skipped.append({"campaign_id": cid, "reason": reason, "detail": detail})
-
     for campaign_id in campaigns:
-        c.execute("SELECT * FROM campaign_budget WHERE campaign_id = ?", (campaign_id,))
-        row = c.fetchone()
-        if not row:
-            skip(campaign_id, "no_budget",
-                 "This faucet is enrolled, but the campaign has no budget set yet")
-            continue
-        if row["ends_at"] and now > row["ends_at"]:
-            skip(campaign_id, "window_closed",
-                 f"The campaign window closed at {row['ends_at']}")
-            continue
-
-        rolled, spent_month = _roll_month_if_needed(c, row, now)
-
-        total_left = row["total_budget"] - row["spent_total"]
-        if total_left <= 0:
-            skip(campaign_id, "budget_spent",
-                 f"The whole budget of {row['total_budget']} is spent")
-            continue
-        allowance = distribution.month_budget(total_left, row["monthly_cap"], rolled)
-        month_left = max(0, allowance - spent_month)
-        if month_left <= 0:
-            skip(campaign_id, "month_spent",
-                 f"This month's allowance of {allowance} is spent; "
-                 f"{total_left} remains for later months")
-            continue
-
-        # Participation and active users come from yesterday's traffic, so the
-        # rate answers to what people actually did rather than to a guess.
-        day = _time.strftime("%Y-%m-%d", _time.gmtime(now))
-        prev = _time.strftime("%Y-%m-%d", _time.gmtime(now - 86400))
-        c.execute("SELECT claims, users FROM campaign_traffic WHERE campaign_id = ? AND day = ?",
-                  (campaign_id, prev))
-        y = c.fetchone()
-        rate_part = distribution.participation(y["claims"], y["users"]) if y else distribution.DEFAULT_PARTICIPATION
-
-        c.execute(
-            "SELECT COUNT(DISTINCT user_address) FROM settlement_rewards "
-            "WHERE campaign_id = ? AND created_at >= ?",
-            (campaign_id, now - 86400),
-        )
-        active = c.fetchone()[0] or 0
-
-        dias = _days_left_in_month(now)
-        gross = distribution.per_click(month_left, dias, active, rate_part)
-        gross = distribution.credit(gross, month_left)
-        if gross <= 0:
-            # The rate is truncated to an integer, so a day's share spread over
-            # the expected clicks can land under one unit. Nothing is debited --
-            # but a sponsor seeing no payout and no reason would have no way to
-            # find out it was arithmetic and not a bug.
-            skip(campaign_id, "rate_rounds_to_zero",
-                 f"{month_left} over {dias} day(s) across the expected clicks "
-                 f"is less than one unit per click; raise the monthly cap or "
-                 f"use a token with more decimals")
-            continue
-
-        to_user, to_treasury = distribution.split(gross)
-        if to_user <= 0:
-            # Gross of 1 splits 80/20 into 0 and 1: the user's share truncates
-            # away while the treasury keeps the unit. Saying so is the whole
-            # point -- this is the case that passed every day of September and
-            # failed on 1 October without anybody being told why.
-            skip(campaign_id, "user_share_rounds_to_zero",
-                 f"The gross of {gross} per click leaves the user nothing after "
-                 f"the {distribution.USER_SHARE}/{distribution.TREASURY_SHARE} "
-                 f"split; raise the monthly cap or use a token with more decimals")
+        pago, recusa = _campaign_quote(c, campaign_id, now)
+        if recusa:
+            skipped.append(recusa)
             continue
 
         c.execute(
             "INSERT INTO settlement_rewards (campaign_id, user_address, amount, created_at) "
             "VALUES (?, ?, ?, ?)",
-            (campaign_id, user_address, to_user, now),
+            (campaign_id, user_address, pago["to_user"], now),
         )
         c.execute(
             "UPDATE campaign_budget SET spent_total = spent_total + ?, spent_month = spent_month + ?, "
             "treasury_owed = treasury_owed + ? WHERE campaign_id = ?",
-            (gross, gross, to_treasury, campaign_id),
+            (pago["gross"], pago["gross"], pago["to_treasury"], campaign_id),
         )
         c.execute(
             "INSERT INTO campaign_traffic (campaign_id, day, claims, users) VALUES (?, ?, 1, 1) "
             "ON CONFLICT(campaign_id, day) DO UPDATE SET claims = claims + 1",
-            (campaign_id, day),
+            (campaign_id, pago["day"]),
         )
+        # O relogio desta campanha e carimbado aqui, onde o pagamento
+        # acontece, e nao so no claim por campanha. Assim a tabela diz a
+        # verdade sobre quando a campanha pagou este usuario, tenha o clique
+        # entrado pela porta nova ou pela antiga.
+        #
+        # Carimbar sem conferir e deliberado. Conferir aqui tambem fecharia o
+        # caso da torneira que alterna as duas portas e recebe duas vezes na
+        # mesma janela -- mas o relogio do $CLAIM e este sao gravados por
+        # chamadas diferentes de time(), e um segundo de diferenca entre os
+        # dois faria o claim comum parar de pagar campanha na virada do
+        # cooldown, em silencio, para toda torneira que existe hoje. O furo
+        # teorico custa menos que essa regressao.
+        c.execute(
+            "INSERT INTO campaign_claim_cooldown "
+            "(campaign_id, faucet_wallet, user_wallet, last_claim_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(campaign_id, faucet_wallet, user_wallet) "
+            "DO UPDATE SET last_claim_at = excluded.last_claim_at",
+            (campaign_id, faucet_wallet.lower(), user_address, now))
+
         credited.append({
             "campaign_id": campaign_id,
-            "amount": to_user,
-            "treasury": to_treasury,
-            "funding": row["funding"],
+            "amount": pago["to_user"],
+            "treasury": pago["to_treasury"],
+            "funding": pago["funding"],
         })
 
     return credited, skipped
@@ -8274,6 +8725,8 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
     except Exception as e:
         # A gravacao do custo nunca pode derrubar um saque que ja foi enviado.
         audit_logger.warning(f"Withdrawal {signature} sent but its cost went unrecorded: {e!r}")
+
+    _avisar_saque_de_token(signature, claim["recipient"], mint, claim["amount"])
 
     audit_logger.info(
         f"Relayed withdrawal of {claim['amount']} in batch {req.batch_id}: {signature} "
