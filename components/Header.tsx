@@ -144,13 +144,18 @@ export const Header: React.FC = () => {
     return (
         <header className="glass border-b border-brand-primary/30 sticky top-0 z-50">
             <div className="bg-brand-primary/20 py-1.5 px-4 text-center border-b border-brand-primary/40 neon-border-dynamic">
-                <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em] flex items-center justify-center gap-3">
+                <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.15em] md:tracking-[0.3em] flex items-center justify-center gap-2 md:gap-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-ping"></span>
                     Public TestNet · Settlement live on Solana devnet
                 </p>
             </div>
             <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+                {/* min-w-0 nos dois niveis: sem isso o bloco da marca nao
+                    encolhe abaixo do proprio conteudo, e num telefone de
+                    360px o selo Testnet era desenhado por cima do botao de
+                    conectar -- 13px de sobreposicao, medidos, em 360, 390 e
+                    430. O cabecalho simplesmente nao refluia. */}
+                <div className="flex items-center gap-2 md:gap-3 min-w-0">
                     {/* A marca da logo oficial: a gota com o F e o elo de
                         corrente, que a versao anterior nao trazia. Só a marca,
                         não o lockup inteiro -- nele o wordmark tem 50px de 295,
@@ -159,10 +164,15 @@ export const Header: React.FC = () => {
                         zoom e acompanha o tema. */}
                     <img src="/faucetchain-mark.png" alt="FaucetChain"
                          width={25} height={44}
-                         className="h-11 w-auto hover:scale-105 transition-transform" />
-                    <div>
-                        <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight flex items-center gap-2 drop-shadow-lg">
-                            <span className="flex items-center">
+                         className="h-9 md:h-11 w-auto flex-shrink-0 hover:scale-105 transition-transform" />
+                    <div className="min-w-0">
+                        <h1 className="text-sm sm:text-xl md:text-2xl font-black uppercase tracking-tight flex flex-wrap items-center gap-x-2 gap-y-1 drop-shadow-lg">
+                            {/* min-w-0 + truncate, e nao flex: flex da ao
+                                wordmark uma largura minima que o pai nao
+                                consegue reduzir, e num aparelho de 320px ele
+                                era desenhado por cima do botao em vez de
+                                ceder. Cortado e feio; sobreposto e quebrado. */}
+                            <span className="min-w-0 truncate">
                                 <span className="text-white">FAUCET</span>
                                 <span className="text-brand-primary">CHAIN</span>
                             </span>
@@ -193,7 +203,7 @@ export const Header: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                     {isConnected ? (
                         <div className="flex items-center gap-3">
                             <div className="hidden lg:flex flex-col items-end">
@@ -211,7 +221,7 @@ export const Header: React.FC = () => {
                     ) : (
                         <button
                             onClick={() => setIsAuthModalOpen(true)}
-                            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black transition-all duration-300 bg-brand-primary text-brand-bg hover:bg-white hover:shadow-glow-primary hover:scale-105 active:scale-95 border border-brand-primary/50"
+                            className="flex items-center gap-2 px-3 md:px-6 py-2.5 rounded-xl text-xs font-black whitespace-nowrap transition-all duration-300 bg-brand-primary text-brand-bg hover:bg-white hover:shadow-glow-primary hover:scale-105 active:scale-95 border border-brand-primary/50"
                         >
                             <WalletIcon className="w-4 h-4" />
                             {t('wallet.connect')}
