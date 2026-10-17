@@ -292,6 +292,8 @@ the key that can replace the program never has to sit on the machine running a d
 | `FAUCETHUNTER_WEBHOOK_SECRET` | Signs the webhooks sent to the partner faucet. Unset, the whole webhook path is inert: nothing is queued and nothing is sent |
 | `FAUCETHUNTER_WEBHOOK_URL` | Where those webhooks go. Defaults to the partner's endpoint |
 | `FAUCETHUNTER_FAUCET_WALLET` | Which faucet's events are sent. Only withdrawals by that faucet's own users leave this network |
+| `RELAYER_ALERT_LOW`, `RELAYER_ALERT_CRITICAL` | When the relayer alarm fires, counted in new recipients the balance still affords, not in lamports. Defaults 500 and 100 |
+| `RELAYER_CHECK_SECONDS` | How often that balance is read. Default 300 |
 | `RATE_LIMIT_TRUST_LOCALHOST` | On by default for local work. Set to `0` before exposing the API: behind a reverse proxy on the same host every caller arrives as 127.0.0.1, and the exemption would switch rate limiting off for the whole internet |
 | `AUTH_HOURLY_PER_IP`, `REGISTER_HOURLY_PER_IP`, `TRACKER_HOURLY_PER_IP`, `MINING_HOURLY_PER_NODE` | Ceilings on the routes that are open by design |
 | `RELAY_HOURLY_PER_ADDRESS`, `PROOF_HOURLY_PER_IP` | Ceilings on the two endpoints that cost real SOL or real CPU |

@@ -4504,6 +4504,44 @@ async def _laco_webhooks():
                 audit_logger.warning("Laco de webhooks tropecou: %r", e)
 
 
+# Saldo de relayer muda devagar; cinco minutos chega e sobra. O alarme roda
+# sempre, inclusive sem webhook configurado: ficar sem SOL e problema nosso,
+# nao da parceira.
+RELAYER_CHECK_SECONDS = int(os.getenv("RELAYER_CHECK_SECONDS", "300"))
+
+
+async def _laco_relayer():
+    while True:
+        await asyncio.sleep(RELAYER_CHECK_SECONDS)
+        try:
+            # A leitura toca a rede, entao sai da thread do loop de eventos.
+            await asyncio.to_thread(conferir_saldo_do_relayer)
+        except Exception as e:
+            audit_logger.warning("Alarme do relayer tropecou: %r", e)
+
+
+@app.on_event("startup")
+async def startup_relayer_alarm():
+    try:
+        conn = get_db_connection()
+        # Um estado por alarme, e so o ULTIMO avisado. E o que separa alarme de
+        # ruido: sem isto a mesma linha sai a cada verificacao, e quem le
+        # aprende a ignorar justamente a linha que importa.
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS alert_state (
+                alert_key  TEXT PRIMARY KEY,
+                state      TEXT NOT NULL,
+                changed_at INTEGER NOT NULL
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"\u26a0\ufe0f Failed to init alert tables: {e}")
+        return
+    asyncio.create_task(_laco_relayer())
+
+
 @app.on_event("startup")
 async def startup_webhooks():
     try:
@@ -8740,17 +8778,19 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
     }
 
 
-@app.get("/api/solana/relayer")
-async def relayer_economics():
-    """O que o subsidio custou, e quantas pessoas ainda cabem nele.
+# Quantos usuarios novos ainda cabem antes de o alarme tocar. A medida e
+# usuarios, nao lamports: meio SOL e muito ou pouco dependendo do rent, que e
+# 95% do custo de um usuario novo e muda com a rede.
+RELAYER_ALERT_LOW = int(os.getenv("RELAYER_ALERT_LOW", "500"))
+RELAYER_ALERT_CRITICAL = int(os.getenv("RELAYER_ALERT_CRITICAL", "100"))
 
-    O relayer paga a taxa e o rent para que ninguem precise ter SOL para receber
-    o que ganhou. Isso era uma frase na documentacao, com a observacao de que o
-    custo nao era cobrado de ninguem e nao havia medicao dele. Agora ha.
 
-    O rent domina: e uma vez por usuario por token, e e maior que muita
-    recompensa individual. O numero que interessa nao e quanto ja gastamos, e
-    quantos usuarios novos o saldo atual ainda atende.
+def _relayer_economia() -> dict:
+    """O que o subsidio custou, quanto resta, e se isso ja e pouco.
+
+    Vive fora do endpoint porque o alarme le o mesmo numero que o painel
+    mostra. Duas contas separadas divergem com o tempo, e a que erraria e a do
+    alarme -- que so e lido quando ja e tarde.
     """
     conn = get_db_connection()
     try:
@@ -8777,6 +8817,19 @@ async def relayer_economics():
     # Quanto custa o proximo usuario que nunca recebeu este token: a parcela
     # que manda. Um que ja tem conta custa so a taxa.
     novo = TOKEN_ACCOUNT_RENT_LAMPORTS + SOLANA_LAMPORTS_PER_SIGNATURE * 2
+    cabem = (balance // novo) if balance is not None else None
+
+    # Saldo ilegivel nao e "ok". Chamar de ok o que nao foi medido e a forma
+    # mais comum de um alarme ficar calado no dia em que precisava tocar.
+    if cabem is None:
+        estado = "unknown"
+    elif cabem <= RELAYER_ALERT_CRITICAL:
+        estado = "critical"
+    elif cabem <= RELAYER_ALERT_LOW:
+        estado = "low"
+    else:
+        estado = "ok"
+
     return {
         "withdrawals": withdrawals,
         "first_time_recipients": first_timers,
@@ -8789,8 +8842,80 @@ async def relayer_economics():
         # Rent nao e despesa, e deposito: fica travado na conta do usuario e
         # volta se ela for fechada. Na pratica ninguem fecha conta de token,
         # entao o relayer trata como gasto e so a contabilidade sabe a diferenca.
-        "new_recipients_affordable": (balance // novo) if balance is not None else None,
+        "new_recipients_affordable": cabem,
+        "alert": estado,
+        "alert_low_below": RELAYER_ALERT_LOW,
+        "alert_critical_below": RELAYER_ALERT_CRITICAL,
     }
+
+
+def _alarme_mudou(conn, chave: str, novo_estado: str) -> bool:
+    """True so quando o estado deste alarme mudou desde o ultimo aviso."""
+    linha = conn.execute("SELECT state FROM alert_state WHERE alert_key = ?",
+                         (chave,)).fetchone()
+    if linha and linha["state"] == novo_estado:
+        return False
+    conn.execute(
+        "INSERT INTO alert_state (alert_key, state, changed_at) VALUES (?, ?, ?) "
+        "ON CONFLICT(alert_key) DO UPDATE SET state = excluded.state, "
+        "changed_at = excluded.changed_at",
+        (chave, novo_estado, int(_time.time())))
+    conn.commit()
+    return True
+
+
+def conferir_saldo_do_relayer() -> dict:
+    """Le o saldo e grita uma vez quando ele cruza um limite.
+
+    O relayer paga a taxa e o rent de cada saque para que ninguem precise ter
+    SOL para receber o que ganhou. Quando ele seca, os saques param, e o
+    sintoma nao se parece com falta de saldo: a tela mostra erro de transacao
+    e nada no erro diz o que aconteceu. Este alarme existe para que esse dia
+    seja previsto em vez de descoberto.
+
+    Grita na MUDANCA. A mesma linha repetida a cada cinco minutos ensina quem
+    le a ignorar a linha.
+    """
+    eco = _relayer_economia()
+    conn = get_db_connection()
+    try:
+        if not _alarme_mudou(conn, "relayer_balance", eco["alert"]):
+            return eco
+    finally:
+        conn.close()
+
+    cabem = eco["new_recipients_affordable"]
+    sol = (eco["balance_lamports"] or 0) / 1e9
+    if eco["alert"] == "critical":
+        audit_logger.error(
+            "RELAYER CRITICO: %s SOL, cabem %s usuarios novos (limite %s). "
+            "Os saques de token param quando isto zerar.",
+            f"{sol:.4f}", cabem, RELAYER_ALERT_CRITICAL)
+    elif eco["alert"] == "low":
+        audit_logger.warning(
+            "Relayer baixo: %s SOL, cabem %s usuarios novos (limite %s).",
+            f"{sol:.4f}", cabem, RELAYER_ALERT_LOW)
+    elif eco["alert"] == "unknown":
+        audit_logger.error("Saldo do relayer ilegivel: o alarme esta cego.")
+    else:
+        audit_logger.info("Relayer recomposto: %s SOL, cabem %s usuarios novos.",
+                          f"{sol:.4f}", cabem)
+    return eco
+
+
+@app.get("/api/solana/relayer")
+async def relayer_economics():
+    """O que o subsidio custou, e quantas pessoas ainda cabem nele.
+
+    O relayer paga a taxa e o rent para que ninguem precise ter SOL para receber
+    o que ganhou. Isso era uma frase na documentacao, com a observacao de que o
+    custo nao era cobrado de ninguem e nao havia medicao dele. Agora ha.
+
+    O rent domina: e uma vez por usuario por token, e e maior que muita
+    recompensa individual. O numero que interessa nao e quanto ja gastamos, e
+    quantos usuarios novos o saldo atual ainda atende.
+    """
+    return _relayer_economia()
 
 
 if __name__ == "__main__":
