@@ -4558,6 +4558,14 @@ async def _laco_relayer():
 
 
 @app.on_event("startup")
+async def startup_spend_columns():
+    try:
+        _migrar_historico_para_compras()
+    except Exception as e:
+        print(f"\u26a0\ufe0f Failed to migrate microclaims_history: {e}")
+
+
+@app.on_event("startup")
 async def startup_relayer_alarm():
     try:
         conn = get_db_connection()
@@ -6880,6 +6888,20 @@ def init_settlement_tables():
     # no mesmo minuto; se dividissem um relogio so, o claim de moeda bloquearia
     # o claim de token -- que e exatamente o que a separacao existe para evitar.
     c.execute('''
+        CREATE TABLE IF NOT EXISTS microclaim_spends (
+            idempotency_key TEXT PRIMARY KEY,
+            faucet_wallet   TEXT NOT NULL,
+            user_wallet     TEXT NOT NULL,
+            item            TEXT NOT NULL,
+            amount          REAL NOT NULL,
+            balance_after   REAL NOT NULL,
+            created_at      INTEGER NOT NULL,
+            refunded_at     INTEGER,
+            refund_reason   TEXT
+        )
+    ''')
+
+    c.execute('''
         CREATE TABLE IF NOT EXISTS campaign_claim_cooldown (
             campaign_id   INTEGER NOT NULL,
             faucet_wallet TEXT NOT NULL,
@@ -7670,6 +7692,280 @@ def _roll_month_if_needed(c, row, now: int):
         (key, carried, row["campaign_id"]),
     )
     return carried, 0
+
+
+def _migrar_historico_para_compras():
+    """item e signature no historico de micro-claims.
+
+    O log existia para CLAIM e WITHDRAW, onde nao ha o que comprar nem o que
+    assinar. Uma compra tem as duas coisas, e o parceiro vai procura-las aqui.
+    Colunas novas e anulaveis: nada que ja esta gravado muda.
+    """
+    conn = get_db_connection()
+    try:
+        existentes = {r[1] for r in conn.execute("PRAGMA table_info(microclaims_history)")}
+        for coluna, tipo in (("item", "TEXT"), ("signature", "TEXT")):
+            if coluna not in existentes:
+                conn.execute(f"ALTER TABLE microclaims_history ADD COLUMN {coluna} {tipo}")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass          # tabela ainda nao existe; nasce com as colunas certas
+    finally:
+        conn.close()
+
+
+SPEND_HEADER = "FaucetChain spend authorization"
+
+
+def _conferir_assinatura_de_compra(req, faucet_wallet: str):
+    """Prova que o DONO do saldo autorizou este gasto, e so este.
+
+    A chave de API diz qual torneira esta falando. Ela nao pode dizer que o
+    usuario quis gastar: se vazar, quem a tiver esvazia o saldo de todo mundo
+    sem assinar nada. Por isso a assinatura e do usuario, com a carteira
+    Solana que ele ja usa na torneira.
+
+    A frase assinada amarra os cinco campos que importam -- torneira, carteira,
+    item, valor e este pedido. Assinatura que nao diz o valor serve para
+    qualquer valor, e assinatura que nao diz a torneira serve em qualquer
+    torneira.
+    """
+    def recusar(motivo: str):
+        # O parceiro procura 401 e a palavra "signature" no detail; o motivo
+        # fica junto porque "invalid signature" sem causa e um dia perdido de
+        # cada lado descobrindo qual das duas pontas montou a frase diferente.
+        raise HTTPException(status_code=401, detail=f"Invalid signature: {motivo}")
+
+    # Sem carteira Solana nao ha chave ed25519 contra a qual conferir. Um
+    # endereco 0x e aceito no claim, onde ninguem assina, e nao serve aqui.
+    try:
+        settlement.decode_pubkey(req.user_wallet.strip())
+    except Exception:
+        recusar("user_wallet must be the user's Solana address, since that is "
+                "the key the signature is checked against")
+
+    esperado = [
+        SPEND_HEADER,
+        f"faucet: {faucet_wallet.lower()}",
+        f"wallet: {req.user_wallet.strip()}",
+        f"item: {req.item}",
+        None,                                   # amount, comparado como numero
+        f"nonce: {req.idempotency_key}",
+        f"timestamp: {req.sig_timestamp}",
+    ]
+    linhas = (req.message or "").split("\n")
+    if len(linhas) != len(esperado):
+        recusar(f"the signed message must have {len(esperado)} lines, got {len(linhas)}")
+    for i, (obtido, quer) in enumerate(zip(linhas, esperado)):
+        if quer is None:
+            if not obtido.startswith("amount: "):
+                recusar("line 5 of the signed message must be the amount")
+            try:
+                assinado = float(obtido[len("amount: "):])
+            except ValueError:
+                recusar("the signed amount is not a number")
+            # Comparado como numero: 10, 10.0 e 10.0000 sao o mesmo gasto, e
+            # formatacao de float e exatamente onde dois clientes divergem.
+            if abs(assinado - float(req.amount)) > 1e-9:
+                recusar(f"the signed amount ({assinado}) is not the amount being spent "
+                        f"({req.amount})")
+            continue
+        if obtido != quer:
+            recusar(f"line {i + 1} of the signed message says {obtido!r}, "
+                    f"this request says {quer!r}")
+
+    # A janela e a propria do verificador (SIGNATURE_MAX_AGE), e ele tambem
+    # recusa 400 para assinatura malformada. Aqui tudo vira 401 com a palavra
+    # que o parceiro procura, sem perder o motivo.
+    try:
+        require_solana_ownership(req.user_wallet.strip(), req.message,
+                                 req.signature, req.sig_timestamp)
+    except HTTPException as e:
+        recusar(str(e.detail))
+
+
+class MicroClaimSpendRequest(BaseModel):
+    user_wallet: str          # endereco Solana: e a chave que assina
+    amount: float
+    item: str
+    idempotency_key: str
+    message: str
+    signature: str
+    sig_timestamp: int
+
+
+class MicroClaimRefundRequest(BaseModel):
+    idempotency_key: str
+    reason: Optional[str] = None
+
+
+@app.post("/api/faucethub/microclaim/spend")
+async def spend_microclaim(req: MicroClaimSpendRequest,
+                           x_api_key: Optional[str] = Header(None)):
+    """Gasta saldo L2 do usuario na torneira que o creditou.
+
+    Sai direto da linha (torneira, usuario) do livro: o gasto acontece na mesma
+    torneira que deve o saldo, entao nao ha saque, nao ha L1 e nao ha
+    compensacao entre torneiras. E tambem por isso que o debito reduz o que a
+    torneira deve, e portanto a divida que a prova de reserva mede.
+    """
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing X-Api-Key header")
+    if not isinstance(req.amount, (int, float)) or not math.isfinite(req.amount) or req.amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be a positive number")
+    if not re.fullmatch(r"[0-9a-fA-F]{32}", req.idempotency_key or ""):
+        raise HTTPException(status_code=400, detail="idempotency_key must be 32 hex characters")
+    if not (req.item or "").strip():
+        raise HTTPException(status_code=400, detail="item is required")
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('SELECT faucet_wallet FROM faucet_api_keys WHERE api_key_hash = ? AND is_active = 1',
+              (_hash_token(x_api_key),))
+    key_row = c.fetchone()
+    if not key_row:
+        conn.close()
+        raise HTTPException(status_code=401, detail="Invalid or inactive API key")
+    faucet_wallet = key_row["faucet_wallet"]
+
+    try:
+        # Repetido antes de qualquer conferencia cara: o cliente que reenvia por
+        # timeout precisa da MESMA resposta, nao de um segundo debito.
+        c.execute("SELECT * FROM microclaim_spends WHERE idempotency_key = ?",
+                  (req.idempotency_key,))
+        ja = c.fetchone()
+        if ja:
+            if ja["faucet_wallet"] != faucet_wallet.lower():
+                raise HTTPException(status_code=409,
+                                    detail="That idempotency_key belongs to another faucet")
+            return {"status": "spent", "balance": ja["balance_after"],
+                    "spent": ja["amount"], "repeated": True}
+
+        _conferir_assinatura_de_compra(req, faucet_wallet)
+
+        try:
+            user_lower = faucet_user_address(req.user_wallet)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
+
+        c.execute("SELECT virtual_balance FROM microclaims_ledger "
+                  "WHERE faucet_wallet = ? AND user_wallet = ?", (faucet_wallet, user_lower))
+        linha = c.fetchone()
+        saldo = float(linha["virtual_balance"]) if linha else 0.0
+        if saldo + 1e-9 < float(req.amount):
+            raise HTTPException(status_code=402,
+                                detail={"detail": "insufficient balance", "balance": round(saldo, 8)})
+
+        agora = int(_time.time())
+        novo = round(saldo - float(req.amount), 8)
+        c.execute("UPDATE microclaims_ledger SET virtual_balance = ? "
+                  "WHERE faucet_wallet = ? AND user_wallet = ?",
+                  (novo, faucet_wallet, user_lower))
+        # A linha de idempotencia entra na MESMA transacao do debito. Separadas,
+        # uma queda entre as duas cobra de novo no reenvio.
+        c.execute("INSERT INTO microclaim_spends (idempotency_key, faucet_wallet, user_wallet, "
+                  "item, amount, balance_after, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                  (req.idempotency_key, faucet_wallet.lower(), user_lower, req.item,
+                   float(req.amount), novo, agora))
+        c.execute("INSERT INTO microclaims_history (faucet_wallet, user_wallet, amount, "
+                  "event_type, tx_hash, timestamp, item, signature) "
+                  "VALUES (?, ?, ?, 'SPEND', ?, ?, ?, ?)",
+                  (faucet_wallet, user_lower, float(req.amount), req.idempotency_key,
+                   agora, req.item, req.signature))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        # Dois pedidos com a mesma chave ao mesmo tempo: um grava, o outro cai
+        # aqui e le o resultado do primeiro em vez de cobrar duas vezes.
+        conn.rollback()
+        c.execute("SELECT * FROM microclaim_spends WHERE idempotency_key = ?",
+                  (req.idempotency_key,))
+        ja = c.fetchone()
+        if not ja:
+            raise
+        return {"status": "spent", "balance": ja["balance_after"],
+                "spent": ja["amount"], "repeated": True}
+    finally:
+        conn.close()
+
+    audit_logger.info("L2_SPEND: %s spent %s of %s at %s (item %s, key %s)",
+                      user_lower, req.amount, "CLAIM", faucet_wallet, req.item,
+                      req.idempotency_key)
+    return {"status": "spent", "balance": novo, "spent": float(req.amount)}
+
+
+@app.post("/api/faucethub/microclaim/refund")
+async def refund_microclaim(req: MicroClaimRefundRequest,
+                            x_api_key: Optional[str] = Header(None)):
+    """Devolve o que um gasto debitou, uma vez.
+
+    Sem assinatura do usuario de proposito: isto so pode CREDITAR, e so o valor
+    exato que aquele gasto tirou. Nao ha estrago que uma chave vazada possa
+    fazer aqui -- o pior que ela consegue e devolver dinheiro ao usuario.
+
+    Devolver duas vezes seria imprimir saldo, entao o segundo estorno responde
+    200 e nao faz nada: o cliente que reenviou por timeout ve sucesso, e o
+    livro nao se mexe.
+    """
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="Missing X-Api-Key header")
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    c.execute('SELECT faucet_wallet FROM faucet_api_keys WHERE api_key_hash = ? AND is_active = 1',
+              (_hash_token(x_api_key),))
+    key_row = c.fetchone()
+    if not key_row:
+        conn.close()
+        raise HTTPException(status_code=401, detail="Invalid or inactive API key")
+    faucet_wallet = key_row["faucet_wallet"]
+
+    try:
+        c.execute("SELECT * FROM microclaim_spends WHERE idempotency_key = ?",
+                  (req.idempotency_key,))
+        gasto = c.fetchone()
+        if not gasto:
+            raise HTTPException(status_code=404, detail="No spend with that idempotency_key")
+        if gasto["faucet_wallet"] != faucet_wallet.lower():
+            # Nao e 404: a torneira dona saberia que existe, e esconder isso de
+            # quem nao e dono nao protege nada que a chave dela ja nao proteja.
+            raise HTTPException(status_code=403,
+                                detail="That spend belongs to another faucet")
+        if gasto["refunded_at"]:
+            return {"status": "refunded", "balance": None, "refunded": 0.0, "repeated": True}
+
+        agora = int(_time.time())
+        c.execute("SELECT virtual_balance FROM microclaims_ledger "
+                  "WHERE faucet_wallet = ? AND user_wallet = ?",
+                  (faucet_wallet, gasto["user_wallet"]))
+        linha = c.fetchone()
+        saldo = float(linha["virtual_balance"]) if linha else 0.0
+        novo = round(saldo + float(gasto["amount"]), 8)
+        if linha:
+            c.execute("UPDATE microclaims_ledger SET virtual_balance = ? "
+                      "WHERE faucet_wallet = ? AND user_wallet = ?",
+                      (novo, faucet_wallet, gasto["user_wallet"]))
+        else:
+            # A linha some se a conta nunca existiu ali; o estorno ainda deve o
+            # valor ao usuario, entao ela volta com o que lhe pertence.
+            c.execute("INSERT INTO microclaims_ledger (faucet_wallet, user_wallet, "
+                      "virtual_balance, total_claimed, claim_count, last_claim_at, created_at) "
+                      "VALUES (?, ?, ?, 0, 0, NULL, ?)",
+                      (faucet_wallet, gasto["user_wallet"], novo, agora))
+        c.execute("UPDATE microclaim_spends SET refunded_at = ?, refund_reason = ? "
+                  "WHERE idempotency_key = ?", (agora, req.reason, req.idempotency_key))
+        c.execute("INSERT INTO microclaims_history (faucet_wallet, user_wallet, amount, "
+                  "event_type, tx_hash, timestamp, item) "
+                  "VALUES (?, ?, ?, 'REFUND', ?, ?, ?)",
+                  (faucet_wallet, gasto["user_wallet"], float(gasto["amount"]),
+                   req.idempotency_key, agora, gasto["item"]))
+        conn.commit()
+    finally:
+        conn.close()
+
+    audit_logger.info("L2_REFUND: %s back to %s at %s (key %s, reason %s)",
+                      gasto["amount"], gasto["user_wallet"], faucet_wallet,
+                      req.idempotency_key, req.reason)
+    return {"status": "refunded", "balance": novo, "refunded": float(gasto["amount"])}
 
 
 def _campaign_quote(c, campaign_id: int, now: int, write: bool = True):
