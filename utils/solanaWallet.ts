@@ -26,6 +26,39 @@ export function solanaProvider(): SolanaProvider | null {
 }
 
 /**
+ * Whether this is a phone or tablet browser.
+ *
+ * It matters because the remedy for "no wallet" is not the same on the two.
+ * On a desktop, no provider means no extension installed, and installing one
+ * fixes it. On a phone, Phantom is an app and injects nothing into Chrome or
+ * Safari — telling someone to install it is useless advice to someone who
+ * very likely already has it.
+ */
+export function isMobileBrowser(): boolean {
+    if (typeof navigator === 'undefined') return false;
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
+    // An iPad asking for the desktop site reports itself as a Mac. Touch points
+    // are what still give it away.
+    return /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+}
+
+/**
+ * Phantom's documented deeplink for opening a page inside its own browser,
+ * which is the one place on a phone where the provider exists.
+ *
+ * Both parameters are required and both are URL-encoded: `url` is the page to
+ * open, `ref` says who asked. The host is phantom.com; the older phantom.app
+ * keeps the same path.
+ *
+ * https://docs.phantom.com/phantom-deeplinks/other-methods/browse
+ */
+export function phantomBrowseLink(target?: string): string {
+    const url = encodeURIComponent(target ?? window.location.href);
+    const ref = encodeURIComponent(window.location.origin);
+    return `https://phantom.com/ul/browse/${url}?ref=${ref}`;
+}
+
+/**
  * The account that will sign, after making sure the wallet has authorized this
  * tab to ask.
  *

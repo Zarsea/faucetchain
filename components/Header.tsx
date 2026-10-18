@@ -5,7 +5,7 @@ import { FaucetChainSolanaMarkSmall, WalletIcon, XMarkIcon, GlobeAltIcon, CubeIc
 import { useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
-import { solanaProvider, encodeSignature } from '../utils/solanaWallet';
+import { solanaProvider, encodeSignature, isMobileBrowser, phantomBrowseLink } from '../utils/solanaWallet';
 import { walletProofMessage } from '../utils/actionMessage';
 
 export const Header: React.FC = () => {
@@ -14,6 +14,8 @@ export const Header: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
     const [isWalletLoading, setIsWalletLoading] = useState(false);
+    // Telefone sem provider injetado: nao e erro, e navegador errado.
+    const [precisaDoPhantom, setPrecisaDoPhantom] = useState(false);
     const [authModalView, setAuthModalView] = useState<'MAIN' | 'EMAIL'>('MAIN');
     const [emailInput, setEmailInput] = useState('');
     const [passwordInput, setPasswordInput] = useState('');
@@ -86,8 +88,17 @@ export const Header: React.FC = () => {
     // wallet, signing it says exactly what is about to happen.
     const handleSolanaConnect = async () => {
         setAuthError('');
+        setPrecisaDoPhantom(false);
         const wallet = solanaProvider();
         if (!wallet) {
+            // Num telefone isto nao e falta de instalacao, e o navegador
+            // errado: a Phantom la e aplicativo e nao injeta nada no Chrome.
+            // Mandar instalar o que a pessoa ja tem e o conselho que faz ela
+            // desistir achando que o site e que esta quebrado.
+            if (isMobileBrowser()) {
+                setPrecisaDoPhantom(true);
+                return;
+            }
             setAuthError(t('auth.noWallet'));
             return;
         }
@@ -262,6 +273,18 @@ export const Header: React.FC = () => {
                                 {/* The guest button can fail too, so the banner cannot live
                                     only in the email view where it started. */}
                                 {authError && <div className="p-3 bg-brand-error/20 text-brand-error text-sm rounded-xl text-center border border-brand-error/30">{authError}</div>}
+                                {precisaDoPhantom && (
+                                    <div className="p-4 bg-brand-warn/10 border border-brand-warn/30 rounded-xl space-y-3">
+                                        <p className="text-brand-warn text-sm font-bold">{t('auth.mobileWalletTitle')}</p>
+                                        <p className="text-brand-secondary/80 text-xs leading-relaxed">{t('auth.mobileWalletBody')}</p>
+                                        <a
+                                            href={phantomBrowseLink()}
+                                            className="flex items-center justify-center gap-2 w-full min-h-[48px] px-4 bg-brand-primary text-brand-bg rounded-xl text-sm font-black active:scale-95 transition-transform"
+                                        >
+                                            {t('auth.mobileWalletCta')}
+                                        </a>
+                                    </div>
+                                )}
                                 <button
                                     onClick={handleSolanaConnect}
                                     disabled={isWalletLoading}
