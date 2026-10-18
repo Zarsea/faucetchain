@@ -89,7 +89,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
           {/* Stats Row HUD */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'SALDO L2 (VIRTUAL)', value: drip.virtualBalance.toFixed(2), unit: 'CLAIM', color: 'text-green-400', border: 'border-green-500/30', bg: 'bg-green-950/20' },
+              { label: 'L2 BALANCE (VIRTUAL)', value: drip.virtualBalance.toFixed(2), unit: 'CLAIM', color: 'text-green-400', border: 'border-green-500/30', bg: 'bg-green-950/20' },
               { label: 'RESERVA L1 (TREASURY)', value: drip.faucetReserve.toLocaleString(), unit: 'CLAIM', color: 'text-cyan-400', border: 'border-cyan-500/30', bg: 'bg-cyan-950/20' },
               { label: 'DAILY STREAK', value: p?.streak_days ?? 0, unit: 'DIAS', color: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-950/20' },
               { label: 'TOTAL EARNED', value: (p?.total_earned ?? 0).toFixed(1), unit: 'CLAIM', color: 'text-purple-400', border: 'border-purple-500/30', bg: 'bg-purple-950/20' },
@@ -375,7 +375,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
               onClick={() => drip.setShowShop(false)}
               className="w-full mt-6 py-3 border border-white/10 text-gray-400 rounded-xl hover:bg-white/5 hover:text-white transition-colors text-[10px] font-bold tracking-widest uppercase"
             >
-              FECHAR TERMINAL
+              CLOSE TERMINAL
             </button>
           </div>
         </div>

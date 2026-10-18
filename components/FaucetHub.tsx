@@ -198,7 +198,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/balance/${l2LookupWallet.trim()}`);
             if (res.ok) setL2Balances(await res.json());
-            else { const err = await res.json(); setL2WithdrawStatus(err.detail || "Erro"); }
+            else { const err = await res.json(); setL2WithdrawStatus(err.detail || "Error"); }
         } catch (e) { console.error(e); }
         finally { setL2Loading(false); }
     };
@@ -218,7 +218,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             });
             const data = await res.json();
             if (res.ok) {
-                setL2WithdrawStatus(`✅ Saque L1 realizado! Tx: ${data.tx_hash.slice(0, 18)}...`);
+                setL2WithdrawStatus(`✅ Withdrawn to L1. Tx: ${data.tx_hash.slice(0, 18)}...`);
                 lookupL2Balance(); // Refresh
                 fetchFaucets();
                 fetchL2Stats();
@@ -241,7 +241,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                 body: JSON.stringify({ name: newName, wallet_address: newWallet })
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || "Erro ao registrar");
+            if (!res.ok) throw new Error(data.detail || "Registration failed");
             
             setGeneratedKey(data.api_key);
             fetchFaucets();
@@ -295,7 +295,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
             // A chave nova aparece uma vez, aqui. A anterior morreu nesta chamada,
             // entao a torneira falha a proxima chamada ate ser atualizada.
             if (res.ok) setRevealedKey(data.api_key);
-            else setKeyError(data.detail || "Nao foi possivel rotacionar a chave.");
+            else setKeyError(data.detail || "Could not rotate the key.");
         } catch (e: any) {
             setKeyError(e.message);
         }
@@ -309,7 +309,7 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
         setReserveError("");
         const amount = parseFloat(reserveInput.replace(",", "."));
         if (!isFinite(amount) || amount < 0) {
-            setReserveError("Informe um valor de 0 para cima.");
+            setReserveError("Enter a value of 0 or more.");
             return;
         }
         setReserveSaving(true);
@@ -371,6 +371,13 @@ const formataCobertura = (c: number): string =>
     const shortCount = faucets.filter(f => f.coverage !== null && f.coverage < 1).length;
     const totalOwed = faucets.reduce((acc, f) => acc + f.owed, 0);
     const activeCount = faucets.filter(f => f.status === "Ativa").length;
+
+    // "Ativa" e "Hiato" sao valores que a API devolve, e a API e publica: um
+    // parceiro pode estar lendo exatamente essas palavras. Entao o valor nao
+    // muda -- a tela e que traduz, e a comparacao acima continua contra o que
+    // o servidor manda de verdade.
+    const statusEmIngles = (valor: string) =>
+        valor === 'Ativa' ? 'Active' : valor === 'Hiato' ? 'Idle' : valor;
     const totalSettlements = faucets.reduce((acc, f) => acc + f.settlements, 0);
 
     // SVG rendering helpers for interactive map
@@ -602,27 +609,27 @@ const formataCobertura = (c: number): string =>
                     {/* Stats Row */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                         <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Faucets Conectadas</h3>
+                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Faucets connected</h3>
                             <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
                                 {loading ? "..." : faucets.length}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">{activeCount} ativas</p>
+                            <p className="text-purple-400 text-xs mt-1">{activeCount} active</p>
                         </div>
                         <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
                             {/* Dizia "Proof of Reserve (PoR)" sobre a soma dos saldos, com o
                                 rotulo "$CLAIM em reservas". Nada era provado e nada era uma
                                 reserva: era o saldo das torneiras somado. Agora o cartao mostra
                                 o saldo, e a reserva declarada aparece ao lado como o que e. */}
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Saldo das torneiras</h3>
+                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Faucet balances</h3>
                             <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
                                 {loading ? "..." : totalLiquidity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </p>
                             <p className="text-purple-400 text-xs mt-1">
-                                $CLAIM livre · {totalDeclared.toLocaleString(undefined, {maximumFractionDigits: 0})} caucionado por {declaredCount} · devem {totalOwed.toLocaleString(undefined, {maximumFractionDigits: 2})}
+                                $CLAIM free · {totalDeclared.toLocaleString(undefined, {maximumFractionDigits: 0})} escrowed by {declaredCount} · {totalOwed.toLocaleString(undefined, {maximumFractionDigits: 2})} owed
                             </p>
                             {shortCount > 0 && (
                                 <p className="text-yellow-400/90 text-xs mt-1">
-                                    {shortCount} {shortCount === 1 ? "torneira deve" : "torneiras devem"} mais do que {shortCount === 1 ? "caucionou" : "caucionaram"}
+                                    {shortCount} {shortCount === 1 ? "faucet owes" : "faucets owe"} more than {shortCount === 1 ? "it escrowed" : "they escrowed"}
                                 </p>
                             )}
                         </div>
@@ -634,7 +641,7 @@ const formataCobertura = (c: number): string =>
                             <p className="text-purple-400 text-xs mt-1">On-chain settlements</p>
                         </div>
                         <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">API Keys Ativas</h3>
+                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Active API keys</h3>
                             <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
                                 {loading ? "..." : faucets.length}
                             </p>
@@ -647,13 +654,13 @@ const formataCobertura = (c: number): string =>
                         <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)] flex flex-col min-h-[480px]">
                             <div className="flex items-center justify-between mb-5">
                                 <h2 className="text-xl font-bold text-purple-200 flex items-center">
-                                    <span className="mr-2 text-lg">🌐</span> Monitoramento Web3
+                                    <span className="mr-2 text-lg">🌐</span> Web3 monitoring
                                 </h2>
                                 <button 
                                     onClick={() => { setShowRegister(!showRegister); setGeneratedKey(null); }}
                                     className="px-4 py-1.5 text-xs bg-purple-600/30 border border-purple-500/50 rounded-lg hover:bg-purple-500/40 transition-colors"
                                 >
-                                    {showRegister ? "Ocultar" : "+ Registrar Nova"}
+                                    {showRegister ? "Hide" : "+ Register new"}
                                 </button>
                             </div>
                             
@@ -661,10 +668,10 @@ const formataCobertura = (c: number): string =>
                                 <div className="mb-5 bg-purple-900/40 p-5 rounded-xl border border-purple-500/50">
                                     {!generatedKey ? (
                                         <form onSubmit={handleRegister}>
-                                            <h3 className="font-semibold text-purple-200 mb-3 text-sm">Registrar Torneira (DApp)</h3>
+                                            <h3 className="font-semibold text-purple-200 mb-3 text-sm">Register a faucet (DApp)</h3>
                                             <div className="space-y-3">
                                                 <input 
-                                                    type="text" placeholder="Nome da Faucet" value={newName}
+                                                    type="text" placeholder="Faucet name" value={newName}
                                                     onChange={e => setNewName(e.target.value)}
                                                     className="w-full bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
                                                     required
@@ -694,11 +701,11 @@ const formataCobertura = (c: number): string =>
                                                     onClick={() => copyToClipboard(generatedKey)}
                                                     className="px-3 py-1 bg-purple-600/40 border border-purple-500/50 rounded text-xs hover:bg-purple-500/40 transition-colors flex-shrink-0"
                                                 >
-                                                    {keyCopied ? "✓ Copiada!" : "Copiar"}
+                                                    {keyCopied ? "✓ Copied" : "Copy"}
                                                 </button>
                                             </div>
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/20 text-xs text-purple-300 space-y-1">
-                                                <p className="font-semibold text-purple-200">Como integrar:</p>
+                                                <p className="font-semibold text-purple-200">How to integrate:</p>
                                                 <code className="block bg-black/30 p-2 rounded text-green-400/90 font-mono text-[11px]">
                                                     POST /api/faucethub/settle<br/>
                                                     Header: X-Api-Key: {generatedKey.slice(0, 20)}...<br/>
@@ -709,7 +716,7 @@ const formataCobertura = (c: number): string =>
                                                 onClick={() => { setShowRegister(false); setGeneratedKey(null); setNewName(""); setNewWallet(""); }}
                                                 className="w-full bg-purple-800/40 hover:bg-purple-700/40 text-purple-200 py-2 rounded-lg text-sm transition-colors border border-purple-500/30"
                                             >
-                                                Fechar
+                                                Close
                                             </button>
                                         </div>
                                     )}
@@ -753,7 +760,7 @@ const formataCobertura = (c: number): string =>
                                                     )}
                                                 </div>
                                                 <span className={`text-xs font-semibold ${faucet.status === 'Ativa' ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    • {faucet.status}
+                                                    • {statusEmIngles(faucet.status)}
                                                 </span>
                                                 <span className="text-purple-500 text-xs ml-2">{faucet.settlements} settlements</span>
                                             </div>
@@ -766,7 +773,7 @@ const formataCobertura = (c: number): string =>
                                                 <p className="text-purple-400/50 text-xs">nothing owed yet</p>
                                             ) : (
                                                 <p className={`text-xs font-semibold ${faucet.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    deve {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {formataCobertura(faucet.coverage)} caucionado
+                                                    owes {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {formataCobertura(faucet.coverage)} escrowed
                                                 </p>
                                             )}
                                             <p className="text-purple-400/80 text-xs">{faucet.recent_txs} Txs/hr</p>
@@ -786,22 +793,22 @@ const formataCobertura = (c: number): string =>
 
                                 {!selectedFaucet && (
                                     <div className="text-center py-8">
-                                        <p className="text-purple-400/60 text-sm">Selecione uma Faucet à esquerda para gerenciar sua API Key</p>
+                                        <p className="text-purple-400/60 text-sm">Pick a faucet on the left to manage its API key</p>
                                     </div>
                                 )}
 
                                 {selectedFaucet && keyLoading && (
                                     <div className="text-center py-8">
-                                        <p className="text-purple-400 text-sm animate-pulse">Carregando...</p>
+                                        <p className="text-purple-400 text-sm animate-pulse">Loading…</p>
                                     </div>
                                 )}
 
                                 {selectedFaucet && !keyLoading && keyInfo && (
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <span className="text-purple-400 text-xs font-semibold">Chave Ativa</span>
+                                            <span className="text-purple-400 text-xs font-semibold">API key</span>
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${keyInfo.is_active ? 'bg-green-900/50 text-green-400 border border-green-500/30' : 'bg-red-900/50 text-red-400 border border-red-500/30'}`}>
-                                                {keyInfo.is_active ? "ATIVA" : "INATIVA"}
+                                                {keyInfo.is_active ? "ACTIVE" : "INACTIVE"}
                                             </span>
                                         </div>
                                         
@@ -814,19 +821,19 @@ const formataCobertura = (c: number): string =>
                                                     onClick={() => copyToClipboard(revealedKey)}
                                                     className="px-2 py-1 bg-purple-600/30 border border-purple-500/40 rounded text-[10px] hover:bg-purple-500/30 transition-colors flex-shrink-0"
                                                 >
-                                                    {keyCopied ? "✓" : "Copiar"}
+                                                    {keyCopied ? "✓" : "Copy"}
                                                 </button>
                                             </div>
                                         ) : (
                                             <div className="bg-black/30 rounded-lg p-3 border border-purple-500/15">
                                                 <p className="text-purple-300/90 text-[11px] leading-relaxed">
-                                                    A chave não pode ser mostrada de novo. Aqui fica só o
-                                                    hash dela, para que uma leitura do banco não entregue o
-                                                    direito de distribuir em nome desta torneira.
+                                                    The key cannot be shown again. Only its hash is kept here,
+                                                    so that reading the database does not hand anyone the right
+                                                    to distribute on this faucet's behalf.
                                                 </p>
                                                 <p className="text-purple-400/70 text-[10px] mt-2 leading-relaxed">
-                                                    Perdeu a sua? Rotacione abaixo: a nova aparece uma vez e
-                                                    a anterior morre na mesma chamada.
+                                                    Lost yours? Rotate below: the new one is shown once, and the
+                                                    previous one dies in the same call.
                                                 </p>
                                             </div>
                                         )}
@@ -848,7 +855,7 @@ const formataCobertura = (c: number): string =>
 
                                         {keyInfo.last_used && (
                                             <p className="text-purple-500 text-[10px]">
-                                                Último uso: {new Date(keyInfo.last_used * 1000).toLocaleString()}
+                                                Last used: {new Date(keyInfo.last_used * 1000).toLocaleString()}
                                             </p>
                                         )}
 
@@ -856,7 +863,7 @@ const formataCobertura = (c: number): string =>
                                             onClick={() => handleRegenerateKey(selectedFaucet)}
                                             className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 text-red-300 rounded-lg text-xs font-semibold transition-colors"
                                         >
-                                            ⟳ Rotacionar Chave (Desativa a Anterior)
+                                            ⟳ Rotate key (kills the current one)
                                         </button>
                                     </div>
                                 )}
@@ -869,34 +876,34 @@ const formataCobertura = (c: number): string =>
                                 return (
                                     <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
                                         <h2 className="text-xl font-bold text-purple-200 mb-1 flex items-center">
-                                            <span className="mr-2 text-lg">🔐</span> Reserva travada
+                                            <span className="mr-2 text-lg">🔐</span> Escrowed reserve
                                         </h2>
                                         <p className="text-purple-400/70 text-[11px] mb-4 leading-relaxed">
-                                            Assinar move este valor do saldo da torneira para a tesouraria da
-                                            FaucetChain, e e de la que os seus usuarios sao pagos quando sacam.
-                                            Voce deixa de poder gastar. Da para baixar depois, nunca abaixo do
-                                            que os usuarios ja tem a receber.
+                                            Signing moves this amount from the faucet's balance into the
+                                            FaucetChain treasury, and that is where your users are paid from
+                                            when they withdraw. You stop being able to spend it. You can lower
+                                            it later, never below what users already have coming.
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-3 mb-4">
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">LIVRE</p>
+                                                <p className="text-purple-400 text-[10px] font-semibold">FREE</p>
                                                 <p className="text-lg font-black text-purple-100">
                                                     {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})}
                                                 </p>
                                             </div>
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">TRAVADO</p>
+                                                <p className="text-purple-400 text-[10px] font-semibold">ESCROWED</p>
                                                 <p className="text-lg font-black text-purple-100">
                                                     {f.reserve > 0 ? f.reserve.toLocaleString(undefined, {maximumFractionDigits: 2}) : "—"}
                                                 </p>
                                             </div>
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10 col-span-2">
-                                                <p className="text-purple-400 text-[10px] font-semibold">DEVIDO AOS USUARIOS</p>
+                                                <p className="text-purple-400 text-[10px] font-semibold">OWED TO USERS</p>
                                                 <p className="text-lg font-black text-purple-100">
                                                     {f.owed.toLocaleString(undefined, {maximumFractionDigits: 4})}
                                                     <span className="text-[10px] font-normal text-purple-400 ml-2">
-                                                        medido no ledger, nao declarado
+                                                        measured in the ledger, not declared
                                                     </span>
                                                 </p>
                                             </div>
@@ -912,9 +919,9 @@ const formataCobertura = (c: number): string =>
                                                 </div>
                                                 <p className={`text-[11px] mt-1 ${f.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
                                                     {f.coverage >= 1
-                                                        ? `Coberta: a caucao cobre ${formataCobertura(f.coverage)} do que voce deve.`
-                                                        : `Descoberta: a caucao cobre ${formataCobertura(f.coverage)} do que voce deve; o resto sai do saldo livre no saque, se houver.`}
-                                                    {f.reserve_declared_at && ` Travado em ${new Date(f.reserve_declared_at * 1000).toLocaleDateString()}.`}
+                                                        ? `Covered: the escrow covers ${formataCobertura(f.coverage)} of what you owe.`
+                                                        : `Short: the escrow covers ${formataCobertura(f.coverage)} of what you owe; the rest comes out of the free balance at withdrawal, if there is any.`}
+                                                    {f.reserve_declared_at && ` Escrowed on ${new Date(f.reserve_declared_at * 1000).toLocaleDateString()}.`}
                                                 </p>
                                             </div>
                                         )}
@@ -978,24 +985,25 @@ const formataCobertura = (c: number): string =>
                                                             : undefined}
                                                         className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
                                                     >
-                                                        Soltar tudo
+                                                        Release all
                                                         <span className="block text-[10px] font-normal text-purple-400">
                                                             {f.owed > 0 ? "blocked by debt" : "nothing owed"}
                                                         </span>
                                                     </button>
                                                 </div>
                                                 <p className="text-purple-500/60 text-[10px] mt-2 leading-relaxed">
-                                                    Destravar devolve o valor ao saldo livre da torneira. O servidor
-                                                    recusa descer abaixo do que os usuários já têm a receber — a regra
-                                                    é dele, não deste botão, e vale mesmo se a tela estiver errada.
+                                                    Releasing returns the amount to the faucet's free balance. The
+                                                    server refuses to go below what users already have coming — the
+                                                    rule is its own, not this button's, and it holds even if this
+                                                    screen is wrong.
                                                 </p>
                                             </div>
                                         )}
                                         {reserveError && <p className="text-red-300 text-[11px] mt-2">{reserveError}</p>}
                                         <p className="text-purple-500/60 text-[10px] mt-3 leading-relaxed">
-                                            O valor travado sai do seu saldo e aparece no seu dashboard como
-                                            indisponivel. Nao existe ainda: reputacao da torneira, nem aviso ao
-                                            usuario quando a caucao nao cobre o que ele tem a receber.
+                                            The escrowed amount leaves your balance and shows on your dashboard
+                                            as unavailable. What does not exist yet: faucet reputation, and any
+                                            warning to a user when the escrow does not cover what they are owed.
                                         </p>
                                     </div>
                                 );
@@ -1021,15 +1029,15 @@ const formataCobertura = (c: number): string =>
                                             <span className="text-xl font-bold text-purple-200">
                                                 {!por ? "—"
                                                     : por.allSolvent === true ? "OK"
-                                                    : por.allSolvent === false ? "DÉFICIT"
-                                                    : "PARCIAL"}
+                                                    : por.allSolvent === false ? "SHORT"
+                                                    : "PARTIAL"}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="mt-4 text-center relative z-10 px-4">
                                         <p className="text-purple-200 font-bold tracking-widest uppercase text-xs">Solvency by asset</p>
                                         <p className="text-purple-400 text-[10px] mt-1">
-                                            {!por ? 'Sem leitura do servidor.'
+                                            {!por ? 'No reading from the server.'
                                                 : por.allSolvent === null
                                                     ? 'One or more assets could not be read. Not knowing is not the same as being covered.'
                                                     : `${(por.assets || []).length} asset(s). Each reserve answers only for the debt in its own currency.`}
@@ -1047,8 +1055,8 @@ const formataCobertura = (c: number): string =>
                                                         {a.asset === 'CLAIM' ? '$CLAIM' : `${a.asset.slice(0, 6)}…${a.asset.slice(-4)}`}
                                                     </p>
                                                     <p className="text-[9px] text-purple-400/80">
-                                                        {a.verifiedOnChain ? 'lido da Solana' : 'livro do sequenciador'}
-                                                        {a.obligations != null && ` · deve ${Number(a.obligations).toLocaleString()}`}
+                                                        {a.verifiedOnChain ? 'read from Solana' : "sequencer's ledger"}
+                                                        {a.obligations != null && ` · owes ${Number(a.obligations).toLocaleString()}`}
                                                     </p>
                                                 </div>
                                                 <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex-shrink-0 ${
@@ -1085,23 +1093,23 @@ const formataCobertura = (c: number): string =>
                         {/* L2 Global Stats */}
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">USUÁRIOS L2</p>
+                                <p className="text-purple-400 text-[10px] font-semibold">L2 USERS</p>
                                 <p className="text-lg font-black text-purple-100">{l2Stats?.total_users ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">SALDO VIRTUAL</p>
+                                <p className="text-purple-400 text-[10px] font-semibold">VIRTUAL BALANCE</p>
                                 <p className="text-lg font-black text-purple-100">{l2Stats?.total_virtual_balance?.toLocaleString() ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">CLAIMS TOTAIS</p>
+                                <p className="text-purple-400 text-[10px] font-semibold">TOTAL CLAIMS</p>
                                 <p className="text-lg font-black text-purple-100">{l2Stats?.total_claims_count?.toLocaleString() ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">DISTRIBUÍDO L2</p>
+                                <p className="text-purple-400 text-[10px] font-semibold">DISTRIBUTED ON L2</p>
                                 <p className="text-lg font-black text-purple-100">{l2Stats?.total_claimed_all_time?.toLocaleString() ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">SACADO → L1</p>
+                                <p className="text-purple-400 text-[10px] font-semibold">WITHDRAWN → L1</p>
                                 <p className="text-lg font-black text-green-400">{l2Stats?.total_withdrawn_all_time?.toLocaleString() ?? "..."}</p>
                             </div>
                         </div>
@@ -1232,7 +1240,7 @@ const formataCobertura = (c: number): string =>
                                 onClick={() => { fetchLeaderboard(); fetchActivityLinks(); }}
                                 className="px-4 py-1.5 text-xs bg-purple-600/20 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors"
                             >
-                                ⟳ Atualizar Mapa
+                                ⟳ Refresh map
                             </button>
                         </div>
 
@@ -1282,9 +1290,9 @@ const formataCobertura = (c: number): string =>
                                                                 <button
                                                                     onClick={() => setSelectedFaucet(user.faucet_wallet)}
                                                                     className="text-purple-400 hover:text-purple-300 hover:underline font-semibold text-left"
-                                                                    title="Clique para destacar no monitor"
+                                                                    title="Click to highlight it in the monitor"
                                                                 >
-                                                                    {user.faucet_name || "Faucet Desconhecida"}
+                                                                    {user.faucet_name || "Unknown faucet"}
                                                                 </button>
                                                             </td>
                                                             <td className="px-4 py-3 text-right font-bold text-purple-300">

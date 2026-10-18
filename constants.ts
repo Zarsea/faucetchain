@@ -261,33 +261,34 @@ export function diagrams(lang: string) {
 // unica versao que sobrevive a alguem conferir.
 
 export const POC_WEIGHT_LOGIC_CODE = `
-# O peso de um no no sorteio do selador, como esta em api_server.py.
+# A node's weight in the sealer draw, as it stands in api_server.py.
 #
-# Sem teto, peso = 1 + stake deixa quem trava mais selar quase sempre, e isso
-# nao e hipotese: dos 935.500 em stake ativo neste banco, 930.000 estavam numa
-# carteira so.
+# With no cap, weight = 1 + stake lets whoever locks the most seal almost every
+# round, and that is not hypothetical: of the 935,500 actively staked in this
+# database, 930,000 sat in a single wallet.
 SEALER_STAKE_CAP = float(os.getenv("SEALER_STAKE_CAP", "10000"))
 
 
 def sealer_weight(stake: float) -> float:
-    """O "+1" garante chance minima a quem nao tem stake nenhum -- um no
-    honesto sem capital continua entrando. O teto para o crescimento sem zerar
-    o que esta abaixo dele: stake ainda conta, so deixa de comprar a rodada.
+    """The "+1" guarantees a minimum chance to anyone holding no stake at all,
+    so an honest node without capital still gets in. The cap stops growth
+    without erasing what sits below it: stake still counts, it just stops
+    buying the round.
     """
     return 1.0 + min(max(stake, 0.0), SEALER_STAKE_CAP)
 `;
 
 export const AI_REPUTATION_LOGIC_CODE = `
-# O teto por IP, de api_server.py. Nao e modelo nem pontuacao: e uma contagem.
+# The per-IP ceiling, from api_server.py. Not a model and not a score: a count.
 CLAIM_IP_HOURLY_WALLETS = int(os.getenv("CLAIM_IP_HOURLY_WALLETS", "5"))
 
 
 def claim_ip_allowed(client_ip: str, addr_lower: str, now_ts: int) -> bool:
-    """Quantas carteiras distintas um IP pode reivindicar numa hora.
+    """How many distinct wallets one IP may claim for in an hour.
 
-    O Sentinel pontua e filtra; este limite e aritmetica, e vale classificando
-    certo ou errado. E o que de fato segura, e tem teste que falha se parar de
-    funcionar.
+    Sentinel scores and filters; this limit is arithmetic, and it holds whether
+    the classifier is right or wrong. It is the part that actually stops abuse,
+    and it has a test that fails if it ever stops working.
     """
     seen = wallets_seen_this_hour(client_ip, now_ts)
     return addr_lower in seen or len(seen) < CLAIM_IP_HOURLY_WALLETS
@@ -397,9 +398,9 @@ protocol_evolution:
 // arquivos inventados -- um chamava verify_vrf_proof, o outro configurava
 // Gossipsub -- e nenhum dos dois caminhos existe neste repositorio.
 export const CORE_RUST_CODE = `
-// Prova de reserva dentro da propria instrucao: uma campanha nao pode
-// prometer mais do que o vault cobre, contando tudo que ja foi publicado
-// e ainda nao foi pago.
+// Proof of reserve inside the instruction itself: a campaign cannot promise
+// more than the vault covers, counting everything already published and not
+// yet paid out.
 let outstanding = campaign
     .committed
     .checked_sub(campaign.paid)
@@ -414,10 +415,9 @@ require!(
 `;
 
 export const P2P_SPEC_CODE = `
-// Token-2022 aceita taxa de transferencia: o vault seria debitado
-// exatamente o que a folha publicou enquanto o destinatario recebia
-// menos. Uma raiz que paga 98 onde disse 100 nao e arredondamento,
-// e a garantia falhando em silencio.
+// Token-2022 allows a transfer fee: the vault would be debited exactly what
+// the sheet published while the recipient received less. A root that pays 98
+// where it said 100 is not rounding, it is the guarantee failing quietly.
 #[account(
     address = anchor_spl::token::ID @ ErrorCode::UnsupportedTokenProgram
 )]

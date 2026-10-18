@@ -158,7 +158,7 @@ export const TechnicalSpecs: React.FC = () => {
                                         Adaptive Pruning Mechanism
                                     </h4>
                                     <p className="text-sm text-brand-muted leading-relaxed">
-                                        O mecanismo remove estados históricos irrelevantes de forma programática, mantendo o crescimento do ledger sob controle sem comprometer a segurança da finalidade do bloco e a auditabilidade.
+                                        The mechanism drops historical state that no longer matters, keeping ledger growth in check without weakening block finality or auditability.
                                     </p>
                                 </div>
                                 <div className="w-full md:w-48 p-4 bg-brand-surface rounded-xl border border-brand-border flex items-center justify-center gap-3 shadow-inner">

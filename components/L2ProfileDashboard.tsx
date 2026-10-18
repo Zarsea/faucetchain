@@ -52,7 +52,7 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
 
                     <div className="flex gap-4 text-center">
                         <div className="p-4 bg-brand-bg/50 rounded-2xl border border-brand-border/50 min-w-[120px]">
-                            <p className="text-xs text-brand-muted uppercase tracking-widest mb-1">Saldo L2</p>
+                            <p className="text-xs text-brand-muted uppercase tracking-widest mb-1">L2 balance</p>
                             <p className="text-xl font-black text-brand-accent">{drip.virtualBalance.toFixed(2)}</p>
                         </div>
                         <div className="p-4 bg-brand-bg/50 rounded-2xl border border-brand-border/50 min-w-[120px]">

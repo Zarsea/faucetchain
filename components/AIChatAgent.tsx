@@ -335,25 +335,25 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
             <div className="p-8 bg-brand-surface/20 border border-brand-border/40 rounded-[2rem] backdrop-blur-md">
                 <div className="flex flex-wrap gap-3 mb-8">
                     <button
-                        onClick={() => handleSendMessage("Minta 100 tokens de mérito.")}
+                        onClick={() => handleSendMessage("Mint 100 merit tokens.")}
                         className="px-6 py-3 bg-brand-bg/50 border border-brand-border/40 rounded-xl text-[10px] font-black uppercase text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-3 group hover:shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
                     >
                         <ShieldCheckIcon className="w-4 h-4 group-hover:scale-110 transition-transform text-brand-success" />
-                        Requisitar Mérito
+                        Request merit
                     </button>
                     <button
-                        onClick={() => handleSendMessage("Simule um congestionamento.")}
+                        onClick={() => handleSendMessage("Simulate network congestion.")}
                         className="px-6 py-3 bg-brand-bg/50 border border-brand-border/40 rounded-xl text-[10px] font-black uppercase text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-3 group hover:shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
                     >
                         <SignalIcon className="w-4 h-4 group-hover:scale-110 transition-transform text-brand-error" />
-                        Simular Estresse
+                        Stress test
                     </button>
                     <button
-                        onClick={() => handleSendMessage("Explique o consenso PoC.")}
+                        onClick={() => handleSendMessage("Explain PoC consensus.")}
                         className="px-6 py-3 bg-brand-bg/50 border border-brand-border/40 rounded-xl text-[10px] font-black uppercase text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-3 group hover:shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
                     >
                         <BookOpenIcon className="w-4 h-4 group-hover:scale-110 transition-transform text-brand-accent" />
-                        Explicar Consenso
+                        Explain consensus
                     </button>
                 </div>
 
@@ -378,7 +378,7 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                     </div>
                 </div>
                 <div className="mt-4 flex justify-center">
-                    <span className="text-[9px] text-brand-muted font-black uppercase tracking-[0.3em] opacity-40">Processamento Local • Sem Dependência de Cloud</span>
+                    <span className="text-[9px] text-brand-muted font-black uppercase tracking-[0.3em] opacity-40">Local processing • no cloud dependency</span>
                 </div>
             </div>
         </div>
