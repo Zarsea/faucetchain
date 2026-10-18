@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaucetHub } from './FaucetHub';
 import { FaucetInternal } from './FaucetInternal';
+import ConnectYourFaucet from './ConnectYourFaucet';
 
 export const DappsFloatingButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
     return (
@@ -94,14 +95,18 @@ const apps = [
     },
     {
         id: 'devhub',
-        title: 'SDK & Deploy',
-        desc: 'Build your own DApp or gamified L2 faucet on the on-chain primitives.',
-        icon: '🛠️',
+        // O cartao dizia "construa a sua propria DApp". Isso convida quem nao
+        // tem nada; o cliente desta rede e quem JA opera uma torneira e paga
+        // os usuarios do proprio bolso. O titulo agora e o que a pagina
+        // entrega a ele.
+        title: 'Connect Your Faucet',
+        desc: 'Already run a faucet? A sponsor funds the rewards. One HTTP call connects it.',
+        icon: '🔌',
         category: 'dev',
-        tag: 'Dev Tools',
-        color: 'from-gray-600 to-gray-500',
-        glow: 'rgba(156,163,175,0.5)',
-        available: false,
+        tag: 'Integration',
+        color: 'from-cyan-600 to-teal-500',
+        glow: 'rgba(34,211,238,0.5)',
+        available: true,
     }
 ];
 
@@ -141,6 +146,10 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
 
     if (activeDapp === 'faucetinternal') {
         return <FaucetInternal onBack={() => setActiveDapp(null)} />;
+    }
+
+    if (activeDapp === 'devhub') {
+        return <ConnectYourFaucet onBack={() => setActiveDapp(null)} />;
     }
 
     return (
@@ -185,7 +194,10 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
             <div className="flex-1 flex relative z-20 overflow-hidden">
                 
                 {/* Glassmorphic Sidebar */}
-                <div className="w-72 bg-black/30 backdrop-blur-2xl border-r border-white/5 flex flex-col pt-10 pb-6 relative z-30 shadow-2xl">
+                {/* Fixa em 288px, ela ocupava 74% de um telefone de 390 e empurrava o
+                    catalogo para uma coluna de uma palavra por linha. No
+                    telefone o mesmo conteudo vira a faixa de chips abaixo. */}
+                <div className="hidden md:flex w-72 bg-black/30 backdrop-blur-2xl border-r border-white/5 flex-col pt-10 pb-6 relative z-30 shadow-2xl">
                     <div className="px-8 mb-12 flex items-center space-x-4">
                         <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-[0_0_20px_rgba(234,179,8,0.4)]">
                             <span className="text-black font-black text-2xl">D</span>
@@ -218,18 +230,55 @@ export const DappsEnvironment: React.FC<DappsEnvironmentProps> = ({ onClose }) =
                 </div>
 
                 {/* App Grid Dashboard */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-14 relative z-20">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 md:p-14 relative z-20">
                     <div className="max-w-7xl mx-auto h-full flex flex-col">
                         
+                        {/* So no telefone: marca, saida e as mesmas quatro categorias da
+                            barra lateral, em linha. Quatro filtros nao justificam uma
+                            gaveta -- gaveta cobraria um toque a mais para ver o que ja
+                            cabe na tela. */}
+                        <div className="md:hidden mb-6">
+                            <div className="flex items-center justify-between gap-3 mb-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-9 h-9 flex-shrink-0 rounded-lg bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">
+                                        <span className="text-black font-black text-lg">D</span>
+                                    </div>
+                                    <h1 className="text-base font-bold tracking-wide text-white truncate">App Library</h1>
+                                </div>
+                                <button
+                                    onClick={onClose}
+                                    className="flex-shrink-0 min-h-[44px] px-4 bg-white/5 active:bg-white/10 border border-white/10 rounded-xl text-sm font-semibold text-gray-300"
+                                >
+                                    &#9167; Exit
+                                </button>
+                            </div>
+                            {/* Rola na horizontal dentro da propria faixa, para que a
+                                pagina nunca role de lado por causa dela. */}
+                            <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                {([['all', 'Overview'], ['l1', 'L1 Core'], ['l2', 'L2 Ecosystem'], ['dev', 'Developer Hub']] as const).map(([id, rotulo]) => (
+                                    <button
+                                        key={id}
+                                        onClick={() => setActiveCategory(id)}
+                                        className={`flex-shrink-0 min-h-[40px] px-4 rounded-full text-xs font-bold whitespace-nowrap border transition-colors
+                                            ${activeCategory === id
+                                                ? 'bg-yellow-400/15 border-yellow-400/40 text-yellow-300'
+                                                : 'bg-white/[0.04] border-white/10 text-gray-400'}`}
+                                    >
+                                        {rotulo}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Header Context */}
-                        <div className="mb-12 animate-fadeIn" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
-                            <h2 className="text-4xl font-extrabold text-white mb-3 tracking-tight">
+                        <div className="mb-8 md:mb-12 animate-fadeIn" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+                            <h2 className="text-2xl md:text-4xl font-extrabold text-white mb-3 tracking-tight">
                                 {activeCategory === 'all' && 'All Apps'}
                                 {activeCategory === 'l1' && 'Native L1 Infrastructure'}
                                 {activeCategory === 'l2' && 'Gamified L2 Ecosystem'}
                                 {activeCategory === 'dev' && 'Developer Tools'}
                             </h2>
-                            <p className="text-gray-400 text-lg font-medium max-w-2xl">
+                            <p className="text-gray-400 text-base md:text-lg font-medium max-w-2xl">
                                 Pick an app to work with the native protocols and distribution hubs on the FaucetChain network.
                             </p>
                         </div>

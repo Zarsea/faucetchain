@@ -3390,8 +3390,36 @@ async def get_anchor_roots():
     }
 
 
+# Vinte e oito chamadas de RPC ao mesmo tempo e como se toma rate limit. Oito
+# por vez derruba 29 segundos para uns quatro, e o RPC nem percebe.
+#
+# O numero mora aqui; o semaforo nasce dentro da chamada. Semaforo criado no
+# import gruda no primeiro event loop que o tocar e levanta "bound to a
+# different event loop" em qualquer outro -- com uvicorn, que roda um loop so,
+# isso passaria despercebido ate o dia em que nao passasse.
+_PROVA_POR_VEZ = int(os.getenv("PROOF_OF_RESERVE_CONCURRENCY", "8"))
+
+# A rota mais cara que existe aqui, e a que um juiz ou um operador abre uma vez
+# para decidir se confia. Reserva nao muda de segundo em segundo; um minuto de
+# cache transforma "toda visita paga a conta" em "um visitante por minuto paga".
+# generatedAt continua sendo a hora do calculo, nao a da resposta: uma prova de
+# reserva que mente sobre a propria idade e pior que uma lenta.
+_PROVA_TTL = int(os.getenv("PROOF_OF_RESERVE_TTL", "60"))
+_prova_cache = {"em": 0.0, "dados": None}
+
+
 @app.get("/api/faucethub/proof-of-reserve")
 async def proof_of_reserve():
+    agora = _time.time()
+    if _prova_cache["dados"] is not None and agora - _prova_cache["em"] < _PROVA_TTL:
+        return _prova_cache["dados"]
+    dados = await _calcular_prova_de_reserva()
+    _prova_cache["em"] = agora
+    _prova_cache["dados"] = dados
+    return dados
+
+
+async def _calcular_prova_de_reserva():
     """Solvency for each asset separately, because one does not pay for another.
 
     This used to add every faucet's $CLAIM together, compare it with the $CLAIM
@@ -3449,7 +3477,9 @@ async def proof_of_reserve():
     }]
 
     # --- campaign assets: what the vault holds against what roots promised ---
-    for camp in campaigns:
+    por_vez = asyncio.Semaphore(_PROVA_POR_VEZ)
+
+    async def _linha_da_campanha(camp):
         row = {
             "asset": camp["mint"],
             "campaignId": camp["campaign_id"],
@@ -3458,11 +3488,12 @@ async def proof_of_reserve():
             "reserve": None,
             "obligations": None,
         }
-        try:
-            chain_view = await get_campaign_ledger(camp["campaign_id"])
-            on_chain = chain_view.get("on_chain")
-        except Exception:
-            on_chain = None
+        async with por_vez:
+            try:
+                chain_view = await get_campaign_ledger(camp["campaign_id"])
+                on_chain = chain_view.get("on_chain")
+            except Exception:
+                on_chain = None
         if on_chain:
             # vault_amount e o saldo; "vault" e o endereco dele.
             committed = on_chain.get("committed")
@@ -3484,7 +3515,13 @@ async def proof_of_reserve():
                       (camp["campaign_id"],))
             row["obligations"] = float(c.fetchone()[0])
             conn.close()
-        rows.append(row)
+        return row
+
+    # Em serie, 28 campanhas custavam 29 segundos nesta rota -- cada uma le a
+    # Solana. A ordem e preservada porque gather devolve na ordem da entrada, e
+    # a prova de reserva e uma tabela: linha trocando de lugar a cada visita
+    # faz o leitor desconfiar do documento inteiro.
+    rows.extend(await asyncio.gather(*(_linha_da_campanha(c) for c in campaigns)))
 
     import reconcile as books
     priced, all_solvent = books.asset_solvency(rows)
