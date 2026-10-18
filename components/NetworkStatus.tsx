@@ -21,6 +21,16 @@ const MetricItem: React.FC<{ label: string; value: string; trend?: 'UP' | 'DOWN'
     </div>
 );
 
+// O que cada coluna representa, por faixa. O titulo do grafico dizer "hourly"
+// enquanto o eixo mostra datas foi parte do que fazia esta tela nao bater.
+const FAIXA_LEGENDA: Record<string, string> = {
+    '4h': '10 minutes',
+    '24h': 'hour',
+    '7d': '6 hours',
+    '30d': 'day',
+    'all': 'day',
+};
+
 export const NetworkStatus: React.FC = () => {
     const { metrics, blocks, triggerAnomaly, anomaly } = useNetwork();
     const { lang } = useLanguage();
@@ -28,34 +38,42 @@ export const NetworkStatus: React.FC = () => {
     const [verifyState, setVerifyState] = useState<Record<number, 'idle' | 'loading' | 'verified' | 'failed'>>({});
     const [epochActive, setEpochActive] = useState(true);
 
-    const [volumeData, setVolumeData] = useState(
-        Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, volume: 0 }))
-    );
+    // Estes dois arrays eram vinte e quatro zeros declarados aqui dentro, e o
+    // comentario do laco abaixo dizia que ficariam assim "ate termos um
+    // indexador". Ficaram meses: quem abria a tela via uma linha no chao com
+    // um espeto na ponta, que era o valor atual escrito no ultimo balde. Agora
+    // os dois leem /api/network/history, e a faixa e escolha de quem olha.
+    const [faixa, setFaixa] = useState<'4h' | '24h' | '7d' | '30d' | 'all'>('24h');
+    const [serie, setSerie] = useState<{ label: string; txs: number; blocks: number; tps: number }[]>([]);
+    const [totais, setTotais] = useState<{ blocos: number; txs: number } | null>(null);
 
-    const [tpsHistory, setTpsHistory] = useState(
-        Array.from({ length: 24 }, (_, i) => ({ time: `${i}:00`, tps: 0 }))
-    );
+    // Recarrega quando a faixa muda, e de minuto em minuto. Nao de segundo em
+    // segundo como o resto desta tela: o balde mais curto tem dez minutos,
+    // entao pedir a cada segundo seria a mesma resposta sessenta vezes.
+    useEffect(() => {
+        let vivo = true;
+        const buscar = async () => {
+            try {
+                const r = await fetch(`${API_BASE_URL}/api/network/history?range=${faixa}`);
+                if (!r.ok) throw new Error(String(r.status));
+                const d = await r.json();
+                if (!vivo) return;
+                setSerie(d.points ?? []);
+                setTotais({ blocos: d.total_blocks ?? 0, txs: d.total_txs ?? 0 });
+            } catch {
+                // Serie vazia e melhor que serie velha: o grafico fica em
+                // branco em vez de desenhar um passado que nao se confirmou.
+                if (vivo) { setSerie([]); setTotais(null); }
+            }
+        };
+        buscar();
+        const timer = setInterval(buscar, 60000);
+        return () => { vivo = false; clearInterval(timer); };
+    }, [faixa]);
 
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentTime(Date.now());
-
-            // Update Volume Data (Bar chart)
-            setVolumeData(prev => {
-                const newData = [...prev];
-                // In a real app, we would fetch historical volume. 
-                // For now, we keep it static 0 until we have an indexer.
-                return newData;
-            });
-
-            // Update TPS History (Line chart)
-            setTpsHistory(prev => {
-                const newData = [...prev];
-                const lastIdx = newData.length - 1;
-                // Use real TPS from context
-                newData[lastIdx] = { ...newData[lastIdx], tps: metrics.tps };
-                return newData;
-            });
 
             // Fetch current L1 epoch health
             fetch(`${API_BASE_URL}/api/epoch/status`)
@@ -65,7 +83,7 @@ export const NetworkStatus: React.FC = () => {
 
         }, 1000);
         return () => clearInterval(interval);
-    }, [anomaly.type, metrics.tps]);
+    }, [anomaly.type]);
 
     const getRelativeTime = (timestamp: number) => {
         const diff = Math.floor((currentTime - timestamp) / 1000);
@@ -151,16 +169,42 @@ export const NetworkStatus: React.FC = () => {
                 </div>
             </SectionCard>
 
+            {/* A faixa fica fora dos cartoes porque governa os dois. Dentro de
+                um deles, pareceria ajuste daquele grafico so. */}
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-brand-muted mr-1">Range</span>
+                {([['4h', '4 hours'], ['24h', '24 hours'], ['7d', '7 days'],
+                   ['30d', '30 days'], ['all', 'All time']] as const).map(([id, rotulo]) => (
+                    <button
+                        key={id}
+                        onClick={() => setFaixa(id)}
+                        className={`min-h-[36px] px-3 rounded-lg text-xs font-bold border transition-colors
+                            ${faixa === id
+                                ? 'bg-brand-primary/15 border-brand-primary/50 text-brand-primary'
+                                : 'bg-brand-card/40 border-brand-border text-brand-muted hover:text-brand-secondary'}`}
+                    >
+                        {rotulo}
+                    </button>
+                ))}
+                {totais && (
+                    <span className="text-[11px] text-brand-muted ml-auto tabular">
+                        {totais.txs.toLocaleString()} transactions in {totais.blocos.toLocaleString()} blocks
+                    </span>
+                )}
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-6">
-                    <SectionCard title="24h Transaction Volume" icon={<ChartBarIcon className="w-5 h-5" />}>
-                        <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">Total Block Transactions (Hourly)</h4>
+                    <SectionCard title="Transaction Volume" icon={<ChartBarIcon className="w-5 h-5" />}>
+                        <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">
+                            Transactions per block, by {FAIXA_LEGENDA[faixa]}
+                        </h4>
                         <div style={{ width: '100%', height: 260 }}>
                             <ResponsiveContainer>
-                                <BarChart data={volumeData}>
+                                <BarChart data={serie}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#30363D" vertical={false} />
                                     <XAxis
-                                        dataKey="time"
+                                        dataKey="label"
                                         stroke="#8B949E"
                                         fontSize={10}
                                         tickLine={false}
@@ -176,17 +220,22 @@ export const NetworkStatus: React.FC = () => {
                                         cursor={{ fill: 'rgba(88, 166, 255, 0.1)' }}
                                         contentStyle={{ backgroundColor: '#0D1117', border: '1px solid #30363D', color: '#C9D1D9' }}
                                     />
-                                    <Bar dataKey="volume" fill="#58A6FF" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="txs" fill="#58A6FF" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
                     </SectionCard>
 
-                    <SectionCard title="24h TPS Performance" icon={<SignalIcon className="w-5 h-5 text-brand-primary" />}>
-                        <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">Transactions Per Second (Estimated History)</h4>
+                    <SectionCard title="TPS" icon={<SignalIcon className="w-5 h-5 text-brand-primary" />}>
+                        {/* Era "estimated history" sobre numeros que nao vinham
+                            de lugar nenhum. Isto e medido: transacoes do balde
+                            divididas pelos segundos dele. */}
+                        <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">
+                            Transactions per second, measured per {FAIXA_LEGENDA[faixa]}
+                        </h4>
                         <div style={{ width: '100%', height: 260 }}>
                             <ResponsiveContainer>
-                                <AreaChart data={tpsHistory}>
+                                <AreaChart data={serie}>
                                     <defs>
                                         <linearGradient id="colorTps" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="5%" stopColor="#58A6FF" stopOpacity={0.3} />
@@ -195,7 +244,7 @@ export const NetworkStatus: React.FC = () => {
                                     </defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#30363D" vertical={false} />
                                     <XAxis
-                                        dataKey="time"
+                                        dataKey="label"
                                         stroke="#8B949E"
                                         fontSize={10}
                                         tickLine={false}

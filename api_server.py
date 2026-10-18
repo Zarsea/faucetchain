@@ -3609,6 +3609,134 @@ async def get_transaction(tx_hash: str):
     return dict(row)
 
 
+# As faixas que a tela oferece. Cada uma e (segundos cobertos, segundos por
+# balde). O numero de baldes sai da divisao, e e ele que decide se o grafico
+# mostra forma ou ruido: 24h em baldes de hora numa rede que produz alguns
+# blocos por dia desenha uma linha de zeros com um espeto, que foi exatamente
+# o que esta tela mostrou por meses.
+#
+# "all" nao tem janela fixa: comeca no primeiro bloco. E a unica faixa que
+# responde "o que esta rede fez desde que existe", que e a pergunta de quem
+# chega agora e quer saber se isto e real.
+NETWORK_RANGES = {
+    "4h":  (4 * 3600,       600),      # 24 baldes de 10 min
+    "24h": (24 * 3600,      3600),     # 24 baldes de 1 h
+    "7d":  (7 * 86400,      6 * 3600), # 28 baldes de 6 h
+    "30d": (30 * 86400,     86400),    # 30 baldes de 1 dia
+    "all": (None,           86400),    # desde o primeiro bloco, por dia
+}
+
+# Carimbo anterior a isto e dado corrompido, nao historia: a rede nao existia.
+# Sem este piso, um unico registro com timestamp 0 estica "all" por 56 anos e
+# achata todo o resto contra o eixo.
+NETWORK_EPOCH_FLOOR = 1577836800   # 2020-01-01
+
+# `range` e o nome do parametro da query -- parte do contrato publico --
+# entao o builtin ganha outro nome aqui dentro em vez de a query mudar.
+_faixa = range
+
+
+def _rotulo_do_balde(inicio: int, segundos: int) -> str:
+    """Hora para baldes curtos, data para baldes de um dia ou mais.
+
+    Um grafico de 30 dias rotulado em horas repete "00:00" trinta vezes e nao
+    diz que dia e nenhum deles -- que e a reclamacao que trouxe esta funcao.
+    """
+    t = _time.gmtime(inicio)
+    if segundos >= 86400:
+        return _time.strftime("%d/%m", t)
+    if segundos >= 3600:
+        return _time.strftime("%d/%m %H:00", t) if segundos >= 6 * 3600 \
+            else _time.strftime("%H:00", t)
+    return _time.strftime("%H:%M", t)
+
+
+@app.get("/api/network/history")
+async def network_history(range: str = "24h"):
+    """Blocos e transacoes por balde de tempo, na faixa pedida.
+
+    Existe porque os dois graficos desta tela nunca estiveram ligados em nada:
+    o volume era um array de vinte e quatro zeros declarado no proprio
+    componente, e o TPS era o mesmo array com o valor atual escrito so no
+    ultimo balde -- o espeto na ponta direita. O codigo dizia isso de si
+    mesmo, num comentario, desde que foi escrito.
+
+    Balde vazio vem com zero, e nao ausente. Serie com buracos faz o grafico
+    juntar dois instantes distantes como se fossem vizinhos, e aí a forma que
+    ele desenha e uma mentira sobre a densidade.
+    """
+    faixa = NETWORK_RANGES.get(range)
+    if not faixa:
+        raise HTTPException(
+            status_code=400,
+            detail=f"range must be one of: {', '.join(NETWORK_RANGES)}")
+    janela, passo = faixa
+    agora = int(_time.time())
+
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        if janela is None:
+            try:
+                primeiro = c.execute(
+                    "SELECT MIN(timestamp) FROM blocks WHERE timestamp >= ?",
+                    (NETWORK_EPOCH_FLOOR,)).fetchone()[0]
+            except sqlite3.OperationalError:
+                primeiro = None
+            inicio = int(primeiro) if primeiro else agora - 86400
+            # Um dia por balde fica ilegivel depois de uns meses; a partir dai
+            # o balde cresce para manter a quantidade de colunas legivel.
+            dias = max(1, (agora - inicio) // 86400)
+            passo = 86400 if dias <= 60 else 86400 * (dias // 60 + 1)
+            inicio = (inicio // passo) * passo
+            fim = ((agora // passo) + 1) * passo
+        else:
+            # Alinhado ao balde, senao o primeiro e o ultimo sao parciais e o
+            # grafico mostra uma queda no fim que e so o balde ainda enchendo.
+            # A contagem sai de fim - janela, e nao de agora - janela: assim
+            # "24h" da 24 colunas e nao 25, que e o arredondamento aparecendo
+            # no eixo como um dia que se repete.
+            fim = ((agora // passo) + 1) * passo
+            inicio = fim - janela
+        baldes = {t: {"blocks": 0, "txs": 0} for t in _faixa(inicio, fim, passo)}
+
+        try:
+            linhas = c.execute(
+                "SELECT (timestamp / ?) * ? AS balde, COUNT(*) AS blocos, "
+                "COALESCE(SUM(tx_count), 0) AS txs FROM blocks "
+                "WHERE timestamp >= ? AND timestamp < ? AND timestamp >= ? "
+                "GROUP BY balde",
+                (passo, passo, inicio, fim, NETWORK_EPOCH_FLOOR)).fetchall()
+        except sqlite3.OperationalError:
+            linhas = []
+        for l in linhas:
+            b = int(l["balde"])
+            if b in baldes:
+                baldes[b] = {"blocks": l["blocos"], "txs": l["txs"]}
+    finally:
+        conn.close()
+
+    pontos = [{
+        "t": t,
+        "label": _rotulo_do_balde(t, passo),
+        "blocks": v["blocks"],
+        "txs": v["txs"],
+        # Medido, nao estimado: transacoes do balde divididas pelos segundos
+        # dele. A tela dizia "estimated history" sobre numeros inventados.
+        "tps": round(v["txs"] / passo, 4),
+    } for t, v in sorted(baldes.items())]
+
+    return {
+        "range": range,
+        "bucket_seconds": passo,
+        "from": inicio,
+        "to": fim,
+        "points": pontos,
+        "total_blocks": sum(p["blocks"] for p in pontos),
+        "total_txs": sum(p["txs"] for p in pontos),
+    }
+
+
 @app.get("/api/network-metrics")
 async def get_network_metrics():
     """Return network metrics for the frontend dashboard."""
