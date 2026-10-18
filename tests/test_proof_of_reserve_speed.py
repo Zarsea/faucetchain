@@ -19,6 +19,7 @@ import asyncio
 import os
 import sys
 import tempfile
+import threading
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -54,23 +55,37 @@ def semear():
 
 
 class LeituraFalsa:
-    """Substitui a leitura de cadeia por uma espera, e conta as simultaneas."""
+    """Substitui a leitura de cadeia por uma espera BLOQUEANTE, e conta as
+    simultaneas.
+
+    time.sleep, e nao asyncio.sleep. Esta e a diferenca que importa: a leitura
+    de verdade e `async def` por fora e sincrona por dentro -- chain.rpc usa
+    requests.post, que nao cede o event loop. Um dublê que dorme com
+    asyncio.sleep cede, e entao passa verde mesmo quando o codigo real roda
+    tudo em fila. Foi exatamente o que aconteceu: a rota continuou levando 31
+    segundos em producao com este arquivo dizendo que estava paralela.
+
+    Dublê que mente sobre a natureza do que substitui mede o dublê.
+    """
 
     def __init__(self):
         self.agora = 0
         self.pico = 0
         self.chamadas = 0
+        self._trava = threading.Lock()
 
     async def __call__(self, campaign_id):
-        self.chamadas += 1
-        self.agora += 1
-        self.pico = max(self.pico, self.agora)
+        with self._trava:
+            self.chamadas += 1
+            self.agora += 1
+            self.pico = max(self.pico, self.agora)
         try:
-            await asyncio.sleep(ATRASO)
+            time.sleep(ATRASO)      # bloqueia, como a de verdade bloqueia
             return {"on_chain": {"committed": 10, "paid": 4, "vault_amount": 100,
                                  "vault": "V%s" % campaign_id}}
         finally:
-            self.agora -= 1
+            with self._trava:
+                self.agora -= 1
 
 
 def medir():

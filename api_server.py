@@ -3490,7 +3490,15 @@ async def _calcular_prova_de_reserva():
         }
         async with por_vez:
             try:
-                chain_view = await get_campaign_ledger(camp["campaign_id"])
+                # Em thread, e nao so com await: get_campaign_ledger e `async
+                # def`, mas o corpo dela bloqueia -- chain.rpc usa
+                # requests.post, que nao cede o loop. Com gather sozinho as 28
+                # leituras rodavam em fila do mesmo jeito, e a rota continuou
+                # levando 31s em producao enquanto o teste dizia que estava
+                # paralela: o teste trocava a leitura por asyncio.sleep, que e
+                # justamente o que a de verdade nao faz.
+                chain_view = await asyncio.to_thread(_ler_ledger_bloqueante,
+                                                     camp["campaign_id"])
                 on_chain = chain_view.get("on_chain")
             except Exception:
                 on_chain = None
@@ -9116,6 +9124,16 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
 # 95% do custo de um usuario novo e muda com a rede.
 RELAYER_ALERT_LOW = int(os.getenv("RELAYER_ALERT_LOW", "500"))
 RELAYER_ALERT_CRITICAL = int(os.getenv("RELAYER_ALERT_CRITICAL", "100"))
+
+
+def _ler_ledger_bloqueante(campaign_id: int):
+    """get_campaign_ledger numa thread propria, com loop proprio.
+
+    Existe porque a funcao e assincrona por fora e sincrona por dentro. Rodar
+    uma dessas com await nao libera nada; rodar em thread libera, e cada thread
+    precisa do seu proprio loop para poder executa-la.
+    """
+    return asyncio.run(get_campaign_ledger(campaign_id))
 
 
 def _relayer_economia() -> dict:
