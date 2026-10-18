@@ -685,7 +685,24 @@ AUTH_HOURLY_PER_IP = int(os.getenv("AUTH_HOURLY_PER_IP", "30"))
 REGISTER_HOURLY_PER_IP = int(os.getenv("REGISTER_HOURLY_PER_IP", "10"))
 TRACKER_HOURLY_PER_IP = int(os.getenv("TRACKER_HOURLY_PER_IP", "60"))
 HOLDINGS_HOURLY_PER_IP = int(os.getenv("HOLDINGS_HOURLY_PER_IP", "120"))
-MINING_HOURLY_PER_NODE = int(os.getenv("MINING_HOURLY_PER_NODE", "300"))
+# Este teto nao e por IP, e por no, e o balde "mining" e UM so para heartbeat,
+# explore e disconnect. A conta de um no honesto, com os intervalos que o
+# mining-node usa (miner-core.js: heartbeat 30s, EXPLORE_SECONDS = 30):
+#
+#     heartbeat  120/hora
+#     explore    120/hora
+#                ---------
+#                240/hora
+#
+# Contra 300, isso deixava 60 chamadas de folga. Qualquer reinicio, reconexao
+# ou tentativa repetida passava do teto, e o no levava 429 no heartbeat ate a
+# janela deslizar -- aparecendo offline no painel, perdendo a epoca, por estar
+# fazendo exatamente o que foi desenhado para fazer. Aconteceu em 18/10/2026.
+#
+# 900 da folga de 3,75x sobre o trafego honesto e ainda segura um laco solto,
+# que faria milhares. Baixar este numero sem refazer a conta acima repete o
+# mesmo dia.
+MINING_HOURLY_PER_NODE = int(os.getenv("MINING_HOURLY_PER_NODE", "900"))
 # Nos NOVOS por IP por hora. Reconectar um no existente nao conta, entao reiniciar
 # o minerador quantas vezes quiser nao esbarra nisto. Oito deixa folga para quem
 # roda varios nos legitimos numa maquina e ainda assim encarece registro em massa.
