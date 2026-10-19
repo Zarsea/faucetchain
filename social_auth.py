@@ -12,7 +12,19 @@ what the browser claims it said? Telegram can: it signs its payload with an
 HMAC keyed on the bot token, so verification is arithmetic on data we already
 hold, with no network call to make and nothing to trust in between.
 
-    python social_auth.py       # self-check, no network, no bot token needed
+Google answers it differently and still answers it. We never accept an ID
+token handed over by the browser. The browser comes back carrying a one-time
+code, and **this server** trades that code with Google's token endpoint over
+TLS. What comes back came from Google, to us, on a channel we opened — so the
+claims inside it were never in the browser's hands to edit.
+
+That is also why the sign-in here is a redirect and not the popup button
+everyone ships. The popup needs Google's script in our page and `connect-src`
+opened to accounts.google.com, and with the session token still living in
+localStorage, `connect-src 'self'` is the thing stopping an XSS from mailing
+it anywhere. The redirect costs a page load and keeps that shut.
+
+    python social_auth.py       # self-check, no network, no credentials needed
 """
 
 import hashlib
@@ -84,6 +96,135 @@ def verify_telegram(payload, bot_token=None, now=None):
     return str(payload["id"])
 
 
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+# Os dois valores que o campo `iss` pode ter. Qualquer outro e um token que
+# nao veio de quem dizemos que veio.
+GOOGLE_ISSUERS = ("accounts.google.com", "https://accounts.google.com")
+
+
+def google_configured():
+    return bool(os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET"))
+
+
+def _google_credentials():
+    cid = os.environ.get("GOOGLE_CLIENT_ID")
+    secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    if not cid or not secret:
+        raise SocialAuthError("Google sign-in is not configured on this server")
+    return cid, secret
+
+
+def google_authorize_url(redirect_uri, state):
+    """Para onde mandar o navegador.
+
+    `state` volta intacto do Google e e conferido na volta: sem ele, qualquer
+    um induz a vitima a completar um login que nao foi ela que comecou, e a
+    conta da vitima termina ligada ao Google do atacante.
+
+    `prompt=select_account` existe para quem tem mais de uma conta Google nao
+    ser silenciosamente logado na errada -- que e como alguem cria conta aqui
+    sem perceber e depois nao acha o saldo.
+    """
+    cid, _ = _google_credentials()
+    from urllib.parse import urlencode
+
+    return GOOGLE_AUTH_URL + "?" + urlencode({
+        "client_id": cid,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email",
+        "state": state,
+        "prompt": "select_account",
+    })
+
+
+def _decode_jwt_claims(token):
+    """As afirmacoes dentro de um JWT, sem conferir a assinatura.
+
+    Sem conferir de proposito, e so aqui: este token nao veio do navegador.
+    Ele chegou da resposta do token endpoint do Google, por TLS, numa conexao
+    que este servidor abriu. A assinatura protege um token que atravessou
+    terceiros; este nao atravessou nenhum, e e a propria documentacao do Google
+    que dispensa a verificacao neste caso.
+
+    Esta funcao nao pode ser usada para token vindo de fora. Se um dia alguem
+    aceitar id_token no corpo de um request, a assinatura passa a ser
+    obrigatoria e esta funcao e a errada para a tarefa.
+    """
+    import base64
+    import json
+
+    partes = str(token).split(".")
+    if len(partes) != 3:
+        raise SocialAuthError("That sign-in could not be verified")
+    corpo = partes[1]
+    corpo += "=" * (-len(corpo) % 4)        # base64url sem padding
+    try:
+        return json.loads(base64.urlsafe_b64decode(corpo))
+    except Exception:
+        raise SocialAuthError("That sign-in could not be verified")
+
+
+def verify_google_code(code, redirect_uri, now=None, _post=None):
+    """Troca o codigo com o Google e devolve (sub, email).
+
+    `sub` e a identidade, nunca o e-mail: o e-mail de uma conta Google muda, e
+    quem herdasse um endereco reciclado herdaria a conta junto. `sub` nao muda
+    e nao se repete.
+    """
+    cid, secret = _google_credentials()
+    enviar = _post or _post_form
+
+    try:
+        resposta = enviar(GOOGLE_TOKEN_URL, {
+            "code": code,
+            "client_id": cid,
+            "client_secret": secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        })
+    except Exception:
+        raise SocialAuthError("Google did not answer. Try again.")
+
+    id_token = (resposta or {}).get("id_token")
+    if not id_token:
+        # Codigo ja usado, expirado, ou de outro cliente. O motivo exato fica
+        # no log do Google, nao na tela de quem tentou.
+        raise SocialAuthError("That sign-in could not be verified")
+
+    c = _decode_jwt_claims(id_token)
+
+    if c.get("iss") not in GOOGLE_ISSUERS:
+        raise SocialAuthError("That sign-in could not be verified")
+    # `aud` amarra o token a ESTE cliente. Sem esta linha, um token emitido
+    # para qualquer outro aplicativo Google entraria aqui como se fosse nosso.
+    if c.get("aud") != cid:
+        raise SocialAuthError("That sign-in could not be verified")
+    agora = now if now is not None else int(time.time())
+    try:
+        if int(c.get("exp") or 0) <= agora:
+            raise SocialAuthError("That sign-in expired. Try again.")
+    except (TypeError, ValueError):
+        raise SocialAuthError("That sign-in could not be verified")
+    sub = c.get("sub")
+    if not sub:
+        raise SocialAuthError("That sign-in could not be verified")
+
+    # O e-mail e so rotulo, e so vai junto quando o proprio Google diz que o
+    # verificou. Nao verificado, nao e identidade nem endereco de contato.
+    email = c.get("email") if c.get("email_verified") else None
+    return str(sub), email
+
+
+def _post_form(url, campos):
+    import requests
+
+    r = requests.post(url, data=campos, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+
 def account_for(provider, provider_id):
     """The FaucetChain address that belongs to a platform identity.
 
@@ -150,6 +291,70 @@ def _self_check() -> None:
     finally:
         if saved is not None:
             os.environ["TELEGRAM_BOT_TOKEN"] = saved
+
+    # ---- Google, sem rede: o token endpoint e substituido por uma funcao ----
+    CID = "cliente-de-teste.apps.googleusercontent.com"
+    os.environ["GOOGLE_CLIENT_ID"] = CID
+    os.environ["GOOGLE_CLIENT_SECRET"] = "segredo-de-teste"
+
+    def jwt_de(claims):
+        import base64, json
+        cabeca = base64.urlsafe_b64encode(b'{"alg":"RS256"}').decode().rstrip("=")
+        corpo = base64.urlsafe_b64encode(json.dumps(claims).encode()).decode().rstrip("=")
+        return f"{cabeca}.{corpo}.assinatura-que-nao-conferimos"
+
+    def google_responde(claims):
+        return lambda url, campos: {"id_token": jwt_de(claims)}
+
+    bom = {"iss": "https://accounts.google.com", "aud": CID, "sub": "1089",
+           "exp": now + 600, "email": "ada@example.com", "email_verified": True}
+
+    sub, email = verify_google_code("cod", "https://x/cb", now, google_responde(bom))
+    assert sub == "1089", sub
+    assert email == "ada@example.com", email
+
+    # O e-mail so acompanha quando o proprio Google diz que o verificou.
+    _, email2 = verify_google_code("cod", "https://x/cb", now,
+                                   google_responde({**bom, "email_verified": False}))
+    assert email2 is None, email2
+
+    for ruim, porque in (
+        ({**bom, "aud": "outro-cliente.apps.googleusercontent.com"}, "token de outro cliente"),
+        ({**bom, "iss": "https://accounts.evil.test"}, "emissor trocado"),
+        ({**bom, "exp": now - 1}, "token expirado"),
+        ({k: v for k, v in bom.items() if k != "sub"}, "sem sub"),
+    ):
+        try:
+            verify_google_code("cod", "https://x/cb", now, google_responde(ruim))
+            raise AssertionError(f"aceitou {porque}")
+        except SocialAuthError:
+            pass
+
+    # Resposta sem id_token -- codigo ja usado, por exemplo -- nao vira conta.
+    try:
+        verify_google_code("cod", "https://x/cb", now, lambda u, c: {"error": "invalid_grant"})
+        raise AssertionError("aceitou resposta sem id_token")
+    except SocialAuthError:
+        pass
+
+    # Sem credencial, recusa em vez de seguir.
+    guardado = (os.environ.pop("GOOGLE_CLIENT_ID"), os.environ.pop("GOOGLE_CLIENT_SECRET"))
+    assert not google_configured()
+    try:
+        verify_google_code("cod", "https://x/cb", now, google_responde(bom))
+        raise AssertionError("entrou sem credencial configurada")
+    except SocialAuthError:
+        pass
+    os.environ["GOOGLE_CLIENT_ID"], os.environ["GOOGLE_CLIENT_SECRET"] = guardado
+    assert google_configured()
+
+    # A URL de ida leva o state e pede escolha de conta.
+    url = google_authorize_url("https://x/cb", "estado-123")
+    for pedaco in ("state=estado-123", "response_type=code", "prompt=select_account",
+                   "scope=openid+email"):
+        assert pedaco in url, (pedaco, url)
+    del os.environ["GOOGLE_CLIENT_ID"]
+    del os.environ["GOOGLE_CLIENT_SECRET"]
 
     # An address, and the provider keeps identities apart.
     addr = account_for("telegram", "42")

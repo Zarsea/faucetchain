@@ -3,7 +3,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 
 // No external EVM wallet: the only wallet the product needs is the Solana
 // one, used to sign in and to receive payouts.
-type AuthMethod = 'GUEST' | 'EMAIL' | 'SOLANA' | null;
+type AuthMethod = 'GUEST' | 'EMAIL' | 'SOLANA' | 'GOOGLE' | null;
 
 const TOKEN_KEY = 'hvm_session_token';
 const ADDRESS_KEY = 'hvm_user_address';

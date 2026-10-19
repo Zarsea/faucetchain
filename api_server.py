@@ -46,7 +46,7 @@ import logging
 import sqlite3
 from typing import Tuple
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 CHAIN_ID = "7777"
 MAX_SUPPLY = 99000000.0
@@ -7583,6 +7583,161 @@ async def sign_in_with_telegram(req: TelegramAuthRequest, request: Request):
         "provider": "telegram",
         **session,
     }
+
+
+# Para onde o Google devolve o navegador. Tem de bater exatamente com o que
+# estiver cadastrado no console do Google -- e a unica coisa aqui que nao da
+# para descobrir sozinho, e um caractere de diferenca recusa o login inteiro.
+GOOGLE_REDIRECT_URI = os.getenv(
+    "GOOGLE_REDIRECT_URI", "https://www.faucetchain.com.br/api/auth/google/callback")
+
+# Quanto tempo um login iniciado pode levar para voltar. Cinco minutos cobre
+# digitar senha e segundo fator sem deixar um `state` capturado valer o dia.
+GOOGLE_STATE_TTL = int(os.getenv("GOOGLE_STATE_TTL", "300"))
+
+
+def init_google_states_table():
+    conn = get_db_connection()
+    try:
+        # O `state` que foi para o Google, para reconhecer a volta. Guardado e
+        # nao assinado porque ele precisa ser de uso UNICO: assinatura prova
+        # origem e nao impede repeticao, e um `state` repetivel deixa a mesma
+        # volta ser jogada duas vezes.
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS google_states (
+                state      TEXT PRIMARY KEY,
+                created_at INTEGER NOT NULL
+            )
+        ''')
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+async def startup_google_states():
+    try:
+        init_google_states_table()
+    except Exception as e:
+        print(f"\u26a0\ufe0f Failed to init google_states table: {e}")
+
+
+@app.get("/api/auth/google/start")
+async def google_sign_in_start(request: Request):
+    """Comeca o login com Google mandando o navegador para la.
+
+    Redirecionamento, e nao o botao de popup que quase todo mundo usa. O popup
+    exige o script do Google na nossa pagina e `connect-src` aberto para
+    accounts.google.com -- e com o token de sessao ainda vivendo no
+    localStorage, `connect-src 'self'` e justamente o que impede um XSS de
+    mandar esse token para fora. O redirecionamento custa um carregamento de
+    pagina e mantem isso fechado. No celular ele ainda e melhor: popup e
+    bloqueado em boa parte dos navegadores.
+    """
+    if not within_rate("auth", request.client.host, AUTH_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many attempts from here this hour.")
+    if not social_auth.google_configured():
+        raise HTTPException(status_code=503, detail="Google sign-in is not configured on this server")
+
+    state = secrets.token_urlsafe(24)
+    agora = int(_time.time())
+    conn = get_db_connection()
+    try:
+        conn.execute("INSERT INTO google_states (state, created_at) VALUES (?, ?)",
+                     (state, agora))
+        # Os vencidos saem agora, que e o momento natural: ninguem varre isto
+        # num timer e eles nao servem mais para nada.
+        conn.execute("DELETE FROM google_states WHERE created_at < ?",
+                     (agora - GOOGLE_STATE_TTL,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    return RedirectResponse(
+        social_auth.google_authorize_url(GOOGLE_REDIRECT_URI, state), status_code=302)
+
+
+@app.get("/api/auth/google/callback")
+async def google_sign_in_callback(request: Request, code: str = None,
+                                  state: str = None, error: str = None):
+    """A volta do Google: troca o codigo, alcanca a conta, devolve o navegador.
+
+    O erro nunca vira pagina de erro da API. Quem clicou em "entrar com Google"
+    espera voltar para o site; um JSON de 401 no meio do caminho e um beco sem
+    saida. Entao tudo volta para a aplicacao, e e ela que conta o que houve.
+    """
+    def voltar(fragmento: str):
+        return RedirectResponse(f"/#{fragmento}", status_code=302)
+
+    # O usuario pode ter clicado em "cancelar" la. Isso nao e falha.
+    if error or not code or not state:
+        return voltar("google=cancelled")
+
+    agora = int(_time.time())
+    conn = get_db_connection()
+    try:
+        linha = conn.execute("SELECT created_at FROM google_states WHERE state = ?",
+                             (state,)).fetchone()
+        # Consumido na mesma transacao em que e lido: e o que torna a volta de
+        # uso unico. Sem isto, a mesma URL de callback entra de novo.
+        conn.execute("DELETE FROM google_states WHERE state = ?", (state,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    if not linha or agora - linha["created_at"] > GOOGLE_STATE_TTL:
+        # State desconhecido ou vencido: ou e uma volta forjada, ou alguem
+        # demorou demais. Os dois voltam para a tela de entrada.
+        return voltar("google=expired")
+
+    try:
+        sub, email = social_auth.verify_google_code(code, GOOGLE_REDIRECT_URI)
+    except social_auth.SocialAuthError:
+        return voltar("google=failed")
+
+    derived = social_auth.account_for("google", sub)
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        c.execute("SELECT address FROM social_identities WHERE provider = ? AND provider_id = ?",
+                  ("google", sub))
+        row = c.fetchone()
+        account = row[0] if row else derived
+
+        c.execute("SELECT 1 FROM users WHERE wallet_address = ?", (account,))
+        if not c.fetchone():
+            # Nenhuma senha alcanca esta conta: o Google e a unica porta, entao
+            # a coluna guarda um valor que nenhum hash iguala.
+            #
+            # O e-mail guardado e sintetico mesmo quando o Google mandou o
+            # real: a coluna e UNIQUE, e o mesmo e-mail em duas contas -- uma
+            # por senha, outra por Google -- faria o segundo cadastro falhar
+            # com um erro de banco em vez de entrar.
+            c.execute(
+                "INSERT INTO users (email, password_hash, wallet_address, created_at) "
+                "VALUES (?, ?, ?, ?)",
+                (f"google_{sub}@social.faucetchain.local", "!", account, agora))
+        if not row:
+            c.execute(
+                "INSERT INTO social_identities (provider, provider_id, address, verified_at) "
+                "VALUES (?, ?, ?, ?)", ("google", sub, account, agora))
+        conn.commit()
+    finally:
+        conn.close()
+
+    sessao = issue_session(account)
+    audit_logger.info("GOOGLE_SIGN_IN: %s (sub %s, email %s)", account, sub, email or "-")
+
+    # O token volta no FRAGMENTO, que o navegador nao manda ao servidor nem no
+    # Referer. Nao e perfeito -- ele passa pelo historico -- e a aplicacao o
+    # apaga da barra assim que le. O conserto de raiz e o mesmo pendente de
+    # sempre: sessao em cookie HttpOnly, que tira o token do alcance do script.
+    from urllib.parse import urlencode
+    return voltar("google=ok&" + urlencode({
+        "address": account,
+        "session_token": sessao["session_token"],
+        "session_expires_at": sessao["session_expires_at"],
+    }))
 
 
 class SolanaAuthRequest(BaseModel):

@@ -14,6 +14,32 @@ export const Header: React.FC = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
     const [isWalletLoading, setIsWalletLoading] = useState(false);
+
+    // A volta do Google chega no fragmento da URL, que o navegador nao manda
+    // ao servidor nem no Referer. Lido uma vez, a barra e limpa na mesma
+    // batida: deixar o token visivel ali e deixar que ele seja copiado junto
+    // quando alguem compartilha o endereco da pagina.
+    useEffect(() => {
+        if (!window.location.hash.includes('google=')) return;
+        const p = new URLSearchParams(window.location.hash.slice(1));
+        const estado = p.get('google');
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+        if (estado === 'ok') {
+            const endereco = p.get('address');
+            const token = p.get('session_token');
+            if (endereco && token) {
+                login(endereco, 'GOOGLE', token);
+                setIsAuthModalOpen(false);
+                return;
+            }
+        }
+        // Cancelar nao e falha, e o resto e. Os tres abrem a janela de novo,
+        // porque quem clicou em entrar continua querendo entrar.
+        setAuthError(t(estado === 'cancelled' ? 'auth.googleCancelled'
+            : estado === 'expired' ? 'auth.googleExpired' : 'auth.googleFailed'));
+        setIsAuthModalOpen(true);
+    }, []);
     // Telefone sem provider injetado: nao e erro, e navegador errado.
     const [precisaDoPhantom, setPrecisaDoPhantom] = useState(false);
     const [authModalView, setAuthModalView] = useState<'MAIN' | 'EMAIL'>('MAIN');
@@ -293,6 +319,24 @@ export const Header: React.FC = () => {
                                     <FaucetChainSolanaMarkSmall className="w-5 h-5" />
                                     {isWalletLoading ? t('auth.walletWaiting') : t('auth.solana')}
                                 </button>
+                                {/* Navegacao de pagina inteira, de proposito: o
+                                    popup do Google exigiria o script dele aqui
+                                    dentro e connect-src aberto, e e connect-src
+                                    'self' que impede um XSS de levar o token de
+                                    sessao embora. Um <a> simples nao passa por
+                                    CSP nenhum. */}
+                                <a
+                                    href={`${API_BASE_URL}/api/auth/google/start`}
+                                    className="w-full flex items-center justify-center gap-4 bg-brand-surface border border-brand-border p-4 rounded-2xl font-bold text-white hover:border-brand-primary transition-all min-h-[56px]"
+                                >
+                                    <svg className="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
+                                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+                                        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+                                        <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z" />
+                                    </svg>
+                                    {t('auth.google')}
+                                </a>
                                 <button
                                     onClick={() => handleConnect('GUEST')}
                                     disabled={isGuestLoading}
