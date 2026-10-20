@@ -17,6 +17,7 @@ const TechnicalSpecs = React.lazy(() => import('./components/TechnicalSpecs').th
 import { WalletExplorer } from './components/WalletExplorer';
 import { AIChatAgent } from './components/AIChatAgent';
 import { UserDashboard } from './components/UserDashboard';
+import PrivacySettings from './components/PrivacySettings';
 import { StakingVault } from './components/StakingVault';
 import { BountyBoard } from './components/BountyBoard';
 import { MiningHub } from './components/MiningHub';
@@ -49,6 +50,7 @@ const TABS = [
     'API Docs',
     'General Article',
     'Infra Monitor',
+    'Privacy',
 ];
 
 const AppContent: React.FC = () => {
@@ -100,6 +102,8 @@ const AppContent: React.FC = () => {
                 return <ApiDocs />;
             case 'Infra Monitor':
                 return <InfrastructureMonitor />;
+            case 'Privacy':
+                return <PrivacySettings />;
             default:
                 return <UserDashboard onNavigate={setActiveTab} />;
         }

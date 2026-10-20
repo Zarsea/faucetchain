@@ -1,0 +1,261 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { API_BASE_URL } from '../apiConfig';
+import { useAuth, sessionHeaders } from './AuthContext';
+import { ShieldCheckIcon, GlobeAltIcon, WalletIcon, XMarkIcon } from './IconComponents';
+
+/**
+ * Privacidade da conta: o que esta ligado a ela, e o que isso expoe.
+ *
+ * Existe como tela propria porque vincular o Google e uma escolha, nao um
+ * passo de fluxo. Um botao "entrar com Google" solto numa tela qualquer pede
+ * a decisao no meio de outra coisa, quando a pessoa nao esta pensando no
+ * assunto -- e consentimento pedido assim nao e consentimento, e distracao.
+ *
+ * A regra que governa o texto daqui: dizer o que acontece ANTES do clique.
+ * Depois do clique, qualquer explicacao e desculpa.
+ */
+
+interface Identidades {
+    address: string;
+    sign_in_methods: string[];
+    google: { linked: boolean; linked_at: number | null; can_unlink: boolean };
+}
+
+const NOME_DA_PORTA: Record<string, string> = {
+    password: 'Email and password',
+    wallet: 'Solana wallet',
+    google: 'Google',
+    telegram: 'Telegram',
+};
+
+const Linha: React.FC<{
+    icone: React.ReactNode; titulo: string; estado: string; children?: React.ReactNode;
+}> = ({ icone, titulo, estado, children }) => (
+    <div className="p-5 bg-brand-card/40 border border-brand-border rounded-2xl">
+        <div className="flex items-start gap-4">
+            <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-brand-bg/60 border border-brand-border flex items-center justify-center text-brand-primary">
+                {icone}
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h3 className="font-bold text-brand-secondary">{titulo}</h3>
+                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-brand-muted">
+                        {estado}
+                    </span>
+                </div>
+                {children}
+            </div>
+        </div>
+    </div>
+);
+
+export const PrivacySettings: React.FC = () => {
+    const { isConnected, userAddress } = useAuth();
+    const [dados, setDados] = useState<Identidades | null>(null);
+    const [carregando, setCarregando] = useState(true);
+    const [erro, setErro] = useState('');
+    const [aviso, setAviso] = useState('');
+    const [confirmando, setConfirmando] = useState(false);
+
+    const buscar = useCallback(async () => {
+        try {
+            const r = await fetch(`${API_BASE_URL}/api/account/identities`,
+                { headers: { ...sessionHeaders() } });
+            if (!r.ok) throw new Error(String(r.status));
+            setDados(await r.json());
+            setErro('');
+        } catch {
+            setDados(null);
+            setErro('Could not read your account settings. Try again in a moment.');
+        } finally {
+            setCarregando(false);
+        }
+    }, []);
+
+    useEffect(() => { if (isConnected) buscar(); else setCarregando(false); }, [isConnected, buscar]);
+
+    // A volta do vinculo chega no fragmento, como a do login. Lida uma vez e
+    // apagada da barra na mesma batida.
+    useEffect(() => {
+        if (!window.location.hash.includes('google=')) return;
+        const estado = new URLSearchParams(window.location.hash.slice(1)).get('google');
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        const recados: Record<string, string> = {
+            linked: 'Google is linked to this account.',
+            already_linked: 'That Google account was already linked here.',
+            taken: 'That Google account belongs to another FaucetChain account. Sign in there and unlink it first.',
+            cancelled: 'Linking cancelled. Nothing changed.',
+            expired: 'That took too long. Start again.',
+            failed: 'Google did not confirm it. Nothing changed.',
+        };
+        if (estado && recados[estado]) setAviso(recados[estado]);
+        buscar();
+    }, [buscar]);
+
+    const desvincular = async () => {
+        setErro('');
+        try {
+            const r = await fetch(`${API_BASE_URL}/api/auth/google/link`,
+                { method: 'DELETE', headers: { ...sessionHeaders() } });
+            const corpo = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(corpo?.detail || `HTTP ${r.status}`);
+            setAviso('Google is no longer linked to this account.');
+            setConfirmando(false);
+            buscar();
+        } catch (e: any) {
+            setErro(e.message);
+            setConfirmando(false);
+        }
+    };
+
+    if (!isConnected) {
+        return (
+            <div className="max-w-2xl">
+                <h2 className="text-3xl font-bold text-brand-secondary mb-2">Privacy</h2>
+                <p className="text-brand-muted">
+                    Sign in to see what is linked to your account. These settings belong to one
+                    account, and there is no account here yet.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="max-w-2xl space-y-6">
+            <div>
+                <h2 className="text-3xl font-bold text-brand-secondary">Privacy</h2>
+                <p className="text-brand-muted mt-1">
+                    What is connected to this account, and what each connection does. Nothing here
+                    is required: an account works with one way in, and the rest is your choice.
+                </p>
+            </div>
+
+            {aviso && (
+                <div className="p-4 rounded-xl bg-brand-primary/10 border border-brand-primary/30 text-brand-secondary text-sm">
+                    {aviso}
+                </div>
+            )}
+            {erro && (
+                <div className="p-4 rounded-xl bg-brand-error/10 border border-brand-error/30 text-brand-error text-sm">
+                    {erro}
+                </div>
+            )}
+
+            {carregando && <p className="text-brand-muted text-sm">Reading your settings…</p>}
+
+            {dados && (
+                <>
+                    <Linha
+                        icone={<ShieldCheckIcon className="w-5 h-5" />}
+                        titulo="This account"
+                        estado={`${dados.sign_in_methods.length} way${dados.sign_in_methods.length === 1 ? '' : 's'} in`}
+                    >
+                        <p className="font-mono text-xs text-brand-muted mt-2 break-all">{dados.address}</p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                            {dados.sign_in_methods.map((m) => (
+                                <span key={m} className="px-2 py-1 rounded-lg bg-brand-bg/60 border border-brand-border text-[11px] font-bold text-brand-secondary">
+                                    {NOME_DA_PORTA[m] ?? m}
+                                </span>
+                            ))}
+                        </div>
+                        {dados.sign_in_methods.length === 1 && (
+                            <p className="text-brand-warn text-xs mt-3 leading-relaxed">
+                                Only one way in. Lose it and the account goes with it — there is no
+                                password reset for an account nobody holds a second key to.
+                            </p>
+                        )}
+                    </Linha>
+
+                    <Linha
+                        icone={<GlobeAltIcon className="w-5 h-5" />}
+                        titulo="Google"
+                        estado={dados.google.linked ? 'Linked' : 'Not linked'}
+                    >
+                        {/* O que a pessoa precisa saber antes de clicar, nao depois. */}
+                        <ul className="text-brand-muted text-xs leading-relaxed mt-2 space-y-1.5 list-disc pl-4">
+                            <li>Lets you sign in to <strong className="text-brand-secondary">this</strong> account with Google, on any device.</li>
+                            <li>We store the identifier Google gives us, and nothing else. <strong className="text-brand-secondary">Your email address is not stored</strong> and never appears on this network.</li>
+                            <li>Nothing about it is public. No screen, no API and no export shows who is linked.</li>
+                            <li>You can unlink it here at any time, as long as you keep another way in.</li>
+                        </ul>
+
+                        {dados.google.linked ? (
+                            <div className="mt-4">
+                                {dados.google.linked_at && (
+                                    <p className="text-brand-muted text-[11px] mb-3">
+                                        Linked on {new Date(dados.google.linked_at * 1000).toLocaleDateString()}.
+                                    </p>
+                                )}
+                                {!dados.google.can_unlink ? (
+                                    <p className="text-brand-warn text-xs leading-relaxed">
+                                        Google is the only way into this account, so it cannot be
+                                        unlinked yet. Add a password or link a wallet first, and
+                                        this button comes back.
+                                    </p>
+                                ) : confirmando ? (
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={desvincular}
+                                            className="min-h-[44px] px-4 rounded-xl bg-brand-error/15 border border-brand-error/40 text-brand-error text-sm font-bold"
+                                        >
+                                            Yes, unlink Google
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmando(false)}
+                                            className="min-h-[44px] px-4 rounded-xl bg-brand-bg/60 border border-brand-border text-brand-muted text-sm font-bold"
+                                        >
+                                            Keep it
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setConfirmando(true)}
+                                        className="min-h-[44px] px-4 rounded-xl bg-brand-bg/60 border border-brand-border text-brand-secondary text-sm font-bold hover:border-brand-error/40 hover:text-brand-error transition-colors inline-flex items-center gap-2"
+                                    >
+                                        <XMarkIcon className="w-4 h-4" /> Unlink Google
+                                    </button>
+                                )}
+                            </div>
+                        ) : (
+                            // Navegacao de pagina inteira: o popup do Google exigiria o
+                            // script dele e connect-src aberto, e e connect-src 'self' que
+                            // impede um XSS de levar o token de sessao embora.
+                            <a
+                                href={`${API_BASE_URL}/api/auth/google/start?link=1`}
+                                className="mt-4 inline-flex items-center justify-center gap-3 min-h-[48px] px-5 rounded-xl bg-brand-surface border border-brand-border text-brand-secondary text-sm font-bold hover:border-brand-primary transition-colors"
+                            >
+                                <svg className="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true">
+                                    <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
+                                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+                                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+                                    <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z" />
+                                </svg>
+                                Link a Google account
+                            </a>
+                        )}
+                    </Linha>
+
+                    <Linha
+                        icone={<WalletIcon className="w-5 h-5" />}
+                        titulo="Solana wallet"
+                        estado={dados.sign_in_methods.includes('wallet') ? 'Linked' : 'Not linked'}
+                    >
+                        <p className="text-brand-muted text-xs leading-relaxed mt-2">
+                            A wallet is both a way in and the address campaign tokens settle to.
+                            Without one you can earn here, but a withdrawal has nowhere to land.
+                            Linking happens when you sign in with the wallet.
+                        </p>
+                    </Linha>
+
+                    <p className="text-brand-muted/70 text-[11px] leading-relaxed pt-2">
+                        Public testnet. Account addresses and settlement are on chain and public by
+                        design; what is on this page is not, and is not shared with the faucets
+                        connected to the network.
+                    </p>
+                </>
+            )}
+        </div>
+    );
+};
+
+export default PrivacySettings;

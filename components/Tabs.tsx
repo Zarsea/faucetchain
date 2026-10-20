@@ -18,6 +18,7 @@ import {
     GlobeAltIcon,
     InformationCircleIcon,
     MagnifyingGlassPlusIcon,
+    LockClosedIcon,
     ShieldCheckIcon,
     SignalIcon,
     SparklesIcon,
@@ -59,7 +60,8 @@ const TAB_ICONS: Record<string, IconComponent> = {
     'Smart Contract': CodeBracketIcon,
     'AI Module': BeakerIcon,
     'Technical Specs': DocumentTextIcon,
-    'API Docs': ArrowUpRightIcon
+    'API Docs': ArrowUpRightIcon,
+    'Privacy': LockClosedIcon
 };
 
 /** A ordem de leitura da barra. O App continua dono de QUAIS telas existem; isto
@@ -77,6 +79,11 @@ const GROUPS: { key: string; fallback: string; tabs: string[] }[] = [
 /** O Dashboard não entra em grupo: é a tela de entrada, e dar um rótulo de seção
  *  a um único item é enfeite, não informação. */
 const LEAD_TAB = 'Dashboard';
+
+/** Tambem fora de grupo, mas no fim: Privacy e a conta da pessoa, nao uma
+ *  area da rede. Rodape e onde todo produto poe o que e de quem usa, e e
+ *  la que ela procura. */
+const TAIL_TAB = 'Privacy';
 
 /** Em que grupo uma tela mora. Devolve undefined para o Dashboard e para
  *  qualquer tela que ainda nao foi classificada. */
@@ -135,7 +142,7 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
     // As seções são montadas a partir do que o App entregou, preservando a ordem
     // de leitura acima e varrendo o resto para o fim.
     const presentes = new Set(tabs);
-    const agrupados = new Set<string>([LEAD_TAB]);
+    const agrupados = new Set<string>([LEAD_TAB, TAIL_TAB]);
     const secoes = GROUPS.map((grupo) => {
         const itens = grupo.tabs.filter((tab) => presentes.has(tab));
         itens.forEach((tab) => agrupados.add(tab));
@@ -306,6 +313,14 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                         </div>
                     );
                 })}
+
+                {/* Depois dos grupos, separada por uma linha: nao e uma area
+                    da rede, e a conta de quem esta olhando. */}
+                {presentes.has(TAIL_TAB) && (
+                    <div className="mt-3 pt-3 border-t border-brand-border/60">
+                        {renderItem(TAIL_TAB)}
+                    </div>
+                )}
             </div>
 
             {/* Rodapé: só o controle da própria barra. O estado da rede é da

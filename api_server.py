@@ -2972,6 +2972,99 @@ async def whose_session(x_session_token: Optional[str] = Header(None)):
     return {"address": dono, "expires_at": linha["expires_at"] if linha else None}
 
 
+def _portas_de_entrada(conn, conta: str) -> list:
+    """Por onde esta conta consegue entrar, hoje.
+
+    Serve a uma regra so, e a regra e a que importa numa tela de privacidade:
+    desligar a ultima porta deixa a pessoa do lado de fora da propria conta,
+    para sempre. Melhor recusar e explicar do que obedecer e trancar.
+    """
+    portas = []
+    linha = conn.execute("SELECT password_hash FROM users WHERE wallet_address = ?",
+                         (conta,)).fetchone()
+    # "!" e o marcador de conta que nunca teve senha: nenhum hash o iguala.
+    if linha and linha["password_hash"] and linha["password_hash"] != "!":
+        portas.append("password")
+    try:
+        if conn.execute("SELECT 1 FROM solana_links WHERE user_address = ?",
+                        (conta,)).fetchone():
+            portas.append("wallet")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        for r in conn.execute("SELECT provider FROM social_identities WHERE address = ?",
+                              (conta,)):
+            portas.append(r["provider"])
+    except sqlite3.OperationalError:
+        pass
+    return portas
+
+
+@app.get("/api/account/identities")
+async def account_identities(x_session_token: Optional[str] = Header(None)):
+    """O que esta ligado a esta conta, para a tela de privacidade mostrar.
+
+    So responde sobre a propria conta de quem pergunta. Deixar consultar o
+    alheio transformaria isto num diretorio de quem usa Google aqui, que e o
+    oposto do que uma tela de privacidade deve construir.
+    """
+    conta = session_holder(x_session_token)
+    if not conta:
+        raise HTTPException(status_code=401, detail="Sign in to see your account settings.")
+
+    conn = get_db_connection()
+    try:
+        portas = _portas_de_entrada(conn, conta)
+        google = conn.execute(
+            "SELECT verified_at FROM social_identities WHERE provider = 'google' AND address = ?",
+            (conta,)).fetchone()
+    finally:
+        conn.close()
+
+    return {
+        "address": conta,
+        "sign_in_methods": portas,
+        "google": {
+            "linked": bool(google),
+            "linked_at": google["verified_at"] if google else None,
+            # A pessoa precisa saber disto ANTES de desligar, nao depois.
+            "can_unlink": bool(google) and len(portas) > 1,
+        },
+    }
+
+
+@app.delete("/api/auth/google/link")
+async def unlink_google(x_session_token: Optional[str] = Header(None)):
+    """Desliga o Google desta conta.
+
+    Sem assinatura nem confirmacao do Google: desligar nao da acesso a nada,
+    e exigir que a pessoa prove de novo ser dona do Google para poder largar
+    dele seria prende-la ao que ela esta tentando soltar.
+    """
+    conta = session_holder(x_session_token)
+    if not conta:
+        raise HTTPException(status_code=401, detail="Sign in to change your account settings.")
+
+    conn = get_db_connection()
+    try:
+        portas = _portas_de_entrada(conn, conta)
+        if "google" not in portas:
+            raise HTTPException(status_code=404, detail="No Google account is linked here.")
+        if len(portas) == 1:
+            raise HTTPException(
+                status_code=409,
+                detail=("Google is the only way into this account. Add a password or link a "
+                        "wallet first, or unlinking would lock you out for good."))
+        conn.execute("DELETE FROM social_identities WHERE provider = 'google' AND address = ?",
+                     (conta,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    audit_logger.info("GOOGLE_UNLINKED: %s", conta)
+    return {"status": "unlinked"}
+
+
 def is_custodial_address(addr: str) -> bool:
     """True for accounts this server holds the key of, so they sign nothing.
 
@@ -7633,11 +7726,29 @@ def init_google_states_table():
         # volta ser jogada duas vezes.
         conn.execute('''
             CREATE TABLE IF NOT EXISTS google_states (
-                state      TEXT PRIMARY KEY,
-                created_at INTEGER NOT NULL
+                state        TEXT PRIMARY KEY,
+                created_at   INTEGER NOT NULL,
+                -- Nulo quando e um login. Preenchido quando uma conta que ja
+                -- existe esta vinculando o Google a ela: e o que diz, na
+                -- volta, que isto nao e para criar conta nova.
+                link_account TEXT
             )
         ''')
         conn.commit()
+    finally:
+        conn.close()
+
+
+def _migrar_google_states():
+    """link_account em bancos que nasceram antes dela."""
+    conn = get_db_connection()
+    try:
+        colunas = {r[1] for r in conn.execute("PRAGMA table_info(google_states)")}
+        if colunas and "link_account" not in colunas:
+            conn.execute("ALTER TABLE google_states ADD COLUMN link_account TEXT")
+            conn.commit()
+    except sqlite3.OperationalError:
+        pass
     finally:
         conn.close()
 
@@ -7646,12 +7757,15 @@ def init_google_states_table():
 async def startup_google_states():
     try:
         init_google_states_table()
+        _migrar_google_states()
     except Exception as e:
         print(f"\u26a0\ufe0f Failed to init google_states table: {e}")
 
 
 @app.get("/api/auth/google/start")
-async def google_sign_in_start(request: Request):
+async def google_sign_in_start(request: Request,
+                               x_session_token: Optional[str] = Header(None),
+                               link: int = 0):
     """Comeca o login com Google mandando o navegador para la.
 
     Redirecionamento, e nao o botao de popup que quase todo mundo usa. O popup
@@ -7667,12 +7781,24 @@ async def google_sign_in_start(request: Request):
     if not social_auth.google_configured():
         raise HTTPException(status_code=503, detail="Google sign-in is not configured on this server")
 
+    # link=1 significa "ja estou dentro e quero prender o Google a ESTA conta".
+    # Quem pede isso precisa provar que e dono dela agora, com a sessao -- do
+    # contrario qualquer um prenderia o proprio Google a conta alheia e
+    # passaria a entrar nela.
+    conta_alvo = None
+    if link:
+        conta_alvo = session_holder(x_session_token)
+        if not conta_alvo:
+            raise HTTPException(
+                status_code=401,
+                detail="Sign in first: linking Google needs the account that is being linked.")
+
     state = secrets.token_urlsafe(24)
     agora = int(_time.time())
     conn = get_db_connection()
     try:
-        conn.execute("INSERT INTO google_states (state, created_at) VALUES (?, ?)",
-                     (state, agora))
+        conn.execute("INSERT INTO google_states (state, created_at, link_account) "
+                     "VALUES (?, ?, ?)", (state, agora, conta_alvo))
         # Os vencidos saem agora, que e o momento natural: ninguem varre isto
         # num timer e eles nao servem mais para nada.
         conn.execute("DELETE FROM google_states WHERE created_at < ?",
@@ -7704,8 +7830,9 @@ async def google_sign_in_callback(request: Request, code: str = None,
     agora = int(_time.time())
     conn = get_db_connection()
     try:
-        linha = conn.execute("SELECT created_at FROM google_states WHERE state = ?",
-                             (state,)).fetchone()
+        linha = conn.execute(
+            "SELECT created_at, link_account FROM google_states WHERE state = ?",
+            (state,)).fetchone()
         # Consumido na mesma transacao em que e lido: e o que torna a volta de
         # uso unico. Sem isto, a mesma URL de callback entra de novo.
         conn.execute("DELETE FROM google_states WHERE state = ?", (state,))
@@ -7723,6 +7850,7 @@ async def google_sign_in_callback(request: Request, code: str = None,
     except social_auth.SocialAuthError:
         return voltar("google=failed")
 
+    vinculando = linha["link_account"]
     derived = social_auth.account_for("google", sub)
     conn = get_db_connection()
     c = conn.cursor()
@@ -7730,6 +7858,23 @@ async def google_sign_in_callback(request: Request, code: str = None,
         c.execute("SELECT address FROM social_identities WHERE provider = ? AND provider_id = ?",
                   ("google", sub))
         row = c.fetchone()
+
+        if vinculando:
+            # Prender a uma conta que ja existe, e so a essa.
+            if row and row[0] != vinculando:
+                # Mover o vinculo em silencio tiraria a entrada da outra conta
+                # e daria a esta o acesso a ela. Recusar e dizer qual e o caso
+                # e a unica saida honesta.
+                return voltar("google=taken")
+            if not row:
+                c.execute(
+                    "INSERT INTO social_identities (provider, provider_id, address, verified_at) "
+                    "VALUES (?, ?, ?, ?)", ("google", sub, vinculando, agora))
+                conn.commit()
+                audit_logger.info("GOOGLE_LINKED: %s (sub %s)", vinculando, sub)
+                return voltar("google=linked")
+            return voltar("google=already_linked")
+
         account = row[0] if row else derived
 
         c.execute("SELECT 1 FROM users WHERE wallet_address = ?", (account,))
@@ -7754,7 +7899,11 @@ async def google_sign_in_callback(request: Request, code: str = None,
         conn.close()
 
     sessao = issue_session(account)
-    audit_logger.info("GOOGLE_SIGN_IN: %s (sub %s, email %s)", account, sub, email or "-")
+    # Sem o e-mail. A conta guarda um endereco sintetico de proposito -- o
+    # real nunca entra no banco -- e escreve-lo no log guardaria, por outra
+    # porta, exatamente o que decidimos nao guardar. A tela de privacidade diz
+    # que o e-mail nao e armazenado, e isto e o que torna a frase verdadeira.
+    audit_logger.info("GOOGLE_SIGN_IN: %s (sub %s)", account, sub)
 
     # O token volta no FRAGMENTO, que o navegador nao manda ao servidor nem no
     # Referer. Nao e perfeito -- ele passa pelo historico -- e a aplicacao o
