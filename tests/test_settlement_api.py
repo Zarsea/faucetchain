@@ -162,7 +162,11 @@ def test_a_transfer_needs_the_session_and_not_a_private_key(client):
     r = client.post("/api/transfer", json=body,
                     headers={"X-Session-Token": sender["session_token"]})
     assert r.status_code == 400, r.text
-    assert "aldo" in r.json()["detail"], r.json()
+    # "balance", and not a fragment of the Portuguese word it used to be: the
+    # assertion was pinned to the wording of a message that is shown to users,
+    # so translating that message broke a test about authentication. What this
+    # check is for is which gate decided, not which language it answered in.
+    assert "balance" in r.json()["detail"].lower(), r.json()
 
 
 def test_knowing_a_custodial_address_is_not_enough_to_act_as_it(client):

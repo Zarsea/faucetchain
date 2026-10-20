@@ -177,10 +177,23 @@ export const Faucet: React.FC = () => {
             });
 
             if (!verifyRes.ok) {
-                if (verifyRes.status === 429) {
-                    throw new Error("Cooldown temporal ativo para esta carteira (1 Hora).");
+                // O servidor escreve um motivo diferente para cada recusa --
+                // cooldown, teto de carteiras por IP, prova de trabalho
+                // desatualizada, Sentinel, sessao vencida -- e tudo isso
+                // chegava aqui como "rejected by PoC Manager", que nomeia o
+                // PoC ate quando o PoC nao teve nada a ver. E 429 virava
+                // "cooldown de 1 hora" mesmo quando era o teto por IP.
+                //
+                // Quem leu a tela nao tinha como saber o que fazer. O motivo
+                // ja existe na resposta; so estava sendo jogado fora.
+                let motivo = '';
+                try {
+                    const corpo = await verifyRes.json();
+                    motivo = typeof corpo?.detail === 'string' ? corpo.detail : '';
+                } catch {
+                    // Resposta sem JSON (502 de proxy, por exemplo).
                 }
-                throw new Error("Transaction rejected by PoC Manager.");
+                throw new Error(motivo || `The claim was refused (HTTP ${verifyRes.status}).`);
             }
 
             const verifyData = await verifyRes.json();
@@ -222,7 +235,7 @@ export const Faucet: React.FC = () => {
                     <SectionCard title="Merit minting" icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
                         <div className="space-y-6">
                             <div className="p-5 bg-brand-bg/60 border border-brand-border/40 rounded-2xl text-center">
-                                <span className="text-[10px] font-black text-brand-muted uppercase tracking-[0.2em] mb-1 block">Recompensa do Bloco Atual</span>
+                                <span className="text-[10px] font-black text-brand-muted uppercase tracking-[0.2em] mb-1 block">Current block reward</span>
                                 <div className="text-4xl font-black text-brand-primary font-mono tracking-tighter">
                                     {metrics.currentReward} <span className="text-xs text-brand-muted">CLAIM</span>
                                 </div>
@@ -242,7 +255,7 @@ export const Faucet: React.FC = () => {
                                 <div className="space-y-4">
                                     <div className="p-4 bg-brand-primary/5 border border-brand-primary/20 rounded-xl flex justify-between items-center">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] font-black text-brand-primary uppercase">Seu Saldo Consolidado</span>
+                                            <span className="text-[10px] font-black text-brand-primary uppercase">Your consolidated balance</span>
                                             <span className="text-xl font-black text-white">{userBalance.toFixed(2)} $CLAIM</span>
                                         </div>
                                         <WalletIcon className="w-8 h-8 text-brand-primary opacity-30" />
@@ -269,7 +282,7 @@ export const Faucet: React.FC = () => {
                                             ? (pocStatus
                                                 ? <span className="text-xs font-mono">{pocStatus}</span>
                                                 : <LoadingIcon className="w-5 h-5 animate-spin mx-auto" />)
-                                            : "REIVINDICAR MÉRITO V3"}
+                                            : "CLAIM MERIT V3"}
                                         {isPending && <span className="block mt-1 text-[10px] text-brand-bg opacity-80">⛏️ Expanding the mempool. Waiting for nodes…</span>}
                                     </button>
                                 </div>
@@ -298,7 +311,7 @@ export const Faucet: React.FC = () => {
                                 </div>
                                 <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-1">Infraestrutura Hub</span>
                                 <p className={`text-lg font-black ${isHubActive ? 'text-brand-success' : 'text-brand-muted'}`}>
-                                    {isHubActive ? 'HUB EXTERNO ATIVO' : 'NÓ PASSIVO'}
+                                    {isHubActive ? 'EXTERNAL HUB ACTIVE' : 'PASSIVE NODE'}
                                 </p>
                                 {!isHubActive && isConnected && (
                                     <p className="mt-3 text-[10px] text-brand-muted leading-relaxed">
@@ -314,7 +327,7 @@ export const Faucet: React.FC = () => {
                                 <div className="text-lg font-black text-brand-secondary">
                                     {claims.length} <span className="text-xs text-brand-muted">Claims Verificados</span>
                                 </div>
-                                <p className="text-[10px] text-brand-muted mt-2 uppercase font-bold tracking-tighter">Última Atividade: {claims[0] ? `Bloco #${claims[0].blockHeight}` : 'Sem registros'}</p>
+                                <p className="text-[10px] text-brand-muted mt-2 uppercase font-bold tracking-tighter">Last activity: {claims[0] ? `Bloco #${claims[0].blockHeight}` : 'Sem registros'}</p>
                             </div>
                         </div>
 
@@ -323,7 +336,7 @@ export const Faucet: React.FC = () => {
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-brand-bg text-[10px] font-black uppercase text-brand-muted">
                                     <tr>
-                                        <th className="px-4 py-3 border-b border-brand-border">Bloco Clamado</th>
+                                        <th className="px-4 py-3 border-b border-brand-border">Block claimed</th>
                                         <th className="px-4 py-3 border-b border-brand-border">Unidades Mintadas</th>
                                         <th className="px-4 py-3 border-b border-brand-border">Merit tx hash</th>
                                         <th className="px-4 py-3 border-b border-brand-border">Status Sentinel</th>

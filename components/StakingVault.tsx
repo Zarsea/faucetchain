@@ -329,11 +329,11 @@ export const StakingVault: React.FC = () => {
                                         {t('staking.statusApy')}
                                     </span>
                                     <span className="text-base sm:text-lg font-black text-white font-mono">1,876%</span>
-                                    <span className="text-[9px] text-brand-success ml-1 block mt-1 border-t border-brand-success/20 pt-1">Média Global</span>
+                                    <span className="text-[9px] text-brand-success ml-1 block mt-1 border-t border-brand-success/20 pt-1">Global average</span>
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center py-6 text-brand-muted text-xs">Carregando...</div>
+                            <div className="text-center py-6 text-brand-muted text-xs">Loading…</div>
                         )}
                     </SectionCard>
                 </div>

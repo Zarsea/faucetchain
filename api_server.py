@@ -2208,7 +2208,7 @@ async def internal_microclaim(req: InternalMicroClaimRequest, request: Request):
     if not claim_ip_allowed(request.client.host, user_lower, now_ts):
         raise HTTPException(
             status_code=429,
-            detail=f"Limite de {CLAIM_IP_HOURLY_WALLETS} carteiras por hora neste IP."
+            detail=f"This IP has already claimed for {CLAIM_IP_HOURLY_WALLETS} wallets this hour."
         )
 
     conn = get_db_connection()
@@ -3141,7 +3141,7 @@ def verify_claim_proof(c, user_addr: str, poc_epoch_id, poc_parent_hash, poc_non
     - keccak256 da mensagem deve ter CLAIM_PROOF_DIFFICULTY_BITS bits zero
     """
     if poc_nonce is None or poc_epoch_id is None or not poc_parent_hash:
-        raise HTTPException(status_code=400, detail="Claim Proof obrigatório (Proof of Claim). Obtenha o desafio em /api/poc/challenge.")
+        raise HTTPException(status_code=400, detail="This claim needs a Proof of Claim. Get a challenge at /api/poc/challenge.")
 
     current_epoch = now_ts // EPOCH_DURATION
     if poc_epoch_id not in (current_epoch, current_epoch - 1):
@@ -3149,13 +3149,13 @@ def verify_claim_proof(c, user_addr: str, poc_epoch_id, poc_parent_hash, poc_non
 
     tip_height, tip_hash, tip_parent = get_chain_tip(c)
     if poc_parent_hash not in (tip_hash, tip_parent):
-        raise HTTPException(status_code=400, detail="Claim Proof desatualizado (a cadeia avançou). Resolva um novo desafio.")
+        raise HTTPException(status_code=400, detail="That proof is out of date: the chain moved on. Solve a fresh challenge.")
 
     # 1 bit de tolerância: a dificuldade pode ter subido entre o desafio e o envio
     required_bits = max(CLAIM_PROOF_DIFFICULTY_BITS, current_difficulty_bits(c, now_ts) - 1)
     digest = keccak256(poc_message(poc_epoch_id, poc_parent_hash, user_addr, int(poc_nonce)).encode())
     if int.from_bytes(digest, 'big') >> (256 - required_bits) != 0:
-        raise HTTPException(status_code=400, detail="Claim Proof inválido: dificuldade não atingida.")
+        raise HTTPException(status_code=400, detail="That proof does not meet the required difficulty.")
 
     return "0x" + digest.hex()
 
@@ -3254,7 +3254,7 @@ async def transfer_claim(req: TransferRequest, request: Request,
         sender_lower = normalize_address(req.sender)
         receiver_lower = normalize_address(req.receiver)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Endereço inválido: {e}")
+        raise HTTPException(status_code=400, detail=f"That is not a valid address: {e}")
 
     conn = get_db_connection()
     c = conn.cursor()
@@ -3317,7 +3317,7 @@ async def transfer_claim(req: TransferRequest, request: Request,
     balance_info = await get_user_balance(sender_lower)
     if balance_info["total_claim"] < total_deduction:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Saldo insuficiente. Necessário: {total_deduction} (inclui taxa de {fee})")
+        raise HTTPException(status_code=400, detail=f"Not enough balance. Needed: {total_deduction}, including a fee of {fee}.")
 
     # 4. Generate deterministic Tx Hash including Chain ID and Nonce
     tx_hash = "0x" + keccak256(payload_str.encode()).hex()
@@ -3633,7 +3633,7 @@ async def get_transaction(tx_hash: str):
     row = c.fetchone()
     conn.close()
     if not row:
-        raise HTTPException(status_code=404, detail="Transação não encontrada ou ainda pendente.")
+        raise HTTPException(status_code=404, detail="No such transaction, or it is still pending.")
     return dict(row)
 
 
@@ -4027,7 +4027,7 @@ async def submit_claim(req: ClaimRequest, request: Request, x_session_token: Opt
         audit_log("IP_WALLET_CAP", client_ip, {"address": addr_lower, "cap": CLAIM_IP_HOURLY_WALLETS})
         raise HTTPException(
             status_code=429,
-            detail=f"Limite de {CLAIM_IP_HOURLY_WALLETS} carteiras por hora neste IP."
+            detail=f"This IP has already claimed for {CLAIM_IP_HOURLY_WALLETS} wallets this hour."
         )
 
     # Cooldown check
@@ -4045,7 +4045,7 @@ async def submit_claim(req: ClaimRequest, request: Request, x_session_token: Opt
     
     if last_claim_ts is not None and current_ts - last_claim_ts < 3600:
         conn.close()
-        raise HTTPException(status_code=429, detail="Cooldown de 1 hora ativo para esta carteira.")
+        raise HTTPException(status_code=429, detail="This wallet claimed less than an hour ago. Try again later.")
 
     # Fraud detection: check recent claim patterns
     if HAS_FRAUD_DETECTOR and _fraud_detector:
@@ -4054,7 +4054,7 @@ async def submit_claim(req: ClaimRequest, request: Request, x_session_token: Opt
         if len(recent_claims) >= 3 and _fraud_detector.is_sybil_pattern(recent_claims):
             conn.close()
             audit_log("FRAUD_DETECTED", client_ip, {"address": addr_lower, "pattern": "sybil"})
-            raise HTTPException(status_code=403, detail="Atividade suspeita detectada. Claim bloqueado pelo Sentinel.")
+            raise HTTPException(status_code=403, detail="Sentinel flagged this pattern and held the claim.")
 
     amount = current_claim_reward(c)
     c.execute('''
@@ -4408,7 +4408,7 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
     if req.tier not in TIER_CONFIG:
-        raise HTTPException(status_code=400, detail="Tier inválido. Use 0, 1 ou 2.")
+        raise HTTPException(status_code=400, detail="Unknown tier. Use 0, 1 or 2.")
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount deve ser > 0")
 
@@ -4439,7 +4439,7 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
     if available < req.amount:
         raise HTTPException(
             status_code=400,
-            detail=f"Saldo insuficiente. Disponível: {available:.4f} $CLAIM, solicitado: {req.amount:.4f} $CLAIM."
+            detail=f"Not enough balance. Available: {available:.4f} $CLAIM, asked for: {req.amount:.4f} $CLAIM."
         )
 
     tier = TIER_CONFIG[req.tier]
@@ -4482,7 +4482,7 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
     except Exception as e:
         conn.rollback()
         conn.close()
-        raise HTTPException(status_code=500, detail=f"Erro ao criar stake: {e}")
+        raise HTTPException(status_code=500, detail=f"Could not open the stake: {e}")
     finally:
         conn.close()
 
@@ -4529,18 +4529,18 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
     row = c.fetchone()
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Posição UTXO não encontrada")
+        raise HTTPException(status_code=404, detail="No such position.")
 
     pos = dict(row)
     if pos["is_spent"]:
         conn.close()
-        raise HTTPException(status_code=400, detail="Este UTXO já foi gasto")
+        raise HTTPException(status_code=400, detail="That position was already spent.")
 
     current_ts = int(datetime.now().timestamp())
     unlock_time = pos["deposit_timestamp"] + pos["lock_duration"]
     if current_ts < unlock_time:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Timelock ativo. Desbloqueia em {unlock_time - current_ts}s")
+        raise HTTPException(status_code=400, detail=f"Still locked. It unlocks in {unlock_time - current_ts}s.")
 
     yield_paid = round(pos["deposit_amount"] * pos["yield_basis_points"] / 10000, 4)
     payout = round(pos["deposit_amount"] + yield_paid, 4)
@@ -4555,7 +4555,7 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
         })
         raise HTTPException(
             status_code=400,
-            detail="Esta posição é maior que o supply total e não pode ser paga.",
+            detail="This position is larger than the total supply and cannot be paid.",
         )
 
     # ── STEP 1: Mark UTXO as spent ──────────────────────────────────────────
@@ -4584,7 +4584,7 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
     except Exception as e:
         conn.rollback()
         conn.close()
-        raise HTTPException(status_code=500, detail=f"Erro ao processar unstake: {e}")
+        raise HTTPException(status_code=500, detail=f"Could not close the stake: {e}")
     finally:
         conn.close()
 
@@ -4822,9 +4822,9 @@ async def create_bounty(req: CreateBountyRequest, request: Request,
     if req.reward <= 0:
         raise HTTPException(status_code=400, detail="Recompensa deve ser > 0")
     if not req.title.strip():
-        raise HTTPException(status_code=400, detail="Título obrigatório")
+        raise HTTPException(status_code=400, detail="A title is required.")
     if req.duration_hours < 1:
-        raise HTTPException(status_code=400, detail="Duração mínima: 1 hora")
+        raise HTTPException(status_code=400, detail="The shortest duration is one hour.")
 
     # Depois das validacoes porque o titulo e a recompensa entram na frase
     # assinada: quem assina ve o que esta comprometendo.
@@ -4910,12 +4910,12 @@ async def claim_bounty(bounty_id: int, req: ClaimBountyRequest,
 
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Bounty não encontrada")
+        raise HTTPException(status_code=404, detail="No such bounty.")
 
     bounty = dict(row)
     if bounty["status"] != "OPEN":
         conn.close()
-        raise HTTPException(status_code=400, detail="Bounty não está aberta")
+        raise HTTPException(status_code=400, detail="That bounty is not open.")
 
     current_ts = int(datetime.now().timestamp())
     if current_ts > bounty["deadline"]:
@@ -4924,7 +4924,7 @@ async def claim_bounty(bounty_id: int, req: ClaimBountyRequest,
 
     if req.hunter_address.strip().lower() == bounty["creator_address"]:
         conn.close()
-        raise HTTPException(status_code=400, detail="Criador não pode se auto-candidatar")
+        raise HTTPException(status_code=400, detail="The creator cannot apply to their own bounty.")
 
     c.execute(
         "UPDATE bounties SET hunter_address = ?, status = 'CLAIMED' WHERE id = ?",
@@ -4959,7 +4959,7 @@ async def approve_bounty(bounty_id: int, req: ApproveBountyRequest,
 
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Bounty não encontrada")
+        raise HTTPException(status_code=404, detail="No such bounty.")
 
     bounty = dict(row)
     if req.creator_address.strip().lower() != bounty["creator_address"]:
@@ -4967,7 +4967,7 @@ async def approve_bounty(bounty_id: int, req: ApproveBountyRequest,
         raise HTTPException(status_code=403, detail="Apenas o criador pode aprovar")
     if bounty["status"] != "CLAIMED":
         conn.close()
-        raise HTTPException(status_code=400, detail="Bounty não está em revisão")
+        raise HTTPException(status_code=400, detail="That bounty is not under review.")
 
     current_ts = int(datetime.now().timestamp())
     c.execute(
@@ -5003,7 +5003,7 @@ async def cancel_bounty(bounty_id: int, req: ApproveBountyRequest,
 
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Bounty não encontrada")
+        raise HTTPException(status_code=404, detail="No such bounty.")
 
     bounty = dict(row)
     if req.creator_address.strip().lower() != bounty["creator_address"]:
@@ -5016,7 +5016,7 @@ async def cancel_bounty(bounty_id: int, req: ApproveBountyRequest,
 
     if not (is_open or is_claimed_expired):
         conn.close()
-        raise HTTPException(status_code=400, detail="Cancelamento não permitido neste estado")
+        raise HTTPException(status_code=400, detail="A bounty in this state cannot be cancelled.")
 
     c.execute(
         "UPDATE bounties SET status = 'CANCELLED', completed_at = ? WHERE id = ?",
@@ -5231,7 +5231,7 @@ async def register_miner(req: MiningRegisterRequest, request: Request,
     node_count = c.fetchone()[0]
     if node_count >= MINING_CONFIG["max_nodes_per_wallet"]:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Máximo de {MINING_CONFIG['max_nodes_per_wallet']} nós por wallet")
+        raise HTTPException(status_code=400, detail=f"A wallet may run at most {MINING_CONFIG['max_nodes_per_wallet']} nodes.")
 
     # Check if node_id already exists
     c.execute("SELECT node_id FROM active_miners WHERE node_id = ?", (req.node_id,))
@@ -5348,7 +5348,7 @@ async def mining_heartbeat(req: HeartbeatRequest,
     row = c.fetchone()
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Nó não registrado. Execute /api/mining/register primeiro.")
+        raise HTTPException(status_code=404, detail="This node is not registered. Call /api/mining/register first.")
 
     node = dict(row)
     current_ts = int(datetime.now().timestamp())
@@ -5357,7 +5357,7 @@ async def mining_heartbeat(req: HeartbeatRequest,
     time_since_last = current_ts - node["last_heartbeat"]
     if time_since_last < MINING_CONFIG["min_heartbeat_gap"]:
         conn.close()
-        raise HTTPException(status_code=429, detail=f"Rate limit: aguarde {MINING_CONFIG['min_heartbeat_gap']}s entre heartbeats")
+        raise HTTPException(status_code=429, detail=f"Too fast: leave {MINING_CONFIG['min_heartbeat_gap']}s between heartbeats.")
 
     # Calculate uptime gained since last heartbeat (capped at timeout)
     uptime_gained = min(time_since_last, MINING_CONFIG["heartbeat_timeout"])
@@ -5581,7 +5581,7 @@ async def get_node_info(address: str):
     conn.close()
 
     if not rows:
-        raise HTTPException(status_code=404, detail="Nenhum nó encontrado para esta wallet")
+        raise HTTPException(status_code=404, detail="No node found for this wallet.")
 
     result = []
     for row in rows:
@@ -5833,7 +5833,7 @@ async def add_tracked_address(req: AddTrackedAddressRequest, request: Request):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
     addr = req.address.strip().lower()
     if not addr.startswith("0x") or len(addr) < 10:
-        raise HTTPException(status_code=400, detail="Endereço inválido")
+        raise HTTPException(status_code=400, detail="That is not a valid address.")
 
     category = req.category.lower().strip()
     if category not in ("user", "miner", "hub", "custom"):
@@ -5858,7 +5858,7 @@ async def add_tracked_address(req: AddTrackedAddressRequest, request: Request):
         new_id = c.lastrowid
     except sqlite3.IntegrityError:
         conn.close()
-        raise HTTPException(status_code=409, detail="Endereço já está sendo rastreado")
+        raise HTTPException(status_code=409, detail="That address is already being tracked.")
 
     conn.close()
 
@@ -5884,7 +5884,7 @@ async def remove_tracked_address(address: str, request: Request):
     conn.close()
 
     if deleted == 0:
-        raise HTTPException(status_code=404, detail="Endereço não encontrado na watchlist")
+        raise HTTPException(status_code=404, detail="That address is not on the watchlist.")
 
     return {"status": "removed", "address": address.strip().lower()}
 
@@ -6551,7 +6551,7 @@ async def verify_minigame(req: MinigameVerify,
     last = c.fetchone()
     if last and (now_ts - last["timestamp"]) < 60:
         conn.close()
-        raise HTTPException(status_code=429, detail="Minigame cooldown: 60s entre tentativas")
+        raise HTTPException(status_code=429, detail="Minigame cooldown: 60s between attempts.")
 
     score = max(0, req.score)
     
@@ -6652,7 +6652,7 @@ async def buy_booster(req: BoosterBuyRequest, x_session_token: Optional[str] = H
               (wallet_lower, btype, now_ts))
     if c.fetchone():
         conn.close()
-        raise HTTPException(status_code=400, detail="Você já possui este booster ativo!")
+        raise HTTPException(status_code=400, detail="That booster is already active.")
 
     # Check user's L2 virtual balance from microclaims_ledger (FaucetInternal)
     FAUCET_WALLET = "0x84da71247cbfb0737a9112de1f10dae9823fc298"
@@ -6663,7 +6663,7 @@ async def buy_booster(req: BoosterBuyRequest, x_session_token: Optional[str] = H
 
     if current_balance < cost:
         conn.close()
-        raise HTTPException(status_code=400, detail=f"Saldo insuficiente! Necessário: {cost} CLAIM, Disponível: {current_balance:.2f} CLAIM")
+        raise HTTPException(status_code=400, detail=f"Not enough balance. Needed: {cost} CLAIM, available: {current_balance:.2f} CLAIM.")
 
     # Debit balance
     new_balance = current_balance - cost
@@ -9411,10 +9411,10 @@ async def submit_relayed_claim(req: RelaySubmitRequest):
         if "BlockhashNotFound" in str(e.detail):
             raise HTTPException(
                 status_code=409,
-                detail=("A janela desta transação expirou antes do envio — a Solana "
-                        "aceita um blockhash por cerca de um minuto. Nada foi gasto e "
-                        "a recompensa continua lá. Clique em sacar de novo e aprove "
-                        "na carteira sem demorar."),
+                detail=("This transaction's window closed before it was sent: Solana "
+                        "accepts a blockhash for about a minute. Nothing was spent "
+                        "and the reward is still there. Click withdraw again and "
+                        "approve it in the wallet without waiting."),
             )
         raise
 

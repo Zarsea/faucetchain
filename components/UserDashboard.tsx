@@ -206,7 +206,7 @@ const StakingSummaryWidget: React.FC<{ userAddress: string; onNavigate: (tab: st
                 ))}
             </div>
             {positions === 0 && (
-                <p className="text-[10px] text-brand-muted text-center italic">Nenhum UTXO de staking ativo.</p>
+                <p className="text-[10px] text-brand-muted text-center italic">No active staking position.</p>
             )}
             <button
                 onClick={() => onNavigate('Staking Vault')}
@@ -388,7 +388,7 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                     <button
                         onClick={() => { setRefreshTick(t => t + 1); }}
                         className="p-3 bg-brand-bg border border-brand-border rounded-xl text-brand-muted hover:text-brand-primary hover:border-brand-primary/40 transition-colors"
-                        title="Atualizar dados"
+                        title="Refresh"
                     >
                         <ArrowPathIcon className="w-5 h-5" />
                     </button>

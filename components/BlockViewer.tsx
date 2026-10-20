@@ -108,7 +108,7 @@ export const BlockViewer: React.FC = () => {
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Recompensa Estimada</p>
+                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Estimated reward</p>
                                 <p className="text-xl font-mono text-green-400">
                                     ~{miningStats?.estimatedRewardPerNode || metrics.currentReward} $CLAIM
                                 </p>
@@ -150,7 +150,7 @@ export const BlockViewer: React.FC = () => {
                                 </div>
                                 <div>
                                     <div className="text-lg font-bold text-brand-secondary">
-                                        Bloco #{formatNumber(block.height, lang)}
+                                        Block #{formatNumber(block.height, lang)}
                                     </div>
                                     <div className="text-xs font-mono text-brand-muted truncate w-48 md:w-64" title={block.hash}>
                                         {block.hash}
@@ -164,7 +164,7 @@ export const BlockViewer: React.FC = () => {
                                     <p className="font-mono text-brand-secondary">{block.txs}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase text-brand-muted tracking-wider mb-1">Recompensa</p>
+                                    <p className="text-[10px] uppercase text-brand-muted tracking-wider mb-1">Reward</p>
                                     <p className="font-mono text-green-400">{(block.reward || 0).toFixed(2)} CLAIM</p>
                                 </div>
                                 <div>

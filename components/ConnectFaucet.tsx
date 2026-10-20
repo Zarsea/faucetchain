@@ -61,7 +61,7 @@ const Snippet: React.FC<{ label: string; code: string }> = ({ label, code }) => 
                 <span className="font-mono text-[10px] text-brand-muted truncate">{label}</span>
                 <button onClick={copy}
                     className="flex-none text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded bg-brand-surface text-brand-secondary hover:text-white transition-colors">
-                    {copied ? 'copiado' : 'copiar'}
+                    {copied ? 'copied' : 'copy'}
                 </button>
             </div>
             <pre className="p-3 overflow-x-auto"><code className="font-mono text-[11.5px] text-brand-secondary whitespace-pre">{code}</code></pre>
