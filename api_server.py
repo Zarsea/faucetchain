@@ -2835,15 +2835,24 @@ def current_claim_reward(c) -> float:
 def get_total_minted(c) -> float:
     """Total de $CLAIM já emitido (equivalente ao totalSupply() on-chain).
 
-    Mints acontecem exclusivamente em user_claims (claims explorados) e
-    mining_rewards (taxas de exploração + recompensas de uptime por epoch).
-    Transfers/settlements/staking apenas movem supply existente.
+    Mints acontecem em user_claims (claims explorados), mining_rewards
+    (exploração + uptime) e staking_rewards (rendimento das posições).
+
+    O staking estava de fora, e a frase que o justificava dizia que ele "apenas
+    move supply existente". Não movia: o unstake creditava principal + yield, e
+    a metade do yield não existia em lugar nenhum antes. Com ela fora desta
+    soma, MAX_SUPPLY não era um teto, era um rótulo.
     """
     c.execute("SELECT COALESCE(SUM(amount), 0) FROM user_claims")
     claims = c.fetchone()[0]
     c.execute("SELECT COALESCE(SUM(reward_amount), 0) FROM mining_rewards")
     mining = c.fetchone()[0]
-    return claims + mining
+    try:
+        c.execute("SELECT COALESCE(SUM(reward_amount), 0) FROM staking_rewards")
+        staking = c.fetchone()[0]
+    except sqlite3.OperationalError:
+        staking = 0.0  # banco anterior ao pool
+    return claims + mining + staking
 
 
 # ── Epoch horária (fix B5) — espelha o HourlyEpochManager.sol ────────────────
@@ -4410,11 +4419,66 @@ def get_user_claims(address: str):
 # UTXO STAKING VAULT (Mock)
 # ===========================
 
+# Pool de rendimento por epoch, repartido entre as posicoes abertas.
+#
+# 200 e o que cabe: a quota da rede e de TOKENS_PER_HOUR (2.000), a mineracao
+# leva ate 1.695 e os claims dos usuarios disputam o resto. Um pool maior aqui
+# sairia do bolso de quem reivindica na torneira, que e a razao da rede existir.
+STAKING_EPOCH_POOL = 200.0
+
+# Teto por posicao, por epoch, por unidade de peso.
+#
+# O pool sozinho resolve a baleia e cria o problema inverso: com o cofre quase
+# vazio, uma posicao de 3.000 levaria os 200 inteiros -- 6,67% por hora. Isso e
+# limitado, e portanto nao esvazia o supply, mas continua sendo transferencia
+# grande por deposito pequeno, e na tela parece pior que a taxa que estamos
+# tirando. O que o pool nao paga simplesmente nao e emitido.
+#
+# 1,25 bp por unidade de peso poe o tier de 7 dias (peso 8) em 0,1%/hora e o de
+# 1 hora (peso 1) em 0,0125%/hora, preservando a ordem dos tiers. O pool volta a
+# ser o limite que aperta quando o cofre passa de ~400.000 presos.
+STAKING_MAX_RATE = 0.000125
+
+# `weight` e a fatia do pool por $CLAIM preso; `yield_bp` fica so para ler
+# posicoes abertas antes do pool existir.
+#
+# Os pesos sobem com o tempo de lock porque antes eles desciam: 0,5% em 1h sao
+# 0,5000%/h, 2% em 24h sao 0,0825%/h e 10% em 7 dias sao 0,0567%/h. O tier mais
+# curto pagava 8,8x mais por hora de dinheiro preso que o mais longo, e travar
+# por uma semana era a pior escolha possivel em qualquer cenario.
 TIER_CONFIG = {
-    0: {"duration_seconds": 3600,    "yield_bp": 50,   "label": "1 Hora"},
-    1: {"duration_seconds": 86400,   "yield_bp": 200,  "label": "24 Horas"},
-    2: {"duration_seconds": 604800,  "yield_bp": 1000, "label": "7 Dias"},
+    0: {"duration_seconds": 3600,    "yield_bp": 50,   "weight": 1, "label": "1 Hora"},
+    1: {"duration_seconds": 86400,   "yield_bp": 200,  "weight": 3, "label": "24 Horas"},
+    2: {"duration_seconds": 604800,  "yield_bp": 1000, "weight": 8, "label": "7 Dias"},
 }
+
+
+def _peso_aberto(c) -> float:
+    """Soma de deposito x peso de tudo que esta aberto agora."""
+    try:
+        linhas = c.execute(
+            "SELECT deposit_amount, tier FROM staking_positions WHERE is_spent = 0"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return 0.0
+    return sum(r["deposit_amount"] * TIER_CONFIG[r["tier"]]["weight"]
+               for r in linhas if r["tier"] in TIER_CONFIG)
+
+
+def _estimativa(c, amount: float, tier_id: int):
+    """(por epoch, ao longo do lock) que `amount` renderia entrando agora.
+
+    Estimativa, e a tela tem de chamar assim. Com pool fixo o retorno depende
+    de quem mais esta dentro; prometer taxa seria voltar ao que isto conserta.
+    """
+    tier = TIER_CONFIG[tier_id]
+    peso = amount * tier["weight"]
+    total = _peso_aberto(c) + peso
+    if total <= 0 or peso <= 0:
+        return 0.0, 0.0
+    por_epoch = min(STAKING_EPOCH_POOL * (peso / total), peso * STAKING_MAX_RATE)
+    epochs = max(1, tier["duration_seconds"] // EPOCH_DURATION)
+    return round(por_epoch, 6), round(por_epoch * epochs, 6)
 
 def init_staking_positions_table():
     conn = get_db_connection()
@@ -4430,17 +4494,44 @@ def init_staking_positions_table():
             tier INTEGER NOT NULL,
             is_spent INTEGER DEFAULT 0,
             spent_timestamp INTEGER DEFAULT NULL,
-            yield_paid REAL DEFAULT 0
+            yield_paid REAL DEFAULT 0,
+            accrued_yield REAL DEFAULT 0
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS staking_rewards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            epoch_id INTEGER NOT NULL,
+            token_id INTEGER NOT NULL,
+            staker_address TEXT NOT NULL,
+            reward_amount REAL NOT NULL,
+            weight_share REAL NOT NULL,
+            distributed_at INTEGER NOT NULL
         )
     ''')
     conn.commit()
     conn.close()
+
+
+def _migrar_staking():
+    """accrued_yield em bancos que nasceram antes do pool."""
+    conn = get_db_connection()
+    try:
+        colunas = {r[1] for r in conn.execute("PRAGMA table_info(staking_positions)")}
+        if colunas and "accrued_yield" not in colunas:
+            conn.execute("ALTER TABLE staking_positions ADD COLUMN accrued_yield REAL DEFAULT 0")
+            conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
 
 # Ensure table is created on startup
 @app.on_event("startup")
 async def startup_staking():
     try:
         init_staking_positions_table()
+        _migrar_staking()
     except Exception as e:
         print(f"⚠️ Failed to init staking_positions table: {e}")
 
@@ -4480,7 +4571,11 @@ async def get_staking_positions(address: str):
             unlock_time = r["deposit_timestamp"] + r["lock_duration"]
             r["unlock_time"] = unlock_time
             r["is_unlocked"] = now >= unlock_time
-            r["estimated_yield"] = round(r["deposit_amount"] * r["yield_basis_points"] / 10000, 4)
+            # O que as epochs ja renderam a esta posicao. E fato, nao estimativa:
+            # foi rateado, esta gravado em staking_rewards e ja conta no supply.
+            # Antes era deposito x taxa do tier, que prometia o que o cofre
+            # nao tinha obrigacao nenhuma de pagar.
+            r["accrued_yield"] = round(r.get("accrued_yield") or 0.0, 6)
             r["time_remaining"] = max(0, unlock_time - now)
             r["progress_pct"] = min(100, round((now - r["deposit_timestamp"]) / max(1, r["lock_duration"]) * 100, 1))
             positions.append(r)
@@ -4541,6 +4636,7 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
     # ── STEP 2: Atomically debit balance + create staking position ─────────
     conn = get_db_connection()
     c = conn.cursor()
+    estimativa_epoch, estimativa_lock = _estimativa(c, req.amount, req.tier)
     try:
         # Debit: record as an outgoing transaction from staker to a
         # virtual "STAKING_VAULT" address so the balance formula
@@ -4590,7 +4686,10 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
         "token_id": token_id,
         "tier_label": tier["label"],
         "unlock_time": current_ts + tier["duration_seconds"],
-        "estimated_yield": round(req.amount * tier["yield_bp"] / 10000, 4),
+        # Estimativa pelo cofre de agora, nao taxa garantida: o rendimento
+        # sai de um pool fixo e cai quando mais gente entra.
+        "estimated_yield": estimativa_lock,
+        "estimated_per_epoch": estimativa_epoch,
         "balance_debited": req.amount,
         "tx_hash": stake_tx_hash
     }
@@ -4635,8 +4734,15 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
         conn.close()
         raise HTTPException(status_code=400, detail=f"Still locked. It unlocks in {unlock_time - current_ts}s.")
 
-    yield_paid = round(pos["deposit_amount"] * pos["yield_basis_points"] / 10000, 4)
-    payout = round(pos["deposit_amount"] + yield_paid, 4)
+    # O que as epochs renderam a esta posicao, e nada alem disso.
+    #
+    # Antes era deposito x taxa do tier, calculado aqui e emitido na hora. Isso
+    # nao e recompensa, e emissao proporcional ao deposito: quem tivesse 400.000
+    # $CLAIM presos emitia 2.000/hora sozinho -- a emissao programada da rede
+    # inteira -- e nenhum teto olhava, porque este caminho nunca chamou
+    # record_epoch_mint nem entrava em get_total_minted.
+    yield_paid = round(pos.get("accrued_yield") or 0.0, 6)
+    payout = round(pos["deposit_amount"] + yield_paid, 6)
 
     # A position written before the balance check existed can be larger than the
     # token. Paying it out would mint past MAX_SUPPLY from a row nobody audited,
@@ -4713,6 +4819,10 @@ async def get_staking_stats():
         c.execute("SELECT COALESCE(SUM(yield_paid), 0) FROM staking_positions WHERE is_spent = 1")
         total_yield = c.fetchone()[0]
 
+        peso_total = _peso_aberto(c)
+        # Por 1.000 $CLAIM entrando agora: e o que a tela pode dizer sem mentir.
+        por_mil = {str(k): _estimativa(c, 1000.0, k)[0] for k in TIER_CONFIG}
+
         c.execute("SELECT COUNT(*) FROM staking_positions WHERE is_spent = 1")
         spent_count = c.fetchone()[0]
 
@@ -4723,6 +4833,10 @@ async def get_staking_stats():
             "activePositions": active_count,
             "totalYieldPaid": round(total_yield, 4),
             "spentPositions": spent_count,
+            "epochPool": STAKING_EPOCH_POOL,
+            "maxRatePerWeight": STAKING_MAX_RATE,
+            "totalWeight": round(peso_total, 4),
+            "estimatedPerEpochPer1000": por_mil,
             "tiers": {str(k): v for k, v in TIER_CONFIG.items()}
         }
     except Exception as e:
@@ -5776,6 +5890,75 @@ async def _distribute_epoch():
     }
 
 
+async def _distribute_staking_epoch():
+    """Reparte STAKING_EPOCH_POOL entre as posicoes abertas, por peso.
+
+    Mesma forma da mineracao, pela mesma razao: com pool fixo, depositar mais
+    nao emite mais, dilui os outros. O teto deixa de ser promessa e vira
+    aritmetica -- `min(pool, supply restante, quota da hora)`, os mesmos tres
+    freios que a mineracao ja usa, mais o record_epoch_mint que faltava.
+
+    Roda depois da mineracao de proposito: o pool daqui e o menor e deve ser o
+    primeiro a ceder quando a hora aperta.
+    """
+    conn = get_db_connection()
+    c = conn.cursor()
+    current_ts = int(datetime.now().timestamp())
+
+    c.execute("SELECT token_id, staker_address, deposit_amount, tier "
+              "FROM staking_positions WHERE is_spent = 0")
+    abertas = [dict(r) for r in c.fetchall()]
+    pesos = [(pos, pos["deposit_amount"] * TIER_CONFIG[pos["tier"]]["weight"])
+             for pos in abertas
+             if pos["tier"] in TIER_CONFIG and pos["deposit_amount"] > 0]
+    total_peso = sum(w for _, w in pesos)
+    if total_peso <= 0:
+        conn.close()
+        return {"status": "no_open_positions", "distributed": 0}
+
+    remaining_supply = MAX_SUPPLY - get_total_minted(c)
+    if remaining_supply <= 1e-6:
+        conn.close()
+        return {"status": "max_supply_reached", "distributed": 0}
+
+    epoch_id_hr, tokens_mined_hr, depleted_hr = get_hourly_epoch_state(c, current_ts)
+    remaining_hour = TOKENS_PER_HOUR - tokens_mined_hr
+    if depleted_hr or remaining_hour <= 1e-6:
+        conn.commit()
+        conn.close()
+        return {"status": "hourly_quota_depleted", "distributed": 0}
+
+    pool = min(STAKING_EPOCH_POOL, remaining_supply, remaining_hour)
+    c.execute("SELECT COALESCE(MAX(epoch_id), 0) + 1 FROM staking_rewards")
+    epoch_id = c.fetchone()[0]
+
+    total_pago = 0.0
+    for pos, peso in pesos:
+        share = peso / total_peso
+        # arredonda para baixo: a soma nunca passa do pool, nem da quota
+        premio = math.floor(pool * share * 1e6) / 1e6
+        # Cofre quase vazio nao imprime: o que o pool nao paga nao e emitido.
+        premio = min(premio, math.floor(peso * STAKING_MAX_RATE * 1e6) / 1e6)
+        if premio <= 0:
+            continue
+        total_pago += premio
+        c.execute("UPDATE staking_positions SET accrued_yield = "
+                  "COALESCE(accrued_yield, 0) + ? WHERE token_id = ?",
+                  (premio, pos["token_id"]))
+        c.execute(
+            "INSERT INTO staking_rewards (epoch_id, token_id, staker_address, "
+            "reward_amount, weight_share, distributed_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (epoch_id, pos["token_id"], pos["staker_address"], premio,
+             round(share * 100, 4), current_ts))
+
+    record_epoch_mint(c, epoch_id_hr, total_pago)
+    conn.commit()
+    conn.close()
+    return {"status": "distributed", "epoch_id": epoch_id,
+            "total_distributed": round(total_pago, 6),
+            "positions": len(pesos), "pool": round(pool, 6)}
+
+
 async def epoch_scheduler():
     """Background task: auto-distribute epoch rewards every epoch_duration seconds."""
     epoch_duration = MINING_CONFIG["epoch_duration"]
@@ -5793,6 +5976,17 @@ async def epoch_scheduler():
                 logging.info(f"⛏️ Epoch skipped: {result['status']}")
         except Exception as e:
             logging.error(f"❌ Epoch distribution error: {e}")
+        try:
+            s = await _distribute_staking_epoch()
+            if s["status"] == "distributed":
+                logging.info(
+                    f"🔒 Staking epoch #{s['epoch_id']}: {s['total_distributed']} CLAIM "
+                    f"to {s['positions']} positions (pool {s['pool']})"
+                )
+            else:
+                logging.info(f"🔒 Staking epoch skipped: {s['status']}")
+        except Exception as e:
+            logging.error(f"❌ Staking distribution error: {e}")
         await asyncio.sleep(epoch_duration)
 
 

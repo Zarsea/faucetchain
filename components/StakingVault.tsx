@@ -30,7 +30,7 @@ interface StakingPosition {
     yield_paid: number;
     unlock_time: number;
     is_unlocked: boolean;
-    estimated_yield: number;
+    accrued_yield: number;
     time_remaining: number;
     progress_pct: number;
 }
@@ -40,13 +40,38 @@ interface VaultStats {
     activePositions: number;
     totalYieldPaid: number;
     spentPositions: number;
+    epochPool: number;
+    totalWeight: number;
+    estimatedPerEpochPer1000: Record<string, number>;
+    maxRatePerWeight: number;
 }
 
-const TIER_INFO: Record<number, { label: string; duration: string; yield: string; apy: string; color: string; icon: string }> = {
-    0: { label: 'Flash Lock', duration: '1 Hora', yield: '0.5%', apy: '4,380%', color: 'brand-accent', icon: '⚡' },
-    1: { label: 'Standard Lock', duration: '24 Horas', yield: '2%', apy: '730%', color: 'brand-primary', icon: '🔒' },
-    2: { label: 'Diamond Lock', duration: '7 Dias', yield: '10%', apy: '520%', color: 'brand-success', icon: '💎' },
+/**
+ * Sem `yield` e sem `apy` de proposito.
+ *
+ * A tela prometia "Yield: 0.5% / APY: 4,380%" por tier, e a promessa era o
+ * defeito: o rendimento saia de uma taxa sobre o proprio deposito, entao quem
+ * travasse mais emitia mais, sem teto. Agora sai de um pool fixo por hora,
+ * repartido por peso -- e retorno de pool fixo nao e taxa, e fatia. Prometer
+ * um numero aqui seria prometer o que depende de quem mais esta dentro.
+ *
+ * `weight` e a fatia por $CLAIM preso, e sobe com o lock. Antes descia.
+ */
+const TIER_INFO: Record<number, { label: string; duration: string; weight: number; color: string; icon: string }> = {
+    0: { label: 'Flash Lock', duration: '1 Hora', weight: 1, color: 'brand-accent', icon: '⚡' },
+    1: { label: 'Standard Lock', duration: '24 Horas', weight: 3, color: 'brand-primary', icon: '🔒' },
+    2: { label: 'Diamond Lock', duration: '7 Dias', weight: 8, color: 'brand-success', icon: '💎' },
 };
+
+/** O que `amount` neste tier receberia por epoch, se o cofre ficasse como esta. */
+function estimativaPorEpoch(stats: VaultStats | null, amount: number, tier: number): number {
+    if (!stats || !(amount > 0)) return 0;
+    const peso = amount * (TIER_INFO[tier]?.weight ?? 1);
+    const total = stats.totalWeight + peso;
+    if (total <= 0) return 0;
+    // O mesmo teto do servidor: cofre quase vazio nao paga o pool inteiro.
+    return Math.min(stats.epochPool * (peso / total), peso * stats.maxRatePerWeight);
+}
 
 const API_BASE = API_BASE_URL;
 
@@ -130,7 +155,7 @@ export const StakingVault: React.FC = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                setFeedback({ type: 'success', msg: `UTXO #${data.token_id} criado! Lock: ${data.tier_label} | Yield: ${data.estimated_yield} CLAIM` });
+                setFeedback({ type: 'success', msg: `UTXO #${data.token_id} criado! Lock: ${data.tier_label} | Estimativa: ~${data.estimated_yield} CLAIM no periodo` });
                 setStakeAmount('');
                 fetchData();
             } else {
@@ -177,7 +202,7 @@ export const StakingVault: React.FC = () => {
     const spentPositions = positions.filter(p => p.is_spent);
     const displayedPositions = viewMode === 'active' ? activePositions : spentPositions;
     const totalUserLocked = activePositions.reduce((s, p) => s + p.deposit_amount, 0);
-    const totalUserYieldPending = activePositions.reduce((s, p) => s + p.estimated_yield, 0);
+    const totalUserYieldPending = activePositions.reduce((s, p) => s + p.accrued_yield, 0);
 
     // ── Not connected ────────────────────────────────────────────────────
     if (!isConnected) {
@@ -252,8 +277,10 @@ export const StakingVault: React.FC = () => {
                                                 <span className="text-lg block">{info.icon}</span>
                                                 <span className="text-[9px] font-black text-brand-muted block mt-1">{info.duration}</span>
                                                 <div className="flex flex-col mt-1">
-                                                    <span className={`text-xs font-black ${isSelected ? 'text-brand-primary' : 'text-white'}`}>Yield: {info.yield}</span>
-                                                    <span className={`text-[10px] font-bold ${isSelected ? 'text-brand-accent' : 'text-brand-success'}`}>APY: {info.apy}</span>
+                                                    <span className={`text-xs font-black ${isSelected ? 'text-brand-primary' : 'text-white'}`}>Peso {info.weight}×</span>
+                                                    <span className={`text-[10px] font-bold ${isSelected ? 'text-brand-accent' : 'text-brand-success'}`}>
+                                                        {stats ? `~${estimativaPorEpoch(stats, 1000, tier).toFixed(2)}/h por 1k` : '—'}
+                                                    </span>
                                                 </div>
                                             </button>
                                         );
@@ -275,8 +302,12 @@ export const StakingVault: React.FC = () => {
                                 />
                                 {stakeAmount && parseFloat(stakeAmount) > 0 && (
                                     <div className="mt-2 p-2 bg-brand-success/5 border border-brand-success/20 rounded-lg">
-                                        <span className="text-[10px] text-brand-success font-bold">
-                                            Yield estimado: +{(parseFloat(stakeAmount) * (TIER_INFO[selectedTier]?.yield === '0.5%' ? 0.005 : TIER_INFO[selectedTier]?.yield === '2%' ? 0.02 : 0.10)).toFixed(4)} CLAIM
+                                        <span className="text-[10px] text-brand-success font-bold block">
+                                            Estimativa: ~{estimativaPorEpoch(stats, parseFloat(stakeAmount), selectedTier).toFixed(4)} CLAIM por hora
+                                        </span>
+                                        {/* Dito antes do clique, porque depois vira desculpa. */}
+                                        <span className="text-[10px] text-brand-muted block mt-1">
+                                            Fatia de um pool de {stats?.epochPool ?? 0} CLAIM/hora dividido entre as posições abertas. Cai quando entra mais gente.
                                         </span>
                                     </div>
                                 )}
@@ -434,7 +465,7 @@ export const StakingVault: React.FC = () => {
                                                             </div>
                                                             <div>
                                                                 <span className="text-[8px] font-black text-brand-muted uppercase block">Yield</span>
-                                                                <span className="text-sm font-black text-brand-success font-mono">+{pos.estimated_yield.toFixed(4)}</span>
+                                                                <span className="text-sm font-black text-brand-success font-mono">+{pos.accrued_yield.toFixed(4)}</span>
                                                             </div>
                                                             <div>
                                                                 <span className="text-[8px] font-black text-brand-muted uppercase block">Criado</span>
