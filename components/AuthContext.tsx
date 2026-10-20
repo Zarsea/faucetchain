@@ -1,5 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { API_BASE_URL } from '../apiConfig';
 
 // No external EVM wallet: the only wallet the product needs is the Solana
 // one, used to sign in and to receive payouts.
@@ -78,7 +79,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         window.dispatchEvent(new CustomEvent('wallet_connected', { detail: { address, method } }));
     };
 
-    const logout = () => {
+    // A sessao expira em sete dias do lado do servidor, e ate hoje a
+    // aplicacao nao tinha como saber disso. Ela se declarava logada por achar
+    // tres strings no localStorage, e a pessoa so descobria o contrario quando
+    // uma acao falhava -- parecendo bug, porque a tela dizia que ela estava
+    // dentro.
+    //
+    // Conferir ao montar e barato e resolve o caso comum: quem volta no dia
+    // seguinte ve "entrar" em vez de ver um botao que nao funciona.
+    useEffect(() => {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) return;
+        let vivo = true;
+        fetch(`${API_BASE_URL}/api/auth/session`, { headers: { 'X-Session-Token': token } })
+            .then(r => { if (vivo && r.status === 401) sair(); })
+            // Rede fora do ar nao e sessao invalida. Derrubar o login porque o
+            // wifi caiu seria trocar um incomodo por outro pior.
+            .catch(() => {});
+        return () => { vivo = false; };
+    }, []);
+
+    // Expirar no meio do uso tambem acontece, e aí nenhuma conferencia no
+    // arranque pega. Quem percebe primeiro e a chamada que levou 401, e ela
+    // avisa por aqui.
+    useEffect(() => {
+        const aoCair = () => sair();
+        window.addEventListener('session_expired', aoCair);
+        return () => window.removeEventListener('session_expired', aoCair);
+    }, []);
+
+    const sair = () => {
         setUserAddress(null);
         setIsConnected(false);
         setAuthMethod(null);
@@ -89,6 +119,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         window.dispatchEvent(new CustomEvent('wallet_disconnected'));
     };
+
+    const logout = sair;
 
     return (
         <AuthContext.Provider value={{ userAddress, isConnected, authMethod, login, logout }}>

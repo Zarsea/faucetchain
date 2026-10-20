@@ -2945,6 +2945,33 @@ def session_holder(token: Optional[str]) -> Optional[str]:
     return row[0]
 
 
+@app.get("/api/auth/session")
+async def whose_session(x_session_token: Optional[str] = Header(None)):
+    """De quem e este token, se e que ainda e de alguem.
+
+    Existe porque a aplicacao nao tinha como perguntar. Ela se declarava
+    logada por achar tres strings no localStorage, e so descobria o contrario
+    quando uma acao falhava -- com uma mensagem escrita para quem le log de
+    seguranca, na cara de quem acabou de clicar num botao.
+
+    Devolve o endereco e quando a sessao acaba, ou 401. Nada aqui diz se o
+    token existiu um dia: token vencido e token inventado respondem igual,
+    porque a diferenca so interessa a quem esta tentando adivinhar.
+    """
+    if not x_session_token:
+        raise HTTPException(status_code=401, detail="No session")
+    dono = session_holder(x_session_token)
+    if not dono:
+        raise HTTPException(status_code=401, detail="Session expired")
+    conn = get_db_connection()
+    try:
+        linha = conn.execute("SELECT expires_at FROM sessions WHERE token_hash = ?",
+                             (_hash_token(x_session_token),)).fetchone()
+    finally:
+        conn.close()
+    return {"address": dono, "expires_at": linha["expires_at"] if linha else None}
+
+
 def is_custodial_address(addr: str) -> bool:
     """True for accounts this server holds the key of, so they sign nothing.
 
@@ -2991,10 +3018,11 @@ def require_action_signature(address: str, message: str, signature, sig_timestam
             return
         raise HTTPException(
             status_code=401,
-            detail=(
-                "This account acts through a session. Sign in again: knowing the "
-                "address is not enough, and never was."
-            ),
+            # A frase anterior -- "knowing the address is not enough, and never
+            # was" -- era uma nota de quem consertou a falha, deixada no lugar
+            # onde o usuario a leria. Ela esta certa e esta no docstring acima,
+            # que e para onde foi. Aqui fica o que a pessoa pode fazer.
+            detail="Your session has ended. Sign in again to continue.",
         )
 
     if not signature or not sig_timestamp:

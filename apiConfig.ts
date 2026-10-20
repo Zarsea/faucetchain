@@ -50,7 +50,28 @@ if (typeof window !== 'undefined') {
         }
     }
     
-    return originalFetch(resource, config);
+    const resposta = await originalFetch(resource, config);
+
+    // Sessao vencida no meio do uso. Sem isto, a tela continua dizendo que a
+    // pessoa esta logada e cada acao falha com um 401 que ela nao pediu --
+    // que foi exatamente o que aconteceu no Bounty Board em 19/10/2026.
+    //
+    // Aqui, e nao em cada tela: sao dezenas de chamadas com sessao, e a que
+    // esquecesse de conferir seria justamente a que deixaria o usuario preso.
+    //
+    // Clonada antes de ler: o corpo e um fluxo de leitura unica, e consumi-lo
+    // aqui entregaria uma resposta ja vazia a quem pediu.
+    if (resposta.status === 401) {
+      try {
+        const corpo = await resposta.clone().text();
+        if (/session has ended|Session expired|No session/i.test(corpo)) {
+          window.dispatchEvent(new CustomEvent('session_expired'));
+        }
+      } catch {
+        // Corpo ilegivel nao e motivo para derrubar ninguem.
+      }
+    }
+    return resposta;
   };
 }
 
