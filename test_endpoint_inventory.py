@@ -35,6 +35,12 @@ GUARDS = {
     "require_action_signature": "the acting wallet signs",
     "require_operator": "operator token",
     "require_node_token": "node token issued at registration",
+    # A sessao da conta alvo, que e a mesma prova que require_action_signature
+    # aceita para contas custodiais: `session_holder` so devolve endereco para
+    # uma sessao valida e nao expirada, e a rota age sobre esse endereco e
+    # nenhum outro. Exigir assinatura alem disso seria exigir chave de quem,
+    # por definicao, nao tem uma -- toda conta que este produto cria.
+    "session_holder": "the account's own session",
     "x_api_key": "partner API key",
     "X-Internal-Secret": "internal secret",
     "INTERNAL_SECRET": "internal secret",
