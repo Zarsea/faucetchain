@@ -254,9 +254,32 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                     ))}
                 </div>
 
-                {/* 2. A INTEGRACAO -------------------------------------------------- */}
+                {/* 2. O AGENT CLI ---------------------------------------------------
+                    Antes dos curl de proposito. Quem integra hoje costuma estar com um
+                    agente aberto, e mandar a integracao inteira para ele de uma vez e
+                    mais curto do que ele ler esta pagina por cima do ombro de alguem. */}
                 <h2 className="mt-16 mb-2 pt-8 border-t border-white/10 text-xl font-black tracking-tight">
-                    What you have to build
+                    Hand this to your agent
+                </h2>
+                <p className="text-white/50 text-sm leading-relaxed mb-5">
+                    One command installs a skill that carries the whole integration: the request
+                    shapes, the webhook signature, and the four mistakes that cost your users
+                    money. Your agent reads it and writes the integration against it.
+                </p>
+                <Copiavel rotulo="Agent CLI" codigo="npx skills add Zarsea/faucetchain" />
+                <p className="text-white/40 text-xs leading-relaxed mt-3">
+                    Works with Claude Code, Codex and anything else that reads
+                    <code className="mx-1 px-1.5 py-0.5 rounded bg-white/10 font-mono text-[11px]">SKILL.md</code>.
+                    Add <code className="mx-1 px-1.5 py-0.5 rounded bg-white/10 font-mono text-[11px]">-g</code> to
+                    install it for every project instead of this one. The skill ships
+                    <code className="mx-1 px-1.5 py-0.5 rounded bg-white/10 font-mono text-[11px]">check.py</code>,
+                    which asserts its own promises against this API — run it before you trust what
+                    it told your agent.
+                </p>
+
+                {/* 3. A INTEGRACAO -------------------------------------------------- */}
+                <h2 className="mt-16 mb-2 pt-8 border-t border-white/10 text-xl font-black tracking-tight">
+                    Or build it yourself
                 </h2>
                 <p className="text-white/50 text-sm leading-relaxed mb-8">
                     One call from the claim handler you already have. No SDK, no wallet in your
