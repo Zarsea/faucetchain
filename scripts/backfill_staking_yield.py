@@ -45,6 +45,15 @@ import time
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# O mesmo caminho que o servidor usa, e pela mesma regra.
+#
+# `get_db_connection()` chama sqlite3.connect('blockchain.db'), relativo ao
+# diretorio de trabalho, e o entrypoint faz `cd "$DATA_DIR"` antes de subir o
+# uvicorn. No container o banco vivo esta em /data, enquanto /app carrega a
+# copia que veio na imagem pelo `COPY . .`. Apontar para a raiz do codigo seria
+# mexer no arquivo errado e relatar sucesso.
+PADRAO_DB = os.path.join(os.environ.get("DATA_DIR", RAIZ), "blockchain.db")
+
 MOTIVO_EPOCH = 0          # a era anterior ao pool
 MOTIVO_TOKEN = 0          # nenhuma posicao em particular: o agregado
 MOTIVO_CONTA = "historico-anterior-ao-pool"
@@ -186,7 +195,8 @@ def self_check():
 def main() -> int:
     p = argparse.ArgumentParser(
         description="Conta o rendimento do staking anterior ao pool no supply")
-    p.add_argument("--db", default=os.path.join(RAIZ, "blockchain.db"))
+    p.add_argument("--db", default=PADRAO_DB,
+                   help="padrao: $DATA_DIR/blockchain.db, ou a raiz do repo fora do container")
     p.add_argument("--dry-run", action="store_true", help="mostra e nao escreve")
     p.add_argument("--self-check", action="store_true",
                    help="roda num banco de brinquedo e nao toca no seu")
