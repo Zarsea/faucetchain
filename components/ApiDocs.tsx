@@ -6,6 +6,33 @@ import { useLanguage } from './LanguageContext';
 import { diagrams } from '../constants';
 import { MermaidDiagram } from './MermaidDiagram';
 
+/** O comando de instalacao, com copia. Nao reusa o Copiavel da pagina do
+ *  operador de proposito: aquela tela tem paleta propria (white/10 e cyan) e
+ *  esta usa os tokens brand-*. Um componente compartilhado entre as duas
+ *  carregaria as duas paletas para sempre. */
+const ComandoDoAgente: React.FC<{ texto: string; rotulo: string }> = ({ texto, rotulo }) => {
+    const [copiado, setCopiado] = React.useState(false);
+    return (
+        <div className="bg-brand-bg border border-brand-border rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-brand-border/60">
+                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-brand-muted">{rotulo}</span>
+                <button
+                    onClick={() => {
+                        navigator.clipboard?.writeText(texto).then(
+                            () => { setCopiado(true); setTimeout(() => setCopiado(false), 1600); },
+                            () => undefined,   // area de transferencia bloqueada nao quebra a pagina
+                        );
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-primary hover:text-brand-secondary transition-colors min-h-[28px]"
+                >
+                    {copiado ? 'Copied' : 'Copy'}
+                </button>
+            </div>
+            <pre className="px-4 py-3 overflow-x-auto text-[12px] leading-relaxed font-mono text-brand-primary">{texto}</pre>
+        </div>
+    );
+};
+
 export const ApiDocs: React.FC = () => {
     const { lang } = useLanguage();
     // O padrão do projeto, e com ele a limitação do projeto: quem escolhe
@@ -25,6 +52,36 @@ export const ApiDocs: React.FC = () => {
                         'Duas chamadas conectam uma torneira à FaucetChain: uma para registrar e receber a chave, ' +
                         'uma por claim. A segunda roda depois que o seu pagamento já foi registrado, então nada que ' +
                         'você deve ao usuário espera por nós.'
+                    )}
+                </p>
+            </div>
+
+            {/* Antes dos endpoints de proposito: quem integra hoje costuma estar com
+                um agente aberto, e entregar a integracao inteira de uma vez e mais
+                curto do que o agente ler esta pagina. */}
+            <div className="animate-fadeIn p-6 rounded-2xl bg-brand-card/40 border border-brand-primary/30">
+                <h3 className="text-lg font-bold text-brand-secondary mb-1">
+                    {T('Start with an agent', 'Comece pelo agente')}
+                </h3>
+                <p className="text-sm text-brand-muted leading-relaxed mb-4">
+                    {T(
+                        'One command installs a skill that carries this whole integration: the request shapes, ' +
+                        'the webhook signature, and the four mistakes that cost your users money. Your agent ' +
+                        'reads it and writes the integration against it.',
+                        'Um comando instala uma skill com esta integração inteira: os formatos de requisição, ' +
+                        'a assinatura dos webhooks e os quatro erros que custam dinheiro dos seus usuários. ' +
+                        'Seu agente lê e escreve a integração a partir dela.'
+                    )}
+                </p>
+                <ComandoDoAgente rotulo="Agent CLI" texto="npx skills add Zarsea/faucetchain" />
+                <p className="text-[11px] text-brand-muted/80 leading-relaxed mt-3">
+                    {T(
+                        'Works with Claude Code, Codex and anything else that reads SKILL.md. Add -g to install it ' +
+                        'for every project instead of this one. The skill ships check.py, which asserts its own ' +
+                        'promises against this API — run it before you trust what it told your agent.',
+                        'Funciona com Claude Code, Codex e qualquer outro que leia SKILL.md. Use -g para instalar ' +
+                        'em todos os projetos em vez de um. A skill traz check.py, que confere as próprias promessas ' +
+                        'contra esta API — rode antes de confiar no que ela disse ao seu agente.'
                     )}
                 </p>
             </div>
