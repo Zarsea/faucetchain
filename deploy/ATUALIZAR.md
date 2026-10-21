@@ -1,46 +1,76 @@
-# Atualizar a API — para o DoniJR
+# Atualizar — para o DoniJR
 
-**Escrito em 21/10/2026.** Produção roda `4bfc423`; o repositório está em
-`12b440f`. São **17 commits** parados, 36 arquivos, 3.260 linhas.
-
-Conferido agora, de fora, e não pela memória: `/api/account/identities` responde
-404 e `/api/staking/stats` não traz `epochPool`. As duas coisas aparecem depois
-que isto subir, e servem de prova de que subiu.
+**Revisado em 21/10/2026, depois do seu deploy.** A API ficou certa. O que falta
+é o **frontend**, e ele está com um defeito sério no ar.
 
 ---
 
-## O que muda para quem usa
+## ⚠️ Urgente: o frontend precisa subir de novo
 
-A maior é o **staking**. Hoje ele paga uma taxa por posição — 0,5% em 1 hora,
+O bundle que está servindo hoje não guarda a sessão de ninguém. Um envelope de
+`localStorage` chamava a si mesmo, a recursão estourava a pilha e um `catch`
+vazio engolia o erro — sem nada no console, sem nada na tela.
+
+O que isso quebra, agora, para todo usuário:
+
+- **O Merit Faucet não funciona.** O claim sai sem token, leva 401 e o app
+  desloga a pessoa na hora. Reproduzido em produção: a mensagem é
+  *"Could not process the transaction: Your session has ended"*.
+- **Nenhuma sessão sobrevive a um F5.**
+- **A tela de privacidade não carrega**, pelo mesmo motivo.
+
+Corrigido em `4f4f410`, com um teste que lê o fonte e falha se o envelope voltar
+a não chamar o armazenamento. Está no CI.
+
+```
+Vercel → projeto do explorer → Redeploy, no commit 4f4f410 ou mais novo
+```
+
+Conferir depois: entrar como convidado, apertar F5. Se continuar logado, subiu.
+
+> **Detalhe do build:** o rodapé da barra lateral mostra `dev` em vez do commit.
+> O `git rev-parse` falhou no ambiente de build e a variável da Vercel também
+> veio vazia. Não quebra nada, mas enquanto estiver assim não dá para saber pela
+> tela qual versão está no ar — que é justamente para o que esse campo existe.
+
+---
+
+## O que já está certo
+
+Conferido de fora: `/api/account/identities` responde **401** (existe e pede
+sessão), e `/api/staking/stats` traz `epochPool: 200.0` com os pesos dos tiers.
+A API está no código novo.
+
+---
+
+## O que o seu deploy já mudou
+
+A maior era o **staking**. Ele pagava uma taxa por posição — 0,5% em 1 hora,
 2% em 24h, 10% em 7 dias — e isso não é recompensa, é emissão proporcional ao
 depósito. Quem tivesse 400.000 $CLAIM presos emitia 2.000/hora sozinho, que é a
 emissão programada da rede inteira, e nada no código olhava para isso.
 
-Depois do deploy o rendimento sai de um pool fixo de 200/hora, rateado. Depositar
-mais deixa de emitir mais.
+Agora o rendimento sai de um pool fixo de 200/hora, rateado. Depositar mais
+deixou de emitir mais. O cofre estava vazio na hora da troca, então ninguém
+perdeu rendimento acumulado.
 
-**O cofre está vazio neste momento** (`totalLocked 0`), então ninguém perde
-rendimento acumulado na troca. É o melhor momento possível para subir.
+Também subiram: vinculação de conta Google, painel de carteira, a skill de
+integração para agentes, correções de texto em telas que afirmavam coisas que o
+código não faz, e acessibilidade.
 
-O resto: vinculação de conta Google numa tela de privacidade, painel de carteira
-no lugar do endereço escrito por extenso no cabeçalho, a skill de integração
-para agentes, correções de texto em telas que afirmavam coisas que o código não
-faz, e acessibilidade.
-
----
-
-## 1. Deploy
+## 1. Deploy da API — ✅ feito
 
 ```bash
 git pull
 fly deploy -c deploy/fly.toml
 ```
 
-Nada de novo aqui: é o mesmo caminho de sempre, uma máquina, um volume.
+Conferido de fora: a API está no código novo.
 
----
+## 2. O backfill — rode se ainda não rodou
 
-## 2. O backfill — **depois** do deploy
+Daqui de fora não dá para ver se isto já rodou, e rodar de novo não faz mal:
+o script escreve a diferença, então a segunda execução não escreve nada.
 
 Há 184,5 $CLAIM de rendimento antigo que o contador de supply não enxerga. Eles
 foram pagos pelo caminho velho, que gravava em `transactions`, e o contador novo
@@ -70,24 +100,10 @@ Três coisas que o script já resolve sozinho, para você não precisar lembrar:
 
 ---
 
-## 3. O CORS da FaucetHunter — pendente faz dias
+## 3. O CORS da FaucetHunter — ✅ feito
 
-O preflight de `faucethunter.net` responde **400**. É por isso que a FaucetHunter
-diz que a FaucetChain está offline enquanto ela está de pé: o JavaScript não
-distingue preflight recusado de servidor fora do ar.
-
-```bash
-fly secrets set ALLOWED_ORIGINS="<os valores de hoje>,https://faucethunter.net,https://www.faucethunter.net" -a faucetchain-api
-```
-
-> **Atenção, e isto derruba o site se passar batido:** `fly secrets set`
-> **substitui o valor inteiro**, não acrescenta. E `fly secrets list` só mostra os
-> nomes, nunca os valores — por design.
->
-> Se você não tiver a lista atual anotada, **me mande antes de rodar**. Mandando
-> só o faucethunter, o site principal para de funcionar na hora.
-
----
+O preflight de `faucethunter.net` responde **200**. Era 400, e era por isso que
+a FaucetHunter dizia que a FaucetChain estava offline enquanto ela estava de pé.
 
 ## 4. Conferir
 
@@ -104,14 +120,25 @@ curl -s -i -X OPTIONS https://www.faucetchain.com.br/api/faucethub/microclaim/ba
   -H "Access-Control-Request-Method: GET" | head -1
 ```
 
-| Comando | Esperado |
-|---|---|
-| `epochPool` | aparece (hoje não existe) |
-| `/api/account/identities` | **401** (hoje é 404) |
-| preflight do CORS | **200** (hoje é 400) |
+| Comando | Esperado | Hoje |
+|---|---|---|
+| `epochPool` | aparece | ✅ `200.0` |
+| `/api/account/identities` | **401** | ✅ 401 |
+| preflight do CORS | **200** | ✅ 200 |
 
-E, na tela, o rodapé da barra lateral passa a mostrar o commit do build. É a
-forma mais rápida de saber qual versão está no ar sem abrir terminal.
+Os três já passam. **O que falta não é checável por `curl`**, porque mora no
+navegador:
+
+1. Abra `www.faucetchain.com.br` e entre como convidado.
+2. Aperte **F5**.
+3. Se continuar logado, o frontend novo subiu. Se cair para "Connect Wallet", o
+   bundle velho ainda está no ar.
+
+O mesmo teste cobre o Merit Faucet: com o bundle velho, o claim responde 401 e
+desloga; com o novo, credita e a pessoa continua dentro.
+
+E o rodapé da barra lateral passa a mostrar o commit do build em vez de `dev` —
+a forma mais rápida de saber qual versão está no ar sem abrir terminal.
 
 ---
 
