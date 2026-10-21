@@ -382,6 +382,60 @@ def test_a_estimativa_cai_quando_o_cofre_enche():
     assert cheio < vazio, (cheio, vazio)
 
 
+# ──────────────────────────────────────────── o APY que a tela mostra
+
+def apy():
+    conn = srv.get_db_connection()
+    try:
+        return srv._apy_do_cofre(conn.cursor())
+    finally:
+        conn.close()
+
+
+def test_cofre_vazio_nao_tem_apy():
+    """Antes a rota devolvia 14,5% com o cofre vazio. Nao existe APY de nada."""
+    limpar()
+    assert apy() == 0.0, apy()
+
+
+def test_apy_cai_quando_entra_mais_gente():
+    """O comportamento honesto de um pool fixo, e o motivo de nao ser constante."""
+    limpar()
+    posicao(1_000_000, tier=0)
+    pouco = apy()
+    posicao(100_000_000, tier=0)
+    muito = apy()
+    assert muito < pouco, (muito, pouco)
+
+
+def test_com_cofre_pequeno_manda_o_teto_por_posicao():
+    """Uma posicao sozinha nao leva o pool inteiro, entao o APY e o teto do tier."""
+    limpar()
+    posicao(1_000, tier=0)
+    esperado = srv.TIER_CONFIG[0]["weight"] * srv.STAKING_MAX_RATE * (365 * 24) * 100
+    assert abs(apy() - esperado) < 0.01, (apy(), esperado)
+
+
+def test_com_cofre_grande_manda_o_pool():
+    """Passado o ponto em que o pool aperta, o APY e so pool/deposito."""
+    limpar()
+    deposito = 500_000_000
+    posicao(deposito, tier=0)
+    esperado = POOL * (365 * 24) / deposito * 100
+    assert abs(apy() - esperado) < 1e-6, (apy(), esperado)
+
+
+def test_a_formula_antiga_nao_bate_com_nada():
+    """min(45, max(5, (100000 / travado) * 10)) nao descrevia pagamento nenhum.
+
+    Com 1.000 travados ela dava os 45% do teto; o cofre paga outra coisa.
+    """
+    limpar()
+    posicao(1_000, tier=0)
+    antiga = min(45.0, max(5.0, (100000 / 1_000) * 10))
+    assert abs(apy() - antiga) > 1.0, (apy(), antiga)
+
+
 if __name__ == "__main__":
     import inspect
 

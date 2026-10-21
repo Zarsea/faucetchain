@@ -3954,6 +3954,33 @@ async def get_epoch_status():
         "timeRemaining": (epoch_id + 1) * EPOCH_DURATION - now_ts
     }
 
+def _apy_do_cofre(c) -> float:
+    """Quanto o cofre pagaria num ano, sobre o que esta travado nele hoje.
+
+    Roda a mesma conta de `_distribute_staking_epoch` sem escrever nada: cada
+    posicao leva o menor entre a fatia do pool e o seu teto, e a soma de uma
+    epoch vira ano. Com o cofre pequeno quem manda e o teto por posicao; com o
+    cofre grande manda o pool, e o numero cai sozinho conforme mais gente entra
+    -- que e o comportamento honesto de um pool fixo, e o motivo de isto nao
+    poder ser uma constante.
+    """
+    try:
+        linhas = c.execute(
+            "SELECT deposit_amount, tier FROM staking_positions WHERE is_spent = 0"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return 0.0
+    pesos = [(r["deposit_amount"], r["deposit_amount"] * TIER_CONFIG[r["tier"]]["weight"])
+             for r in linhas if r["tier"] in TIER_CONFIG and r["deposit_amount"] > 0]
+    total_peso = sum(w for _, w in pesos)
+    deposito = sum(d for d, _ in pesos)
+    if total_peso <= 0 or deposito <= 0:
+        return 0.0
+    por_epoch = sum(min(STAKING_EPOCH_POOL * (w / total_peso), w * STAKING_MAX_RATE)
+                    for _, w in pesos)
+    return por_epoch * ((365 * 24 * 3600) / EPOCH_DURATION) / deposito * 100
+
+
 @app.get("/api/vault/yield")
 async def get_vault_yield():
     try:
@@ -3976,19 +4003,25 @@ async def get_vault_yield():
         miner_info = await get_user_balance(MINER_POOL_ADDRESS)
         total_burned = miner_info["total_claim"]
         
+        # APY do que o cofre realmente paga, e nao um numero plausivel.
+        #
+        # A formula anterior era min(45, max(5, (100000 / total_staked) * 10)),
+        # inventada: nenhum termo dela aparecia no pagamento de ninguem. Com o
+        # pool fixo o retorno virou calculavel, entao passa a ser calculado.
+        #
+        # None quando nao ha nada travado: ai nao existe APY, e a tela tem de
+        # dizer isso em vez de mostrar um numero.
+        apy = _apy_do_cofre(c) if total_staked > 0 else None
+
         conn.close()
         
-        # Calculate dynamic APY
-        apy = 14.5
-        if total_staked > 0:
-            apy = min(45.0, max(5.0, (100000 / total_staked) * 10))
 
         return {
             "totalExternalValue": treasury_info["total_claim"],
             "yieldGenerated": treasury_info["incoming_total"],
             "circulatingSupply": circulating,
             "totalBurned": total_burned,
-            "stakingApy": round(apy, 1),
+            "stakingApy": round(apy, 1) if apy is not None else None,
             "assets": [
                 {"symbol": "TREASURY_CLAIM", "amount": treasury_info["total_claim"]}
             ]
@@ -4842,34 +4875,10 @@ async def get_staking_stats():
     except Exception as e:
         raise falha_interna(e)
 
-@app.get("/api/vault/yield")
-async def get_vault_yield():
-    """Exposes the FaucetChain Treasury Vault and Miner Pool balances for transparency."""
-    try:
-        conn = get_db_connection()
-        c = conn.cursor()
-        
-        # Calculate Treasury Balance
-        c.execute("SELECT COALESCE(SUM(value), 0) FROM transactions WHERE to_address = ?", (TREASURY_ADDRESS,))
-        treasury_in = c.fetchone()[0]
-        
-        # Calculate Miner Pool Balance
-        c.execute("SELECT COALESCE(SUM(value), 0) FROM transactions WHERE to_address = ?", (MINER_POOL_ADDRESS,))
-        miner_in = c.fetchone()[0]
-        
-        conn.close()
-        
-        return {
-            "totalExternalValue": treasury_in, # In a real scenario, this would be cross-chain TVL. We use treasury balance here.
-            "assets": [
-                {"symbol": "TREASURY_CLAIM", "amount": round(treasury_in, 4)},
-                {"symbol": "MINER_POOL", "amount": round(miner_in, 4)}
-            ],
-            "yieldGenerated": round(treasury_in + miner_in, 4), # Total fees collected
-            "apy": 12.5 # Mock simulated APY based on network activity
-        }
-    except Exception as e:
-        raise falha_interna(e)
+# [REMOVIDA] /api/vault/yield duplicada. O FastAPI serve a primeira rota que
+# casa, entao esta nunca rodou -- e devolvia `"apy": 12.5`, marcado no proprio
+# codigo como "Mock simulated APY". Uma rota morta com numero inventado e pior
+# que qualquer das duas sozinha: quem a lesse acreditaria estar lendo producao.
 
 # ===========================
 # COMMUNITY BOUNTY BOARD

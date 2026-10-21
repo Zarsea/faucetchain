@@ -157,9 +157,18 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
             .catch(() => {});
     }, []);
 
-    const apy = vault?.stakingApy ? vault.stakingApy + '%' : '14.5%';
-    const burned = vault?.totalBurned ? (vault.totalBurned / 1000000).toFixed(2) + 'M' : '1.24M';
-    const circ = vault?.circulatingSupply ? (vault.circulatingSupply / 1000000).toFixed(2) + 'M' : '15.4M';
+    // Sem dado, um travessao.
+    //
+    // Estes tres mostravam 14,5%, 1,24M e 15,4M quando a API nao respondia:
+    // numeros plausiveis e inventados, no lugar exato onde alguem conferindo o
+    // projeto procura o supply. Um numero que nao veio e um travessao, nao uma
+    // estimativa -- e o 14,5% ainda era o mesmo valor que o servidor devolvia
+    // por omissao, entao a tela mentia igual com a API no ar ou fora dele.
+    const num = (v: number | null | undefined, fmt: (n: number) => string) =>
+        v === null || v === undefined ? '—' : fmt(v);
+    const apy = num(vault?.stakingApy, n => n + '%');
+    const burned = num(vault?.totalBurned, n => (n / 1000000).toFixed(2) + 'M');
+    const circ = num(vault?.circulatingSupply, n => (n / 1000000).toFixed(2) + 'M');
 
     return (
         <div className="space-y-8">
@@ -297,7 +306,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                         code={diagrams(lang).TOKENOMICS_FLOW_CODE} 
                         title={t('tokenomics.flowTitle')} 
                         icon={<SignalIcon className="w-5 h-5"/>}
-                        prompt="Explain how the $CLAIM token flows from user claims into the Ecosystem Fund and Team wallet. Why is the 60/40 split used?"
+                        prompt="Explain how a claim splits 80/20 between the user and the treasury, and why the treasury's share is staked rather than sold."
                     />
                 </div>
             </div>
@@ -313,7 +322,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                         code={diagrams(lang).TREASURY_ALLOCATION_DIAGRAM} 
                         title={t('tokenomics.distTitle')} 
                         icon={<CreditCardIcon className="w-5 h-5"/>}
-                        prompt="Why is a majority (60%) of the block rewards allocated to an Ecosystem Fund instead of distributed entirely to miners/validators?"
+                        prompt="Why does 80 percent of every claim reach the user, and what does the remaining 20 percent actually fund?"
                     />
 
                     <div className="mt-8">

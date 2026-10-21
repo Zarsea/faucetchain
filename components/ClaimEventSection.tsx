@@ -11,32 +11,32 @@ export const ClaimEventSection: React.FC = () => {
     const content = {
         en: {
             title: "The 'Claim Event' Lifecycle",
-            description: "The 'Claim Event' is the fundamental unit of work in FaucetChain. Unlike traditional mining, it represents a verified contribution that triggers a complex cascade of economic and technical state updates.",
+            description: "A claim is the unit of work on this network. These four steps are what the code does; the diagram beside them is the same path, drawn.",
             steps: [
                 {
-                    title: "Cryptographic Submission",
-                    desc: "A user submits a claim packet containing their PoC proof and stake commitment.",
+                    title: "Claim, with proof",
+                    desc: "The claim carries a Proof of Claim: keccak over the chain tip, 16 bits, rising with the hourly quota. Tying it to the tip is what makes it impossible to precompute in bulk.",
                     icon: <SignalIcon className="w-8 h-8 text-blue-400" />,
                     bgColor: "bg-blue-400/10",
                     borderColor: "group-hover:border-blue-400/50"
                 },
                 {
-                    title: "Atomic Reward Minting",
-                    desc: "Upon validation, the reward for the current block is minted and split 60/40 immediately.",
+                    title: "Credited 80/20",
+                    desc: "80 percent reaches the user and 20 funds continuity. The split is written at the moment of credit, not invoiced afterwards, so it is already in the tree when the batch is built.",
                     icon: <WalletIcon className="w-8 h-8 text-brand-primary" />,
                     bgColor: "bg-brand-primary/10",
                     borderColor: "group-hover:border-brand-primary/50"
                 },
                 {
-                    title: "Programmatic Swap Trigger",
-                    desc: "The 60% Ecosystem portion is instantly swapped for Stablecoins via a native DEX aggregator.",
+                    title: "Sealed into a batch",
+                    desc: "Claims are grouped into a block, up to ten, and the batch root is published on Solana. The program refuses a root whose vault cannot cover what the campaign already promised.",
                     icon: <ArrowPathIcon className="w-8 h-8 text-purple-400" />,
                     bgColor: "bg-purple-400/10",
                     borderColor: "group-hover:border-purple-400/50"
                 },
                 {
-                    title: "Treasury Settlement",
-                    desc: "Stablecoins are deposited into the multi-sig treasury for yield generation strategies.",
+                    title: "Withdrawn by its owner",
+                    desc: "The user proves their leaf is in that root and withdraws. Each leaf is derived from the signer, so no other key can release it — ours included — and the relayer pays the fee and the rent.",
                     icon: <SparklesIcon className="w-8 h-8 text-green-400" />,
                     bgColor: "bg-green-400/10",
                     borderColor: "group-hover:border-green-400/50"
@@ -45,32 +45,32 @@ export const ClaimEventSection: React.FC = () => {
         },
         pt: {
             title: "Ciclo de Vida do 'Evento de Reivindicação'",
-            description: "O 'Evento de Reivindicação' é a unidade fundamental de trabalho na FaucetChain. Diferente da mineração tradicional, ele representa uma contribuição verificada que dispara uma cascata complexa de atualizações de estado econômico e técnico.",
+            description: "Um claim é a unidade de trabalho desta rede. Estes quatro passos são o que o código faz; o diagrama ao lado é o mesmo caminho, desenhado.",
             steps: [
                 {
-                    title: "Submissão Criptográfica",
-                    desc: "O usuário envia um pacote de claim contendo sua prova de PoC e compromisso de stake.",
+                    title: "Claim, com prova",
+                    desc: "O claim carrega uma Prova de Claim: keccak sobre o topo da cadeia, 16 bits, que sobem com a quota da hora. Amarrá-la ao topo é o que torna impossível pré-computar em massa.",
                     icon: <SignalIcon className="w-8 h-8 text-blue-400" />,
                     bgColor: "bg-blue-400/10",
                     borderColor: "group-hover:border-blue-400/50"
                 },
                 {
-                    title: "Mint de Recompensa Atômica",
-                    desc: "Após a validação, a recompensa do bloco atual é cunhada e dividida 60/40 imediatamente.",
+                    title: "Creditado 80/20",
+                    desc: "80 por cento chega ao usuário e 20 financia a continuidade. A divisão é escrita no momento do crédito, não cobrada depois, então já está na árvore quando o lote é montado.",
                     icon: <WalletIcon className="w-8 h-8 text-brand-primary" />,
                     bgColor: "bg-brand-primary/10",
                     borderColor: "group-hover:border-brand-primary/50"
                 },
                 {
-                    title: "Gatilho de Swap Programático",
-                    desc: "A porção de 60% do Ecossistema é instantaneamente trocada por Stablecoins via um agregador DEX nativo.",
+                    title: "Selado num lote",
+                    desc: "Os claims são agrupados num bloco, até dez, e a raiz do lote é publicada na Solana. O programa recusa uma raiz cujo cofre não cubra o que a campanha já prometeu.",
                     icon: <ArrowPathIcon className="w-8 h-8 text-purple-400" />,
                     bgColor: "bg-purple-400/10",
                     borderColor: "group-hover:border-purple-400/50"
                 },
                 {
-                    title: "Liquidação do Tesouro",
-                    desc: "As Stablecoins são depositadas no tesouro multi-sig para estratégias de geração de rendimento.",
+                    title: "Sacado por quem é dono",
+                    desc: "O usuário prova que sua folha está naquela raiz e saca. Cada folha deriva de quem assina, então nenhuma outra chave a libera — nem a nossa — e o relayer paga a taxa e o aluguel.",
                     icon: <SparklesIcon className="w-8 h-8 text-green-400" />,
                     bgColor: "bg-green-400/10",
                     borderColor: "group-hover:border-green-400/50"
@@ -133,7 +133,7 @@ export const ClaimEventSection: React.FC = () => {
                             <MermaidDiagram 
                                 code={diagrams(lang).CLAIM_EVENT_DIAGRAM} 
                                 title={lang === 'en' ? "Protocol Execution Flow" : "Fluxo de Execução do Protocolo"}
-                                prompt="Analyze the chronological sequence of the Claim Event. Why is the 60/40 split handled at step 2 specifically?"
+                                prompt="Analyze the chronological sequence of the Claim Event. Why is the 80/20 split written at credit time rather than charged at withdrawal?"
                             />
                         </div>
                     </div>
