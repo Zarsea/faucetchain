@@ -1,3 +1,8 @@
+// O repositorio publico. Fica aqui para existir num lugar so: a barra
+// lateral, a tela da API e as especificacoes tecnicas apontam todas para
+// ele, e um dia o nome muda.
+export const REPO_URL = 'https://github.com/Zarsea/faucetchain';
+
 // Os sete diagramas foram reescritos em 8/10/2026. Os anteriores desenhavam o
 // design pre-Solana: "VRF Leader Election" e "VRF Slot Selection", que nao
 // existem em codigo nenhum; "Stablecoin Yield", que tambem nao; e, acima de
