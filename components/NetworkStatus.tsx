@@ -118,19 +118,25 @@ export const NetworkStatus: React.FC = () => {
                         Live metrics and AI-driven supervision of the FaucetChain appchain, which settles on Solana.
                     </p>
                 </div>
-                <div className="flex gap-2 p-1 bg-brand-surface border border-brand-border rounded-lg">
-                    <button
-                        onClick={() => triggerAnomaly('CONGESTION')}
-                        className="px-3 py-1 text-[10px] font-bold uppercase bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded hover:bg-orange-500/20 transition-all"
-                    >
-                        Simulate Congestion
-                    </button>
-                    <button
-                        onClick={() => triggerAnomaly('VALIDATOR_DROP')}
-                        className="px-3 py-1 text-[10px] font-bold uppercase bg-red-500/10 text-red-500 border border-red-500/30 rounded hover:bg-red-500/20 transition-all"
-                    >
-                        Force Validator Drop
-                    </button>
+                {/* Estes botões não tocam a rede nem o servidor: só acendem o
+                    alerta na tela por 15 s (NetworkContext.triggerAnomaly). O
+                    rótulo diz isso, porque a tela ao redor é de dados reais. */}
+                <div role="group" aria-label="Demo only: simulated alerts, no effect on the network" className="flex flex-col gap-1">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-brand-muted/70">Demo only · simulated alert, the network is untouched</span>
+                    <div className="flex gap-2 p-1 bg-brand-surface border border-brand-border rounded-lg">
+                        <button
+                            onClick={() => triggerAnomaly('CONGESTION')}
+                            className="px-3 py-1 min-h-[44px] md:min-h-0 text-[10px] font-bold uppercase bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded hover:bg-orange-500/20 transition-all"
+                        >
+                            Simulate Congestion
+                        </button>
+                        <button
+                            onClick={() => triggerAnomaly('VALIDATOR_DROP')}
+                            className="px-3 py-1 min-h-[44px] md:min-h-0 text-[10px] font-bold uppercase bg-red-500/10 text-red-500 border border-red-500/30 rounded hover:bg-red-500/20 transition-all"
+                        >
+                            Force Validator Drop
+                        </button>
+                    </div>
                 </div>
             </div>
 

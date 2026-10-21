@@ -300,7 +300,7 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                                                 key={i}
                                                 type="button"
                                                 onClick={() => handleSendMessage(suggestion)}
-                                                className="text-[10px] px-2 py-1 rounded-lg bg-brand-bg/80 border border-brand-border/50 text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all"
+                                                className="text-[10px] px-2 py-1 min-h-[44px] md:min-h-0 rounded-lg bg-brand-bg/80 border border-brand-border/50 text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all"
                                             >
                                                 {suggestion}
                                             </button>
@@ -370,6 +370,7 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                         />
                         <button
                             onClick={() => handleSendMessage()}
+                            aria-label={lang === 'pt' ? 'Enviar comando' : 'Send command'}
                             disabled={isThinking || !inputText.trim()}
                             className="p-4 bg-brand-primary text-brand-bg rounded-xl hover:bg-brand-primary/90 hover:shadow-glow-primary transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
