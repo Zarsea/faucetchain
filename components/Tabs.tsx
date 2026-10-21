@@ -80,10 +80,18 @@ const GROUPS: { key: string; fallback: string; tabs: string[] }[] = [
  *  a um único item é enfeite, não informação. */
 const LEAD_TAB = 'Dashboard';
 
-/** Tambem fora de grupo, mas no fim: Privacy e a conta da pessoa, nao uma
- *  area da rede. Rodape e onde todo produto poe o que e de quem usa, e e
- *  la que ela procura. */
-const TAIL_TAB = 'Privacy';
+/** Telas que existem mas nao aparecem na barra.
+ *
+ *  Privacy nao e uma area da rede, e a conta de quem esta olhando: abre pelo
+ *  painel da carteira, no canto superior, que e onde a pessoa ja vai quando
+ *  quer mexer na propria conta. Continua sendo uma aba de verdade -- o
+ *  `setActiveTab('Privacy')` do painel a renderiza igual; o que sai e so o
+ *  item do menu.
+ *
+ *  O conjunto tambem serve de guarda: sem ele a tela cairia em `restantes` e
+ *  voltaria para a barra dentro de um grupo "Other", que e pior que estar no
+ *  rodape, porque ninguem escolheu aquele lugar. */
+const FORA_DA_BARRA = new Set<string>(['Privacy']);
 
 /** Em que grupo uma tela mora. Devolve undefined para o Dashboard e para
  *  qualquer tela que ainda nao foi classificada. */
@@ -142,7 +150,7 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
     // As seções são montadas a partir do que o App entregou, preservando a ordem
     // de leitura acima e varrendo o resto para o fim.
     const presentes = new Set(tabs);
-    const agrupados = new Set<string>([LEAD_TAB, TAIL_TAB]);
+    const agrupados = new Set<string>([LEAD_TAB, ...FORA_DA_BARRA]);
     const secoes = GROUPS.map((grupo) => {
         const itens = grupo.tabs.filter((tab) => presentes.has(tab));
         itens.forEach((tab) => agrupados.add(tab));
@@ -254,7 +262,7 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                      width={18} height={32}
                      className="h-8 w-auto flex-shrink-0" />
                 <div className={`min-w-0 transition-all duration-300 overflow-hidden whitespace-nowrap ${isCollapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'}`}>
-                    <h1 className="text-sm font-semibold text-white tracking-tight leading-tight">FaucetChain</h1>
+                    <div className="text-sm font-semibold text-white tracking-tight leading-tight">FaucetChain</div>
                     {/* A camada e o token, não a versão do explorer. A faixa de
                         status e o header, logo à direita, já dizem "micro-
                         distribution" e "settles on Solana"; dizer de novo aqui
@@ -314,13 +322,6 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                     );
                 })}
 
-                {/* Depois dos grupos, separada por uma linha: nao e uma area
-                    da rede, e a conta de quem esta olhando. */}
-                {presentes.has(TAIL_TAB) && (
-                    <div className="mt-3 pt-3 border-t border-brand-border/60">
-                        {renderItem(TAIL_TAB)}
-                    </div>
-                )}
             </div>
 
             {/* Rodapé: só o controle da própria barra. O estado da rede é da
