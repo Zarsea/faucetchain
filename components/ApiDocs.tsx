@@ -23,7 +23,7 @@ const ComandoDoAgente: React.FC<{ texto: string; rotulo: string }> = ({ texto, r
                             () => undefined,   // area de transferencia bloqueada nao quebra a pagina
                         );
                     }}
-                    className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-primary hover:text-brand-secondary transition-colors min-h-[28px]"
+                    className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-primary hover:text-brand-secondary transition-colors min-h-[44px] md:min-h-[28px] px-2"
                 >
                     {copiado ? 'Copied' : 'Copy'}
                 </button>

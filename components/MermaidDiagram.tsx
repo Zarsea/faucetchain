@@ -216,9 +216,28 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                         // Estas quatro regras obrigam o desenho a caber no
                         // quadro, sempre, qualquer que seja o diagrama. O zoom e
                         // o arraste continuam valendo para quem quiser detalhe.
+                        // O teto de altura vai no proprio SVG, e nao na moldura.
+                        //
+                        // Medido em 21/10/2026: o diagrama do whitepaper saia com
+                        // 1379px de altura e o da arquitetura com 1397px, contra
+                        // 1100px de tela. Nenhum dos dois estava quebrado -- eram
+                        // mais altos que o monitor, entao ninguem via o desenho
+                        // inteiro de uma vez.
+                        //
+                        // `max-h-full` sozinho nao resolve: quando a moldura nao
+                        // tem altura definida, `h-full` vira `auto` e nao ha contra
+                        // o que medir 100%. E por um teto na MOLDURA o desenho nao
+                        // encolhe, so e cortado pelo `overflow-hidden` -- tentado
+                        // antes deste commit, e pior que o problema. No SVG, que
+                        // tem viewBox e `preserveAspectRatio`, o teto escala o
+                        // desenho inteiro e a proporcao se mantem.
+                        //
+                        // A tela cheia fica fora do teto de proposito: e para onde
+                        // a pessoa vai justamente quando 70vh nao basta.
                         ref={palcoRef}
-                        className="flex justify-center items-center pointer-events-none w-full h-full
-                                   [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:w-auto [&>svg]:h-auto"
+                        className={`flex justify-center items-center pointer-events-none w-full h-full
+                                   [&>svg]:max-w-full [&>svg]:w-auto [&>svg]:h-auto
+                                   ${inFullscreen ? '[&>svg]:max-h-full' : '[&>svg]:max-h-[70vh]'}`}
                         dangerouslySetInnerHTML={{ __html: svgCode }}
                     />
                 )}

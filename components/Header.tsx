@@ -49,8 +49,20 @@ export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNav
     const [authError, setAuthError] = useState('');
 
     const toggleLang = () => {
-        const nextLang = lang === 'en' ? 'pt' : lang === 'pt' ? 'es' : 'en';
-        setLang(nextLang);
+        // Sem espanhol, ate ele existir.
+        //
+        // O ciclo era en -> pt -> es, e o dicionario tem as tres linguas, mas
+        // nenhuma TELA fala espanhol: medido em 21/10/2026, renderizando as 21
+        // abas nas tres, o texto em ES saiu identico ao PT em 14 delas e
+        // identico ao EN nas outras 7.
+        //
+        // A causa e estrutural: 17 componentes decidem idioma com
+        // `lang === 'pt' ? a : b`, e um ternario binario nao tem onde por a
+        // terceira lingua. Oferecer o botao enquanto isso dura e prometer o que
+        // nao temos -- quem clicasse em ES recebia portugues achando que era
+        // espanhol. `resourcesEs` fica no i18n.ts, pronto, e o 'es' volta aqui
+        // no dia em que esses 17 passarem a ler do dicionario.
+        setLang(lang === 'en' ? 'pt' : 'en');
     };
 
     const handleEmailAuth = async (action: 'login' | 'register') => {
