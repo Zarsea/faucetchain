@@ -19,7 +19,7 @@ interface ClaimHistory {
 }
 
 export const Faucet: React.FC = () => {
-    const { t, lang } = useLanguage();
+    const { t, lang, tFn } = useLanguage();
     const { metrics, addBlockManually } = useNetwork();
     const { isConnected, userAddress, authMethod } = useAuth();
 
@@ -375,7 +375,7 @@ export const Faucet: React.FC = () => {
                     <div className="p-6 bg-brand-primary/5 border border-brand-primary/20 rounded-3xl flex items-start gap-4">
                         <InformationCircleIcon className="w-6 h-6 text-brand-primary flex-shrink-0 mt-1" />
                         <div className="space-y-1">
-                            <h4 className="text-sm font-black text-brand-secondary uppercase tracking-tight">Reestabelecimento de Rede Derivada</h4>
+                            <h4 className="text-sm font-black text-brand-secondary uppercase tracking-tight">{tFn('faucet.derivedNetwork')}</h4>
                             <p className="text-xs text-brand-muted leading-relaxed">
                                 Activating an <b>external hub</b> sets up an L2 layer derived from the main <b>FaucetChain</b>. Locking <b>10,000 tokens</b> acts as economic collateral, letting your hub process aggregated Proofs of Merit with decentralised authority.
                             </p>

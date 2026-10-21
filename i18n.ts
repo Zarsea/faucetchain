@@ -109,6 +109,7 @@ const resourcesEn = {
             createToGenerate: "Create a staking position to generate your first UTXO."
         },
         faucet: {
+            derivedNetwork: "Derived Network Bootstrap",
             title: "Merit Faucet",
             desc: "Claim testnet merit to try the flow this network runs on.",
             cardTitle: "Request Merit Tokens",
@@ -129,6 +130,9 @@ const resourcesEn = {
             distTitle: "Treasury Distribution",
             ecoFundTitle: "Ecosystem Fund (External Yield)",
             ecoFundDesc: "The 60% of block rewards are routed to yield-bearing vaults across other chains (DeFi) to back the value of CLAIM with real assets."
+        },
+        explorer: {
+            networkHashrate: "Network Hashrate",
         },
         common: {
             loading: "Loading...",
@@ -291,6 +295,7 @@ const resourcesPt = {
             createToGenerate: "Crie uma posição de staking ao lado para gerar seu primeiro UTXO."
         },
         faucet: {
+            derivedNetwork: "Reestabelecimento de Rede Derivada",
             title: "Faucet de Mérito",
             desc: "Reivindique mérito de testnet para experimentar o fluxo que esta rede roda.",
             cardTitle: "Solicitar Tokens de Mérito",
@@ -311,6 +316,9 @@ const resourcesPt = {
             distTitle: "Distribuição da Tesouraria",
             ecoFundTitle: "Fundo de Ecossistema (Yield Externo)",
             ecoFundDesc: "60% das recompensas de bloco são direcionadas para vaults com rendimento em outras redes (DeFi) para lastrear o valor do CLAIM."
+        },
+        explorer: {
+            networkHashrate: "Hashrate da Rede",
         },
         common: {
             loading: "Carregando...",
@@ -473,6 +481,7 @@ const resourcesEs = {
             createToGenerate: "Cree una posición de staking para generar su primer UTXO."
         },
         faucet: {
+            derivedNetwork: "Arranque de Red Derivada",
             title: "Faucet de Mérito",
             desc: "Reclame mérito de testnet para probar el flujo que esta red ejecuta.",
             cardTitle: "Solicitar Tokens de Mérito",
@@ -493,6 +502,9 @@ const resourcesEs = {
             distTitle: "Distribución del Tesoro",
             ecoFundTitle: "Fondo de Ecosistema (Rendimiento Externo)",
             ecoFundDesc: "El 60% de las recompensas por bloque se envían a bóvedas de rendimiento en otras redes (DeFi) para respaldar el valor de CLAIM."
+        },
+        explorer: {
+            networkHashrate: "Hashrate de la Red",
         },
         common: {
             loading: "Cargando...",

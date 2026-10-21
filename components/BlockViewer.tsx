@@ -17,7 +17,7 @@ interface BlockData {
 const formatNumber = (num: number, lang: string) => new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US').format(num);
 
 export const BlockViewer: React.FC = () => {
-    const { lang } = useLanguage();
+    const { lang, tFn } = useLanguage();
     const { metrics } = useNetwork();
     const [recentBlocks, setRecentBlocks] = useState<BlockData[]>([]);
     const [miningStats, setMiningStats] = useState<any>(null);
@@ -95,7 +95,7 @@ export const BlockViewer: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                             <div>
-                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Hashrate da Rede</p>
+                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">{tFn('explorer.networkHashrate')}</p>
                                 <p className="text-xl font-mono text-brand-secondary">
                                     {(metrics.networkHashrate / 1000000).toFixed(2)} MH/s
                                 </p>
