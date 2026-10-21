@@ -69,7 +69,7 @@ const guardado = (chave: string): string | null => {
     try { return localStorage.getItem(chave); } catch { return null; }
 };
 const gravar = (chave: string, valor: string) => {
-    try { gravar(chave, valor); } catch { /* sem armazenamento: a sessao nao persiste */ }
+    try { localStorage.setItem(chave, valor); } catch { /* sem armazenamento: a sessao nao persiste */ }
 };
 const apagar = (chave: string) => {
     try { localStorage.removeItem(chave); } catch { /* nada guardado, nada a remover */ }

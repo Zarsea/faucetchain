@@ -63,6 +63,9 @@ jobs:
       - name: Nothing asks the wallet to sign before it has connected
         run: node test_connected_signer.mjs
 
+      - name: A storage wrapper calls the storage it wraps
+        run: node test_storage_helpers.mjs
+
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
 
