@@ -49,6 +49,7 @@ const resourcesEn = {
             l1Explorer: "L1 Chain Explorer"
         },
         dashboard: {
+            accounts: "Accounts & privacy",
             title: "My PoC Center",
             welcome: "Access Your Ecosystem",
             welcomeDesc: "Connect your wallet or social account to observe your merit portfolio, manage stakes and validate transactions on FaucetChain.",
@@ -235,6 +236,7 @@ const resourcesPt = {
             l1Explorer: "Explorador de Rede L1"
         },
         dashboard: {
+            accounts: "Contas e privacidade",
             title: "Minha Central PoC",
             welcome: "Acesse seu Ecossistema",
             welcomeDesc: "Conecte sua carteira ou conta social para observar seu portfólio de mérito, gerenciar stakes e validar transações na FaucetChain.",
@@ -421,6 +423,7 @@ const resourcesEs = {
             l1Explorer: "Explorador de Red L1"
         },
         dashboard: {
+            accounts: "Cuentas y privacidad",
             title: "Mi Centro PoC",
             welcome: "Accede a tu Ecosistema",
             welcomeDesc: "Conecte su billetera o cuenta social para observar su portafolio de mérito, administrar stakes y validar transacciones en FaucetChain.",

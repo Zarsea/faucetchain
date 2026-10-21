@@ -390,6 +390,19 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                     >
                         {t('dashboard.validateMerit')}
                     </button>
+                    {/* Vincular conta mora aqui, no topo do painel da pessoa.
+                        Estava so no menu lateral, que lista areas da rede, e
+                        de la saiu -- mas essa tela nao e uma area, e a conta
+                        de quem olha, e e aqui que ela ja esta olhando. O
+                        escudo do painel da carteira continua levando ao mesmo
+                        lugar. */}
+                    <button
+                        onClick={() => onNavigate('Privacy')}
+                        className="px-5 py-3 bg-brand-bg border border-brand-border rounded-xl text-brand-secondary hover:text-brand-primary hover:border-brand-primary/40 transition-colors text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap"
+                    >
+                        <ShieldCheckIcon className="w-4 h-4" />
+                        {t('dashboard.accounts')}
+                    </button>
                     <button
                         onClick={() => { setRefreshTick(t => t + 1); }}
                         className="p-3 bg-brand-bg border border-brand-border rounded-xl text-brand-muted hover:text-brand-primary hover:border-brand-primary/40 transition-colors"

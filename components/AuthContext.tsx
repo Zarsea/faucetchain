@@ -55,24 +55,44 @@ export function sessionHeaders(): Record<string, string> {
     }
 }
 
+/** localStorage que nao derruba o app.
+ *
+ *  A remocao na importacao, acima, ja era protegida; estas tres leituras nao
+ *  eram. `getItem` lanca quando o navegador recusa o armazenamento -- cookies
+ *  bloqueados, modo restrito, politica da maquina -- e como elas rodam dentro
+ *  do `useState` do provider, a excecao sobe na renderizacao e a pessoa recebe
+ *  uma tela branca sem nenhuma pista do motivo.
+ *
+ *  Sem armazenamento a sessao nao persiste, o que e o comportamento correto:
+ *  a pessoa entra de novo. Tela branca nao e comportamento nenhum. */
+const guardado = (chave: string): string | null => {
+    try { return localStorage.getItem(chave); } catch { return null; }
+};
+const gravar = (chave: string, valor: string) => {
+    try { gravar(chave, valor); } catch { /* sem armazenamento: a sessao nao persiste */ }
+};
+const apagar = (chave: string) => {
+    try { localStorage.removeItem(chave); } catch { /* nada guardado, nada a remover */ }
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [userAddress, setUserAddress] = useState<string | null>(() => localStorage.getItem(ADDRESS_KEY));
-    const [isConnected, setIsConnected] = useState<boolean>(() => localStorage.getItem(CONNECTED_KEY) === 'true');
-    const [authMethod, setAuthMethod] = useState<AuthMethod>(() => localStorage.getItem(METHOD_KEY) as AuthMethod || null);
+    const [userAddress, setUserAddress] = useState<string | null>(() => guardado(ADDRESS_KEY));
+    const [isConnected, setIsConnected] = useState<boolean>(() => guardado(CONNECTED_KEY) === 'true');
+    const [authMethod, setAuthMethod] = useState<AuthMethod>(() => guardado(METHOD_KEY) as AuthMethod || null);
 
     const login = (address: string, method: AuthMethod, sessionToken?: string) => {
         setUserAddress(address);
         setIsConnected(true);
         setAuthMethod(method);
-        localStorage.setItem(ADDRESS_KEY, address);
-        localStorage.setItem(CONNECTED_KEY, 'true');
-        localStorage.setItem(METHOD_KEY, method || '');
+        gravar(ADDRESS_KEY, address);
+        gravar(CONNECTED_KEY, 'true');
+        gravar(METHOD_KEY, method || '');
         // A method that issues no token has to clear any token left from an
         // earlier session: it belongs to a different account.
         if (sessionToken) {
-            localStorage.setItem(TOKEN_KEY, sessionToken);
+            gravar(TOKEN_KEY, sessionToken);
         } else {
-            localStorage.removeItem(TOKEN_KEY);
+            apagar(TOKEN_KEY);
         }
 
         // Dispatch event for legacy compatibility if needed
@@ -88,7 +108,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Conferir ao montar e barato e resolve o caso comum: quem volta no dia
     // seguinte ve "entrar" em vez de ver um botao que nao funciona.
     useEffect(() => {
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = guardado(TOKEN_KEY);
         if (!token) return;
         let vivo = true;
         fetch(`${API_BASE_URL}/api/auth/session`, { headers: { 'X-Session-Token': token } })
@@ -112,10 +132,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setUserAddress(null);
         setIsConnected(false);
         setAuthMethod(null);
-        localStorage.removeItem(ADDRESS_KEY);
-        localStorage.removeItem(CONNECTED_KEY);
-        localStorage.removeItem(METHOD_KEY);
-        localStorage.removeItem(TOKEN_KEY);
+        apagar(ADDRESS_KEY);
+        apagar(CONNECTED_KEY);
+        apagar(METHOD_KEY);
+        apagar(TOKEN_KEY);
 
         window.dispatchEvent(new CustomEvent('wallet_disconnected'));
     };
