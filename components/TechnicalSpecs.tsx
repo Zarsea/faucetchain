@@ -35,6 +35,10 @@ export const TechnicalSpecs: React.FC = () => {
     const networkSpecs = [
         { label: "Block Sealing", value: "On demand, up to 10 claims (MAX_CLAIMS_PER_BLOCK)" },
         { label: "Sealer Election", value: "Stake-weighted, seeded by keccak256(parent_hash)" },
+        // A linha que faltava, e sem a qual a de cima engana: "sob demanda" nao
+        // diz quanto tempo a demanda espera. Com poucos nos online, blocos reais
+        // sairam de 1h a 2h30 de intervalo.
+        { label: "Claim Inclusion", value: "Elected sealer has 60s of priority (SEALER_GRACE_SECONDS), then any online node may seal" },
         { label: "Admission", value: "Proof of Claim - browser keccak, 16 bits, rises with quota" },
         { label: "State Storage", value: "SQLite (blockchain.db)" },
         { label: "Node Transport", value: "HTTP to the sequencer - no P2P network" },
@@ -56,8 +60,8 @@ export const TechnicalSpecs: React.FC = () => {
                 </h2>
                 <p className="text-brand-muted max-w-3xl text-lg">
                     {lang === 'en' 
-                        ? "Detailed architectural parameters and core implementation details of the FaucetChain protocol. Built for high performance, fairness, and absolute security."
-                        : "Parâmetros detalhados de arquitetura e detalhes da implementação principal do protocolo FaucetChain. Construído para alta performance, justiça e segurança absoluta."}
+                        ? "Detailed architectural parameters and core implementation details of the FaucetChain protocol. Every row below points at a file in this repository; nothing here is aspirational."
+                        : "Parâmetros detalhados de arquitetura e detalhes da implementação principal do protocolo FaucetChain. Cada linha abaixo aponta para um arquivo deste repositório; nada aqui é aspiracional."}
                 </p>
             </div>
 
@@ -67,8 +71,8 @@ export const TechnicalSpecs: React.FC = () => {
                     <SectionCard title="Protocol Parameters" icon={<CpuChipIcon className="w-6 h-6"/>}>
                         <p className="text-sm text-brand-muted leading-relaxed mb-4">
                             {lang === 'en'
-                                ? 'Fixed network constants: sub-3s finality and the bounds the sealer works inside.'
-                                : 'Constantes de rede fixas: finalidade sub-3s e os limites dentro dos quais o selador trabalha.'}
+                                ? 'The bounds the sealer works inside. A block is final the moment it is sealed — one sequencer, no forks — but inclusion waits for a sealer to show up.'
+                                : 'Os limites dentro dos quais o selador trabalha. Um bloco é final no instante em que é selado — um sequenciador, sem bifurcação — mas a inclusão espera um selador aparecer.'}
                         </p>
                         <SpecTable data={networkSpecs} />
                     </SectionCard>
