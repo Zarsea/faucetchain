@@ -1,7 +1,12 @@
 # FaucetHub — Integration Guide for Developers
 **Everything needed to connect your faucet to FaucetChain through the API.**
 
-**Version:** 1.3 | **Updated:** 3 October 2026 | **Base URL:** `http://localhost:8000`
+**Version:** 1.4 | **Updated:** 21 October 2026 | **Base URL:** `https://www.faucetchain.com.br`
+
+> Every example here pointed at `http://localhost:8000` until today, months
+> after this API went live. Nothing failed, because nothing checked. There is
+> an agent skill in `skills/faucetchain/` that carries the same integration
+> and ships `check.py`, which asserts its promises against the running API.
 
 ---
 
@@ -108,7 +113,7 @@ Content-Type: application/json
 ### With cURL
 
 ```bash
-curl -X POST http://localhost:8000/api/faucethub/register \
+curl -X POST https://www.faucetchain.com.br/api/faucethub/register \
   -H "Content-Type: application/json" \
   -d '{"name": "Minha Faucet", "wallet_address": "0x84da..."}'
 ```
@@ -116,7 +121,7 @@ curl -X POST http://localhost:8000/api/faucethub/register \
 ### With JavaScript (fetch)
 
 ```javascript
-const response = await fetch('http://localhost:8000/api/faucethub/register', {
+const response = await fetch('https://www.faucetchain.com.br/api/faucethub/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -135,7 +140,7 @@ console.log('Your API key:', data.api_key);
 ```python
 import requests
 
-resp = requests.post('http://localhost:8000/api/faucethub/register', json={
+resp = requests.post('https://www.faucetchain.com.br/api/faucethub/register', json={
     'name': 'My Faucet',
     'wallet_address': '0x84da...'
 })
@@ -287,7 +292,7 @@ user what the campaign paid.
 ### With cURL
 
 ```bash
-curl -X POST http://localhost:8000/api/faucethub/microclaim \
+curl -X POST https://www.faucetchain.com.br/api/faucethub/microclaim \
   -H "X-Api-Key: fch_your_key" \
   -H "Content-Type: application/json" \
   -d '{"user_wallet": "EL5Hubaf...jpPAvpkmjLzA", "amount": 1.0}'
@@ -410,7 +415,7 @@ X-Api-Key: fch_sua_api_key_aqui
 ### With cURL
 
 ```bash
-curl -X POST http://localhost:8000/api/faucethub/settle \
+curl -X POST https://www.faucetchain.com.br/api/faucethub/settle \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: fch_sua_api_key_aqui" \
   -d '{"user_wallet": "0xEnderecoDoUsuario...", "amount": 10.0}'
@@ -422,7 +427,7 @@ curl -X POST http://localhost:8000/api/faucethub/settle \
 const API_KEY = process.env.FAUCETHUB_API_KEY; // Nunca hardcode!
 
 async function settleUserWithdrawal(userWallet, amount) {
-    const response = await fetch('http://localhost:8000/api/faucethub/settle', {
+    const response = await fetch('https://www.faucetchain.com.br/api/faucethub/settle', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -455,7 +460,7 @@ import requests
 import os
 
 API_KEY = os.environ['FAUCETHUB_API_KEY']  # Nunca hardcode!
-BASE_URL = 'http://localhost:8000'
+BASE_URL = 'https://www.faucetchain.com.br'
 
 def settle_withdrawal(user_wallet: str, amount: float) -> dict:
     """Settle a $CLAIM withdrawal for one user on FaucetChain L1."""
@@ -487,7 +492,7 @@ settle_withdrawal('0xEnderecoDoUsuario...', 10.0)
 ```php
 <?php
 $apiKey = getenv('FAUCETHUB_API_KEY');
-$baseUrl = 'http://localhost:8000';
+$baseUrl = 'https://www.faucetchain.com.br';
 
 function settleWithdrawal($userWallet, $amount) {
     global $apiKey, $baseUrl;
@@ -656,7 +661,7 @@ import os
 app = Flask(__name__)
 
 # Configuration
-FAUCETHUB_URL = os.getenv('FAUCETHUB_URL', 'http://localhost:8000')
+FAUCETHUB_URL = os.getenv('FAUCETHUB_URL', 'https://www.faucetchain.com.br')
 API_KEY = os.getenv('FAUCETHUB_API_KEY', 'fch_sua_chave_aqui')
 CLAIM_AMOUNT = 0.05      # $CLAIM por claim
 COOLDOWN = 300            # 5 minutos em segundos
@@ -743,7 +748,7 @@ const express = require('express');
 const app = express();
 app.use(express.json());
 
-const FAUCETHUB_URL = process.env.FAUCETHUB_URL || 'http://localhost:8000';
+const FAUCETHUB_URL = process.env.FAUCETHUB_URL || 'https://www.faucetchain.com.br';
 const API_KEY = process.env.FAUCETHUB_API_KEY || 'fch_sua_chave_aqui';
 const CLAIM_AMOUNT = 0.05;
 const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos
@@ -874,7 +879,7 @@ Call `POST /api/faucethub/regenerate-key`, signed by the wallet that owns the fa
 
 | Resource | Where |
 |---|---|
-| **API docs (Swagger)** | `http://localhost:8000/docs` |
+| **API docs (Swagger)** | `https://www.faucetchain.com.br/docs` |
 | **FaucetHub dashboard** | The "Dapps" button in the Explorer |
 | **Whitepaper** | `FaucetChain_Master_WhitePaper.md` |
 | **Settlement on Solana** | `ARCHITECTURE.md` — how rewards reach a Solana wallet |
