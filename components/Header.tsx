@@ -7,10 +7,11 @@ import { useAuth } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
 import { solanaProvider, encodeSignature, isMobileBrowser, phantomBrowseLink } from '../utils/solanaWallet';
 import { walletProofMessage } from '../utils/actionMessage';
+import { WalletButton } from './WalletPanel';
 
-export const Header: React.FC = () => {
+export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNavigate }) => {
     const { tFn: t, lang, setLang } = useLanguage();
-    const { isConnected, userAddress, authMethod, login, logout } = useAuth();
+    const { isConnected, login } = useAuth();
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
     const [isWalletLoading, setIsWalletLoading] = useState(false);
@@ -174,10 +175,6 @@ export const Header: React.FC = () => {
         }
     };
 
-    const handleDisconnect = () => {
-        logout();
-    };
-
     return (
         <header className="glass border-b border-brand-primary/30 sticky top-0 z-50">
             <div className="bg-brand-primary/20 py-1.5 px-4 text-center border-b border-brand-primary/40 neon-border-dynamic">
@@ -242,19 +239,11 @@ export const Header: React.FC = () => {
 
                 <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
                     {isConnected ? (
-                        <div className="flex items-center gap-3">
-                            <div className="hidden lg:flex flex-col items-end">
-                                <span className="text-[9px] font-black text-brand-muted uppercase">{t('auth.architectConnected')} ({authMethod})</span>
-                                <span className="text-xs font-mono text-brand-primary">{userAddress}</span>
-                            </div>
-                            <button
-                                onClick={handleDisconnect}
-                                className="p-2 bg-brand-bg border border-brand-border rounded-xl text-brand-error hover:bg-brand-error/10 transition-all"
-                                title="Desconectar"
-                            >
-                                <XMarkIcon className="w-5 h-5" />
-                            </button>
-                        </div>
+                        /* O endereco inteiro ficava escrito aqui: ocupava a largura toda,
+                           sumia no celular (`hidden lg:flex`) e so dava para copiar
+                           selecionando caractere a caractere. Agora o recorte abre um
+                           painel com o saldo, a copia e o que fazer com ele. */
+                        <WalletButton onNavigate={onNavigate} />
                     ) : (
                         <button
                             onClick={() => setIsAuthModalOpen(true)}

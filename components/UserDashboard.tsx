@@ -58,7 +58,12 @@ const WatchedAddressesWidget: React.FC<{ onNavigate: (tab: string) => void }> = 
     );
 };
 
-const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => void }> = ({ userAddress, onTransferSuccess }) => {
+// Exportado para o painel da carteira usar o mesmo formulario.
+//
+// Duplicar isto seria duplicar caminho de dinheiro: o nonce vem do servidor,
+// e uma segunda copia que esquecesse de busca-lo falharia so quando alguem
+// transferisse duas vezes seguidas.
+export const TransferWidget: React.FC<{ userAddress: string; onTransferSuccess: () => void }> = ({ userAddress, onTransferSuccess }) => {
     const { tFn: t } = useLanguage();
     const [receiver, setReceiver] = useState('');
     const [amount, setAmount] = useState('');
