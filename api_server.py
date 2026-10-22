@@ -4186,10 +4186,17 @@ async def submit_claim(req: ClaimRequest, request: Request, x_session_token: Opt
     if HAS_FRAUD_DETECTOR and _fraud_detector:
         c.execute("SELECT amount, timestamp FROM user_claims WHERE user_address = ? ORDER BY timestamp DESC LIMIT 20", (addr_lower,))
         recent_claims = [{"amount": r[0], "timestamp": r[1], "gasPrice": 0} for r in c.fetchall()]
-        if len(recent_claims) >= 3 and _fraud_detector.is_sybil_pattern(recent_claims):
+        if len(recent_claims) >= 3 and _fraud_detector.has_impossible_cadence(recent_claims):
             conn.close()
-            audit_log("FRAUD_DETECTED", client_ip, {"address": addr_lower, "pattern": "sybil"})
-            raise HTTPException(status_code=403, detail="Sentinel flagged this pattern and held the claim.")
+            audit_log("FRAUD_DETECTED", client_ip, {"address": addr_lower, "pattern": "cadence"})
+            # A mensagem diz o que foi visto. A anterior -- "Sentinel flagged
+            # this pattern" -- nomeava o guarda e nao o motivo, e saia para
+            # usuario legitimo nenhum entender: ate 21/10/2026 ela disparava
+            # por uniformidade do PREMIO, que quem clica nao escolhe.
+            raise HTTPException(
+                status_code=403,
+                detail=("Two of your recent claims arrived closer together than the cooldown "
+                        "allows. Nothing was lost; try again after the next hour."))
 
     amount = current_claim_reward(c)
     c.execute('''

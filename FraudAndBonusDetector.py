@@ -4,7 +4,6 @@ FaucetChain Sentinel V3 - Fraud Detection & Bonus Calculation Engine
 Machine Learning module for detecting Sybil attacks and calculating validator bonuses.
 """
 
-import zlib
 import time
 import hashlib
 import sqlite3
@@ -28,62 +27,57 @@ class FraudDetector:
     """Detects anomalous patterns indicative of claim farming and Sybil attacks."""
     
     def __init__(self):
-        self.sybil_threshold = 0.75  # 75% similarity triggers flag
+        # Sem limiar de similaridade: ele media a uniformidade da nossa
+        # propria emissao, nao o comportamento de quem clica.
         self.min_claim_interval = 60  # Minimum seconds between legitimate claims
         
-    def is_sybil_pattern(self, claim_sequence: List[Dict]) -> bool:
-        """
-        Detects if a claim sequence exhibits Sybil attack patterns.
-        
-        Indicators:
-        - Claims too frequent (< 60s apart)
-        - Repetitive transaction patterns
-        - Identical gas prices across multiple claims
-        - Sequential nonce patterns from different addresses
+    def has_impossible_cadence(self, claim_sequence: List[Dict]) -> bool:
+        """Did these claims arrive closer together than the cooldown allows?
+
+        That is the only thing one address's own history can say. It is worth
+        saying: the route refuses a claim less than an hour after the last one,
+        so a pair closer than a minute is evidence the cooldown was bypassed.
+
+        WHAT THIS NO LONGER DOES, AND WHY
+        ---------------------------------
+        It used to compress a fingerprint of amount and gas price and call a
+        repetitive result a Sybil. Both are constants of this system, not
+        choices of the user:
+
+          - every merit claim pays `current_claim_reward()`, which is the same
+            number for everybody in the same emission window;
+          - the route fills gasPrice with 0 before the sequence ever gets here.
+
+        The fingerprint also rounded the amount to the nearest ten, so 5.59 and
+        6.81 both became "10". Every honest sequence collapsed to
+        "10_0|10_0|10_0|..." and compressed perfectly, and the detector read
+        our own uniform emission as a signature of fraud.
+
+        Measured on 21/10/2026: a wallet claiming legitimately, one hour apart
+        every time, crossed the 0.75 threshold at twenty claims -- which is
+        exactly how many the route reads. No loyal user got past twenty. The
+        first to hit it was the operator's own account, because it had the most
+        history.
+
+        The name changed with the behaviour. This sees one address's claims and
+        nothing else, so it could never detect a Sybil, which is by definition
+        several addresses behaving as one. Calling it that made it sound like a
+        guard the network does not have.
         """
         if len(claim_sequence) < 3:
             return False
-            
-        # Check 1: Temporal Analysis
-        # Sort timestamps ascending to calculate positive intervals
+
+        # Ordenados crescentes: os intervalos tem de ser positivos.
         timestamps = sorted([claim.get('timestamp', 0) for claim in claim_sequence])
-        intervals = [timestamps[i+1] - timestamps[i] for i in range(len(timestamps)-1)]
-        
-        if intervals and min(intervals) < self.min_claim_interval:
-            return True  # Claims too fast
-            
-        # Check 2: Gas Price Uniformity / Narrow Band
-        gas_prices = [claim.get('gasPrice', 0) for claim in claim_sequence]
-        if len(gas_prices) > 5 and max(gas_prices) > 0:
-            gas_range = max(gas_prices) - min(gas_prices)
-            if gas_range < 0.5:
-                return True  # Suspicious uniformity (immune to minor jitter)
-            
-        # Check 3: Pattern Similarity (using compression ratio)
-        pattern_string = self._compute_pattern_string(claim_sequence)
-        similarity = self._calculate_similarity(pattern_string)
-        
-        return similarity > self.sybil_threshold
-    
-    def _compute_pattern_string(self, claims: List[Dict]) -> str:
-        """Creates a coarse fingerprint of claim behavior to defeat jitter."""
-        pattern = ''.join([
-            f"{int(round(claim.get('amount', 0), -1))}_" + 
-            f"{int(round(claim.get('gasPrice', 0), 0))}|" 
-            for claim in claims
-        ])
-        return pattern
-    
-    def _calculate_similarity(self, pattern_string: str) -> float:
-        """Uses compression ratio to detect repetitive patterns."""
-        if not pattern_string or len(pattern_string) < 40:
-            return 0.0
-            
-        compressed = zlib.compress(pattern_string.encode())
-        ratio = len(compressed) / len(pattern_string.encode())
-        
-        # If the string compresses very well (low ratio), it's highly repetitive.
-        return max(0.0, 1.0 - ratio)
+        intervals = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
+        return bool(intervals) and min(intervals) < self.min_claim_interval
+
+    # O nome antigo continua funcionando para quem ainda chama, e diz o que
+    # mudou. Remover de uma vez quebraria chamador fora deste repositorio.
+    def is_sybil_pattern(self, claim_sequence: List[Dict]) -> bool:
+        """Obsoleto: ver `has_impossible_cadence`. Nunca detectou Sybil."""
+        return self.has_impossible_cadence(claim_sequence)
+
 
 
 class BonusCalculator:
@@ -215,7 +209,7 @@ class SentinelV3Engine:
         claim_sequence = node_data.get('claims', [])
         
         # Fraud Detection
-        is_bot = self.detector.is_sybil_pattern(claim_sequence)
+        is_bot = self.detector.has_impossible_cadence(claim_sequence)
         fraud_score = 0.9 if is_bot else 0.1
         
         # Bonus Calculation (only for legitimate nodes)
