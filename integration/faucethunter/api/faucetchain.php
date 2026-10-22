@@ -59,78 +59,96 @@ function faucetchainNotifyClaim(?PDO $pdo, $userId): ?array
         return null;
     }
 
+    // O corpo inteiro vai num try.
+    //
+    // O de dentro cobria só o SELECT; daqui para baixo, qualquer Throwable
+    // virava erro fatal no meio de um claim. `curl_init()` devolve `false` com
+    // URL malformada, e `curl_setopt_array(false, …)` lança TypeError no PHP 8
+    // -- bastaria FAUCETCHAIN_URL vir torta do ambiente.
+    //
+    // Isso importa além do susto: o CVE-2026-109619, de 21/10/2026, usa erro
+    // fatal como gatilho. A limpeza da requisição é interrompida, o estado
+    // sobrevive, e a requisição seguinte no mesmo worker o consome. E vale
+    // lembrar o que este arquivo promete no cabeçalho: nada aqui pode quebrar
+    // o claim da FaucetHunter. Um fatal quebrava.
     try {
-        $stmt = $pdo->prepare("SELECT solana_address FROM fh_users WHERE id = :id LIMIT 1");
-        $stmt->execute([':id' => $userId]);
-        $solanaAddress = trim((string)($stmt->fetchColumn() ?: ''));
+        try {
+            $stmt = $pdo->prepare("SELECT solana_address FROM fh_users WHERE id = :id LIMIT 1");
+            $stmt->execute([':id' => $userId]);
+            $solanaAddress = trim((string)($stmt->fetchColumn() ?: ''));
+        } catch (Throwable $e) {
+            // A coluna pode não existir ainda (migração não rodou). Isso não é
+            // motivo para atrapalhar o claim de ninguém.
+            error_log('[FaucetChain] solana_address indisponível: ' . $e->getMessage());
+            return null;
+        }
+
+        // Quem não informou carteira continua usando a FaucetHunter como sempre.
+        if ($solanaAddress === '') {
+            return null;
+        }
+
+        $ch = curl_init(rtrim(FAUCETCHAIN_URL, '/') . '/api/faucethub/microclaim');
+        curl_setopt_array($ch, [
+            CURLOPT_POST           => true,
+            CURLOPT_RETURNTRANSFER => true,
+            // Curto de propósito. O usuário está esperando a resposta do claim
+            // dele; ele não tem que esperar pela nossa infraestrutura.
+            CURLOPT_TIMEOUT        => 4,
+            CURLOPT_CONNECTTIMEOUT => 2,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'X-Api-Key: ' . FAUCETCHAIN_KEY,
+            ],
+            CURLOPT_POSTFIELDS => json_encode([
+                // A FaucetChain aceita o endereço Solana direto e deriva a conta
+                // dela a partir dele (keccak256 da chave pública, últimos 20
+                // bytes). O usuário depois entra lá com a mesma carteira e cai
+                // exatamente nessa conta, com o prêmio dentro. Nada além de uma
+                // chave pública precisa ser compartilhado entre as duas casas.
+                'user_wallet' => $solanaAddress,
+                'amount'      => FAUCETCHAIN_CLAIM_UNITS,
+            ]),
+        ]);
+
+        $raw    = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        // Sem `curl_close`: desde o PHP 8.0 ela nao faz nada, e no 8.5 -- uma
+        // das versoes corrigidas do PHP2Shell -- emite depreciacao.
+
+        if ($raw === false) {
+            // Fora do ar. O claim do usuário já foi creditado antes desta chamada.
+            error_log('[FaucetChain] inalcançável — claim seguiu normalmente');
+            return null;
+        }
+
+        // 429 é o cooldown de 5 minutos da FaucetChain, idêntico ao desta casa.
+        // Não é erro: é a mesma trava, do outro lado. Logar isso encheria o log de
+        // alarme falso.
+        if ($status === 429) {
+            return null;
+        }
+
+        $body = json_decode($raw, true);
+        if (!is_array($body)) {
+            error_log('[FaucetChain] resposta ininteligível (HTTP ' . $status . ')');
+            return null;
+        }
+        if ($status >= 400) {
+            error_log('[FaucetChain] recusou: ' . ($body['detail'] ?? 'sem motivo'));
+            return null;
+        }
+
+        return [
+            // Onde o prêmio caiu — a conta FaucetChain derivada da carteira.
+            'address'   => $body['user_address'] ?? null,
+            // O que cada campanha pagou neste clique, se alguma pagou. Lista
+            // vazia NÃO é erro: significa que esta torneira não está inscrita
+            // em nenhuma campanha, ou que todas estão sem orçamento no mês.
+            'campaigns' => $body['campaigns'] ?? [],
+        ];
     } catch (Throwable $e) {
-        // A coluna pode não existir ainda (migração não rodou). Isso não é
-        // motivo para atrapalhar o claim de ninguém.
-        error_log('[FaucetChain] solana_address indisponível: ' . $e->getMessage());
+        error_log('[FaucetChain] ponte falhou, claim seguiu normalmente: ' . $e->getMessage());
         return null;
     }
-
-    // Quem não informou carteira continua usando a FaucetHunter como sempre.
-    if ($solanaAddress === '') {
-        return null;
-    }
-
-    $ch = curl_init(rtrim(FAUCETCHAIN_URL, '/') . '/api/faucethub/microclaim');
-    curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_RETURNTRANSFER => true,
-        // Curto de propósito. O usuário está esperando a resposta do claim
-        // dele; ele não tem que esperar pela nossa infraestrutura.
-        CURLOPT_TIMEOUT        => 4,
-        CURLOPT_CONNECTTIMEOUT => 2,
-        CURLOPT_HTTPHEADER     => [
-            'Content-Type: application/json',
-            'X-Api-Key: ' . FAUCETCHAIN_KEY,
-        ],
-        CURLOPT_POSTFIELDS => json_encode([
-            // A FaucetChain aceita o endereço Solana direto e deriva a conta
-            // dela a partir dele (keccak256 da chave pública, últimos 20
-            // bytes). O usuário depois entra lá com a mesma carteira e cai
-            // exatamente nessa conta, com o prêmio dentro. Nada além de uma
-            // chave pública precisa ser compartilhado entre as duas casas.
-            'user_wallet' => $solanaAddress,
-            'amount'      => FAUCETCHAIN_CLAIM_UNITS,
-        ]),
-    ]);
-
-    $raw    = curl_exec($ch);
-    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($raw === false) {
-        // Fora do ar. O claim do usuário já foi creditado antes desta chamada.
-        error_log('[FaucetChain] inalcançável — claim seguiu normalmente');
-        return null;
-    }
-
-    // 429 é o cooldown de 5 minutos da FaucetChain, idêntico ao desta casa.
-    // Não é erro: é a mesma trava, do outro lado. Logar isso encheria o log de
-    // alarme falso.
-    if ($status === 429) {
-        return null;
-    }
-
-    $body = json_decode($raw, true);
-    if (!is_array($body)) {
-        error_log('[FaucetChain] resposta ininteligível (HTTP ' . $status . ')');
-        return null;
-    }
-    if ($status >= 400) {
-        error_log('[FaucetChain] recusou: ' . ($body['detail'] ?? 'sem motivo'));
-        return null;
-    }
-
-    return [
-        // Onde o prêmio caiu — a conta FaucetChain derivada da carteira.
-        'address'   => $body['user_address'] ?? null,
-        // O que cada campanha pagou neste clique, se alguma pagou. Lista vazia
-        // NÃO é erro: significa que esta torneira não está inscrita em nenhuma
-        // campanha, ou que todas estão sem orçamento no mês.
-        'campaigns' => $body['campaigns'] ?? [],
-    ];
 }

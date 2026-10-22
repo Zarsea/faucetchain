@@ -21,36 +21,71 @@ require_once __DIR__ . '/db.php';
 // comportamento previsto. Foi assim que ele passou despercebido.
 require_once __DIR__ . '/faucetchain.php';
 
-sendCorsHeaders();
+// O maior corpo legítimo aqui tem cerca de cem bytes: uma ação e um endereço
+// de 44 caracteres. 8 KB é folga de sobra.
+//
+// O teto existe porque este corpo é lido para a memória ANTES da autenticação
+// e antes do rate limit — qualquer um, sem conta, forçava a alocação inteira.
+// Em 21/10/2026 saiu o CVE-2026-109618, que dispara por exaustão de memória a
+// partir de entrada do atacante: o interpretador corrompe estado ao abortar
+// numa alocação que falha, e isso acontece antes de qualquer código daqui
+// rodar. Atualizar o PHP é o conserto; não entregar a alocação de graça é o
+// que está ao alcance deste arquivo.
+const FC_MAX_CORPO = 8192;
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Método não permitido. Use POST.']);
+// Daqui até o fim roda dentro de um try.
+//
+// O que escapasse viraria erro fatal, e erro fatal alcançável por atacante é o
+// gatilho do CVE-2026-109619: estado de uma requisição sobrevive à limpeza
+// interrompida e é consumido pela requisição seguinte no mesmo worker. As três
+// funções abaixo são da FaucetHunter e não dá para saber daqui se lançam.
+try {
+    sendCorsHeaders();
+
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Método não permitido. Use POST.']);
+        exit();
+    }
+
+    // Um byte a mais que o teto: se veio mais que isso, é grande demais. Ler
+    // com `maxlen` cobre o corpo sem Content-Length, que o cabeçalho sozinho
+    // deixaria passar.
+    $bruto = (string)file_get_contents('php://input', false, null, 0, FC_MAX_CORPO + 1);
+    if (strlen($bruto) > FC_MAX_CORPO) {
+        http_response_code(413);
+        echo json_encode(['success' => false, 'error' => 'Corpo grande demais.']);
+        exit();
+    }
+
+    $data  = json_decode($bruto, true) ?: [];
+    $token = $_SERVER['HTTP_X_SESSION_TOKEN'] ?? ($data['session_token'] ?? '');
+
+    $pdo = getDatabaseConnection();
+    if (!$pdo) {
+        http_response_code(503);
+        echo json_encode(['success' => false, 'error' => 'Banco indisponível. Tente em instantes.']);
+        exit();
+    }
+
+    $user = getAuthenticatedUser($pdo, $token);
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Faça login para definir sua carteira Solana.']);
+        exit();
+    }
+
+    // Cada chamada daqui consulta a FaucetChain pela rede. Sem teto, um laço
+    // transforma este endpoint em amplificador contra a outra casa.
+    requireRateLimit($pdo, 'solana', 20, 600);
+
+    $action = $data['action'] ?? 'get';
+} catch (Throwable $e) {
+    error_log('[FaucetChain] solana_address (entrada): ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Não foi possível processar agora.']);
     exit();
 }
-
-$data  = json_decode(file_get_contents('php://input'), true) ?: [];
-$token = $_SERVER['HTTP_X_SESSION_TOKEN'] ?? ($data['session_token'] ?? '');
-
-$pdo = getDatabaseConnection();
-if (!$pdo) {
-    http_response_code(503);
-    echo json_encode(['success' => false, 'error' => 'Banco indisponível. Tente em instantes.']);
-    exit();
-}
-
-$user = getAuthenticatedUser($pdo, $token);
-if (!$user) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Faça login para definir sua carteira Solana.']);
-    exit();
-}
-
-// Cada chamada daqui consulta a FaucetChain pela rede. Sem teto, um laço
-// transforma este endpoint em amplificador contra a outra casa.
-requireRateLimit($pdo, 'solana', 20, 600);
-
-$action = $data['action'] ?? 'get';
 
 
 /**
@@ -92,7 +127,8 @@ function fcResolveAccount(string $addr): ?array
     ]);
     $raw    = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+    // Sem `curl_close`: desde o PHP 8.0 ela nao faz nada, e no 8.5 -- uma
+    // das versoes corrigidas do PHP2Shell -- emite depreciacao.
 
     if ($raw === false || $status >= 400) {
         return null;
