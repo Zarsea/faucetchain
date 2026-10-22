@@ -77,10 +77,35 @@ def google_responde(sub):
 
 
 def iniciar_vinculo(client, token):
+    """O vinculo devolve o endereco em JSON; o login devolve 302.
+
+    A diferenca nao e estetica. Vincular exige X-Session-Token, e navegacao de
+    pagina nao carrega cabecalho nenhum -- com 302 a tela so poderia usar um
+    <a href>, que e exatamente o que ela usava, e por isso o vinculo respondia
+    401 em toda tentativa real. Estes testes passavam porque o TestClient manda
+    o cabecalho a mao, coisa que o navegador nao pode fazer numa navegacao.
+    """
     r = client.get("/api/auth/google/start?link=1",
                    headers={"X-Session-Token": token}, follow_redirects=False)
-    assert r.status_code == 302, r.text
-    return parse_qs(urlparse(r.headers["location"]).query)["state"][0]
+    assert r.status_code == 200, r.text
+    destino = r.json()["authorize_url"]
+    return parse_qs(urlparse(destino).query)["state"][0]
+
+
+def test_o_vinculo_devolve_endereco_e_nao_redirecionamento(client):
+    """Com 302 a tela precisaria navegar, e navegacao nao leva cabecalho."""
+    _, token = conta()
+    r = client.get("/api/auth/google/start?link=1",
+                   headers={"X-Session-Token": token}, follow_redirects=False)
+    assert r.status_code == 200, f"ainda redireciona: {r.status_code}"
+    assert "authorize_url" in r.json(), r.json()
+    assert r.json()["authorize_url"].startswith("https://accounts.google.com"), r.json()
+
+
+def test_o_login_continua_redirecionando(client):
+    """Sem link=1 nao ha cabecalho a levar, entao o <a href> do cabecalho serve."""
+    r = client.get("/api/auth/google/start", follow_redirects=False)
+    assert r.status_code == 302, r.status_code
 
 
 def voltar(client, state, code="cod"):

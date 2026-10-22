@@ -56,6 +56,7 @@ export const PrivacySettings: React.FC = () => {
     const [erro, setErro] = useState('');
     const [aviso, setAviso] = useState('');
     const [confirmando, setConfirmando] = useState(false);
+    const [vinculando, setVinculando] = useState(false);
 
     const buscar = useCallback(async () => {
         try {
@@ -91,6 +92,28 @@ export const PrivacySettings: React.FC = () => {
         if (estado && recados[estado]) setAviso(recados[estado]);
         buscar();
     }, [buscar]);
+
+    // Pede o endereco do Google levando a sessao, e so entao navega.
+    //
+    // O cabecalho e o ponto inteiro: vincular precisa provar de qual conta se
+    // trata, e nenhuma navegacao de pagina carrega cabecalho. Por isso a
+    // chamada vem antes da ida.
+    const vincular = async () => {
+        setErro('');
+        setVinculando(true);
+        try {
+            const r = await fetch(`${API_BASE_URL}/api/auth/google/start?link=1`,
+                { headers: { ...sessionHeaders() } });
+            const corpo = await r.json().catch(() => ({}));
+            if (!r.ok || !corpo?.authorize_url) {
+                throw new Error(corpo?.detail || 'Could not start linking. Try again in a moment.');
+            }
+            window.location.href = corpo.authorize_url;
+        } catch (e: any) {
+            setErro(e.message);
+            setVinculando(false);
+        }
+    };
 
     const desvincular = async () => {
         setErro('');
@@ -217,12 +240,21 @@ export const PrivacySettings: React.FC = () => {
                                 )}
                             </div>
                         ) : (
-                            // Navegacao de pagina inteira: o popup do Google exigiria o
-                            // script dele e connect-src aberto, e e connect-src 'self' que
+                            // Busca primeiro, navega depois.
+                            //
+                            // Era um <a href> direto, e nao funcionava nunca: vincular
+                            // exige X-Session-Token, e navegacao de pagina nao carrega
+                            // cabecalho. O servidor respondia 401 em toda tentativa.
+                            //
+                            // O `fetch` leva o cabecalho, o servidor devolve o endereco
+                            // do Google, e a navegacao acontece aqui. Continua sendo
+                            // pagina inteira e nao popup: o popup exigiria o script do
+                            // Google e connect-src aberto, e e connect-src 'self' que
                             // impede um XSS de levar o token de sessao embora.
-                            <a
-                                href={`${API_BASE_URL}/api/auth/google/start?link=1`}
-                                className="mt-4 inline-flex items-center justify-center gap-3 min-h-[48px] px-5 rounded-xl bg-brand-surface border border-brand-border text-brand-secondary text-sm font-bold hover:border-brand-primary transition-colors"
+                            <button
+                                onClick={vincular}
+                                disabled={vinculando}
+                                className="mt-4 inline-flex items-center justify-center gap-3 min-h-[48px] px-5 rounded-xl bg-brand-surface border border-brand-border text-brand-secondary text-sm font-bold hover:border-brand-primary transition-colors disabled:opacity-50"
                             >
                                 <svg className="w-4 h-4" viewBox="0 0 48 48" aria-hidden="true">
                                     <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z" />
@@ -230,8 +262,8 @@ export const PrivacySettings: React.FC = () => {
                                     <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
                                     <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.6l6.2 5.2C37 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z" />
                                 </svg>
-                                Link a Google account
-                            </a>
+                                {vinculando ? 'Opening Google…' : 'Link a Google account'}
+                            </button>
                         )}
                     </Linha>
 

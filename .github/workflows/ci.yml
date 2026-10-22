@@ -63,6 +63,9 @@ jobs:
       - name: Nothing asks the wallet to sign before it has connected
         run: node test_connected_signer.mjs
 
+      - name: No page navigation reaches a route that needs a header
+        run: python test_header_auth_reachable.py
+
       - name: A storage wrapper calls the storage it wraps
         run: node test_storage_helpers.mjs
 

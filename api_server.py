@@ -8010,8 +8010,26 @@ async def google_sign_in_start(request: Request,
     finally:
         conn.close()
 
-    return RedirectResponse(
-        social_auth.google_authorize_url(GOOGLE_REDIRECT_URI, state), status_code=302)
+    destino = social_auth.google_authorize_url(GOOGLE_REDIRECT_URI, state)
+
+    # O vinculo devolve o endereco; o login devolve o redirecionamento.
+    #
+    # Nao e capricho: quem pede link=1 precisa mandar X-Session-Token, e uma
+    # NAVEGACAO de pagina nao carrega cabecalho nenhum. A tela usava <a href>,
+    # o cabecalho nunca chegava, e este endpoint respondia 401 em toda
+    # tentativa -- o vinculo nunca funcionou uma vez sequer.
+    #
+    # Os testes passavam porque mandavam o cabecalho a mao pelo TestClient, que
+    # pode fazer o que o navegador nao pode. Era um dublê exercitando um
+    # caminho que o produto nao tem.
+    #
+    # Com JSON, a tela busca com `fetch` (que leva o cabecalho), le o endereco
+    # e navega ela mesma. O token continua fora da URL, que e o motivo de ele
+    # nao viajar como query: endereco vai para historico, log de servidor e
+    # cabecalho Referer.
+    if link:
+        return {"authorize_url": destino}
+    return RedirectResponse(destino, status_code=302)
 
 
 @app.get("/api/auth/google/callback")
