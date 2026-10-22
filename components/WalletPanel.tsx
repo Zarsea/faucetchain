@@ -295,10 +295,10 @@ export const WalletButton: React.FC<{ onNavigate?: (aba: string) => void }> = ({
                                 />
                                 <Atalho
                                     icone={<BoltIcon className="w-4 h-4" />}
-                                    titulo={tt('AutoClaim Hub', 'AutoClaim Hub')}
+                                    titulo={tt('Mining Hub', 'Central de Mineração')}
                                     nota={tt('Earn at the faucets on the network.',
                                              'Ganhe nas torneiras conectadas à rede.')}
-                                    onClick={() => ir('AutoClaim Hub')}
+                                    onClick={() => ir('Mining Hub')}
                                 />
                                 <Atalho
                                     icone={<WalletIcon className="w-4 h-4" />}

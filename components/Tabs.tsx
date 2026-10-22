@@ -46,7 +46,7 @@ const TAB_ICONS: Record<string, IconComponent> = {
     'Solana Payouts': CreditCardIcon,
     'Settlement Ledger': CheckCircleIcon,
     'Faucet': BoltIcon,
-    'AutoClaim Hub': ArrowPathIcon,
+    'Mining Hub': ArrowPathIcon,
     'Bounty Board': SparklesIcon,
     'Connect a Faucet': ShieldCheckIcon,
     'Staking Vault': CubeIcon,
@@ -71,7 +71,7 @@ const TAB_ICONS: Record<string, IconComponent> = {
  *  acrescentar uma entrada em TABS nunca a faz desaparecer da navegação. */
 const GROUPS: { key: string; fallback: string; tabs: string[] }[] = [
     { key: 'settlement', fallback: 'Settlement', tabs: ['Solana Payouts', 'Settlement Ledger'] },
-    { key: 'earn', fallback: 'Earn', tabs: ['Faucet', 'AutoClaim Hub', 'Bounty Board'] },
+    { key: 'earn', fallback: 'Earn', tabs: ['Faucet', 'Mining Hub', 'Bounty Board'] },
     { key: 'operate', fallback: 'Operate', tabs: ['Connect a Faucet', 'Staking Vault', 'AI Agent'] },
     { key: 'explore', fallback: 'Explore', tabs: ['Wallet Explorer', 'Address Tracker', 'Network Status', 'Infra Monitor'] },
     { key: 'reference', fallback: 'Reference', tabs: ['Whitepaper', 'General Article', 'Tokenomics', 'Smart Contract', 'AI Module', 'Technical Specs', 'API Docs'] }

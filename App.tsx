@@ -34,7 +34,7 @@ const TABS = [
     'Solana Payouts',
     'Settlement Ledger',
     'Connect a Faucet',
-    'AutoClaim Hub',
+    'Mining Hub',
     'Address Tracker',
     'Staking Vault',
     'Bounty Board',
@@ -66,7 +66,7 @@ const AppContent: React.FC = () => {
                 return <SolanaPayouts />;
             case 'Settlement Ledger':
                 return <SettlementLedger />;
-            case 'AutoClaim Hub':
+            case 'Mining Hub':
                 return <MiningHub />;
             case 'Address Tracker':
                 return <AddressTracker onNavigate={setActiveTab} />;

@@ -134,17 +134,17 @@ export const MiningHub: React.FC = () => {
                             </div>
                             <div>
                                 <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter">
-                                    {lang === 'en' ? 'AutoClaim Hub' : 'Hub AutoClaim'}
+                                    {lang === 'en' ? 'Mining Hub' : 'Central de Mineração'}
                                 </h2>
                                 <p className="text-xs text-brand-primary font-black uppercase tracking-[0.3em]">
-                                    Auto-Claim Network
+                                    Proof of Claim · Mineração por presença
                                 </p>
                             </div>
                         </div>
                         <p className="text-brand-muted max-w-xl leading-relaxed">
                             {lang === 'en'
-                                ? 'Run the AutoClaim Node on your machine to earn $CLAIM automatically. Keep your node online — the longer your uptime, the bigger your share of the 2,000 CLAIM/hour epoch reward.'
-                                : 'Rode o Nó de AutoClaim na sua máquina para ganhar $CLAIM automaticamente. Mantenha seu nó online — quanto mais uptime, maior sua parcela da recompensa de 2.000 CLAIM/hora.'}
+                                ? `Run a node on your own machine. It pays for presence, not for hashing: the hourly pool of ${stats?.epochReward ?? '…'} $CLAIM is split by how long each node stayed online. The pool is fixed, so more nodes means less each — and the machine has to stay on, which is a cost you pay in electricity.`
+                                : `Rode um nó na sua própria máquina. Ele paga por presença, não por hash: o pool de ${stats?.epochReward ?? '…'} $CLAIM por hora é dividido por quanto tempo cada nó ficou online. O pool é fixo, então mais nós significa menos para cada um — e a máquina precisa ficar ligada, que é um custo que você paga em energia.`}
                         </p>
                     </div>
 
@@ -284,7 +284,7 @@ export const MiningHub: React.FC = () => {
                 </SectionCard>
             )}
 
-            <SectionCard title={lang === 'en' ? 'Start AutoClaim' : 'Iniciar AutoClaim'} icon={<CpuChipIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title={lang === 'en' ? 'Start mining' : 'Começar a minerar'} icon={<CpuChipIcon className="w-5 h-5 text-brand-primary" />}>
                 <div className="space-y-4 mt-2">
                     {[
                         {
@@ -304,7 +304,7 @@ export const MiningHub: React.FC = () => {
                         },
                         {
                             step: '4',
-                            title: lang === 'en' ? 'Start AutoClaim!' : 'Inicie o AutoClaim!',
+                            title: lang === 'en' ? 'Start mining' : 'Comece a minerar',
                             cmd: 'npm start'
                         },
                     ].map((item, i) => (
@@ -383,7 +383,7 @@ export const MiningHub: React.FC = () => {
                     ) : myRewards.length === 0 ? (
                         <div className="text-center py-12 opacity-30">
                             <BoltIcon className="w-16 h-16 text-brand-muted mx-auto mb-3" />
-                            <p className="text-sm text-brand-muted">{lang === 'en' ? 'No rewards yet — start AutoClaim!' : 'Nenhuma recompensa ainda — inicie o AutoClaim!'}</p>
+                            <p className="text-sm text-brand-muted">{lang === 'en' ? 'No rewards yet — start a node' : 'Nenhuma recompensa ainda — ligue um nó'}</p>
                         </div>
                     ) : (
                         <div className="space-y-2 mt-2 max-h-[500px] overflow-y-auto scrollbar-hide">
@@ -410,12 +410,23 @@ export const MiningHub: React.FC = () => {
             <SectionCard title={lang === 'en' ? 'Network Parameters' : 'Parâmetros da Rede'} icon={<ShieldCheckIcon className="w-5 h-5 text-brand-primary" />}>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
                     {[
-                        { param: lang === 'en' ? 'Epoch Duration' : 'Duração do Epoch', value: '1 hora' },
-                        { param: 'Reward/Epoch', value: '2,000 CLAIM' },
-                        { param: 'Heartbeat', value: '30s' },
+                        // Os valores saem do /api/mining/stats que esta tela ja busca.
+                        // Estavam escritos a mao, e um deles estava errado: o pool da
+                        // mineracao e 1.695, nao 2.000 -- 2.000 e a quota da rede
+                        // inteira, dividida com os claims e o staking.
+                        { param: lang === 'en' ? 'Epoch Duration' : 'Duração do Epoch',
+                          value: stats ? `${Math.round(stats.epochDuration / 60)} min` : '—' },
+                        { param: lang === 'en' ? 'Mining pool/epoch' : 'Pool da mineração/epoch',
+                          value: stats ? `${stats.epochReward.toLocaleString()} CLAIM` : '—' },
+                        { param: 'Heartbeat', value: stats ? `${stats.heartbeatInterval}s` : '—' },
                         { param: 'Timeout', value: '90s' },
                         { param: lang === 'en' ? 'Max Nodes/Wallet' : 'Max Nós/Wallet', value: '3' },
-                        { param: 'Anti-Sybil', value: 'CPU + RAM metrics' },
+                        // Era "Anti-Sybil: CPU + RAM metrics". O no reporta as duas
+                        // coisas e o servidor as guarda, mas nenhuma decisao olha para
+                        // elas -- zero comparacoes no codigo. O que de fato limita e o
+                        // teto por carteira acima e o de registros por IP.
+                        { param: lang === 'en' ? 'New nodes/IP per hour' : 'Nós novos/IP por hora',
+                          value: '8' },
                     ].map((item, i) => (
                         <div key={i} className="flex justify-between items-center p-3 bg-brand-bg/40 rounded-lg border border-brand-border/30">
                             <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">{item.param}</span>
