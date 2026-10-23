@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth, sessionHeaders } from './AuthContext';
 import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
-import { dataHoraLocal, dataLocal, numeroLocal } from './LanguageContext';
+import { dataHoraLocal, dataLocal, numeroLocal, useLanguage } from './LanguageContext';
 
 
 interface FaucetHubProps {
@@ -70,6 +70,7 @@ interface L2BalanceResponse {
 }
 
 export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
+    const { tri } = useLanguage();
     const { authMethod, isConnected, userAddress } = useAuth();
     const [faucets, setFaucets] = useState<FaucetData[]>([]);
     const [loading, setLoading] = useState(true);
@@ -419,7 +420,9 @@ const formataCobertura = (c: number): string =>
                 <g key="no-user">
                     <circle cx="430" cy="150" r="12" fill="#0c0418" stroke="#3b82f6" strokeWidth="1.5" />
                     <text x="430" y="153" textAnchor="middle" fontSize="10" fill="#fff">👤</text>
-                    <text x="360" y="153" fontSize="8" fill="#93c5fd" textAnchor="start">Aguardando claims...</text>
+                    <text x="360" y="153" fontSize="8" fill="#93c5fd" textAnchor="start">
+                        {tri('Waiting for claims...', 'Aguardando claims...', 'Esperando claims...')}
+                    </text>
                 </g>
             );
         }
@@ -506,13 +509,16 @@ const formataCobertura = (c: number): string =>
                         FaucetHub Core
                     </h2>
                     <p className="text-purple-300/70 mt-4 leading-relaxed">
-                        This is the console for whoever runs a faucet: API key, reserve and payout.
-                        Sign in to open it. Every action here is signed by the wallet that owns
-                        the faucet, and without an account there is nothing to sign.
+                        {tri(
+                            'This is the console for whoever runs a faucet: API key, reserve and payout. Sign in to open it. Every action here is signed by the wallet that owns the faucet, and without an account there is nothing to sign.',
+                            'Este é o console de quem opera uma torneira: chave de API, reserva e pagamento. Entre para abrir. Toda ação aqui é assinada pela carteira dona da torneira, e sem conta não há o que assinar.',
+                            'Esta es la consola de quien opera un grifo: clave de API, reserva y pago. Inicie sesión para abrirla. Toda acción aquí la firma la billetera dueña del grifo, y sin cuenta no hay qué firmar.')}
                     </p>
                     <p className="text-purple-400/50 text-xs mt-6 leading-relaxed">
-                        The faucet board below stays public, with each one's balance, debt and
-                        coverage. It is there to be audited, and auditing asks for no login.
+                        {tri(
+                            "The faucet board below stays public, with each one's balance, debt and coverage. It is there to be audited, and auditing asks for no login.",
+                            'O quadro de torneiras abaixo continua público, com saldo, dívida e cobertura de cada uma. Ele existe para ser auditado, e auditar não pede login.',
+                            'El tablero de grifos de abajo sigue público, con saldo, deuda y cobertura de cada uno. Existe para ser auditado, y auditar no pide inicio de sesión.')}
                     </p>
                     <button
                         onClick={onBack}
@@ -672,20 +678,22 @@ const formataCobertura = (c: number): string =>
                                             <h3 className="font-semibold text-purple-200 mb-3 text-sm">Register a faucet (DApp)</h3>
                                             <div className="space-y-3">
                                                 <input 
-                                                    type="text" placeholder="Faucet name" value={newName}
+                                                    type="text" placeholder={tri('Faucet name', 'Nome da torneira', 'Nombre del grifo')} value={newName}
                                                     onChange={e => setNewName(e.target.value)}
                                                     className="w-full bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
                                                     required
                                                 />
                                                 <input 
-                                                    type="text" placeholder="Wallet address (0x...)" value={newWallet}
+                                                    type="text" placeholder={tri('Wallet address (0x...)', 'Endereço da carteira (0x...)',
+                                                                                 'Dirección de la billetera (0x...)')} value={newWallet}
                                                     onChange={e => setNewWallet(e.target.value)}
                                                     className="w-full bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
                                                     required
                                                 />
                                                 {registerError && <p className="text-red-400 text-xs">{registerError}</p>}
                                                 <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
-                                                    Vincular ao FaucetHub
+                                                    {tri('Link to FaucetHub', 'Vincular ao FaucetHub',
+                                                         'Vincular a FaucetHub')}
                                                 </button>
                                             </div>
                                         </form>
@@ -828,13 +836,16 @@ const formataCobertura = (c: number): string =>
                                         ) : (
                                             <div className="bg-black/30 rounded-lg p-3 border border-purple-500/15">
                                                 <p className="text-purple-300/90 text-[11px] leading-relaxed">
-                                                    The key cannot be shown again. Only its hash is kept here,
-                                                    so that reading the database does not hand anyone the right
-                                                    to distribute on this faucet's behalf.
+                                                    {tri(
+                                                        "The key cannot be shown again. Only its hash is kept here, so that reading the database does not hand anyone the right to distribute on this faucet's behalf.",
+                                                        'A chave não pode ser mostrada de novo. Só o hash dela fica guardado aqui, para que ler o banco não entregue a ninguém o direito de distribuir no lugar desta torneira.',
+                                                        'La clave no puede mostrarse de nuevo. Solo su hash queda guardado aquí, para que leer la base no entregue a nadie el derecho de distribuir en nombre de este grifo.')}
                                                 </p>
                                                 <p className="text-purple-400/70 text-[10px] mt-2 leading-relaxed">
-                                                    Lost yours? Rotate below: the new one is shown once, and the
-                                                    previous one dies in the same call.
+                                                    {tri(
+                                                        'Lost yours? Rotate below: the new one is shown once, and the previous one dies in the same call.',
+                                                        'Perdeu a sua? Gire abaixo: a nova aparece uma vez, e a anterior morre na mesma chamada.',
+                                                        '¿Perdió la suya? Rótela abajo: la nueva aparece una vez, y la anterior muere en la misma llamada.')}
                                                 </p>
                                             </div>
                                         )}
@@ -877,13 +888,14 @@ const formataCobertura = (c: number): string =>
                                 return (
                                     <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
                                         <h2 className="text-xl font-bold text-purple-200 mb-1 flex items-center">
-                                            <span className="mr-2 text-lg">🔐</span> Escrowed reserve
+                                            <span className="mr-2 text-lg">🔐</span>{' '}
+                                            {tri('Escrowed reserve', 'Reserva em caução', 'Reserva en garantía')}
                                         </h2>
                                         <p className="text-purple-400/70 text-[11px] mb-4 leading-relaxed">
-                                            Signing moves this amount from the faucet's balance into the
-                                            FaucetChain treasury, and that is where your users are paid from
-                                            when they withdraw. You stop being able to spend it. You can lower
-                                            it later, never below what users already have coming.
+                                            {tri(
+                                                "Signing moves this amount from the faucet's balance into the FaucetChain treasury, and that is where your users are paid from when they withdraw. You stop being able to spend it. You can lower it later, never below what users already have coming.",
+                                                'Assinar move este valor do saldo da torneira para a tesouraria da FaucetChain, e é de lá que seus usuários são pagos quando sacam. Você deixa de poder gastá-lo. Dá para baixar depois, nunca abaixo do que os usuários já têm a receber.',
+                                                'Firmar mueve este monto del saldo del grifo a la tesorería de FaucetChain, y de allí se paga a sus usuarios cuando retiran. Usted deja de poder gastarlo. Se puede bajar después, nunca por debajo de lo que los usuarios ya tienen por cobrar.')}
                                         </p>
 
                                         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -957,7 +969,9 @@ const formataCobertura = (c: number): string =>
                                             digita no campo acima e se trava normalmente. */}
                                         {f.reserve > 0 && (
                                             <div className="mt-3">
-                                                <p className="text-purple-400 text-[10px] font-semibold mb-2">DESTRAVAR</p>
+                                                <p className="text-purple-400 text-[10px] font-semibold mb-2">
+                                                    {tri('RELEASE', 'DESTRAVAR', 'LIBERAR')}
+                                                </p>
                                                 <div className="flex flex-wrap gap-2">
                                                     <button
                                                         onClick={() => {
@@ -970,7 +984,8 @@ const formataCobertura = (c: number): string =>
                                                             : undefined}
                                                         className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
                                                     >
-                                                        Soltar o excedente
+                                                        {tri('Release the surplus', 'Soltar o excedente',
+                                                             'Soltar el excedente')}
                                                         <span className="block text-[10px] font-normal text-purple-400">
                                                             {Math.max(f.reserve - f.owed, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} livres
                                                         </span>
@@ -986,7 +1001,7 @@ const formataCobertura = (c: number): string =>
                                                             : undefined}
                                                         className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
                                                     >
-                                                        Release all
+                                                        {tri('Release all', 'Soltar tudo', 'Soltar todo')}
                                                         <span className="block text-[10px] font-normal text-purple-400">
                                                             {f.owed > 0 ? "blocked by debt" : "nothing owed"}
                                                         </span>
@@ -1002,9 +1017,10 @@ const formataCobertura = (c: number): string =>
                                         )}
                                         {reserveError && <p className="text-red-300 text-[11px] mt-2">{reserveError}</p>}
                                         <p className="text-purple-500/60 text-[10px] mt-3 leading-relaxed">
-                                            The escrowed amount leaves your balance and shows on your dashboard
-                                            as unavailable. What does not exist yet: faucet reputation, and any
-                                            warning to a user when the escrow does not cover what they are owed.
+                                            {tri(
+                                                'The escrowed amount leaves your balance and shows on your dashboard as unavailable. What does not exist yet: faucet reputation, and any warning to a user when the escrow does not cover what they are owed.',
+                                                'O valor em caução sai do seu saldo e aparece no seu painel como indisponível. O que ainda não existe: reputação de torneira, e qualquer aviso ao usuário quando a caução não cobre o que ele tem a receber.',
+                                                'El monto en garantía sale de su saldo y aparece en su panel como no disponible. Lo que todavía no existe: reputación de grifo, y cualquier aviso al usuario cuando la garantía no cubre lo que tiene por cobrar.')}
                                         </p>
                                     </div>
                                 );
@@ -1076,7 +1092,7 @@ const formataCobertura = (c: number): string =>
                                     onClick={() => { fetchFaucets(); fetchProofOfReserve(); }}
                                     className="w-full mt-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(168,85,247,0.2)]"
                                 >
-                                    Reler reservas
+                                    {tri('Reload reserves', 'Reler reservas', 'Releer reservas')}
                                 </button>
                             </div>
                         </div>
@@ -1117,11 +1133,15 @@ const formataCobertura = (c: number): string =>
 
                         {/* User Lookup */}
                         <div className="bg-purple-900/30 rounded-xl p-5 border border-purple-500/20">
-                            <h3 className="text-sm font-semibold text-purple-200 mb-3">🔍 Look up a user's virtual balance</h3>
+                            <h3 className="text-sm font-semibold text-purple-200 mb-3">🔍 {tri("Look up a user's virtual balance",
+                                                   'Consultar o saldo virtual de um usuário',
+                                                   'Consultar el saldo virtual de un usuario')}</h3>
                             <div className="flex gap-3">
                                 <input 
                                     type="text" 
-                                    placeholder="User wallet address (0x...)"
+                                    placeholder={tri('User wallet address (0x...)',
+                                                     'Endereço da carteira do usuário (0x...)',
+                                                     'Dirección de la billetera del usuario (0x...)')}
                                     value={l2LookupWallet}
                                     onChange={e => setL2LookupWallet(e.target.value)}
                                     className="flex-1 bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
@@ -1156,7 +1176,10 @@ const formataCobertura = (c: number): string =>
                                     {l2Balances.faucets.length === 0 && (
                                         <div className="py-5 text-center">
                                             <p className="text-purple-400 text-sm">
-                                                Nothing here yet. Claim on any faucet below and the balance shows up here.
+                                                {tri(
+                                                    'Nothing here yet. Claim on any faucet below and the balance shows up here.',
+                                                    'Nada aqui ainda. Faça claim em qualquer torneira abaixo e o saldo aparece aqui.',
+                                                    'Nada aquí todavía. Haga claim en cualquier grifo de abajo y el saldo aparece aquí.')}
                                             </p>
                                             {faucets.filter(f => f.site_url).length > 0 && (
                                                 <div className="flex flex-wrap justify-center gap-2 mt-4">
@@ -1212,12 +1235,13 @@ const formataCobertura = (c: number): string =>
                                                         className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-cyan-600/25 border border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/35 whitespace-nowrap"
                                                     >
                                                         {cooldownRestante(entry.next_claim_at)
-                                                            ? `Unlocks in ${cooldownRestante(entry.next_claim_at)}`
-                                                            : `Claimar em ${entry.faucet_name} →`}
+                                                            ? `${tri('Unlocks in', 'Libera em', 'Se libera en')} ${cooldownRestante(entry.next_claim_at)}`
+                                                            : `${tri('Claim on', 'Claimar em', 'Hacer claim en')} ${entry.faucet_name} →`}
                                                     </a>
                                                 ) : (
                                                     <span className="px-4 py-2 rounded-lg text-xs font-bold bg-purple-900/30 border border-purple-500/10 text-purple-500">
-                                                        Below minimum
+                                                        {tri('Below minimum', 'Abaixo do mínimo',
+                                                             'Por debajo del mínimo')}
                                                     </span>
                                                 )}
                                             </div>
@@ -1256,17 +1280,21 @@ const formataCobertura = (c: number): string =>
                                         <thead className="bg-purple-950/40 text-purple-400 font-bold uppercase">
                                             <tr>
                                                 <th className="px-4 py-3">Rank</th>
-                                                <th className="px-4 py-3">User</th>
-                                                <th className="px-4 py-3">Faucet Principal</th>
+                                                <th className="px-4 py-3">{tri('User', 'Usuário', 'Usuario')}</th>
+                                                <th className="px-4 py-3">{tri('Main faucet', 'Torneira principal',
+                                                                               'Grifo principal')}</th>
                                                 <th className="px-4 py-3 text-right">Claims</th>
-                                                <th className="px-4 py-3 text-right">Total Farmado</th>
+                                                <th className="px-4 py-3 text-right">{tri('Total farmed', 'Total farmado',
+                                                                                          'Total farmeado')}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-purple-500/10">
                                             {leaderboard.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={5} className="px-4 py-8 text-center text-purple-500 italic">
-                                                        No user registered in the ledger.
+                                                        {tri('No user registered in the ledger.',
+                                                             'Nenhum usuário registrado no livro-razão.',
+                                                             'Ningún usuario registrado en el libro mayor.')}
                                                     </td>
                                                 </tr>
                                             ) : (
@@ -1291,9 +1319,13 @@ const formataCobertura = (c: number): string =>
                                                                 <button
                                                                     onClick={() => setSelectedFaucet(user.faucet_wallet)}
                                                                     className="text-purple-400 hover:text-purple-300 hover:underline font-semibold text-left"
-                                                                    title="Click to highlight it in the monitor"
+                                                                    title={tri('Click to highlight it in the monitor',
+                                                                               'Clique para destacá-la no monitor',
+                                                                               'Haga clic para destacarlo en el monitor')}
                                                                 >
-                                                                    {user.faucet_name || "Unknown faucet"}
+                                                                    {user.faucet_name
+                                                                        || tri('Unknown faucet', 'Torneira desconhecida',
+                                                                               'Grifo desconocido')}
                                                                 </button>
                                                             </td>
                                                             <td className="px-4 py-3 text-right font-bold text-purple-300">

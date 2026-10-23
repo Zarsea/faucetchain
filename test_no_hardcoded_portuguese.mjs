@@ -34,6 +34,7 @@ const CONVERTIDOS = [
     'components/ConnectYourFaucet.tsx',
     'components/FaucetInternal.tsx',
     'components/InfrastructureMonitor.tsx',
+    'components/FaucetHub.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',
