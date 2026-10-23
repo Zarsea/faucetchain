@@ -25,6 +25,8 @@ import { readFileSync } from 'node:fs';
 // aqui -- é o que impede que ele regrida depois.
 const CONVERTIDOS = [
     'components/CampaignHoldings.tsx',
+    'components/SolanaPayouts.tsx',
+    'components/SettlementLedger.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',
@@ -85,37 +87,35 @@ function faixasDeColunaPt(fonte) {
     return faixas;
 }
 
+const QUEBRA = String.fromCharCode(10);
 let verificados = 0;
 
+// Uma regra só, em vez de duas que deixavam uma fresta entre si.
+//
+// A versão anterior tinha uma regra para string literal e outra para texto
+// solto no JSX, e a segunda parava num `{`. Então `Transação{' '}` escapava
+// das duas: não era literal, e o texto não terminava em `<`. Descobri isso
+// tentando reprovar o check de propósito e vendo-o passar.
+//
+// Agora a pergunta é direta: todo ACENTO do arquivo tem de estar dentro de
+// tri(), de um comentário, ou de uma coluna `algoPt` com `algoEs` ao lado.
+// Onde mais um acento apareça, ele chega na tela em português.
 for (const arquivo of CONVERTIDOS) {
     const fonte = readFileSync(arquivo, 'utf8');
     const dentro = [...faixasDeTri(fonte), ...faixasDeComentario(fonte),
                     ...faixasDeColunaPt(fonte)];
     const cobre = (p) => dentro.some(([a, b]) => p >= a && p < b);
 
-    // Toda string literal do arquivo, nas três aspas que o projeto usa.
-    const literais = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g;
-    let m;
-    while ((m = literais.exec(fonte)) !== null) {
-        if (!ACENTO.test(m[0])) continue;
+    for (let i = 0; i < fonte.length; i++) {
+        if (!ACENTO.test(fonte[i])) continue;
         verificados++;
         assert.ok(
-            cobre(m.index),
-            `${arquivo}: string em português fora de tri():\n    ${m[0].slice(0, 80)}\n` +
-            `  Este componente já fala três línguas. Uma string solta aqui chega ` +
-            `em português para quem lê em inglês ou espanhol, que é o defeito ` +
-            `que a conversão desses arquivos existiu para acabar.`
-        );
-    }
-
-    // Texto direto no JSX, sem aspas: `<th ...>quando</th>`.
-    const jsx = />\s*([^<>{}\n]*[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ][^<>{}\n]*?)\s*</g;
-    while ((m = jsx.exec(fonte)) !== null) {
-        if (cobre(m.index)) continue;
-        verificados++;
-        assert.fail(
-            `${arquivo}: texto em português direto no JSX: ${JSON.stringify(m[1])}\n` +
-            `  Envolva em tri('inglês', 'português', 'espanhol').`
+            cobre(i),
+            `${arquivo}: português fora de tri(), perto de: ` +
+            `${fonte.slice(Math.max(0, i - 40), i + 40).split(QUEBRA).join(' ')}. ` +
+            `  Este componente já fala três línguas. Texto solto aqui chega em ` +
+            `português para quem lê em inglês ou espanhol, que é o defeito que a ` +
+            `conversão desses arquivos existiu para acabar.`
         );
     }
 }

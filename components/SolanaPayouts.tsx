@@ -10,6 +10,7 @@ import {
 } from './IconComponents';
 import { useAuth, sessionHeaders } from './AuthContext';
 import { API_BASE_URL } from '../apiConfig';
+import { useLanguage } from './LanguageContext';
 import { signAction } from '../utils/actionSignature';
 import { linkMessage, walletProofMessage } from '../utils/actionMessage';
 
@@ -44,6 +45,7 @@ function short(value: string): string {
 
 export const SolanaPayouts: React.FC = () => {
     const { userAddress, isConnected, authMethod } = useAuth();
+    const { tri } = useLanguage();
 
     const [wallet, setWallet] = useState<string | null>(null);
     const [linked, setLinked] = useState<string | null>(null);
@@ -75,7 +77,8 @@ export const SolanaPayouts: React.FC = () => {
                 setProofs(body.proofs ?? []);
             }
         } catch {
-            setError('Could not reach the sequencer.');
+            setError(tri('Could not reach the sequencer.', 'Não foi possível falar com o sequenciador.',
+                         'No fue posible hablar con el secuenciador.'));
         }
     }, [userAddress]);
 
@@ -86,7 +89,9 @@ export const SolanaPayouts: React.FC = () => {
     const connectWallet = async () => {
         const solana = solanaProvider();
         if (!solana) {
-            setError('No Solana wallet found. Install Phantom or Solflare and reload.');
+            setError(tri('No Solana wallet found. Install Phantom or Solflare and reload.',
+                         'Nenhuma carteira Solana encontrada. Instale a Phantom ou a Solflare e recarregue.',
+                         'No se encontró ninguna billetera Solana. Instale Phantom o Solflare y recargue.'));
             return;
         }
         setError(null);
@@ -95,7 +100,8 @@ export const SolanaPayouts: React.FC = () => {
             const { publicKey } = await solana.connect();
             setWallet(publicKey.toString());
         } catch {
-            setError('The wallet refused the connection.');
+            setError(tri('The wallet refused the connection.', 'A carteira recusou a conexão.',
+                         'La billetera rechazó la conexión.'));
         } finally {
             setBusy(null);
         }
@@ -134,11 +140,13 @@ export const SolanaPayouts: React.FC = () => {
             });
             if (!response.ok) {
                 const body = await response.json().catch(() => ({}));
-                throw new Error(body.detail ?? 'The sequencer refused the link.');
+                throw new Error(body.detail ?? tri('The sequencer refused the link.',
+                    'O sequenciador recusou o vínculo.', 'El secuenciador rechazó el vínculo.'));
             }
             await loadLinkAndProofs();
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Could not link the wallet.');
+            setError(e instanceof Error ? e.message : tri('Could not link the wallet.',
+                'Não foi possível vincular a carteira.', 'No fue posible vincular la billetera.'));
         } finally {
             setBusy(null);
         }
@@ -177,7 +185,9 @@ export const SolanaPayouts: React.FC = () => {
             });
             if (!prepared.ok) {
                 const body = await prepared.json().catch(() => ({}));
-                throw new Error(body.detail ?? 'The sequencer could not build the withdrawal.');
+                throw new Error(body.detail ?? tri('The sequencer could not build the withdrawal.',
+                    'O sequenciador não conseguiu montar o saque.',
+                    'El secuenciador no pudo armar el retiro.'));
             }
             const { transaction } = await prepared.json();
 
@@ -199,12 +209,14 @@ export const SolanaPayouts: React.FC = () => {
             });
             if (!submitted.ok) {
                 const body = await submitted.json().catch(() => ({}));
-                throw new Error(body.detail ?? 'The withdrawal was refused.');
+                throw new Error(body.detail ?? tri('The withdrawal was refused.', 'O saque foi recusado.',
+                    'El retiro fue rechazado.'));
             }
             const { signature } = await submitted.json();
             setSent((current) => ({ ...current, [batchId]: signature }));
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'The withdrawal failed.');
+            setError(e instanceof Error ? e.message : tri('The withdrawal failed.', 'O saque falhou.',
+                'El retiro falló.'));
         } finally {
             setBusy(null);
         }
@@ -218,8 +230,10 @@ export const SolanaPayouts: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Solana Payouts</h2>
                 <p className="text-brand-muted mt-4 leading-relaxed">
-                    Sign in to FaucetChain first. Your rewards are paid from a campaign vault on
-                    Solana, and the account that earned them is the one that links the wallet.
+                    {tri(
+                        'Sign in to FaucetChain first. Your rewards are paid from a campaign vault on Solana, and the account that earned them is the one that links the wallet.',
+                        'Entre na FaucetChain primeiro. Suas recompensas são pagas de um cofre de campanha na Solana, e a conta que as ganhou é a que vincula a carteira.',
+                        'Inicie sesión en FaucetChain primero. Sus recompensas se pagan desde una bóveda de campaña en Solana, y la cuenta que las ganó es la que vincula la billetera.')}
                 </p>
             </div>
         );
@@ -233,10 +247,10 @@ export const SolanaPayouts: React.FC = () => {
                 <div className="relative">
                     <h2 className="text-2xl font-black uppercase tracking-tighter settle-text">Solana Payouts</h2>
                     <p className="text-brand-muted mt-3 max-w-2xl leading-relaxed">
-                        Rewards are held in a campaign vault on Solana and released against a Merkle
-                        root the sequencer publishes on-chain. You withdraw by proving your leaf is
-                        in that root — and you pay nothing: the fee and the account rent are covered
-                        by the relayer.
+                        {tri(
+                            'Rewards are held in a campaign vault on Solana and released against a Merkle root the sequencer publishes on-chain. You withdraw by proving your leaf is in that root — and you pay nothing: the fee and the account rent are covered by the relayer.',
+                            'As recompensas ficam num cofre de campanha na Solana e são liberadas contra uma raiz Merkle que o sequenciador publica na cadeia. Você saca provando que o seu leaf está nessa raiz — e não paga nada: a taxa e o aluguel da conta saem do relayer.',
+                            'Las recompensas quedan en una bóveda de campaña en Solana y se liberan contra una raíz Merkle que el secuenciador publica en la cadena. Usted retira probando que su hoja está en esa raíz — y no paga nada: la comisión y el alquiler de la cuenta los cubre el relayer.')}
                     </p>
                 </div>
             </div>
@@ -247,22 +261,24 @@ export const SolanaPayouts: React.FC = () => {
                 </div>
             )}
 
-            <SectionCard title="Receiving wallet" icon={<ShieldCheckIcon className="w-6 h-6" />}>
+            <SectionCard title={tri('Receiving wallet', 'Carteira que recebe', 'Billetera que recibe')}
+                         icon={<ShieldCheckIcon className="w-6 h-6" />}>
                 {linked ? (
                     <p className="text-brand-muted">
-                        Payouts go to <span className="font-mono text-white">{linked}</span>.
-                        {' '}A root already published keeps paying this wallet even if you link
-                        another one later.
+                        {tri('Payouts go to', 'Os pagamentos vão para', 'Los pagos van a')}{' '}
+                        <span className="font-mono text-white">{linked}</span>.{' '}
+                        {tri(
+                            'A root already published keeps paying this wallet even if you link another one later.',
+                            'Uma raiz já publicada continua pagando esta carteira mesmo que você vincule outra depois.',
+                            'Una raíz ya publicada sigue pagando a esta billetera aunque usted vincule otra después.')}
                     </p>
                 ) : (
                     <div className="space-y-4">
                         <p className="text-brand-muted">
-                            No wallet linked yet. Connect the one that should receive the tokens.
-                            You will be asked to sign <span className="text-white font-semibold">twice</span>:
-                            once with your FaucetChain account, to say this is the wallet you chose,
-                            and once with the wallet itself, to prove you hold its key. A reward
-                            already published on-chain pays the address on the leaf, so a wallet
-                            typed wrong cannot be corrected afterwards.
+                            {tri(
+                                'No wallet linked yet. Connect the one that should receive the tokens. You will be asked to sign twice: once with your FaucetChain account, to say this is the wallet you chose, and once with the wallet itself, to prove you hold its key. A reward already published on-chain pays the address on the leaf, so a wallet typed wrong cannot be corrected afterwards.',
+                                'Nenhuma carteira vinculada ainda. Conecte a que deve receber os tokens. Você vai assinar duas vezes: uma com a sua conta FaucetChain, para dizer que é esta a carteira escolhida, e outra com a própria carteira, para provar que a chave é sua. Uma recompensa já publicada na cadeia paga o endereço que está no leaf, então carteira digitada errada não tem conserto depois.',
+                                'Ninguna billetera vinculada todavía. Conecte la que debe recibir los tokens. Va a firmar dos veces: una con su cuenta FaucetChain, para decir que es esta la billetera elegida, y otra con la billetera misma, para probar que la clave es suya. Una recompensa ya publicada en la cadena paga la dirección que está en la hoja, así que una billetera mal escrita no tiene arreglo después.')}
                         </p>
                         <div className="flex flex-wrap gap-3 items-center">
                             <button
@@ -270,7 +286,11 @@ export const SolanaPayouts: React.FC = () => {
                                 disabled={busy !== null}
                                 className="px-6 py-3 bg-brand-primary/10 border border-brand-primary/40 text-brand-primary rounded-2xl font-bold uppercase text-sm tracking-wide hover:bg-brand-primary/20 disabled:opacity-40"
                             >
-                                {busy === 'connect' ? 'Connecting…' : wallet ? `Connected ${short(wallet)}` : 'Connect wallet'}
+                                {busy === 'connect'
+                                    ? tri('Connecting…', 'Conectando…', 'Conectando…')
+                                    : wallet
+                                        ? `${tri('Connected', 'Conectada', 'Conectada')} ${short(wallet)}`
+                                        : tri('Connect wallet', 'Conectar carteira', 'Conectar billetera')}
                             </button>
                             {wallet && (
                                 <button
@@ -278,7 +298,10 @@ export const SolanaPayouts: React.FC = () => {
                                     disabled={busy !== null}
                                     className="px-6 py-3 bg-brand-primary text-black rounded-2xl font-bold uppercase text-sm tracking-wide hover:opacity-90 disabled:opacity-40"
                                 >
-                                    {busy === 'link' ? 'Signing…' : 'Link this wallet'}
+                                    {busy === 'link'
+                                        ? tri('Signing…', 'Assinando…', 'Firmando…')
+                                        : tri('Link this wallet', 'Vincular esta carteira',
+                                              'Vincular esta billetera')}
                                 </button>
                             )}
                         </div>
@@ -286,11 +309,14 @@ export const SolanaPayouts: React.FC = () => {
                 )}
             </SectionCard>
 
-            <SectionCard title="Rewards waiting" icon={<CubeIcon className="w-6 h-6" />}>
+            <SectionCard title={tri('Rewards waiting', 'Recompensas esperando', 'Recompensas esperando')}
+                         icon={<CubeIcon className="w-6 h-6" />}>
                 {proofs.length === 0 ? (
                     <p className="text-brand-muted">
-                        Nothing to withdraw yet. A reward appears here once the sequencer closes the
-                        batch it belongs to and publishes its root on Solana.
+                        {tri(
+                            'Nothing to withdraw yet. A reward appears here once the sequencer closes the batch it belongs to and publishes its root on Solana.',
+                            'Nada para sacar ainda. Uma recompensa aparece aqui quando o sequenciador fecha o lote a que ela pertence e publica a raiz dele na Solana.',
+                            'Nada para retirar todavía. Una recompensa aparece aquí cuando el secuenciador cierra el lote al que pertenece y publica su raíz en Solana.')}
                     </p>
                 ) : (
                     <div className="space-y-4">
@@ -301,11 +327,16 @@ export const SolanaPayouts: React.FC = () => {
                             >
                                 <div className="min-w-0">
                                     <p className="text-white font-bold">
-                                        Campaign {item.campaign_id} · batch {item.batch_id}
+                                        {tri('Campaign', 'Campanha', 'Campaña')} {item.campaign_id} ·{' '}
+                                        {tri('batch', 'lote', 'lote')} {item.batch_id}
                                     </p>
                                     <p className="text-brand-muted text-sm mt-1 font-mono break-all">
-                                        root {short(item.root)} · leaf {item.leaf_index} ·{' '}
-                                        {item.proof.length} sibling{item.proof.length === 1 ? '' : 's'}
+                                        {tri('root', 'raiz', 'raíz')} {short(item.root)} ·{' '}
+                                        {tri('leaf', 'leaf', 'hoja')} {item.leaf_index} ·{' '}
+                                        {item.proof.length}{' '}
+                                        {item.proof.length === 1
+                                            ? tri('sibling', 'irmão', 'hermano')
+                                            : tri('siblings', 'irmãos', 'hermanos')}
                                     </p>
                                     {item.published_signature && (
                                         <a
@@ -314,7 +345,8 @@ export const SolanaPayouts: React.FC = () => {
                                             rel="noreferrer"
                                             className="inline-flex items-center gap-1 text-brand-primary text-sm mt-2 hover:underline"
                                         >
-                                            Root on Solana <ArrowUpRightIcon className="w-3 h-3" />
+                                            {tri('Root on Solana', 'Raiz na Solana', 'Raíz en Solana')}{' '}
+                                            <ArrowUpRightIcon className="w-3 h-3" />
                                         </a>
                                     )}
                                 </div>
@@ -330,11 +362,11 @@ export const SolanaPayouts: React.FC = () => {
                                                 rel="noreferrer"
                                                 className="px-5 py-2.5 border border-green-500/40 text-green-300 rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-green-500/10"
                                             >
-                                                Withdrawn
+                                                {tri('Withdrawn', 'Sacado', 'Retirado')}
                                             </a>
                                         ) : (
                                             <span className="px-5 py-2.5 border border-green-500/40 text-green-300 rounded-xl text-sm font-bold uppercase tracking-wide">
-                                                Withdrawn
+                                                {tri('Withdrawn', 'Sacado', 'Retirado')}
                                             </span>
                                         )
                                     ) : (
@@ -346,7 +378,7 @@ export const SolanaPayouts: React.FC = () => {
                                             {busy === `claim-${item.batch_id}` && (
                                                 <LoadingIcon className="w-4 h-4 animate-spin" />
                                             )}
-                                            Withdraw
+                                            {tri('Withdraw', 'Sacar', 'Retirar')}
                                         </button>
                                     )}
                                 </div>

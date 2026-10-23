@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { SectionCard } from './SectionCard';
 import { ArrowUpRightIcon, CubeIcon, LoadingIcon, ShieldCheckIcon } from './IconComponents';
 import { API_BASE_URL } from '../apiConfig';
+import { useLanguage } from './LanguageContext';
 
 interface RootState {
     index: number;
@@ -131,6 +132,7 @@ const Figure: React.FC<{ label: string; value: string; hint?: string }> = ({ lab
 );
 
 export const SettlementLedger: React.FC = () => {
+    const { tri } = useLanguage();
     // Guarda o rótulo junto do id: montar o nome aqui seria a quarta cópia da
     // mesma cadeia de fallback, e a primeira a divergir.
     const [campaigns, setCampaigns] = useState<{ campaign_id: number; label: string }[]>([]);
@@ -190,9 +192,10 @@ export const SettlementLedger: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-bold uppercase tracking-tighter settle-text">Settlement Ledger</h2>
                 <p className="text-brand-muted mt-4 leading-relaxed">
-                    No campaign has been registered on this sequencer yet. Once a partner funds a
-                    vault, everything it owes and everything it has paid shows up here — read from
-                    Solana, not from this server.
+                    {tri(
+                        'No campaign has been registered on this sequencer yet. Once a partner funds a vault, everything it owes and everything it has paid shows up here — read from Solana, not from this server.',
+                        'Nenhuma campanha foi registrada neste sequenciador ainda. Quando um parceiro financiar um cofre, tudo o que ele deve e tudo o que já pagou aparece aqui — lido da Solana, não deste servidor.',
+                        'Ninguna campaña fue registrada en este secuenciador todavía. Cuando un socio financie una bóveda, todo lo que debe y todo lo que ya pagó aparece aquí — leído de Solana, no de este servidor.')}
                 </p>
             </div>
         );
@@ -209,28 +212,32 @@ export const SettlementLedger: React.FC = () => {
                         <h2 className="text-2xl font-bold uppercase tracking-tighter settle-text">Settlement Ledger</h2>
                         {ledger && (
                             <p className="text-white font-bold mt-2">
-                                Campaign {ledger.campaign_id} pays{' '}
+                                {tri('Campaign', 'Campanha', 'Campaña')} {ledger.campaign_id}{' '}
+                                {tri('pays', 'paga', 'paga')}{' '}
                                 {ledger.token ? (
                                     <span className="text-brand-primary">
                                         {ledger.token.name}
                                         {ledger.token.symbol && ` (${ledger.token.symbol})`}
                                     </span>
                                 ) : (
-                                    <span className="text-yellow-400">an unnamed token</span>
+                                    <span className="text-yellow-400">
+                                        {tri('an unnamed token', 'um token sem nome', 'un token sin nombre')}
+                                    </span>
                                 )}
                             </p>
                         )}
                         <p className="text-brand-muted mt-3 max-w-2xl leading-relaxed">
-                            Every figure below comes from the campaign's accounts on Solana. The
-                            sequencer only supplies the addresses, so you can open the explorer and
-                            recompute the same numbers without trusting it.
+                            {tri(
+                                "Every figure below comes from the campaign's accounts on Solana. The sequencer only supplies the addresses, so you can open the explorer and recompute the same numbers without trusting it.",
+                                'Cada número abaixo vem das contas da campanha na Solana. O sequenciador só fornece os endereços, então dá para abrir o explorador e refazer as mesmas contas sem confiar nele.',
+                                'Cada número de abajo viene de las cuentas de la campaña en Solana. El secuenciador solo aporta las direcciones, así que se puede abrir el explorador y rehacer las mismas cuentas sin confiar en él.')}
                         </p>
                         {ledger && !ledger.token && (
                             <p className="text-yellow-200/80 text-xs mt-3 max-w-2xl leading-relaxed">
-                                This mint has no Metaplex metadata, so it has no name, symbol or logo
-                                anywhere on Solana — not here, and not in the wallet of whoever
-                                receives it. Creating that metadata is the sponsor's to do; until
-                                then the address below is the only thing that identifies it.
+                                {tri(
+                                    "This mint has no Metaplex metadata, so it has no name, symbol or logo anywhere on Solana — not here, and not in the wallet of whoever receives it. Creating that metadata is the sponsor's to do; until then the address below is the only thing that identifies it.",
+                                    'Este mint não tem metadados Metaplex, então não tem nome, símbolo nem logo em lugar nenhum da Solana — nem aqui, nem na carteira de quem o recebe. Criar esses metadados cabe ao patrocinador; até lá o endereço abaixo é a única coisa que o identifica.',
+                                    'Este mint no tiene metadatos Metaplex, así que no tiene nombre, símbolo ni logo en ninguna parte de Solana — ni aquí, ni en la billetera de quien lo recibe. Crear esos metadatos le toca al patrocinador; hasta entonces la dirección de abajo es lo único que lo identifica.')}
                             </p>
                         )}
                     </div>
@@ -257,82 +264,136 @@ export const SettlementLedger: React.FC = () => {
 
             {ledger && !state && (
                 <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-200 px-6 py-4 rounded-2xl text-sm">
-                    Solana could not be read right now, so only what the sequencer recorded is shown
-                    below. Those numbers are a claim, not proof — come back when the chain answers.
+                    {tri(
+                        'Solana could not be read right now, so only what the sequencer recorded is shown below. Those numbers are a claim, not proof — come back when the chain answers.',
+                        'A Solana não pôde ser lida agora, então abaixo está só o que o sequenciador registrou. Esses números são afirmação, não prova — volte quando a cadeia responder.',
+                        'Solana no pudo ser leída ahora, así que abajo está solo lo que el secuenciador registró. Esos números son afirmación, no prueba — vuelva cuando la cadena responda.')}
                 </div>
             )}
 
             {state && (
-                <SectionCard title="The vault" icon={<ShieldCheckIcon className="w-6 h-6" />}>
+                <SectionCard title={tri('The vault', 'O cofre', 'La bóveda')}
+                             icon={<ShieldCheckIcon className="w-6 h-6" />}>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                        <Figure label="In the vault" value={amount(state.vault_amount)} hint="tokens held right now" />
-                        <Figure label="Promised" value={amount(outstanding)} hint="published and not collected" />
-                        <Figure label="Collected" value={amount(state.paid)} hint="withdrawn by users, read from Solana" />
-                        <Figure label="Funded" value={amount(state.funded)} hint="deposited by the partner" />
+                        <Figure label={tri('In the vault', 'No cofre', 'En la bóveda')}
+                                value={amount(state.vault_amount)}
+                                hint={tri('tokens held right now', 'tokens guardados neste instante',
+                                          'tokens guardados en este instante')} />
+                        <Figure label={tri('Promised', 'Prometido', 'Prometido')}
+                                value={amount(outstanding)}
+                                hint={tri('published and not collected', 'publicado e não sacado',
+                                          'publicado y no cobrado')} />
+                        <Figure label={tri('Collected', 'Sacado', 'Cobrado')}
+                                value={amount(state.paid)}
+                                hint={tri('withdrawn by users, read from Solana',
+                                          'sacado pelos usuários, lido da Solana',
+                                          'retirado por los usuarios, leído de Solana')} />
+                        <Figure label={tri('Funded', 'Financiado', 'Financiado')}
+                                value={amount(state.funded)}
+                                hint={tri('deposited by the partner', 'depositado pelo parceiro',
+                                          'depositado por el socio')} />
                     </div>
                     <div className="mt-6 space-y-2 text-sm text-brand-muted">
                         <p>
-                            The vault covers what is promised{' '}
+                            {tri('The vault covers what is promised', 'O cofre cobre o que foi prometido',
+                                 'La bóveda cubre lo prometido')}{' '}
                             {state.vault_amount >= outstanding ? (
-                                <span className="text-green-400 font-bold">— {amount(state.vault_amount)} against {amount(outstanding)}</span>
+                                <span className="text-green-400 font-bold">
+                                    — {amount(state.vault_amount)}{' '}
+                                    {tri('against', 'contra', 'contra')} {amount(outstanding)}
+                                </span>
                             ) : (
-                                <span className="text-red-400 font-bold">— it does not: {amount(state.vault_amount)} against {amount(outstanding)}</span>
+                                <span className="text-red-400 font-bold">
+                                    — {tri('it does not:', 'não cobre:', 'no cubre:')}{' '}
+                                    {amount(state.vault_amount)}{' '}
+                                    {tri('against', 'contra', 'contra')} {amount(outstanding)}
+                                </span>
                             )}
-                            . The program enforces this before accepting any new root.
+                            . {tri('The program enforces this before accepting any new root.',
+                                   'O programa exige isso antes de aceitar qualquer raiz nova.',
+                                   'El programa lo exige antes de aceptar cualquier raíz nueva.')}
                         </p>
-                        <p>{state.closed ? 'This campaign is closed to new roots.' : 'This campaign is open to new roots.'}</p>
+                        <p>{state.closed
+                            ? tri('This campaign is closed to new roots.',
+                                  'Esta campanha está fechada para raízes novas.',
+                                  'Esta campaña está cerrada a raíces nuevas.')
+                            : tri('This campaign is open to new roots.',
+                                  'Esta campanha está aberta para raízes novas.',
+                                  'Esta campaña está abierta a raíces nuevas.')}</p>
                     </div>
                 </SectionCard>
             )}
 
             {state && ledger && (
-                <SectionCard title="What each address is" icon={<CubeIcon className="w-6 h-6" />}>
+                <SectionCard title={tri('What each address is', 'O que é cada endereço',
+                                        'Qué es cada dirección')}
+                             icon={<CubeIcon className="w-6 h-6" />}>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <Address
-                            role="Program"
+                            role={tri('Program', 'Programa', 'Programa')}
                             address={state.program}
-                            what="The Anchor program that refuses to publish a root its vault cannot cover. The guarantee lives here, not on the appchain."
+                            what={tri(
+                                'The Anchor program that refuses to publish a root its vault cannot cover. The guarantee lives here, not on the appchain.',
+                                'O programa Anchor que recusa publicar raiz que o cofre dele não cobre. A garantia mora aqui, não na appchain.',
+                                'El programa Anchor que rechaza publicar una raíz que su bóveda no cubre. La garantía vive aquí, no en la appchain.')}
                         />
                         <Address
-                            role="Campaign"
+                            role={tri('Campaign', 'Campanha', 'Campaña')}
                             address={state.address}
-                            what="This campaign's account. Holds what has been funded, promised and paid, and the roots published so far."
+                            what={tri(
+                                "This campaign's account. Holds what has been funded, promised and paid, and the roots published so far.",
+                                'A conta desta campanha. Guarda o que foi financiado, prometido e pago, e as raízes publicadas até agora.',
+                                'La cuenta de esta campaña. Guarda lo financiado, lo prometido y lo pagado, y las raíces publicadas hasta ahora.')}
                         />
                         <Address
-                            role="Vault"
+                            role={tri('Vault', 'Cofre', 'Bóveda')}
                             address={state.vault}
-                            what="The token account holding the sponsor's budget. Every withdrawal is paid out of this."
+                            what={tri(
+                                "The token account holding the sponsor's budget. Every withdrawal is paid out of this.",
+                                'A conta de token que guarda o orçamento do patrocinador. Todo saque sai daqui.',
+                                'La cuenta de token que guarda el presupuesto del patrocinador. Todo retiro sale de aquí.')}
                         />
                         <Address
-                            role={ledger.token ? `Mint — ${ledger.token.symbol || ledger.token.name}` : 'Mint — unnamed'}
+                            role={ledger.token
+                                ? `Mint — ${ledger.token.symbol || ledger.token.name}`
+                                : `Mint — ${tri('unnamed', 'sem nome', 'sin nombre')}`}
                             address={ledger.mint}
                             what={ledger.token
-                                ? `The token this campaign pays: ${ledger.token.name}. This is what carries value to the user; $CLAIM does not.`
-                                : 'The token this campaign pays. It carries no name on Solana, so wallets and explorers show only this address.'}
+                                ? `${tri('The token this campaign pays:', 'O token que esta campanha paga:', 'El token que esta campaña paga:')} ${ledger.token.name}. ${tri('This is what carries value to the user; $CLAIM does not.', 'É isto que carrega valor para o usuário; $CLAIM não carrega.', 'Esto es lo que carga valor para el usuario; $CLAIM no.')}`
+                                : tri(
+                                    'The token this campaign pays. It carries no name on Solana, so wallets and explorers show only this address.',
+                                    'O token que esta campanha paga. Ele não tem nome na Solana, então carteiras e exploradores mostram só este endereço.',
+                                    'El token que esta campaña paga. No tiene nombre en Solana, así que billeteras y exploradores muestran solo esta dirección.')}
                         />
                         <Address
-                            role="Sponsor"
+                            role={tri('Sponsor', 'Patrocinador', 'Patrocinador')}
                             address={ledger.sponsor}
-                            what="The wallet that opened the campaign and funded the vault. It can reclaim only the surplus, never a promised reward."
+                            what={tri(
+                                'The wallet that opened the campaign and funded the vault. It can reclaim only the surplus, never a promised reward.',
+                                'A carteira que abriu a campanha e financiou o cofre. Ela só pode retomar o excedente, nunca uma recompensa prometida.',
+                                'La billetera que abrió la campaña y financió la bóveda. Solo puede recuperar el excedente, nunca una recompensa prometida.')}
                         />
                         <Address
-                            role="Operator"
+                            role={tri('Operator', 'Operador', 'Operador')}
                             address={state.operator}
-                            what="The key allowed to publish roots for this campaign. It cannot move money, only commit to paying it."
+                            what={tri(
+                                'The key allowed to publish roots for this campaign. It cannot move money, only commit to paying it.',
+                                'A chave autorizada a publicar raízes desta campanha. Ela não move dinheiro, só se compromete a pagá-lo.',
+                                'La clave autorizada a publicar raíces de esta campaña. No mueve dinero, solo se compromete a pagarlo.')}
                         />
                     </div>
                 </SectionCard>
             )}
 
             <SectionCard
-                title={`Collected (${ledger?.collected?.length ?? 0})`}
+                title={`${tri('Collected', 'Sacados', 'Cobrados')} (${ledger?.collected?.length ?? 0})`}
                 icon={<CubeIcon className="w-6 h-6" />}
             >
                 <p className="text-sm text-brand-muted mb-4 max-w-3xl">
-                    Who actually withdrew, rebuilt from the claimed bitmap on each published
-                    root. It counts every withdrawal Solana accepted, not only the ones this
-                    server's relayer signed. A published root says what the campaign{' '}
-                    <em>owes</em>; this table says what left the vault.
+                    {tri(
+                        "Who actually withdrew, rebuilt from the claimed bitmap on each published root. It counts every withdrawal Solana accepted, not only the ones this server's relayer signed. A published root says what the campaign owes; this table says what left the vault.",
+                        'Quem de fato sacou, remontado do bitmap de saque de cada raiz publicada. Conta todo saque que a Solana aceitou, não só os que o relayer deste servidor assinou. Uma raiz publicada diz o que a campanha deve; esta tabela diz o que saiu do cofre.',
+                        'Quién de hecho retiró, rearmado del bitmap de cobro de cada raíz publicada. Cuenta todo retiro que Solana aceptó, no solo los que firmó el relayer de este servidor. Una raíz publicada dice lo que la campaña debe; esta tabla dice lo que salió de la bóveda.')}
                 </p>
 
                 {/* Esta secao lia so `payouts`, que vem de relayer_spend e so ganha
@@ -347,32 +408,36 @@ export const SettlementLedger: React.FC = () => {
                     vez de ser o que decide se a linha existe. */}
                 {ledger?.collected == null ? (
                     <p className="text-brand-muted">
-                        Solana could not be read just now, so who collected is an open
-                        question. This table is built from the chain, and an empty list here
-                        would be a claim this server is in no position to make.
+                        {tri(
+                            'Solana could not be read just now, so who collected is an open question. This table is built from the chain, and an empty list here would be a claim this server is in no position to make.',
+                            'A Solana não pôde ser lida agora, então quem sacou é pergunta em aberto. Esta tabela é montada da cadeia, e lista vazia aqui seria uma afirmação que este servidor não tem como fazer.',
+                            'Solana no pudo ser leída ahora, así que quién cobró es una pregunta abierta. Esta tabla se arma de la cadena, y una lista vacía aquí sería una afirmación que este servidor no está en posición de hacer.')}
                     </p>
                 ) : ledger.collected.length === 0 ? (
                     <p className="text-brand-muted">
-                        Solana reports nothing collected on this campaign. The roots below
-                        promise value that is still waiting.
+                        {tri(
+                            'Solana reports nothing collected on this campaign. The roots below promise value that is still waiting.',
+                            'A Solana informa que nada foi sacado nesta campanha. As raízes abaixo prometem valor que continua esperando.',
+                            'Solana informa que nada fue cobrado en esta campaña. Las raíces de abajo prometen valor que sigue esperando.')}
                     </p>
                 ) : (
                     <>
                         <div className="flex flex-wrap gap-6 mb-4 text-sm">
                             <span className="text-brand-muted">
-                                collected{' '}
+                                {tri('collected', 'sacado', 'cobrado')}{' '}
                                 <span className="text-white font-mono font-bold tabular-nums">
                                     {amount(ledger.collected_total ?? 0)}
                                 </span>
                             </span>
                             <span className="text-brand-muted">
-                                recipients{' '}
+                                {tri('recipients', 'destinatários', 'destinatarios')}{' '}
                                 <span className="text-white font-mono font-bold">
                                     {ledger.collected_recipients ?? 0}
                                 </span>
                             </span>
                             <span className="text-brand-muted">
-                                of which relayed by us{' '}
+                                {tri('of which relayed by us', 'destes, pelo nosso relayer',
+                                     'de estos, por nuestro relayer')}{' '}
                                 <span className="text-white font-mono font-bold">
                                     {ledger.collected.filter((x) => x.relayed).length}
                                 </span>
@@ -382,10 +447,11 @@ export const SettlementLedger: React.FC = () => {
                             <table className="w-full text-sm min-w-[640px]">
                                 <thead>
                                     <tr className="text-left text-[11px] uppercase tracking-widest text-brand-muted">
-                                        <th className="py-2 pr-4">to</th>
-                                        <th className="py-2 pr-4 text-right">units</th>
-                                        <th className="py-2 pr-4">root</th>
-                                        <th className="py-2">proof we hold</th>
+                                        <th className="py-2 pr-4">{tri('to', 'para', 'a')}</th>
+                                        <th className="py-2 pr-4 text-right">{tri('units', 'unidades', 'unidades')}</th>
+                                        <th className="py-2 pr-4">{tri('root', 'raiz', 'raíz')}</th>
+                                        <th className="py-2">{tri('proof we hold', 'prova que temos',
+                                                                  'prueba que tenemos')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -422,7 +488,9 @@ export const SettlementLedger: React.FC = () => {
                                                     </a>
                                                 ) : (
                                                     <span className="text-brand-muted">
-                                                        paid their own fee — no signature here
+                                                        {tri('paid their own fee — no signature here',
+                                                             'pagou a própria taxa — sem assinatura aqui',
+                                                             'pagó su propia comisión — sin firma aquí')}
                                                     </span>
                                                 )}
                                             </td>
@@ -435,19 +503,24 @@ export const SettlementLedger: React.FC = () => {
                 )}
             </SectionCard>
 
-            <SectionCard title={`Published roots (${ledger?.batches.length ?? 0})`} icon={<CubeIcon className="w-6 h-6" />}>
+            <SectionCard title={`${tri('Published roots', 'Raízes publicadas', 'Raíces publicadas')} (${ledger?.batches.length ?? 0})`}
+                         icon={<CubeIcon className="w-6 h-6" />}>
                 {!ledger || ledger.batches.length === 0 ? (
-                    <p className="text-brand-muted">No batch has been closed for this campaign yet.</p>
+                    <p className="text-brand-muted">
+                        {tri('No batch has been closed for this campaign yet.',
+                             'Nenhum lote foi fechado para esta campanha ainda.',
+                             'Ningún lote fue cerrado para esta campaña todavía.')}
+                    </p>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm min-w-[640px]">
                             <thead>
                                 <tr className="text-brand-muted text-xs uppercase tracking-widest text-left">
-                                    <th className="pb-3 pr-4 font-medium">Root</th>
-                                    <th className="pb-3 pr-4 font-medium">Leaves</th>
-                                    <th className="pb-3 pr-4 font-medium text-right">Promised</th>
-                                    <th className="pb-3 pr-4 font-medium text-right">Collected</th>
-                                    <th className="pb-3 font-medium">On Solana</th>
+                                    <th className="pb-3 pr-4 font-medium">{tri('Root', 'Raiz', 'Raíz')}</th>
+                                    <th className="pb-3 pr-4 font-medium">{tri('Leaves', 'Leaves', 'Hojas')}</th>
+                                    <th className="pb-3 pr-4 font-medium text-right">{tri('Promised', 'Prometido', 'Prometido')}</th>
+                                    <th className="pb-3 pr-4 font-medium text-right">{tri('Collected', 'Sacado', 'Cobrado')}</th>
+                                    <th className="pb-3 font-medium">{tri('On Solana', 'Na Solana', 'En Solana')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -478,10 +551,14 @@ export const SettlementLedger: React.FC = () => {
                                                     rel="noreferrer"
                                                     className="text-brand-primary hover:underline inline-flex items-center gap-1"
                                                 >
-                                                    Transaction <ArrowUpRightIcon className="w-3 h-3" />
+                                                    {tri('Transaction', 'Transação', 'Transacción')}{' '}
+                                                    <ArrowUpRightIcon className="w-3 h-3" />
                                                 </a>
                                             ) : (
-                                                <span className="text-yellow-400/80">not published yet</span>
+                                                <span className="text-yellow-400/80">
+                                                    {tri('not published yet', 'ainda não publicada',
+                                                         'todavía no publicada')}
+                                                </span>
                                             )}
                                         </td>
                                     </tr>
