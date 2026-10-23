@@ -8,8 +8,16 @@ Any machine that can keep a terminal open qualifies. A laptop works.
 
 ## What you need
 
-- **Node.js 18 or newer.** Check with `node --version`. Nothing else: no Python,
-  no Solana CLI, no SOL.
+- **Node.js 22.23.4, 24.22.1, 26.12.1 or newer.** Check with `node --version`.
+  Nothing else: no Python, no Solana CLI, no SOL.
+
+  Those exact floors are the October 2026 security releases. The one that
+  matters here is CVE-2026-111497, an out-of-bounds write in Node's Brotli
+  decoder that leads to remote code execution. This node calls `fetch` four
+  times per cycle through node-fetch, which decompresses a `br` response
+  whenever a server sends one, so a hostile `API_URL` reaches that decoder on
+  your machine. Node 18 and 20 are end-of-life and never receive this fix,
+  which is why "18 or newer" is no longer the requirement.
 - **A wallet address** to be paid to. Your FaucetChain address (the one the app
   shows when you sign in) or a Solana address you control.
 
