@@ -37,7 +37,12 @@ export const ApiDocs: React.FC = () => {
     const { lang } = useLanguage();
     // O padrão do projeto, e com ele a limitação do projeto: quem escolhe
     // espanhol recebe português. A correção disso é maior do que esta tela.
-    const T = (en: string, pt: string) => (lang === 'en' ? en : pt);
+    // `es` opcional: as 22 chamadas abaixo ainda passam duas linguas, e sem este
+    // terceiro ramo todas elas devolviam PORTUGUES para quem pediu espanhol.
+    // Agora devolvem ingles, que e a falta honesta. Escrever o espanhol de cada
+    // uma passa a ser trabalho aditivo, uma chamada por vez.
+    const T = (en: string, pt: string, es?: string) =>
+        lang === 'pt' ? pt : lang === 'es' ? (es ?? en) : en;
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">

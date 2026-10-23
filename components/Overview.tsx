@@ -25,7 +25,7 @@ const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; 
 );
 
 export const Overview: React.FC = () => {
-    const { t, lang } = useLanguage();
+    const { t, lang, tri } = useLanguage();
     const { metrics } = useNetwork();
 
     const formatNum = (n: number) => new Intl.NumberFormat(localeDoIdioma(lang)).format(n);
@@ -77,15 +77,15 @@ export const Overview: React.FC = () => {
                         <div className="flex-1 space-y-4">
                             <div className="flex flex-wrap items-center gap-4">
                                 <h3 className="text-3xl font-black text-brand-secondary tracking-tight">
-                                    {lang === 'en' ? 'Proof of Claim, priced per click' : 'Proof of Claim, precificado por clique'}
+                                    {tri('Proof of Claim, priced per click', 'Proof of Claim, precificado por clique', 'Proof of Claim, tarifado por clic')}
                                 </h3>
                                 <span className="px-4 py-1.5 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[10px] rounded-full uppercase font-black tracking-widest">Protocol Evolution</span>
                             </div>
                             <p className="text-brand-muted text-xl leading-relaxed max-w-4xl font-medium">
-                                {lang === 'en' 
-                                    ? "Welcome to the next stage of FaucetChain. Version V3 introduces the Proof of Claim (PoC), which rebalances voting power between Merit and Stake in real-time." 
-                                    : "Bem-vindo ao próximo estágio da FaucetChain. A versão V3 introduz o Proof of Claim (PoC), que reequilibra o poder de voto entre Mérito e Stake em tempo real."
-                                }
+                                {tri(
+                                    "Welcome to the next stage of FaucetChain. Version V3 introduces the Proof of Claim (PoC), which rebalances voting power between Merit and Stake in real-time.",
+                                    "Bem-vindo ao próximo estágio da FaucetChain. A versão V3 introduz o Proof of Claim (PoC), que reequilibra o poder de voto entre Mérito e Stake em tempo real.",
+                                    "Bienvenido a la siguiente etapa de FaucetChain. La versión V3 introduce el Proof of Claim (PoC), que reequilibra el poder de voto entre Mérito y Stake en tiempo real.")}
                             </p>
                             <div className="pt-2">
                             </div>
@@ -99,9 +99,10 @@ export const Overview: React.FC = () => {
                 <div className="lg:col-span-5 flex flex-col gap-8">
                     <SectionCard title="Sealer Weight" icon={<ChartBarIcon className="w-6 h-6" />}>
                          <p className="text-lg font-medium text-brand-secondary/80">
-                             {lang === 'en'
-                                ? "A proposal. Today the sealer election weighs staked capital alone."
-                                : "Uma proposta. Hoje o sorteio do selador pesa só o capital em stake."}
+                             {tri(
+                                "A proposal. Today the sealer election weighs staked capital alone.",
+                                "Uma proposta. Hoje o sorteio do selador pesa só o capital em stake.",
+                                "Una propuesta. Hoy el sorteo del sellador pesa solo el capital en stake.")}
                         </p>
                         <div className="grid grid-cols-1 gap-4 mt-6">
                             {[

@@ -19,7 +19,7 @@ interface ClaimHistory {
 }
 
 export const Faucet: React.FC = () => {
-    const { t, lang, tFn } = useLanguage();
+    const { t, lang, tFn, tri } = useLanguage();
     const { metrics, addBlockManually } = useNetwork();
     const { isConnected, userAddress, authMethod } = useAuth();
 
@@ -223,9 +223,10 @@ export const Faucet: React.FC = () => {
             <div className="text-center max-w-3xl mx-auto space-y-4">
                 <h2 className="text-4xl font-black text-brand-secondary tracking-tighter uppercase">{t.faucet.title}</h2>
                 <p className="text-brand-muted text-lg">
-                    {lang === 'pt'
-                        ? 'O sistema de mérito da FaucetChain V3 recompensa a participação ativa. Conecte sua conta para minerar mérito baseado na curvatura de emissão dinâmica.'
-                        : 'The FaucetChain V3 merit system rewards active participation. Connect your account to mine merit based on dynamic emission curvature.'}
+                    {tri(
+                        'The FaucetChain V3 merit system rewards active participation. Connect your account to mine merit based on dynamic emission curvature.',
+                        'O sistema de mérito da FaucetChain V3 recompensa a participação ativa. Conecte sua conta para minerar mérito baseado na curvatura de emissão dinâmica.',
+                        'El sistema de mérito de FaucetChain V3 recompensa la participación activa. Conecte su cuenta para minar mérito según la curvatura de emisión dinámica.')}
                 </p>
             </div>
 
@@ -315,9 +316,10 @@ export const Faucet: React.FC = () => {
                                 </p>
                                 {!isHubActive && isConnected && (
                                     <p className="mt-3 text-[10px] text-brand-muted leading-relaxed">
-                                        {lang === 'pt'
-                                            ? 'Registre uma torneira no FaucetHub para operar um hub. O registro devolve a chave de API que sua torneira usa para distribuir.'
-                                            : 'Register a faucet in FaucetHub to run a hub. Registration returns the API key your faucet uses to distribute.'}
+                                        {tri(
+                                            'Register a faucet in FaucetHub to run a hub. Registration returns the API key your faucet uses to distribute.',
+                                            'Registre uma torneira no FaucetHub para operar um hub. O registro devolve a chave de API que sua torneira usa para distribuir.',
+                                            'Registre un grifo en FaucetHub para operar un hub. El registro devuelve la clave de API que su grifo usa para distribuir.')}
                                     </p>
                                 )}
                             </div>

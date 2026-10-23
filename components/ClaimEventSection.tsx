@@ -6,7 +6,7 @@ import { diagrams } from '../constants';
 import { useLanguage } from './LanguageContext';
 
 export const ClaimEventSection: React.FC = () => {
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
 
     const content = {
         en: {
@@ -79,7 +79,11 @@ export const ClaimEventSection: React.FC = () => {
         }
     };
 
-    const t = lang === 'en' ? content.en : content.pt;
+    // `content` ainda so tem `en` e `pt`. Ate ganhar um `es`, o espanhol lê o
+    // ingles em vez do portugues, que era o que esta linha entregava antes.
+    const t = lang === 'pt' ? content.pt
+            : lang === 'es' ? ((content as any).es ?? content.en)
+            : content.en;
 
     return (
         <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 lg:p-10 shadow-2xl relative overflow-hidden animate-slideUpFadeIn">
@@ -132,7 +136,7 @@ export const ClaimEventSection: React.FC = () => {
                         <div className="sticky top-24">
                             <MermaidDiagram 
                                 code={diagrams(lang).CLAIM_EVENT_DIAGRAM} 
-                                title={lang === 'en' ? "Protocol Execution Flow" : "Fluxo de Execução do Protocolo"}
+                                title={tri("Protocol Execution Flow", "Fluxo de Execução do Protocolo", "Flujo de Ejecución del Protocolo")}
                                 prompt="Analyze the chronological sequence of the Claim Event. Why is the 80/20 split written at credit time rather than charged at withdrawal?"
                             />
                         </div>

@@ -39,7 +39,7 @@ interface Message {
 
 export const AIChatAgent: React.FC = () => {
     const { metrics, addBlockManually, triggerAnomaly, anomaly } = useNetwork();
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
@@ -365,12 +365,12 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder={lang === 'pt' ? "Digite seu comando para o protocolo local..." : "Enter your command for the local protocol..."}
+                            placeholder={tri("Enter your command for the local protocol...", "Digite seu comando para o protocolo local...", "Escriba su comando para el protocolo local...")}
                             className="flex-1 bg-transparent border-none py-4 text-base text-brand-secondary focus:outline-none placeholder:text-brand-muted/30 font-light tracking-wide"
                         />
                         <button
                             onClick={() => handleSendMessage()}
-                            aria-label={lang === 'pt' ? 'Enviar comando' : 'Send command'}
+                            aria-label={tri('Send command', 'Enviar comando', 'Enviar comando')}
                             disabled={isThinking || !inputText.trim()}
                             className="p-4 bg-brand-primary text-brand-bg rounded-xl hover:bg-brand-primary/90 hover:shadow-glow-primary transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >

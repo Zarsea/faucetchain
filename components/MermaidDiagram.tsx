@@ -46,7 +46,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
     icon,
     prompt
 }) => {
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
     const [scale, setScale] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -260,9 +260,10 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
             
             {!inFullscreen && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-brand-muted opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase font-bold tracking-widest whitespace-nowrap">
-                    {lang === 'en'
-                        ? 'Drag to pan • Pinch/Scroll to zoom'
-                        : 'Arraste para mover • Pinça/Scroll para zoom'}
+                    {tri(
+                        'Drag to pan • Pinch/Scroll to zoom',
+                        'Arraste para mover • Pinça/Scroll para zoom',
+                        'Arrastre para mover • Pellizque/Scroll para zoom')}
                 </div>
             )}
         </div>

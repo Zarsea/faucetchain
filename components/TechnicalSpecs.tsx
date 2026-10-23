@@ -26,7 +26,7 @@ const SpecTable: React.FC<{ data: { label: string, value: string }[] }> = ({ dat
 );
 
 export const TechnicalSpecs: React.FC = () => {
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
 
     // Cada linha abaixo aponta para codigo que existe. A versao anterior
     // nomeava RocksDB, libp2p, uma VM WASM, BLAKE3, uma VRF com nome de curva
@@ -56,12 +56,13 @@ export const TechnicalSpecs: React.FC = () => {
         <div className="space-y-12 max-w-7xl mx-auto pb-24 relative z-0">
             <div className="animate-fadeIn space-y-2">
                 <h2 className="text-3xl font-black text-brand-secondary tracking-tight">
-                    {lang === 'en' ? "Deep Technical Specifications" : "Especificações Técnicas Profundas"}
+                    {tri("Deep Technical Specifications", "Especificações Técnicas Profundas", "Especificaciones Técnicas Profundas")}
                 </h2>
                 <p className="text-brand-muted max-w-3xl text-lg">
-                    {lang === 'en' 
-                        ? "Detailed architectural parameters and core implementation details of the FaucetChain protocol. Every row below points at a file in this repository; nothing here is aspirational."
-                        : "Parâmetros detalhados de arquitetura e detalhes da implementação principal do protocolo FaucetChain. Cada linha abaixo aponta para um arquivo deste repositório; nada aqui é aspiracional."}
+                    {tri(
+                        "Detailed architectural parameters and core implementation details of the FaucetChain protocol. Every row below points at a file in this repository; nothing here is aspirational.",
+                        "Parâmetros detalhados de arquitetura e detalhes da implementação principal do protocolo FaucetChain. Cada linha abaixo aponta para um arquivo deste repositório; nada aqui é aspiracional.",
+                        "Parámetros arquitectónicos detallados y detalles de la implementación central del protocolo FaucetChain. Cada fila de abajo apunta a un archivo de este repositorio; nada aquí es aspiracional.")}
                 </p>
                 {/* A frase acima prometia "um arquivo deste repositorio" sem dar
                     como chegar nele. Agora da. */}
@@ -84,9 +85,10 @@ export const TechnicalSpecs: React.FC = () => {
                 <div className="lg:col-span-5 flex flex-col gap-8">
                     <SectionCard title="Protocol Parameters" icon={<CpuChipIcon className="w-6 h-6"/>}>
                         <p className="text-sm text-brand-muted leading-relaxed mb-4">
-                            {lang === 'en'
-                                ? 'The bounds the sealer works inside. A block is final the moment it is sealed — one sequencer, no forks — but inclusion waits for a sealer to show up.'
-                                : 'Os limites dentro dos quais o selador trabalha. Um bloco é final no instante em que é selado — um sequenciador, sem bifurcação — mas a inclusão espera um selador aparecer.'}
+                            {tri(
+                                'The bounds the sealer works inside. A block is final the moment it is sealed — one sequencer, no forks — but inclusion waits for a sealer to show up.',
+                                'Os limites dentro dos quais o selador trabalha. Um bloco é final no instante em que é selado — um sequenciador, sem bifurcação — mas a inclusão espera um selador aparecer.',
+                                'Los límites dentro de los cuales trabaja el sellador. Un bloque es final en el instante en que se sella — un secuenciador, sin bifurcación — pero la inclusión espera a que aparezca un sellador.')}
                         </p>
                         <SpecTable data={networkSpecs} />
                     </SectionCard>

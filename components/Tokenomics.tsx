@@ -147,7 +147,7 @@ const ConsensusDistributionWidget = () => {
 };
 
 export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
-    const { tFn: t, lang } = useLanguage();
+    const { tFn: t, lang, tri } = useLanguage();
     const [vault, setVault] = React.useState<any>(null);
 
     React.useEffect(() => {
@@ -184,7 +184,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                     className="flex items-center gap-2 text-xs font-bold text-brand-primary border border-brand-primary/30 rounded-lg px-4 py-2 hover:bg-brand-primary/10 transition-all duration-300 hover:scale-[1.05] whitespace-nowrap group"
                 >
                     <BookOpenIcon className="w-4 h-4" />
-                    {lang === 'en' ? "READ WHITEPAPER" : "LER WHITEPAPER"}
+                    {tri("READ WHITEPAPER", "LER WHITEPAPER", "LEER WHITEPAPER")}
                 </button>
              </div>
 
@@ -209,7 +209,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                         <div className="absolute top-4 right-4 flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                             <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">
-                                {lang === 'en' ? "Work per claim" : "Trabalho por claim"}
+                                {tri("Work per claim", "Trabalho por claim", "Trabajo por claim")}
                             </span>
                         </div>
                         <ResponsiveContainer>
@@ -256,19 +256,19 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                     </div>
                     <div className="flex justify-between mt-2 px-1">
                         <span className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">
-                            {lang === 'en' ? "Start of the hour" : "Início da hora"}
+                            {tri("Start of the hour", "Início da hora", "Inicio de la hora")}
                         </span>
                         <span className="text-[10px] text-brand-muted uppercase font-bold tracking-widest">
-                            {lang === 'en' ? "Quota spent" : "Cota esgotada"}
+                            {tri("Quota spent", "Cota esgotada", "Cuota agotada")}
                         </span>
                     </div>
                 </SectionCard>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <SectionCard title={lang === 'en' ? "Staking APY" : "APY de Staking"} icon={<BoltIcon className="w-5 h-5 text-green-400"/>}>
+                <SectionCard title={tri("Staking APY", "APY de Staking", "APY de Staking")} icon={<BoltIcon className="w-5 h-5 text-green-400"/>}>
                     <p className="text-brand-muted leading-relaxed mb-4 text-sm">
-                        {lang === 'en' ? "Dynamic yield based on network participation and PoS epoch rewards." : "Rendimento dinâmico baseado na participação da rede e recompensas de época PoS."}
+                        {tri("Dynamic yield based on network participation and PoS epoch rewards.", "Rendimento dinâmico baseado na participação da rede e recompensas de época PoS.", "Rendimiento dinámico basado en la participación de la red y las recompensas de época PoS.")}
                     </p>
                     <div className="p-4 bg-brand-bg rounded border border-brand-border text-center relative overflow-hidden group">
                         <div className="absolute inset-0 bg-green-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>
@@ -277,9 +277,9 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                     </div>
                 </SectionCard>
 
-                <SectionCard title={lang === 'en' ? "Total Burned" : "Total Queimado"} icon={<ChartPieIcon className="w-5 h-5 text-orange-400"/>}>
+                <SectionCard title={tri("Total Burned", "Total Queimado", "Total Quemado")} icon={<ChartPieIcon className="w-5 h-5 text-orange-400"/>}>
                     <p className="text-brand-muted leading-relaxed mb-4 text-sm">
-                        {lang === 'en' ? "Tokens permanently removed from circulation via transaction fees." : "Tokens removidos permanentemente de circulação via taxas de transação."}
+                        {tri("Tokens permanently removed from circulation via transaction fees.", "Tokens removidos permanentemente de circulação via taxas de transação.", "Tokens retirados permanentemente de circulación mediante comisiones de transacción.")}
                     </p>
                     <div className="p-4 bg-brand-bg rounded border border-brand-border text-center relative overflow-hidden group">
                         <div className="absolute inset-0 bg-orange-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>
@@ -288,9 +288,9 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                     </div>
                 </SectionCard>
 
-                <SectionCard title={lang === 'en' ? "Circulating Supply" : "Fornecimento Circulante"} icon={<SignalIcon className="w-5 h-5 text-brand-primary"/>}>
+                <SectionCard title={tri("Circulating Supply", "Fornecimento Circulante", "Suministro Circulante")} icon={<SignalIcon className="w-5 h-5 text-brand-primary"/>}>
                     <p className="text-brand-muted leading-relaxed mb-4 text-sm">
-                        {lang === 'en' ? "Liquid tokens currently available across network wallets and DEXs." : "Tokens líquidos atualmente disponíveis nas carteiras da rede e DEXs."}
+                        {tri("Liquid tokens currently available across network wallets and DEXs.", "Tokens líquidos atualmente disponíveis nas carteiras da rede e DEXs.", "Tokens líquidos disponibles actualmente en las billeteras de la red y en los DEX.")}
                     </p>
                     <div className="p-4 bg-brand-bg rounded border border-brand-border text-center relative overflow-hidden group">
                         <div className="absolute inset-0 bg-brand-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>
@@ -312,7 +312,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
             </div>
 
             <h3 className="text-2xl font-bold text-brand-secondary mt-12 mb-6 border-b border-brand-border/30 pb-3">
-                {lang === 'en' ? "Real-Time Supply Extraction" : "Extração de Suprimento em Tempo Real"}
+                {tri("Real-Time Supply Extraction", "Extração de Suprimento em Tempo Real", "Extracción de Suministro en Tiempo Real")}
             </h3>
             <ConsensusDistributionWidget />
 

@@ -10,7 +10,7 @@ interface TransactionDetailsModalProps {
 }
 
 export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = ({ txHash, onClose, inline }) => {
-    const { t, lang } = useLanguage();
+    const { t, lang, tri } = useLanguage();
     const [loading, setLoading] = useState(false);
     const [txData, setTxData] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
             try {
                 const res = await fetch(`${API_BASE_URL}/api/tx/${txHash}`);
                 if (!res.ok) {
-                    if (res.status === 404) throw new Error(lang === 'en' ? "Transaction not found or still pending in the mempool." : "Transação não encontrada ou ainda pendente no mempool.");
+                    if (res.status === 404) throw new Error(tri("Transaction not found or still pending in the mempool.", "Transação não encontrada ou ainda pendente no mempool.", "Transacción no encontrada o todavía pendiente en el mempool."));
                     throw new Error("Failed to fetch transaction data.");
                 }
                 const data = await res.json();
@@ -57,7 +57,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                         </div>
                         <div>
                             <h3 className="text-lg font-black text-white tracking-tight">
-                                {lang === 'en' ? 'Transaction Overview' : 'Visão Geral da Transação'}
+                                {tri('Transaction Overview', 'Visão Geral da Transação', 'Visión General de la Transacción')}
                             </h3>
                             <p className="text-xs text-brand-muted font-mono">{txHash.substring(0, 16)}...{txHash.slice(-8)}</p>
                         </div>
@@ -78,7 +78,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                         <div className="flex flex-col items-center justify-center py-12">
                             <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mb-4"></div>
                             <p className="text-brand-muted text-sm font-bold uppercase tracking-widest animate-pulse">
-                                {lang === 'en' ? 'Scanning Blockchain...' : 'Analisando Blockchain...'}
+                                {tri('Scanning Blockchain...', 'Analisando Blockchain...', 'Analizando Blockchain...')}
                             </p>
                         </div>
                     )}
@@ -154,7 +154,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                             <div className="space-y-3 pt-4 border-t border-brand-border/20">
                                 <h4 className="text-[11px] font-black text-brand-secondary uppercase tracking-widest flex items-center gap-2">
                                     <SparklesIcon className="w-3 h-3 text-brand-primary" />
-                                    {lang === 'en' ? 'Consensus Engine Data' : 'Dados do Motor de Consenso'}
+                                    {tri('Consensus Engine Data', 'Dados do Motor de Consenso', 'Datos del Motor de Consenso')}
                                 </h4>
                                 <div className="bg-black/30 rounded-lg border border-brand-border/30 divide-y divide-brand-border/20">
                                     <div className="p-3 flex items-center justify-between">

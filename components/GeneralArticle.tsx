@@ -19,9 +19,13 @@ import { diagrams, POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../co
 import { CodeBlock } from './CodeBlock';
 
 export const GeneralArticle: React.FC = () => {
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
 
-    const t = lang === 'en' ? {
+    // `!== 'pt'` em vez de `=== 'en'`: os dois ramos sao objetos longos, e
+    // trocá-los de lugar so para o espanhol cair no certo seria um diff enorme
+    // por um token de diferenca. Assim ES le o ingles ate este bloco ganhar um
+    // terceiro ramo; antes ele lia o portugues e era chamado de espanhol.
+    const t = lang !== 'pt' ? {
         title: "Settlement Architecture",
         subtitle: "How a click becomes a proof, and a proof becomes a payment",
         hubTitle: "Partner faucets",
@@ -90,9 +94,10 @@ export const GeneralArticle: React.FC = () => {
                         <span className="text-[10px] font-black text-brand-primary uppercase tracking-[0.3em]">Module 01</span>
                         <h3 className="text-2xl font-black text-white">Proof of Claim (PoC)</h3>
                         <p className="text-brand-muted leading-relaxed text-lg">
-                            {lang === 'en' 
-                                ? "Decentralized validation allowing any entity proving legitimate activity to gain network weight, eliminating the hardware-gate for entry."
-                                : "Validação descentralizada permitindo que qualquer entidade que prove atividade legítima ganhe peso na rede, eliminando a barreira de hardware."}
+                            {tri(
+                                "Decentralized validation allowing any entity proving legitimate activity to gain network weight, eliminating the hardware-gate for entry.",
+                                "Validação descentralizada permitindo que qualquer entidade que prove atividade legítima ganhe peso na rede, eliminando a barreira de hardware.",
+                                "Validación descentralizada que permite a cualquier entidad que pruebe actividad legítima ganar peso en la red, eliminando la barrera de hardware para entrar.")}
                         </p>
                         <p className="text-brand-primary font-bold italic border-l-2 border-brand-primary pl-4 py-1">
                             "Meritocracy encoded in the ledger."
@@ -128,18 +133,19 @@ export const GeneralArticle: React.FC = () => {
                             <CubeIcon className="w-10 h-10 text-brand-primary" />
                         </div>
                         <h2 className="text-4xl font-black text-white tracking-tighter leading-none">
-                            {lang === 'en' ? "Architecture Mindmap" : "Mapa Mental da Arquitetura"}
+                            {tri("Architecture Mindmap", "Mapa Mental da Arquitetura", "Mapa Mental de la Arquitectura")}
                         </h2>
                         <p className="text-brand-muted text-lg max-w-2xl">
-                            {lang === 'en' 
-                                ? "A holistic top-down view of the FaucetChain ecosystem, mapping the latest V3 upgrades: Dual Consensus, P2P Transfers, SQLite B-Tree Indexes, and Sentinel AI V3."
-                                : "Uma visão holística do ecossistema FaucetChain, mapeando os últimos upgrades V3: Consenso Duplo, Transferências P2P, Índices B-Tree no SQLite e IA Sentinela V3."}
+                            {tri(
+                                "A holistic top-down view of the FaucetChain ecosystem, mapping the latest V3 upgrades: Dual Consensus, P2P Transfers, SQLite B-Tree Indexes, and Sentinel AI V3.",
+                                "Uma visão holística do ecossistema FaucetChain, mapeando os últimos upgrades V3: Consenso Duplo, Transferências P2P, Índices B-Tree no SQLite e IA Sentinela V3.",
+                                "Una visión holística del ecosistema FaucetChain, que mapea las últimas mejoras V3: Consenso Dual, Transferencias P2P, Índices B-Tree en SQLite e IA Centinela V3.")}
                         </p>
                     </div>
                     <div className="w-full h-full min-h-[600px] bg-brand-bg/50 rounded-[2rem] border border-brand-border/40 p-4">
                         <MermaidDiagram 
                             code={diagrams(lang).MINDMAP_CODE} 
-                            title={lang === 'en' ? "Full Ecosystem Topology" : "Topologia Completa do Ecossistema"} 
+                            title={tri("Full Ecosystem Topology", "Topologia Completa do Ecossistema", "Topología Completa del Ecosistema")}
                         />
                     </div>
                 </div>
@@ -177,7 +183,7 @@ export const GeneralArticle: React.FC = () => {
                     <div className="lg:w-2/3 h-full min-h-[500px]">
                         <MermaidDiagram 
                             code={diagrams(lang).CLAIM_LIFECYCLE_DETAILED_CODE} 
-                            title={lang === 'en' ? "Full Execution Pipeline" : "Pipeline de Execução Completo"} 
+                            title={tri("Full Execution Pipeline", "Pipeline de Execução Completo", "Pipeline de Ejecución Completo")} 
                             prompt="Deconstruct the sequence from Minting to Yield. Why is Treasury Settlement the penultimate step before Yield generation?"
                         />
                     </div>

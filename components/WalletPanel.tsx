@@ -29,7 +29,10 @@ import {
  * outro saldo convidaria a pessoa a tentar mandar o que ela nao pode.
  */
 
-const T = (lang: string, en: string, pt: string) => (lang === 'pt' ? pt : en);
+// `es` opcional pelo mesmo motivo do ApiDocs: sem o terceiro ramo, quem pedia
+// espanhol recebia portugues. Faltando o `es`, cai no ingles.
+const T = (lang: string, en: string, pt: string, es?: string) =>
+    lang === 'pt' ? pt : lang === 'es' ? (es ?? en) : en;
 
 interface Saldo {
     total_claim: number;
