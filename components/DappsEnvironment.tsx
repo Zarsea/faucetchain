@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { FaucetHub } from './FaucetHub';
 import { FaucetInternal } from './FaucetInternal';
 import ConnectYourFaucet from './ConnectYourFaucet';
+import { useLanguage, triGlobal } from './LanguageContext';
 
 export const DappsFloatingButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
+    const { tri } = useLanguage();
     return (
         <button
             onClick={onClick}
@@ -20,7 +22,8 @@ export const DappsFloatingButton: React.FC<{ onClick: () => void }> = ({ onClick
                 borderRadius: '0 50% 50% 50%', 
                 transform: 'rotate(45deg)' 
             }}
-            title="Abrir DApps Environment"
+            title={tri('Open DApps Environment', 'Abrir o DApps Environment',
+                       'Abrir el DApps Environment')}
         >
             <span 
                 className="text-black font-extrabold text-lg tracking-wider drop-shadow-md select-none" 
@@ -41,10 +44,12 @@ const apps = [
     {
         id: 'faucethub',
         title: 'FaucetHub',
-        desc: 'L1 monitoring, Proof of Reserve and the faucet registry. The core console.',
+        desc: triGlobal('L1 monitoring, Proof of Reserve and the faucet registry. The core console.',
+              'Monitoramento da L1, Prova de Reserva e o registro de torneiras. O console principal.',
+              'Monitoreo de la L1, Prueba de Reserva y el registro de grifos. La consola principal.'),
         icon: '🌐',
         category: 'l1',
-        tag: 'L1 Native',
+        tag: triGlobal('L1 Native', 'Nativo da L1', 'Nativo de la L1'),
         color: 'from-purple-600 to-indigo-600',
         glow: 'rgba(99,102,241,0.5)',
         available: true,
@@ -52,10 +57,12 @@ const apps = [
     {
         id: 'faucetswap',
         title: 'FaucetSwap DEX',
-        desc: 'The first native DEX. Gasless trading and liquidity.',
+        desc: triGlobal('The first native DEX. Gasless trading and liquidity.',
+              'A primeira DEX nativa. Troca sem gas e liquidez.',
+              'El primer DEX nativo. Intercambio sin gas y liquidez.'),
         icon: '💱',
         category: 'l1',
-        tag: 'Coming Soon',
+        tag: triGlobal('Coming Soon', 'Em breve', 'Pronto'),
         color: 'from-blue-600 to-cyan-500',
         glow: 'rgba(6,182,212,0.5)',
         available: false,
@@ -63,10 +70,12 @@ const apps = [
     {
         id: 'claimnfts',
         title: 'ClaimNFTs',
-        desc: 'An on-chain marketplace for digital collectibles.',
+        desc: triGlobal('An on-chain marketplace for digital collectibles.',
+              'Um marketplace na cadeia para colecionáveis digitais.',
+              'Un marketplace en cadena para coleccionables digitales.'),
         icon: '🖼️',
         category: 'l1',
-        tag: 'Coming Soon',
+        tag: triGlobal('Coming Soon', 'Em breve', 'Pronto'),
         color: 'from-pink-600 to-rose-500',
         glow: 'rgba(244,63,94,0.5)',
         available: false,
@@ -74,10 +83,12 @@ const apps = [
     {
         id: 'faucetinternal',
         title: 'CyberDrip Terminal',
-        desc: 'Gamified L2 faucet. Daily missions, EXP ranking and data interception.',
+        desc: triGlobal('Gamified L2 faucet. Daily missions, EXP ranking and data interception.',
+              'Torneira L2 gamificada. Missões diárias, ranking de EXP e interceptação de dados.',
+              'Grifo L2 gamificado. Misiones diarias, ranking de EXP e interceptación de datos.'),
         icon: '💻',
         category: 'l2',
-        tag: 'L2 Live',
+        tag: triGlobal('L2 Live', 'L2 no ar', 'L2 en el aire'),
         color: 'from-green-500 to-emerald-600',
         glow: 'rgba(16,185,129,0.5)',
         available: true,
@@ -85,10 +96,12 @@ const apps = [
     {
         id: 'retrodrip',
         title: 'Retro Drip L2',
-        desc: 'An 8-bit throwback faucet. Farming through classic arcades and leaderboards.',
+        desc: triGlobal('An 8-bit throwback faucet. Farming through classic arcades and leaderboards.',
+              'Uma torneira com cara de 8 bits. Farm por fliperamas clássicos e placares.',
+              'Un grifo con pinta de 8 bits. Farmeo por arcades clásicos y tablas de posiciones.'),
         icon: '👾',
         category: 'l2',
-        tag: 'L2 Planned',
+        tag: triGlobal('L2 Planned', 'L2 planejada', 'L2 planificada'),
         color: 'from-yellow-500 to-orange-500',
         glow: 'rgba(245,158,11,0.5)',
         available: false,
@@ -100,10 +113,12 @@ const apps = [
         // os usuarios do proprio bolso. O titulo agora e o que a pagina
         // entrega a ele.
         title: 'Connect Your Faucet',
-        desc: 'Already run a faucet? A sponsor funds the rewards. One HTTP call connects it.',
+        desc: triGlobal('Already run a faucet? A sponsor funds the rewards. One HTTP call connects it.',
+              'Já opera uma torneira? Um patrocinador financia as recompensas. Uma chamada HTTP conecta.',
+              '¿Ya opera un grifo? Un patrocinador financia las recompensas. Una llamada HTTP lo conecta.'),
         icon: '🔌',
         category: 'dev',
-        tag: 'Integration',
+        tag: triGlobal('Integration', 'Integração', 'Integración'),
         color: 'from-cyan-600 to-teal-500',
         glow: 'rgba(34,211,238,0.5)',
         available: true,

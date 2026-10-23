@@ -38,6 +38,8 @@ const CONVERTIDOS = [
     'components/ApiDocs.tsx',
     'components/ClaimEventSection.tsx',
     'components/GeneralArticle.tsx',
+    'components/DappsEnvironment.tsx',
+    'components/CodeViewer.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',
