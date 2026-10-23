@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useLanguage } from './LanguageContext';
 
 interface L2ProfileDashboardProps {
     drip: any;
@@ -6,6 +7,7 @@ interface L2ProfileDashboardProps {
 }
 
 export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, onClose }) => {
+    const { tri } = useLanguage();
     const p = drip.profile;
     
     useEffect(() => {
@@ -69,7 +71,8 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
                     <div className="space-y-8 lg:col-span-1">
                         <div>
                             <h3 className="text-sm font-black text-brand-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                                📊 Histograma de Atividade
+                                📊 {tri('Activity Histogram', 'Histograma de atividade',
+                                        'Histograma de actividad')}
                             </h3>
                             <div className="bg-brand-bg/40 p-4 rounded-2xl border border-brand-border/30">
                                 <div className="flex flex-wrap gap-1">
@@ -97,27 +100,36 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
                                     })}
                                 </div>
                                 <div className="mt-3 text-xs text-brand-muted flex justify-between">
-                                    <span>30 days ago</span>
-                                    <span>Hoje</span>
+                                    <span>{tri('30 days ago', '30 dias atrás', 'hace 30 días')}</span>
+                                    <span>{tri('Today', 'Hoje', 'Hoy')}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div>
                             <h3 className="text-sm font-black text-brand-primary uppercase tracking-widest mb-4 flex items-center gap-2">
-                                🔥 Streaks & Stats
+                                🔥 {tri('Streaks & Stats', 'Sequências e números',
+                                        'Rachas y números')}
                             </h3>
                             <div className="space-y-3">
                                 <div className="flex justify-between p-3 bg-brand-bg/40 rounded-xl border border-brand-border/30">
-                                    <span className="text-brand-secondary">Current Streak</span>
-                                    <span className="font-bold text-[#00ff41]">{p.streak_days} dias</span>
+                                    <span className="text-brand-secondary">
+                                        {tri('Current Streak', 'Sequência atual', 'Racha actual')}
+                                    </span>
+                                    <span className="font-bold text-[#00ff41]">
+                                        {p.streak_days} {tri('days', 'dias', 'días')}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between p-3 bg-brand-bg/40 rounded-xl border border-brand-border/30">
-                                    <span className="text-brand-secondary">Total Drips</span>
+                                    <span className="text-brand-secondary">
+                                        {tri('Total Drips', 'Total de drips', 'Total de drips')}
+                                    </span>
                                     <span className="font-bold text-white">{p.total_claims}</span>
                                 </div>
                                 <div className="flex justify-between p-3 bg-brand-bg/40 rounded-xl border border-brand-border/30">
-                                    <span className="text-brand-secondary">Multiplier Atual</span>
+                                    <span className="text-brand-secondary">
+                                        {tri('Current Multiplier', 'Multiplicador atual', 'Multiplicador actual')}
+                                    </span>
                                     <span className="font-bold text-brand-accent">{p.total_multiplier}x</span>
                                 </div>
                             </div>
@@ -128,9 +140,12 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
                     <div className="lg:col-span-2">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-black text-brand-primary uppercase tracking-widest flex items-center gap-2">
-                                🖼️ NFT Inventory (Gamification)
+                                🖼️ {tri('NFT Inventory (Gamification)', 'Inventário de NFT (gamificação)',
+                                        'Inventario de NFT (gamificación)')}
                             </h3>
-                            <span className="text-xs bg-brand-accent/20 text-brand-accent px-2 py-1 rounded">Marketplace Em Breve</span>
+                            <span className="text-xs bg-brand-accent/20 text-brand-accent px-2 py-1 rounded">
+                                {tri('Marketplace soon', 'Marketplace em breve', 'Marketplace pronto')}
+                            </span>
                         </div>
                         
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">

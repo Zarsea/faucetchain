@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCyberDrip } from './useCyberDrip';
 import { L2ProfileDashboard } from './L2ProfileDashboard';
 import { useAuth } from './AuthContext';
+import { useLanguage } from './LanguageContext';
 
 const FAUCET_CREATOR_WALLET = "0x84da71247cbfb0737a9112de1f10dae9823fc298";
 
@@ -22,6 +23,7 @@ const RANK_GRADIENTS: Record<number, string> = {
 interface Props { onBack: () => void; }
 
 export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
+  const { tri } = useLanguage();
   const { userAddress } = useAuth();
   const drip = useCyberDrip(userAddress || "", FAUCET_CREATOR_WALLET);
   const p = drip.profile;
@@ -62,7 +64,11 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
           </div>
           <div>
             <h1 className="text-xl font-black text-green-400 tracking-[0.2em] uppercase text-shadow-glow">CyberDrip Terminal</h1>
-            <p className="text-[10px] text-green-600 uppercase tracking-widest">L2 Gamified Faucet Engine • Root Access</p>
+            <p className="text-[10px] text-green-600 uppercase tracking-widest">
+            {tri('L2 Gamified Faucet Engine • Root Access',
+                 'Motor de torneira gamificada L2 • Acesso root',
+                 'Motor de grifo gamificado L2 • Acceso root')}
+          </p>
           </div>
         </div>
         <div className="flex items-center space-x-6">
@@ -89,10 +95,14 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
           {/* Stats Row HUD */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'L2 BALANCE (VIRTUAL)', value: drip.virtualBalance.toFixed(2), unit: 'CLAIM', color: 'text-green-400', border: 'border-green-500/30', bg: 'bg-green-950/20' },
-              { label: 'RESERVA L1 (TREASURY)', value: drip.faucetReserve.toLocaleString(), unit: 'CLAIM', color: 'text-cyan-400', border: 'border-cyan-500/30', bg: 'bg-cyan-950/20' },
-              { label: 'DAILY STREAK', value: p?.streak_days ?? 0, unit: 'DIAS', color: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-950/20' },
-              { label: 'TOTAL EARNED', value: (p?.total_earned ?? 0).toFixed(1), unit: 'CLAIM', color: 'text-purple-400', border: 'border-purple-500/30', bg: 'bg-purple-950/20' },
+              { label: tri('L2 BALANCE (VIRTUAL)', 'SALDO L2 (VIRTUAL)', 'SALDO L2 (VIRTUAL)'),
+                value: drip.virtualBalance.toFixed(2), unit: 'CLAIM', color: 'text-green-400', border: 'border-green-500/30', bg: 'bg-green-950/20' },
+              { label: tri('L1 RESERVE (TREASURY)', 'RESERVA L1 (TESOURARIA)', 'RESERVA L1 (TESORERÍA)'),
+                value: drip.faucetReserve.toLocaleString(), unit: 'CLAIM', color: 'text-cyan-400', border: 'border-cyan-500/30', bg: 'bg-cyan-950/20' },
+              { label: tri('DAILY STREAK', 'SEQUÊNCIA DIÁRIA', 'RACHA DIARIA'),
+                value: p?.streak_days ?? 0, unit: tri('DAYS', 'DIAS', 'DÍAS'), color: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-950/20' },
+              { label: tri('TOTAL EARNED', 'TOTAL GANHO', 'TOTAL GANADO'),
+                value: (p?.total_earned ?? 0).toFixed(1), unit: 'CLAIM', color: 'text-purple-400', border: 'border-purple-500/30', bg: 'bg-purple-950/20' },
             ].map((s, i) => (
               <div key={i} className={`p-4 rounded-xl border backdrop-blur-md flex flex-col items-center justify-center relative overflow-hidden group ${s.bg} ${s.border}`}>
                 <div className="absolute inset-0 bg-gradient-to-t from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -108,10 +118,12 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
             <div className="bg-black/60 border border-white/10 rounded-xl p-5 backdrop-blur-md">
               <div className="flex justify-between items-center mb-3">
                 <span className={`text-xs font-bold tracking-widest uppercase ${RANK_COLORS[tier].split(' ')[0]}`}>
-                  Rank: {p.rank_name} <span className="text-gray-500">(Tier {tier})</span>
+                  {tri('Rank', 'Patente', 'Rango')}: {p.rank_name}{' '}
+                  <span className="text-gray-500">({tri('Tier', 'Nível', 'Nivel')} {tier})</span>
                 </span>
                 <span className="text-[10px] text-gray-400 uppercase tracking-widest">
-                  {p.total_claims} / {p.next_rank_claims} Claims &rarr; <span className="text-gray-200">{p.next_rank_name}</span>
+                  {p.total_claims} / {p.next_rank_claims} Claims &rarr;{' '}
+                  <span className="text-gray-200">{p.next_rank_name}</span>
                 </span>
               </div>
               <div className="h-2 bg-gray-900 rounded-full overflow-hidden border border-white/5 relative">
@@ -137,7 +149,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-bl-full blur-2xl"></div>
                 <h2 className="text-sm font-black text-green-400 tracking-[0.2em] mb-6 flex items-center">
                   <span className="w-2 h-2 bg-green-500 mr-2 animate-pulse"></span>
-                  DRIP ENGINE
+                  {tri('DRIP ENGINE', 'MOTOR DE DRIP', 'MOTOR DE DRIP')}
                 </h2>
 
                 <div className="mb-5">
@@ -166,7 +178,11 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                         : 'bg-green-900/30 border-green-500 text-green-400 hover:bg-green-800/50 hover:shadow-[0_0_20px_rgba(0,255,65,0.4)]'
                     }`}
                   >
-                    {drip.loading ? 'Processing...' : drip.cooldown > 0 ? `Wait ${drip.cooldown}s` : 'Execute Drip'}
+                    {drip.loading
+                      ? tri('Processing...', 'Processando...', 'Procesando...')
+                      : drip.cooldown > 0
+                        ? `${tri('Wait', 'Espere', 'Espere')} ${drip.cooldown}s`
+                        : tri('Execute Drip', 'Executar drip', 'Ejecutar drip')}
                   </button>
                   
                   <button 
@@ -178,7 +194,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                         : 'bg-gray-900/50 border-gray-800 text-gray-600 cursor-not-allowed'
                     }`}
                   >
-                    Withdraw L1
+                    {tri('Withdraw L1', 'Sacar na L1', 'Retirar en L1')}
                   </button>
                 </div>
 
@@ -203,7 +219,10 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                     {p.active_boosters.map((b, i) => (
                       <div key={i} className="flex justify-between items-center bg-purple-900/20 border border-purple-500/30 rounded-lg p-2 px-3 text-[10px] text-purple-300">
                         <span className="font-bold flex items-center"><span className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-2 animate-pulse"></span> {b.label} ({b.multiplier}x)</span>
-                        <span className="font-mono">{Math.floor(b.remaining_seconds / 60)}m left</span>
+                        <span className="font-mono">
+                          {Math.floor(b.remaining_seconds / 60)}m{' '}
+                          {tri('left', 'restantes', 'restantes')}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -214,7 +233,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
               <div className="bg-black/60 border border-orange-500/30 rounded-xl p-6 backdrop-blur-md">
                 <h2 className="text-sm font-black text-orange-400 tracking-[0.2em] mb-4 flex items-center">
                   <span className="w-2 h-2 bg-orange-500 mr-2 animate-pulse"></span>
-                  DAILY OPS
+                  {tri('DAILY OPS', 'MISSÕES DO DIA', 'MISIONES DEL DÍA')}
                 </h2>
                 <div className="space-y-3">
                   {(p?.missions ?? []).map(m => (

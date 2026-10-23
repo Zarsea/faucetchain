@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNetwork } from './NetworkContext';
 import { SparklesIcon, LoadingIcon, ShieldCheckIcon } from './IconComponents';
+import { useLanguage } from './LanguageContext';
 
 export const NetworkSentinel: React.FC = () => {
     const { metrics, anomaly } = useNetwork();
+    const { tri } = useLanguage();
     const [diagnosis, setDiagnosis] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
 
@@ -18,14 +20,22 @@ export const NetworkSentinel: React.FC = () => {
         }
         setIsAnalyzing(true);
         const reading = [
-            `Block ${metrics.blockHeight} · ${metrics.tps.toFixed(1)} TPS · ${metrics.activeValidators} validators online.`,
+            `${tri('Block', 'Bloco', 'Bloque')} ${metrics.blockHeight} · ${metrics.tps.toFixed(1)} TPS · ${metrics.activeValidators} ${tri('validators online.', 'validadores online.', 'validadores en línea.')}`,
             anomaly.type === 'LOW_TPS'
-                ? 'Throughput fell below the expected band. Usually few miners online, or the hourly quota already spent.'
+                ? tri('Throughput fell below the expected band. Usually few miners online, or the hourly quota already spent.',
+                      'A vazão caiu abaixo da faixa esperada. Em geral é pouco minerador online, ou a cota da hora já gasta.',
+                      'El caudal cayó por debajo de la banda esperada. Suele ser poco minero en línea, o la cuota de la hora ya gastada.')
                 : anomaly.type === 'HIGH_FEES'
-                ? 'Fees rose above the usual band, which points at congestion — a claim burst or a run of transfers.'
+                ? tri('Fees rose above the usual band, which points at congestion — a claim burst or a run of transfers.',
+                      'As taxas subiram acima da faixa usual, o que aponta congestionamento — uma rajada de claims ou uma sequência de transferências.',
+                      'Las comisiones subieron por encima de la banda usual, lo que apunta a congestión — una ráfaga de claims o una seguidilla de transferencias.')
                 : anomaly.type === 'VALIDATOR_DROP'
-                ? 'Validators went offline. The sealer draw stays valid with whoever remains, but fewer nodes means less redundancy.'
-                : 'The metrics left their expected band.',
+                ? tri('Validators went offline. The sealer draw stays valid with whoever remains, but fewer nodes means less redundancy.',
+                      'Validadores saíram do ar. O sorteio do selador continua válido com quem ficou, mas menos nós significa menos redundância.',
+                      'Validadores se cayeron. El sorteo del sellador sigue válido con quien quedó, pero menos nodos significa menos redundancia.')
+                : tri('The metrics left their expected band.',
+                      'As métricas saíram da faixa esperada.',
+                      'Las métricas salieron de su banda esperada.'),
             `Severity: ${anomaly.severity}.`,
         ].join(' ');
         setDiagnosis(reading);
@@ -50,9 +60,14 @@ export const NetworkSentinel: React.FC = () => {
                     <div>
                         <h3 className="text-xl font-bold text-brand-secondary flex items-center gap-2">
                             Network Sentinel
-                            <span className="px-2 py-0.5 bg-brand-bg/50 rounded text-[10px] uppercase tracking-widest text-brand-primary">Live</span>
+                            <span className="px-2 py-0.5 bg-brand-bg/50 rounded text-[10px] uppercase tracking-widest text-brand-primary">
+                                {tri('Live', 'Ao vivo', 'En vivo')}
+                            </span>
                         </h3>
-                        <p className="text-xs text-brand-muted uppercase font-bold tracking-tighter">Monitoring Layer-1 Integrity</p>
+                        <p className="text-xs text-brand-muted uppercase font-bold tracking-tighter">
+                            {tri('Monitoring Layer-1 Integrity', 'Monitorando a integridade da Layer-1',
+                                 'Monitoreando la integridad de la Layer-1')}
+                        </p>
                     </div>
                 </div>
                 {isAnalyzing && <LoadingIcon className="w-6 h-6 animate-spin text-brand-primary" />}
@@ -60,7 +75,9 @@ export const NetworkSentinel: React.FC = () => {
 
             <div className="space-y-4">
                 <div className="p-3 bg-brand-bg/60 rounded-lg border border-brand-border">
-                    <span className="text-[10px] font-black uppercase text-brand-muted block mb-1">Incident Report</span>
+                    <span className="text-[10px] font-black uppercase text-brand-muted block mb-1">
+                        {tri('Incident Report', 'Relato do incidente', 'Informe del incidente')}
+                    </span>
                     <p className="text-brand-secondary font-mono text-sm">{anomaly.description}</p>
                 </div>
 
@@ -69,7 +86,10 @@ export const NetworkSentinel: React.FC = () => {
                         <SparklesIcon className="w-12 h-12" />
                     </div>
                     <span className="text-[10px] font-black uppercase text-brand-primary block mb-2 flex items-center gap-2">
-                        <SparklesIcon className="w-3 h-3" /> Root Cause Diagnosis & Recommendation
+                        <SparklesIcon className="w-3 h-3" />{' '}
+                        {tri('Root Cause Diagnosis & Recommendation',
+                             'Diagnóstico da causa raiz e recomendação',
+                             'Diagnóstico de la causa raíz y recomendación')}
                     </span>
                     {isAnalyzing ? (
                         <div className="space-y-2">

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../apiConfig';
+import { useLanguage } from './LanguageContext';
 
 /**
  * A pagina de integracao para quem ja opera uma torneira web2.
@@ -103,6 +104,7 @@ const Passo: React.FC<{ n: number; titulo: string; children: React.ReactNode }> 
 );
 
 export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
+    const { tri } = useLanguage();
     const [cofres, setCofres] = useState<Cofre[]>([]);
     const [solvencia, setSolvencia] = useState<Solvencia | null>(null);
     const [carregando, setCarregando] = useState(true);
@@ -147,7 +149,10 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                 if (!vivo) return;
                 setCofres(lidos.filter(Boolean) as Cofre[]);
             } catch {
-                if (vivo) setErro('Could not reach the network. These figures are read live, so none is shown rather than showing a stale one.');
+                if (vivo) setErro(tri(
+                    'Could not reach the network. These figures are read live, so none is shown rather than showing a stale one.',
+                    'Não foi possível falar com a rede. Estes números são lidos ao vivo, então nenhum é mostrado em vez de mostrar um velho.',
+                    'No fue posible hablar con la red. Estos números se leen en vivo, así que no se muestra ninguno en lugar de mostrar uno viejo.'));
             } finally {
                 if (vivo) setCarregando(false);
             }
@@ -186,28 +191,39 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                 </button>
 
                 <span className="block text-[11px] font-black uppercase tracking-[0.22em] text-cyan-400 mb-4">
-                    For faucet operators
+                    {tri('For faucet operators', 'Para quem opera torneira',
+                         'Para quien opera un grifo')}
                 </span>
                 <h1 className="text-3xl md:text-5xl font-black tracking-tight leading-[1.08] mb-5">
-                    A sponsor pays your users.<br />You keep your faucet.
+                    {tri('A sponsor pays your users.', 'Um patrocinador paga seus usuários.',
+                         'Un patrocinador paga a sus usuarios.')}<br />
+                    {tri('You keep your faucet.', 'Você continua com a sua torneira.',
+                         'Usted se queda con su grifo.')}
                 </h1>
                 <p className="text-white/60 text-lg leading-relaxed max-w-2xl">
-                    You already have a faucet and you already have users. What you do not have is
-                    somebody else funding the rewards. Campaign sponsors put tokens in a vault on
-                    Solana; your faucet draws from it on every click it already serves. You change
-                    nothing about how your faucet works, and you add one HTTP call.
+                    {tri(
+                        'You already have a faucet and you already have users. What you do not have is somebody else funding the rewards. Campaign sponsors put tokens in a vault on Solana; your faucet draws from it on every click it already serves. You change nothing about how your faucet works, and you add one HTTP call.',
+                        'Você já tem torneira e já tem usuários. O que você não tem é outra pessoa financiando as recompensas. Patrocinadores de campanha põem tokens num cofre na Solana; sua torneira saca dele em cada clique que ela já atende. Você não muda nada em como a torneira funciona, e acrescenta uma chamada HTTP.',
+                        'Usted ya tiene grifo y ya tiene usuarios. Lo que no tiene es a otra persona financiando las recompensas. Los patrocinadores de campaña ponen tokens en una bóveda en Solana; su grifo retira de ella en cada clic que ya atiende. Usted no cambia nada en cómo funciona el grifo, y agrega una llamada HTTP.')}
                 </p>
 
                 {/* 1. O DINHEIRO ---------------------------------------------------- */}
                 <h2 className="mt-16 mb-2 pt-8 border-t border-white/10 text-xl font-black tracking-tight">
-                    The money is already in a vault
+                    {tri('The money is already in a vault', 'O dinheiro já está num cofre',
+                         'El dinero ya está en una bóveda')}
                 </h2>
                 <p className="text-white/50 text-sm leading-relaxed mb-6">
-                    Read live from the chain, not from this page. Open any vault below and count it
-                    yourself before you write a line of code.
+                    {tri(
+                        'Read live from the chain, not from this page. Open any vault below and count it yourself before you write a line of code.',
+                        'Lido ao vivo da cadeia, não desta página. Abra qualquer cofre abaixo e confira você mesmo antes de escrever uma linha de código.',
+                        'Leído en vivo de la cadena, no de esta página. Abra cualquier bóveda de abajo y cuéntela usted mismo antes de escribir una línea de código.')}
                 </p>
 
-                {carregando && <p className="text-white/40 text-sm">Reading the chain…</p>}
+                {carregando && (
+                    <p className="text-white/40 text-sm">
+                        {tri('Reading the chain…', 'Lendo a cadeia…', 'Leyendo la cadena…')}
+                    </p>
+                )}
                 {erro && (
                     <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-200/90 text-sm">
                         {erro}
@@ -215,8 +231,10 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                 )}
                 {!carregando && !erro && cofres.length === 0 && (
                     <div className="p-4 rounded-xl bg-white/[0.03] border border-white/10 text-white/50 text-sm">
-                        No funded campaign is open right now. Nothing is being hidden here — when a
-                        sponsor funds one it appears on this list by itself.
+                        {tri(
+                            'No funded campaign is open right now. Nothing is being hidden here — when a sponsor funds one it appears on this list by itself.',
+                            'Nenhuma campanha com orçamento está aberta agora. Nada está sendo escondido aqui — quando um patrocinador financiar uma, ela aparece nesta lista sozinha.',
+                            'Ninguna campaña con presupuesto está abierta ahora. Nada se está escondiendo aquí — cuando un patrocinador financie una, aparece en esta lista sola.')}
                     </div>
                 )}
 
@@ -236,11 +254,13 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                             </p>
                             <dl className="text-xs space-y-1 text-white/50">
                                 <div className="flex justify-between">
-                                    <dt>Funded by sponsor</dt>
+                                    <dt>{tri('Funded by sponsor', 'Financiado pelo patrocinador',
+                                             'Financiado por el patrocinador')}</dt>
                                     <dd className="tabular-nums text-white/70">{legivel(c.funded, c.decimals)}</dd>
                                 </div>
                                 <div className="flex justify-between">
-                                    <dt>Already paid to users</dt>
+                                    <dt>{tri('Already paid to users', 'Já pago aos usuários',
+                                             'Ya pagado a los usuarios')}</dt>
                                     <dd className="tabular-nums text-white/70">{legivel(c.paid, c.decimals)}</dd>
                                 </div>
                             </dl>
@@ -248,7 +268,8 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                                 href={explorer(c.vault)} target="_blank" rel="noopener noreferrer"
                                 className="mt-4 inline-block text-[11px] font-bold text-cyan-300/80 hover:text-cyan-200 transition-colors"
                             >
-                                Verify this vault on Solana ↗
+                                {tri('Verify this vault on Solana', 'Confira este cofre na Solana',
+                                     'Verifique esta bóveda en Solana')} ↗
                             </a>
                         </div>
                     ))}
@@ -259,12 +280,14 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                     agente aberto, e mandar a integracao inteira para ele de uma vez e
                     mais curto do que ele ler esta pagina por cima do ombro de alguem. */}
                 <h2 className="mt-16 mb-2 pt-8 border-t border-white/10 text-xl font-black tracking-tight">
-                    Hand this to your agent
+                    {tri('Hand this to your agent', 'Entregue isto ao seu agente',
+                         'Entregue esto a su agente')}
                 </h2>
                 <p className="text-white/50 text-sm leading-relaxed mb-5">
-                    One command installs a skill that carries the whole integration: the request
-                    shapes, the webhook signature, and the four mistakes that cost your users
-                    money. Your agent reads it and writes the integration against it.
+                    {tri(
+                        'One command installs a skill that carries the whole integration: the request shapes, the webhook signature, and the four mistakes that cost your users money. Your agent reads it and writes the integration against it.',
+                        'Um comando instala uma skill que carrega a integração inteira: o formato das requisições, a assinatura do webhook, e os quatro erros que custam dinheiro aos seus usuários. Seu agente lê e escreve a integração contra isso.',
+                        'Un comando instala una skill que lleva la integración entera: el formato de las peticiones, la firma del webhook, y los cuatro errores que cuestan dinero a sus usuarios. Su agente la lee y escribe la integración contra ella.')}
                 </p>
                 <Copiavel rotulo="Agent CLI" codigo="npx skills add Zarsea/faucetchain" />
                 <p className="text-white/40 text-xs leading-relaxed mt-3">
@@ -279,17 +302,23 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
 
                 {/* 3. A INTEGRACAO -------------------------------------------------- */}
                 <h2 className="mt-16 mb-2 pt-8 border-t border-white/10 text-xl font-black tracking-tight">
-                    Or build it yourself
+                    {tri('Or build it yourself', 'Ou construa você mesmo',
+                         'O constrúyalo usted mismo')}
                 </h2>
                 <p className="text-white/50 text-sm leading-relaxed mb-8">
-                    One call from the claim handler you already have. No SDK, no wallet in your
-                    backend, no key of ours on your server beyond the API key below.
+                    {tri(
+                        'One call from the claim handler you already have. No SDK, no wallet in your backend, no key of ours on your server beyond the API key below.',
+                        'Uma chamada a partir do handler de claim que você já tem. Sem SDK, sem carteira no seu backend, sem chave nossa no seu servidor além da chave de API abaixo.',
+                        'Una llamada desde el handler de claim que ya tiene. Sin SDK, sin billetera en su backend, sin clave nuestra en su servidor más allá de la clave de API de abajo.')}
                 </p>
 
-                <Passo n={1} titulo="Register your faucet">
+                <Passo n={1} titulo={tri('Register your faucet', 'Registre sua torneira',
+                                         'Registre su grifo')}>
                     <p className="text-white/50 text-sm leading-relaxed mb-3">
-                        Self-serve. The response carries your API key once and never again —
-                        we store only its hash, so nothing can hand it back to you later.
+                        {tri(
+                            'Self-serve. The response carries your API key once and never again — we store only its hash, so nothing can hand it back to you later.',
+                            'Autoatendimento. A resposta traz sua chave de API uma vez e nunca mais — guardamos só o hash dela, então nada consegue devolvê-la a você depois.',
+                            'Autoservicio. La respuesta trae su clave de API una vez y nunca más — guardamos solo su hash, así que nada puede devolvérsela después.')}
                     </p>
                     <Copiavel
                         rotulo="POST /api/faucethub/register"
@@ -301,10 +330,13 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                     />
                 </Passo>
 
-                <Passo n={2} titulo="Call us when you pay a user">
+                <Passo n={2} titulo={tri('Call us when you pay a user', 'Chame a gente quando pagar um usuário',
+                                         'Llámenos cuando pague a un usuario')}>
                     <p className="text-white/50 text-sm leading-relaxed mb-3">
-                        The click you already serve. We credit $CLAIM to that user and draw from
-                        every campaign your faucet carries, in the same call.
+                        {tri(
+                            'The click you already serve. We credit $CLAIM to that user and draw from every campaign your faucet carries, in the same call.',
+                            'O clique que você já atende. Creditamos $CLAIM àquele usuário e sacamos de todas as campanhas que sua torneira carrega, na mesma chamada.',
+                            'El clic que usted ya atiende. Acreditamos $CLAIM a ese usuario y retiramos de todas las campañas que su grifo lleva, en la misma llamada.')}
                     </p>
                     <Copiavel
                         rotulo="POST /api/faucethub/microclaim"
@@ -322,11 +354,14 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                     </p>
                 </Passo>
 
-                <Passo n={3} titulo="Ask what you can pay, before you promise it">
+                <Passo n={3} titulo={tri('Ask what you can pay, before you promise it',
+                                         'Pergunte o que dá para pagar, antes de prometer',
+                                         'Pregunte lo que puede pagar, antes de prometerlo')}>
                     <p className="text-white/50 text-sm leading-relaxed mb-3">
-                        What each campaign pays per click right now, and when it pays nothing, why.
-                        Build your screen from this instead of discovering a dry campaign in the
-                        claim that failed.
+                        {tri(
+                            'What each campaign pays per click right now, and when it pays nothing, why. Build your screen from this instead of discovering a dry campaign in the claim that failed.',
+                            'Quanto cada campanha paga por clique agora, e quando não paga nada, por quê. Monte sua tela a partir disto em vez de descobrir campanha seca no claim que falhou.',
+                            'Cuánto paga cada campaña por clic ahora, y cuando no paga nada, por qué. Arme su pantalla a partir de esto en lugar de descubrir una campaña seca en el claim que falló.')}
                     </p>
                     <Copiavel
                         rotulo="GET /api/faucethub/my-campaigns"
@@ -344,12 +379,14 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
 
                 {/* 3. A CONFIANCA --------------------------------------------------- */}
                 <h2 className="mt-16 mb-2 pt-8 border-t border-white/10 text-xl font-black tracking-tight">
-                    Why you would trust this
+                    {tri('Why you would trust this', 'Por que confiar nisto',
+                         'Por qué confiar en esto')}
                 </h2>
                 <p className="text-white/50 text-sm leading-relaxed mb-6">
-                    The usual answer is a promise. Ours is an endpoint: what every faucet on this
-                    network holds against what it owes its users, published whether it flatters us
-                    or not.
+                    {tri(
+                        'The usual answer is a promise. Ours is an endpoint: what every faucet on this network holds against what it owes its users, published whether it flatters us or not.',
+                        'A resposta de sempre é uma promessa. A nossa é um endpoint: o que cada torneira desta rede guarda contra o que ela deve aos usuários, publicado nos favoreça ou não.',
+                        'La respuesta de siempre es una promesa. La nuestra es un endpoint: lo que cada grifo de esta red guarda contra lo que debe a sus usuarios, publicado nos favorezca o no.')}
                 </p>
 
                 {solvencia && (
@@ -357,11 +394,11 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                         <div className="flex flex-wrap gap-6 mb-5">
                             <div>
                                 <p className="text-2xl font-black tabular-nums">{solvencia.reserve.toLocaleString('en-US')}</p>
-                                <p className="text-white/40 text-[10px] uppercase tracking-[0.14em] font-bold">$CLAIM held</p>
+                                <p className="text-white/40 text-[10px] uppercase tracking-[0.14em] font-bold">{tri('$CLAIM held', '$CLAIM guardado', '$CLAIM guardado')}</p>
                             </div>
                             <div>
                                 <p className="text-2xl font-black tabular-nums">{solvencia.obligations.toLocaleString('en-US')}</p>
-                                <p className="text-white/40 text-[10px] uppercase tracking-[0.14em] font-bold">owed to users</p>
+                                <p className="text-white/40 text-[10px] uppercase tracking-[0.14em] font-bold">{tri('owed to users', 'devido aos usuários', 'debido a los usuarios')}</p>
                             </div>
                             <div>
                                 <p className="text-2xl font-black tabular-nums text-emerald-300">
@@ -381,11 +418,15 @@ export const ConnectYourFaucet: React.FC<Props> = ({ onBack }) => {
                 )}
 
                 <footer className="mt-16 pt-6 border-t border-white/10 text-white/35 text-xs leading-relaxed">
-                    FaucetChain runs as a public testnet and settles campaign tokens on Solana
-                    <strong className="text-white/50"> devnet</strong>. The tokens in the vaults above
-                    are devnet tokens: they are real on the chain and they are not money. Integrate
-                    now to be ready and to shape what this becomes — not for the value of what it
-                    pays today.
+                    {tri('FaucetChain runs as a public testnet and settles campaign tokens on Solana',
+                         'A FaucetChain roda como testnet público e liquida tokens de campanha na',
+                         'FaucetChain funciona como testnet público y liquida tokens de campaña en')}
+                    <strong className="text-white/50"> devnet</strong>
+                    {tri('.', ' da Solana.', ' de Solana.')}{' '}
+                    {tri(
+                        'The tokens in the vaults above are devnet tokens: they are real on the chain and they are not money. Integrate now to be ready and to shape what this becomes — not for the value of what it pays today.',
+                        'Os tokens nos cofres acima são tokens de devnet: eles são reais na cadeia e não são dinheiro. Integre agora para estar pronto e para moldar o que isto vira — não pelo valor do que ele paga hoje.',
+                        'Los tokens en las bóvedas de arriba son tokens de devnet: son reales en la cadena y no son dinero. Integre ahora para estar listo y para moldear en qué se convierte esto — no por el valor de lo que paga hoy.')}
                 </footer>
             </div>
         </div>
