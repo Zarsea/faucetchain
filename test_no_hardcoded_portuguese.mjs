@@ -28,6 +28,7 @@ const CONVERTIDOS = [
     'components/SolanaPayouts.tsx',
     'components/SettlementLedger.tsx',
     'components/Simulation.tsx',
+    'components/PrivacySettings.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',
