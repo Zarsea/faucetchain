@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SectionCard } from './SectionCard';
 import { SignalIcon, CpuChipIcon, CubeIcon, ShieldCheckIcon, BoltIcon } from './IconComponents';
 import { API_BASE_URL, WS_BASE_URL } from '../apiConfig';
-import { dataLocal, horaLocal, numeroLocal } from './LanguageContext';
+import { dataLocal, horaLocal, numeroLocal, triGlobal, useLanguage } from './LanguageContext';
 
 // ── Types ────────────────────────────────────────────────────────
 interface InfraStatus {
@@ -50,6 +50,11 @@ const CONNECTIONS = [
     { from: 'bounty', to: 'database' },
 ];
 
+// Em ingles de proposito. Estes rotulos e as descricoes de cada evento sao
+// montados dentro do `onmessage` do WebSocket, num efeito de dependencias
+// vazias: traduzi-los ali exigiria reconectar o socket a cada troca de idioma.
+// E telemetria operacional, e os termos (Block, Claim, heartbeat, fee) sao os
+// mesmos que aparecem no log do servidor.
 const EVENT_COLORS: Record<string, { color: string; icon: string; label: string }> = {
     CLAIM_SUBMITTED: { color: '#58a6ff', icon: '📥', label: 'Claim Submitted' },
     BLOCK_MINED: { color: '#f78166', icon: '⛏️', label: 'Block Mined' },
@@ -212,7 +217,9 @@ const EventFeed: React.FC<{ events: LiveEvent[] }> = ({ events }) => {
         <div ref={feedRef} className="space-y-1 max-h-[500px] overflow-y-auto pr-1" style={{ scrollBehavior: 'smooth' }}>
             {events.length === 0 && (
                 <div className="text-center py-12 text-brand-muted">
-                    <p className="text-xs uppercase tracking-widest font-bold">Awaiting events...</p>
+                    <p className="text-xs uppercase tracking-widest font-bold">
+                        {tri('Awaiting events...', 'Aguardando eventos...', 'Esperando eventos...')}
+                    </p>
                     <p className="text-[10px] mt-1">Real-time protocol actions will appear here</p>
                 </div>
             )}
@@ -240,6 +247,7 @@ const EventFeed: React.FC<{ events: LiveEvent[] }> = ({ events }) => {
 
 // ── Main Component ──────────────────────────────────────────────
 export const InfrastructureMonitor: React.FC = () => {
+    const { tri } = useLanguage();
     const [infra, setInfra] = useState<InfraStatus | null>(null);
     const [events, setEvents] = useState<LiveEvent[]>([]);
     const [activeConnections, setActiveConnections] = useState<Set<string>>(new Set());
@@ -274,15 +282,34 @@ export const InfrastructureMonitor: React.FC = () => {
                 .map(([name, ms]) => `${name} at ${Math.round(ms as number)}ms`);
 
             const findings: string[] = [];
-            if (slow.length) findings.push(`Slow endpoints: ${slow.join(', ')}. Anything past 500ms will show up as lag in the explorer.`);
-            if (infra?.pendingClaims > 100) findings.push(`${infra.pendingClaims} claims are still pending — the hourly quota may be spent, or the sealer is behind.`);
-            if (infra?.nodesOnline !== undefined && infra.nodesOnline < 2) findings.push(`Only ${infra.nodesOnline} node online: the sealer draw still works, but there is no redundancy behind it.`);
-            if (infra?.dbSizeMb > 500) findings.push(`The database is ${infra.dbSizeMb}MB. Worth archiving old blocks before it starts costing query time.`);
+            if (slow.length) findings.push(
+                `${triGlobal('Slow endpoints', 'Endpoints lentos', 'Endpoints lentos')}: ${slow.join(', ')}. ` +
+                triGlobal('Anything past 500ms will show up as lag in the explorer.',
+                          'Qualquer coisa acima de 500ms aparece como lentidão no explorador.',
+                          'Cualquier cosa por encima de 500ms aparece como lentitud en el explorador.'));
+            if (infra?.pendingClaims > 100) findings.push(
+                `${infra.pendingClaims} ` +
+                triGlobal('claims are still pending — the hourly quota may be spent, or the sealer is behind.',
+                          'claims continuam pendentes — a cota da hora pode estar gasta, ou o selador está atrasado.',
+                          'claims siguen pendientes — la cuota de la hora puede estar gastada, o el sellador está atrasado.'));
+            if (infra?.nodesOnline !== undefined && infra.nodesOnline < 2) findings.push(
+                `${triGlobal('Only', 'Apenas', 'Solo')} ${infra.nodesOnline} ` +
+                triGlobal('node online: the sealer draw still works, but there is no redundancy left.',
+                          'nó online: o sorteio do selador ainda funciona, mas não sobrou redundância.',
+                          'nodo en línea: el sorteo del sellador aún funciona, pero no queda redundancia.'));
+            if (infra?.dbSizeMb > 500) findings.push(
+                `${triGlobal('The database is', 'O banco está com', 'La base está en')} ${infra.dbSizeMb}MB. ` +
+                triGlobal('Worth archiving old blocks before it starts costing query time.',
+                          'Vale arquivar blocos antigos antes que comece a custar tempo de consulta.',
+                          'Vale archivar bloques antiguos antes de que empiece a costar tiempo de consulta.'));
 
             setSentinelInsight(
                 findings.length
                     ? findings.join('\n\n')
-                    : 'Nothing outside its band: endpoints responsive, claims draining, nodes reporting in.'
+                    : triGlobal(
+                        'Nothing outside its band: endpoints responsive, claims draining, nodes reporting in.',
+                        'Nada fora da faixa: endpoints respondendo, claims escoando, nós reportando.',
+                        'Nada fuera de la banda: endpoints respondiendo, claims drenando, nodos reportando.')
             );
             setLastAuditTime(Date.now());
         } catch (error) {
@@ -444,9 +471,15 @@ export const InfrastructureMonitor: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold text-brand-secondary">Infrastructure Monitor</h2>
+                    <h2 className="text-3xl font-bold text-brand-secondary">
+                        {tri('Infrastructure Monitor', 'Monitor de infraestrutura',
+                             'Monitor de infraestructura')}
+                    </h2>
                     <p className="text-brand-muted">
-                        Real-time visualization of all FaucetChain protocol layers and data flow.
+                        {tri(
+                            'Real-time visualization of all FaucetChain protocol layers and data flow.',
+                            'Visualização em tempo real de todas as camadas do protocolo FaucetChain e do fluxo de dados.',
+                            'Visualización en tiempo real de todas las capas del protocolo FaucetChain y del flujo de datos.')}
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -470,7 +503,8 @@ export const InfrastructureMonitor: React.FC = () => {
                 {/* Left: Topology + Status Cards */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Topology Map */}
-                    <SectionCard title="Network Topology" icon={<SignalIcon className="w-5 h-5 text-brand-primary" />}>
+                    <SectionCard title={tri('Network Topology', 'Topologia da rede', 'Topología de la red')}
+                                 icon={<SignalIcon className="w-5 h-5 text-brand-primary" />}>
                         <TopologyMap infra={infra} activeConnections={activeConnections} />
                     </SectionCard>
 
@@ -480,64 +514,66 @@ export const InfrastructureMonitor: React.FC = () => {
                             title="Backend API" icon="⚙️"
                             status={infra?.api.status || 'idle'}
                             metrics={[
-                                { label: 'WS Connections', value: infra?.api.websocket_connections ?? 0 },
-                                { label: 'Vector DB', value: infra?.api.vector_db || '—' },
-                                { label: 'Fraud Detector', value: infra?.api.fraud_detector || '—' },
-                                { label: 'Latency', value: latencies.api ? `${latencies.api}ms` : '—' },
+                                { label: tri('WS Connections', 'Conexões WS', 'Conexiones WS'), value: infra?.api.websocket_connections ?? 0 },
+                                { label: tri('Vector DB', 'Banco vetorial', 'Base vectorial'), value: infra?.api.vector_db || '—' },
+                                { label: tri('Fraud Detector', 'Detector de fraude', 'Detector de fraude'), value: infra?.api.fraud_detector || '—' },
+                                { label: tri('Latency', 'Latência', 'Latencia'), value: latencies.api ? `${latencies.api}ms` : '—' },
                             ]}
                         />
                         <StatusCard
                             title="Mining Network" icon="⛏️"
                             status={infra?.mining.status || 'idle'}
                             metrics={[
-                                { label: 'Nodes Online', value: infra?.mining.nodes_online ?? 0 },
-                                { label: 'Total Mined', value: `${infra?.mining.total_mined ?? 0} $C` },
-                                { label: 'Pending Claims', value: infra?.mining.pending_claims ?? 0 },
-                                { label: 'Latency', value: latencies.mining ? `${latencies.mining}ms` : '—' },
+                                { label: tri('Nodes Online', 'Nós online', 'Nodos en línea'), value: infra?.mining.nodes_online ?? 0 },
+                                { label: tri('Total Mined', 'Total minerado', 'Total minado'), value: `${infra?.mining.total_mined ?? 0} $C` },
+                                { label: tri('Pending Claims', 'Claims pendentes', 'Claims pendientes'), value: infra?.mining.pending_claims ?? 0 },
+                                { label: tri('Latency', 'Latência', 'Latencia'), value: latencies.mining ? `${latencies.mining}ms` : '—' },
                             ]}
                         />
                         <StatusCard
                             title="Staking Vault" icon="🔒"
                             status={infra?.staking.status || 'idle'}
                             metrics={[
-                                { label: 'Positions', value: infra?.staking.active_positions ?? 0 },
-                                { label: 'Total Locked', value: `${infra?.staking.total_locked ?? 0} $C` },
-                                { label: 'Latency', value: latencies.staking ? `${latencies.staking}ms` : '—' },
-                                { label: 'Last Action', value: infra?.staking.last_action ? dataLocal(infra.staking.last_action * 1000) : '—' },
+                                { label: tri('Positions', 'Posições', 'Posiciones'), value: infra?.staking.active_positions ?? 0 },
+                                { label: tri('Total Locked', 'Total travado', 'Total bloqueado'), value: `${infra?.staking.total_locked ?? 0} $C` },
+                                { label: tri('Latency', 'Latência', 'Latencia'), value: latencies.staking ? `${latencies.staking}ms` : '—' },
+                                { label: tri('Last Action', 'Última ação', 'Última acción'), value: infra?.staking.last_action ? dataLocal(infra.staking.last_action * 1000) : '—' },
                             ]}
                         />
                         <StatusCard
                             title="Bounty Board" icon="⚡"
                             status={infra?.bounty.status || 'idle'}
                             metrics={[
-                                { label: 'Open', value: infra?.bounty.open_bounties ?? 0 },
-                                { label: 'Claimed', value: infra?.bounty.claimed_pending ?? 0 },
-                                { label: 'Distributed', value: `${infra?.bounty.total_distributed ?? 0} $C` },
-                                { label: 'Latency', value: latencies.bounty ? `${latencies.bounty}ms` : '—' },
+                                { label: tri('Open', 'Abertas', 'Abiertas'), value: infra?.bounty.open_bounties ?? 0 },
+                                { label: tri('Claimed', 'Aceitas', 'Aceptadas'), value: infra?.bounty.claimed_pending ?? 0 },
+                                { label: tri('Distributed', 'Distribuído', 'Distribuido'), value: `${infra?.bounty.total_distributed ?? 0} $C` },
+                                { label: tri('Latency', 'Latência', 'Latencia'), value: latencies.bounty ? `${latencies.bounty}ms` : '—' },
                             ]}
                         />
                         <StatusCard
                             title="Sentinel AI" icon="🛡️"
                             status={infra?.sentinel.status || 'disabled'}
                             metrics={[
-                                { label: 'KB Docs', value: infra?.sentinel.vector_db_docs ?? 0 },
-                                { label: 'Engine', value: infra?.sentinel.status === 'active' ? 'FraudDetector' : 'Offline' },
+                                { label: tri('KB Docs', 'Docs da base', 'Docs de la base'), value: infra?.sentinel.vector_db_docs ?? 0 },
+                                { label: tri('Engine', 'Motor', 'Motor'), value: infra?.sentinel.status === 'active' ? 'FraudDetector' : tri('Offline', 'Fora do ar', 'Fuera de línea') },
                             ]}
                         />
                         <StatusCard
                             title="SQLite Database" icon="💾"
                             status={infra?.database.status || 'idle'}
                             metrics={[
-                                { label: 'Blocks', value: numeroLocal(infra?.database.blocks) ?? 0 },
-                                { label: 'Transactions', value: numeroLocal(infra?.database.transactions) ?? 0 },
-                                { label: 'Claims', value: numeroLocal(infra?.database.claims) ?? 0 },
+                                { label: tri('Blocks', 'Blocos', 'Bloques'), value: numeroLocal(infra?.database.blocks) ?? 0 },
+                                { label: tri('Transactions', 'Transações', 'Transacciones'), value: numeroLocal(infra?.database.transactions) ?? 0 },
+                                { label: tri('Claims', 'Claims', 'Claims'), value: numeroLocal(infra?.database.claims) ?? 0 },
                                 { label: 'DB Size', value: `${infra?.database.size_mb ?? 0} MB` },
                             ]}
                         />
                     </div>
 
                     {/* Latency Matrix */}
-                    <SectionCard title="Endpoint Health Matrix" icon={<CpuChipIcon className="w-5 h-5" />}>
+                    <SectionCard title={tri('Endpoint Health Matrix', 'Matriz de saúde dos endpoints',
+                                             'Matriz de salud de los endpoints')}
+                                 icon={<CpuChipIcon className="w-5 h-5" />}>
                         <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                             {Object.entries(latencies).map(([key, value]) => {
                                 const ms = typeof value === 'number' ? value : Number(value) || 0;
@@ -553,7 +589,9 @@ export const InfrastructureMonitor: React.FC = () => {
                     </SectionCard>
 
                     {/* Sentinel AI Audit */}
-                    <SectionCard title="Sentinel AI Network Audit" icon={<ShieldCheckIcon className="w-5 h-5 text-brand-primary" />}>
+                    <SectionCard title={tri('Sentinel AI Network Audit', 'Auditoria da rede pela IA Sentinela',
+                                             'Auditoría de la red por la IA Centinela')}
+                                 icon={<ShieldCheckIcon className="w-5 h-5 text-brand-primary" />}>
                         <div className="bg-[#0d1117] border border-brand-border/30 rounded-xl p-5 relative overflow-hidden group hover:border-brand-primary/40 transition-colors duration-300">
                             <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary/50 shadow-[0_0_10px_rgba(88,166,255,0.8)]" />
                             <div className="flex items-center justify-between mb-4">
@@ -565,7 +603,8 @@ export const InfrastructureMonitor: React.FC = () => {
                                 </div>
                                 {lastAuditTime && (
                                     <span className="text-[10px] text-brand-muted font-mono bg-brand-surface px-2 py-1 rounded">
-                                        Last Scan: {horaLocal(lastAuditTime)}
+                                        {tri('Last Scan', 'Última varredura', 'Último escaneo')}:{' '}
+                                        {horaLocal(lastAuditTime)}
                                     </span>
                                 )}
                             </div>
@@ -574,7 +613,10 @@ export const InfrastructureMonitor: React.FC = () => {
                                 {isAnalyzing && !sentinelInsight ? (
                                     <div className="flex flex-col items-center justify-center h-full text-brand-primary py-8 space-y-3">
                                         <ShieldCheckIcon className="w-8 h-8 animate-pulse" />
-                                        <span className="text-xs font-mono text-brand-primary/70 animate-pulse">Running Neural Inference...</span>
+                                        <span className="text-xs font-mono text-brand-primary/70 animate-pulse">
+                                            {tri('Running Neural Inference...', 'Rodando inferência neural...',
+                                                 'Ejecutando inferencia neuronal...')}
+                                        </span>
                                     </div>
                                 ) : sentinelInsight ? (
                                     <div className="text-sm text-brand-secondary leading-relaxed font-mono whitespace-pre-wrap animate-fadeIn">
@@ -583,7 +625,11 @@ export const InfrastructureMonitor: React.FC = () => {
                                 ) : (
                                     <div className="text-sm text-brand-muted italic py-8 text-center flex flex-col items-center space-y-2">
                                         <CpuChipIcon className="w-6 h-6 opacity-50" />
-                                        <span>Waiting for initial system data stream...</span>
+                                        <span>
+                                            {tri('Waiting for initial system data stream...',
+                                                 'Esperando o primeiro fluxo de dados do sistema...',
+                                                 'Esperando el primer flujo de datos del sistema...')}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -593,7 +639,8 @@ export const InfrastructureMonitor: React.FC = () => {
 
                 {/* Right: Live Event Feed */}
                 <div className="lg:col-span-1">
-                    <SectionCard title="Live Event Feed" icon={<BoltIcon className="w-5 h-5 text-brand-accent" />} className="sticky top-4">
+                    <SectionCard title={tri('Live Event Feed', 'Eventos ao vivo', 'Eventos en vivo')}
+                                 icon={<BoltIcon className="w-5 h-5 text-brand-accent" />} className="sticky top-4">
                         <EventFeed events={events} />
                     </SectionCard>
                 </div>

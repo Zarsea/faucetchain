@@ -33,6 +33,7 @@ const CONVERTIDOS = [
     'components/NetworkSentinel.tsx',
     'components/ConnectYourFaucet.tsx',
     'components/FaucetInternal.tsx',
+    'components/InfrastructureMonitor.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',
@@ -44,7 +45,9 @@ const CONVERTIDOS = [
 /** Trechos [inicio, fim) de cada chamada `tri(`, com parênteses equilibrados. */
 function faixasDeTri(fonte) {
     const faixas = [];
-    const re = /\btri\s*\(/g;
+    // triGlobal conta como tri: e a mesma funcao para quem nao pode chamar o
+    // hook, e o texto dentro dela esta igualmente traduzido.
+    const re = /\btri(Global)?\s*\(/g;
     let m;
     while ((m = re.exec(fonte)) !== null) {
         let nivel = 0;

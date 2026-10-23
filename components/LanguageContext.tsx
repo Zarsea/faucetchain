@@ -40,6 +40,23 @@ export const localeDoIdioma = (lang: string) =>
 // formato acompanha sem ninguem precisar assinar nada.
 const idiomaAtual = () => (i18nSingleton.language as string) || 'en';
 
+/** `tri` para quem não pode chamar o hook.
+ *
+ * O `tri` do contexto é recriado a cada render do provedor, então pô-lo nas
+ * dependências de um `useCallback` faz a função mudar de identidade sempre. No
+ * InfrastructureMonitor isso reiniciaria o temporizador de 5 segundos a cada
+ * render e a auditoria nunca rodaria — um congelamento silencioso, causado por
+ * tentar traduzir.
+ *
+ * Esta versão lê o idioma na hora da chamada e não participa de dependência
+ * nenhuma. O preço é que texto já gerado e guardado em estado continua no
+ * idioma de quando foi gerado, até ser gerado de novo.
+ */
+export const triGlobal = (en: string, pt: string, es?: string) => {
+    const l = idiomaAtual();
+    return l === 'pt' ? pt : l === 'es' ? (es ?? en) : en;
+};
+
 /** Só a data: 23/10/2026, 10/23/2026 ou 23/10/2026, conforme o idioma. */
 export const dataLocal = (ms: number) =>
     new Date(ms).toLocaleDateString(localeDoIdioma(idiomaAtual()));
