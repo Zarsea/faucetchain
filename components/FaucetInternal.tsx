@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useCyberDrip } from './useCyberDrip';
 import { L2ProfileDashboard } from './L2ProfileDashboard';
 import { useAuth } from './AuthContext';
-import { useLanguage } from './LanguageContext';
+import { numeroLocal, useLanguage } from './LanguageContext';
 
 const FAUCET_CREATOR_WALLET = "0x84da71247cbfb0737a9112de1f10dae9823fc298";
 
@@ -98,7 +98,7 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
               { label: tri('L2 BALANCE (VIRTUAL)', 'SALDO L2 (VIRTUAL)', 'SALDO L2 (VIRTUAL)'),
                 value: drip.virtualBalance.toFixed(2), unit: 'CLAIM', color: 'text-green-400', border: 'border-green-500/30', bg: 'bg-green-950/20' },
               { label: tri('L1 RESERVE (TREASURY)', 'RESERVA L1 (TESOURARIA)', 'RESERVA L1 (TESORERÍA)'),
-                value: drip.faucetReserve.toLocaleString(), unit: 'CLAIM', color: 'text-cyan-400', border: 'border-cyan-500/30', bg: 'bg-cyan-950/20' },
+                value: numeroLocal(drip.faucetReserve), unit: 'CLAIM', color: 'text-cyan-400', border: 'border-cyan-500/30', bg: 'bg-cyan-950/20' },
               { label: tri('DAILY STREAK', 'SEQUÊNCIA DIÁRIA', 'RACHA DIARIA'),
                 value: p?.streak_days ?? 0, unit: tri('DAYS', 'DIAS', 'DÍAS'), color: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-950/20' },
               { label: tri('TOTAL EARNED', 'TOTAL GANHO', 'TOTAL GANADO'),

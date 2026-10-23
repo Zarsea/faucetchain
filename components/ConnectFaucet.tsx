@@ -19,7 +19,7 @@ import {
     LoadingIcon, ChartBarIcon, SignalIcon,
 } from './IconComponents';
 import { useAuth } from './AuthContext';
-import { useLanguage } from './LanguageContext';
+import { dataLocal, numeroLocal, useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
 
 interface MyFaucet {
@@ -252,12 +252,12 @@ export const ConnectFaucet: React.FC = () => {
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{pt ? 'Volume liquidado' : 'Volume settled'}</p>
-                                        <p className="font-mono text-lg font-black text-white tabular-nums">{f.volume_settled.toLocaleString()}</p>
+                                        <p className="font-mono text-lg font-black text-white tabular-nums">{numeroLocal(f.volume_settled)}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{pt ? 'Registrada em' : 'Registered'}</p>
                                         <p className="font-mono text-sm text-brand-secondary pt-1">
-                                            {new Date(f.registered_at * 1000).toLocaleDateString()}
+                                            {dataLocal(f.registered_at * 1000)}
                                         </p>
                                     </div>
                                 </div>

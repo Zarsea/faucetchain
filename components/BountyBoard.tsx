@@ -12,7 +12,7 @@ import {
     ChartBarIcon
 } from './IconComponents';
 import { useAuth, sessionHeaders } from './AuthContext';
-import { useLanguage } from './LanguageContext';
+import { numeroLocal, useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
 
 interface Bounty {
@@ -206,8 +206,8 @@ export const BountyBoard: React.FC = () => {
                         { label: tri('Total Bounties', 'Total', 'Total'), value: stats.totalBounties.toString(), icon: <CubeIcon className="w-5 h-5" /> },
                         { label: tri('Open', 'Abertas', 'Abiertas'), value: stats.openBounties.toString(), icon: <SignalIcon className="w-5 h-5 text-green-400" /> },
                         { label: tri('Completed', 'Concluídas', 'Completadas'), value: stats.completedBounties.toString(), icon: <ShieldCheckIcon className="w-5 h-5 text-brand-primary" /> },
-                        { label: tri('CLAIM Locked', 'CLAIM Travados', 'CLAIM Bloqueados'), value: `${stats.lockedRewards.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-yellow-400" /> },
-                        { label: tri('CLAIM Paid', 'CLAIM Pagos', 'CLAIM Pagados'), value: `${stats.paidRewards.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
+                        { label: tri('CLAIM Locked', 'CLAIM Travados', 'CLAIM Bloqueados'), value: `${numeroLocal(stats.lockedRewards)}`, icon: <ChartBarIcon className="w-5 h-5 text-yellow-400" /> },
+                        { label: tri('CLAIM Paid', 'CLAIM Pagos', 'CLAIM Pagados'), value: `${numeroLocal(stats.paidRewards)}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
                     ].map((stat, i) => (
                         <div key={i} className="glass border border-brand-border/50 rounded-2xl p-5 hover:border-brand-primary/30 transition-colors">
                             <div className="flex items-center gap-2 mb-2 text-brand-muted">{stat.icon}

@@ -12,7 +12,7 @@ import {
     BookOpenIcon
 } from './IconComponents';
 import { useNetwork } from './NetworkContext';
-import { useLanguage } from './LanguageContext';
+import { horaLocal, useLanguage } from './LanguageContext';
 import { LocalIntelligence } from './LocalIntelligence';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -291,7 +291,7 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                                 <div className="whitespace-pre-wrap">{msg.text}</div>
                                 <div className="h-px w-full bg-brand-border/30 my-2"></div>
                                 <span className="text-[9px] font-bold uppercase tracking-widest font-mono opacity-50">
-                                    {new Date(msg.timestamp).toLocaleTimeString()}
+                                    {horaLocal(msg.timestamp)}
                                 </span>
                                 {msg.sender === 'ai' && msg.patternId && SUGGESTIONS_BY_PATTERN[msg.patternId] && (
                                     <div className="flex flex-wrap gap-2 mt-3">

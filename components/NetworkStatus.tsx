@@ -4,7 +4,7 @@ import { SectionCard } from './SectionCard';
 import { SignalIcon, CubeIcon, ChartBarIcon, BeakerIcon } from './IconComponents';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, AreaChart, Area } from 'recharts';
 import { useNetwork } from './NetworkContext';
-import { useLanguage, localeDoIdioma } from './LanguageContext';
+import { localeDoIdioma, numeroLocal, useLanguage } from './LanguageContext';
 import { NetworkSentinel } from './NetworkSentinel';
 import { verifyBlockHashMerkleProof } from '../utils/merkle';
 import { API_BASE_URL } from '../apiConfig';
@@ -194,7 +194,7 @@ export const NetworkStatus: React.FC = () => {
                 ))}
                 {totais && (
                     <span className="text-[11px] text-brand-muted ml-auto tabular">
-                        {totais.txs.toLocaleString()} transactions in {totais.blocos.toLocaleString()} blocks
+                        {numeroLocal(totais.txs)} transactions in {numeroLocal(totais.blocos)} blocks
                     </span>
                 )}
             </div>

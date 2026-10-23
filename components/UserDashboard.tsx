@@ -16,7 +16,7 @@ import {
     SignalIcon
 } from './IconComponents';
 import { useAuth } from './AuthContext';
-import { useLanguage } from './LanguageContext';
+import { dataHoraLocal, useLanguage } from './LanguageContext';
 import { useNetwork } from './NetworkContext';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -293,21 +293,21 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                     allData.push(...txData.map((tx: any) => ({
                         id: tx.hash, type: tx.from_address?.toLowerCase() === userAddress.toLowerCase() ? 'SEND' : 'RECEIVE',
                         amount: tx.value, status: 'Confirmed',
-                        time: new Date(tx.timestamp * 1000).toLocaleString(), timestamp: tx.timestamp, hash: tx.hash
+                        time: dataHoraLocal(tx.timestamp * 1000), timestamp: tx.timestamp, hash: tx.hash
                     })));
                 }
                 if (resClaims.ok) {
                     const claimsData = await resClaims.json();
                     allData.push(...claimsData.map((c: any) => ({
                         id: c.tx_hash, type: 'MINT', amount: c.amount, status: 'Confirmed',
-                        time: new Date(c.timestamp * 1000).toLocaleString(), timestamp: c.timestamp, hash: c.tx_hash
+                        time: dataHoraLocal(c.timestamp * 1000), timestamp: c.timestamp, hash: c.tx_hash
                     })));
                 }
                 if (resMining.ok) {
                     const miningData = await resMining.json();
                     allData.push(...miningData.map((m: any) => ({
                         id: `mining_${m.epoch_id}`, type: 'MINING', amount: m.reward_amount, status: 'Confirmed',
-                        time: new Date(m.distributed_at * 1000).toLocaleString(), timestamp: m.distributed_at, hash: `Epoch #${m.epoch_id}`
+                        time: dataHoraLocal(m.distributed_at * 1000), timestamp: m.distributed_at, hash: `Epoch #${m.epoch_id}`
                     })));
                 }
                 allData.sort((a, b) => b.timestamp - a.timestamp);

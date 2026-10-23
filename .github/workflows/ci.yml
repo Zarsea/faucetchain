@@ -87,6 +87,9 @@ jobs:
       - name: A translated screen does not grow new Portuguese
         run: node test_no_hardcoded_portuguese.mjs
 
+      - name: Dates follow the language the reader picked, not the browser
+        run: node test_locale_do_app.mjs
+
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
 

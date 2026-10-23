@@ -12,7 +12,7 @@ import {
     BoltIcon
 } from './IconComponents';
 import { useAuth } from './AuthContext';
-import { useLanguage } from './LanguageContext';
+import { dataLocal, numeroLocal, useLanguage } from './LanguageContext';
 import { API_BASE_URL } from '../apiConfig';
 
 interface MiningStats {
@@ -177,9 +177,9 @@ export const MiningHub: React.FC = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                         { label: tri('Nodes Online', 'Nós Online', 'Nodos en Línea'), value: stats.nodesOnline.toString(), icon: <SignalIcon className="w-5 h-5 text-green-400" />, highlight: true },
-                        { label: tri('CLAIM/Hour', 'CLAIM/Hora', 'CLAIM/Hora'), value: stats.epochReward.toLocaleString(), icon: <BoltIcon className="w-5 h-5 text-yellow-400" /> },
+                        { label: tri('CLAIM/Hour', 'CLAIM/Hora', 'CLAIM/Hora'), value: numeroLocal(stats.epochReward), icon: <BoltIcon className="w-5 h-5 text-yellow-400" /> },
                         { label: tri('Est. per Node', 'Est. por Nó', 'Est. por Nodo'), value: `${stats.estimatedRewardPerNode}`, icon: <SparklesIcon className="w-5 h-5 text-brand-primary" /> },
-                        { label: tri('Total Distributed', 'Total Distribuído', 'Total Distribuido'), value: `${stats.totalDistributed.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
+                        { label: tri('Total Distributed', 'Total Distribuído', 'Total Distribuido'), value: `${numeroLocal(stats.totalDistributed)}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
                     ].map((s, i) => (
                         <div key={i} className={`glass border rounded-2xl p-5 transition-all hover:border-brand-primary/30 ${
                             s.highlight ? 'border-green-500/30 bg-green-500/5' : 'border-brand-border/50'
@@ -244,7 +244,7 @@ export const MiningHub: React.FC = () => {
                                                  style={{ width: `${Math.max(n.share * 100, 0.4)}%` }} />
                                         </div>
                                         <p className="mt-2 text-[11px] text-brand-muted font-mono">
-                                            stake {n.stake.toLocaleString()} -&gt; {tri('weight', 'peso', 'peso')} {n.weight.toLocaleString()}
+                                            stake {numeroLocal(n.stake)} -&gt; {tri('weight', 'peso', 'peso')} {numeroLocal(n.weight)}
                                         </p>
                                     </div>
                                 ))}
@@ -272,7 +272,7 @@ export const MiningHub: React.FC = () => {
                                     </p>
                                     <p className="text-sm font-mono text-brand-secondary pt-1">
                                         {sealer.tip.sealed_at
-                                            ? new Date(sealer.tip.sealed_at * 1000).toLocaleDateString()
+                                            ? dataLocal(sealer.tip.sealed_at * 1000)
                                             : '-'}
                                     </p>
                                 </div>
@@ -423,7 +423,7 @@ export const MiningHub: React.FC = () => {
                         { param: tri('Epoch Duration', 'Duração do Epoch', 'Duración del Epoch'),
                           value: stats ? `${Math.round(stats.epochDuration / 60)} min` : '—' },
                         { param: tri('Mining pool/epoch', 'Pool da mineração/epoch', 'Pool de minería/epoch'),
-                          value: stats ? `${stats.epochReward.toLocaleString()} CLAIM` : '—' },
+                          value: stats ? `${numeroLocal(stats.epochReward)} CLAIM` : '—' },
                         { param: 'Heartbeat', value: stats ? `${stats.heartbeatInterval}s` : '—' },
                         { param: 'Timeout', value: '90s' },
                         { param: tri('Max Nodes/Wallet', 'Max Nós/Wallet', 'Max Nodos/Billetera'), value: '3' },

@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import i18nSingleton from 'i18next';
 
 type Language = 'en' | 'pt' | 'es';
 
@@ -20,6 +21,48 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 // do componente, onde nao da para chamar o hook.
 export const localeDoIdioma = (lang: string) =>
     lang === 'pt' ? 'pt-BR' : lang === 'es' ? 'es-ES' : 'en-US';
+
+// ─── Formato que segue o idioma do app, e nao o do navegador ────────────────
+//
+// `toLocaleDateString()` sem argumento usa o locale do SISTEMA. Isso ignora o
+// seletor de idioma inteiro: alguem lendo em portugues num Chrome instalado em
+// ingles via 03/10 e nao tinha como saber se era 3 de outubro ou 10 de marco.
+// Data ambigua nao e feiura, e informacao errada.
+//
+// Nos numeros o efeito e menor mas e o mesmo: 1.695 virando "1,695".
+//
+// Estes helpers leem `i18n.language` direto, sem hook, porque metade dos
+// lugares que formatam esta fora de um componente ou dentro de um `.map` que
+// nao tem `lang` por perto. Passar o idioma a trinta e nove chamadas daria o
+// mesmo resultado com trinta e nove chances de esquecer uma.
+//
+// A troca de idioma re-renderiza o provedor e com ele a arvore, entao o
+// formato acompanha sem ninguem precisar assinar nada.
+const idiomaAtual = () => (i18nSingleton.language as string) || 'en';
+
+/** Só a data: 23/10/2026, 10/23/2026 ou 23/10/2026, conforme o idioma. */
+export const dataLocal = (ms: number) =>
+    new Date(ms).toLocaleDateString(localeDoIdioma(idiomaAtual()));
+
+/** Só a hora. */
+export const horaLocal = (ms: number) =>
+    new Date(ms).toLocaleTimeString(localeDoIdioma(idiomaAtual()));
+
+/** Data e hora juntas. */
+export const dataHoraLocal = (ms: number) =>
+    new Date(ms).toLocaleString(localeDoIdioma(idiomaAtual()));
+
+/** Número com o separador de milhar do idioma.
+ *
+ * Aceita nulo e devolve `undefined` porque vários lugares chamavam isto com
+ * encadeamento opcional — `infra?.database.blocks?.toLocaleString()` — que
+ * curto-circuita quando o dado ainda não chegou e, em JSX, não renderiza nada.
+ * Exigir número aqui trocaria esse silêncio por um erro em tela toda vez que a
+ * API demorasse.
+ */
+export const numeroLocal = (n: number | null | undefined,
+                            opcoes?: Intl.NumberFormatOptions) =>
+    n == null ? undefined : n.toLocaleString(localeDoIdioma(idiomaAtual()), opcoes);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { t, i18n } = useTranslation();

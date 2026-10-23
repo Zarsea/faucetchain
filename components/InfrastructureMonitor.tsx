@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SectionCard } from './SectionCard';
 import { SignalIcon, CpuChipIcon, CubeIcon, ShieldCheckIcon, BoltIcon } from './IconComponents';
 import { API_BASE_URL, WS_BASE_URL } from '../apiConfig';
+import { dataLocal, horaLocal, numeroLocal } from './LanguageContext';
 
 // ── Types ────────────────────────────────────────────────────────
 interface InfraStatus {
@@ -223,7 +224,7 @@ const EventFeed: React.FC<{ events: LiveEvent[] }> = ({ events }) => {
                     <div className="flex-1 min-w-0">
                         <p className="text-xs text-brand-secondary truncate">{ev.description}</p>
                         <p className="text-[9px] text-brand-muted font-mono mt-0.5">
-                            {new Date(ev.timestamp * 1000).toLocaleTimeString()}
+                            {horaLocal(ev.timestamp * 1000)}
                         </p>
                     </div>
                     <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full flex-shrink-0"
@@ -502,7 +503,7 @@ export const InfrastructureMonitor: React.FC = () => {
                                 { label: 'Positions', value: infra?.staking.active_positions ?? 0 },
                                 { label: 'Total Locked', value: `${infra?.staking.total_locked ?? 0} $C` },
                                 { label: 'Latency', value: latencies.staking ? `${latencies.staking}ms` : '—' },
-                                { label: 'Last Action', value: infra?.staking.last_action ? new Date(infra.staking.last_action * 1000).toLocaleDateString() : '—' },
+                                { label: 'Last Action', value: infra?.staking.last_action ? dataLocal(infra.staking.last_action * 1000) : '—' },
                             ]}
                         />
                         <StatusCard
@@ -527,9 +528,9 @@ export const InfrastructureMonitor: React.FC = () => {
                             title="SQLite Database" icon="💾"
                             status={infra?.database.status || 'idle'}
                             metrics={[
-                                { label: 'Blocks', value: infra?.database.blocks?.toLocaleString() ?? 0 },
-                                { label: 'Transactions', value: infra?.database.transactions?.toLocaleString() ?? 0 },
-                                { label: 'Claims', value: infra?.database.claims?.toLocaleString() ?? 0 },
+                                { label: 'Blocks', value: numeroLocal(infra?.database.blocks) ?? 0 },
+                                { label: 'Transactions', value: numeroLocal(infra?.database.transactions) ?? 0 },
+                                { label: 'Claims', value: numeroLocal(infra?.database.claims) ?? 0 },
                                 { label: 'DB Size', value: `${infra?.database.size_mb ?? 0} MB` },
                             ]}
                         />
@@ -564,7 +565,7 @@ export const InfrastructureMonitor: React.FC = () => {
                                 </div>
                                 {lastAuditTime && (
                                     <span className="text-[10px] text-brand-muted font-mono bg-brand-surface px-2 py-1 rounded">
-                                        Last Scan: {new Date(lastAuditTime).toLocaleTimeString()}
+                                        Last Scan: {horaLocal(lastAuditTime)}
                                     </span>
                                 )}
                             </div>

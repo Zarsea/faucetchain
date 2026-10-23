@@ -5,7 +5,7 @@ import { YAML_CODE, diagrams } from '../constants';
 import { SectionCard } from './SectionCard';
 import { CreditCardIcon, SignalIcon, ChartBarIcon, CubeIcon, BookOpenIcon, BoltIcon, ChartPieIcon } from './IconComponents';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Area, AreaChart } from 'recharts';
-import { useLanguage } from './LanguageContext';
+import { numeroLocal, useLanguage } from './LanguageContext';
 import { MermaidDiagram } from './MermaidDiagram';
 import { API_BASE_URL } from '../apiConfig';
 
@@ -73,7 +73,7 @@ const VaultDataWidget = ({ vault }: { vault: any }) => {
         <div className="mt-4 p-4 border border-brand-primary/30 rounded-xl bg-brand-bg/50 hover:border-brand-primary/50 transition-colors">
             <div className="flex justify-between items-center mb-4">
                 <span className="text-[10px] text-brand-muted font-black uppercase tracking-widest">Treasury Balance</span>
-                <span className="text-xl font-black text-brand-primary font-mono">{(vault.totalExternalValue || 0).toLocaleString()} <span className="text-sm text-brand-muted">$CLAIM</span></span>
+                <span className="text-xl font-black text-brand-primary font-mono">{numeroLocal((vault.totalExternalValue || 0))} <span className="text-sm text-brand-muted">$CLAIM</span></span>
             </div>
             <div className="space-y-2">
                 {vault.assets?.map((a: any, i: number) => (
@@ -82,7 +82,7 @@ const VaultDataWidget = ({ vault }: { vault: any }) => {
                             <div className={`w-1.5 h-1.5 rounded-full ${a.symbol === 'TREASURY_CLAIM' ? 'bg-brand-primary' : 'bg-orange-400'}`}></div>
                             {a.symbol.replace('_', ' ')}
                         </span>
-                        <span className="text-xs text-brand-muted font-mono">{a.amount.toLocaleString()}</span>
+                        <span className="text-xs text-brand-muted font-mono">{numeroLocal(a.amount)}</span>
                     </div>
                 ))}
             </div>

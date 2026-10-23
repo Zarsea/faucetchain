@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth, sessionHeaders } from './AuthContext';
 import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
+import { dataHoraLocal, dataLocal, numeroLocal } from './LanguageContext';
 
 
 interface FaucetHubProps {
@@ -849,13 +850,13 @@ const formataCobertura = (c: number): string =>
                                             </div>
                                             <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
                                                 <p className="text-purple-400 text-[10px] font-semibold">VOLUME SETTLED</p>
-                                                <p className="text-xl font-black text-purple-100">{keyInfo.total_settled.toLocaleString()} <span className="text-xs font-normal text-purple-400">CLAIM</span></p>
+                                                <p className="text-xl font-black text-purple-100">{numeroLocal(keyInfo.total_settled)} <span className="text-xs font-normal text-purple-400">CLAIM</span></p>
                                             </div>
                                         </div>
 
                                         {keyInfo.last_used && (
                                             <p className="text-purple-500 text-[10px]">
-                                                Last used: {new Date(keyInfo.last_used * 1000).toLocaleString()}
+                                                Last used: {dataHoraLocal(keyInfo.last_used * 1000)}
                                             </p>
                                         )}
 
@@ -921,7 +922,7 @@ const formataCobertura = (c: number): string =>
                                                     {f.coverage >= 1
                                                         ? `Covered: the escrow covers ${formataCobertura(f.coverage)} of what you owe.`
                                                         : `Short: the escrow covers ${formataCobertura(f.coverage)} of what you owe; the rest comes out of the free balance at withdrawal, if there is any.`}
-                                                    {f.reserve_declared_at && ` Escrowed on ${new Date(f.reserve_declared_at * 1000).toLocaleDateString()}.`}
+                                                    {f.reserve_declared_at && ` Escrowed on ${dataLocal(f.reserve_declared_at * 1000)}.`}
                                                 </p>
                                             </div>
                                         )}
@@ -1056,7 +1057,7 @@ const formataCobertura = (c: number): string =>
                                                     </p>
                                                     <p className="text-[9px] text-purple-400/80">
                                                         {a.verifiedOnChain ? 'read from Solana' : "sequencer's ledger"}
-                                                        {a.obligations != null && ` · owes ${Number(a.obligations).toLocaleString()}`}
+                                                        {a.obligations != null && ` · owes ${numeroLocal(Number(a.obligations))}`}
                                                     </p>
                                                 </div>
                                                 <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex-shrink-0 ${
@@ -1064,7 +1065,7 @@ const formataCobertura = (c: number): string =>
                                                     : a.solvent === false ? 'text-red-300 border-red-500/40 bg-red-900/20'
                                                     : 'text-yellow-300 border-yellow-500/40 bg-yellow-900/20'
                                                 }`}>
-                                                    {a.solvent === true ? 'covered' : a.solvent === false ? `short ${Number(a.shortfall).toLocaleString()}` : 'not read'}
+                                                    {a.solvent === true ? 'covered' : a.solvent === false ? `short ${numeroLocal(Number(a.shortfall))}` : 'not read'}
                                                 </span>
                                             </div>
                                         ))}
@@ -1098,19 +1099,19 @@ const formataCobertura = (c: number): string =>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
                                 <p className="text-purple-400 text-[10px] font-semibold">VIRTUAL BALANCE</p>
-                                <p className="text-lg font-black text-purple-100">{l2Stats?.total_virtual_balance?.toLocaleString() ?? "..."}</p>
+                                <p className="text-lg font-black text-purple-100">{numeroLocal(l2Stats?.total_virtual_balance) ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
                                 <p className="text-purple-400 text-[10px] font-semibold">TOTAL CLAIMS</p>
-                                <p className="text-lg font-black text-purple-100">{l2Stats?.total_claims_count?.toLocaleString() ?? "..."}</p>
+                                <p className="text-lg font-black text-purple-100">{numeroLocal(l2Stats?.total_claims_count) ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
                                 <p className="text-purple-400 text-[10px] font-semibold">DISTRIBUTED ON L2</p>
-                                <p className="text-lg font-black text-purple-100">{l2Stats?.total_claimed_all_time?.toLocaleString() ?? "..."}</p>
+                                <p className="text-lg font-black text-purple-100">{numeroLocal(l2Stats?.total_claimed_all_time) ?? "..."}</p>
                             </div>
                             <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
                                 <p className="text-purple-400 text-[10px] font-semibold">WITHDRAWN → L1</p>
-                                <p className="text-lg font-black text-green-400">{l2Stats?.total_withdrawn_all_time?.toLocaleString() ?? "..."}</p>
+                                <p className="text-lg font-black text-green-400">{numeroLocal(l2Stats?.total_withdrawn_all_time) ?? "..."}</p>
                             </div>
                         </div>
 
@@ -1145,7 +1146,7 @@ const formataCobertura = (c: number): string =>
                                 <div className="mt-5 space-y-3">
                                     <div className="flex items-center justify-between">
                                         <p className="text-purple-300 text-xs">User: <code className="text-purple-100 font-mono">{l2Balances.user.slice(0, 10)}...{l2Balances.user.slice(-6)}</code></p>
-                                        <p className="text-purple-200 font-bold text-sm">Total pending: {l2Balances.total_pending.toLocaleString()} CLAIM</p>
+                                        <p className="text-purple-200 font-bold text-sm">Total pending: {numeroLocal(l2Balances.total_pending)} CLAIM</p>
                                     </div>
 
                                     {/* Saldo zero era um beco: a tela dizia que nao havia nada
@@ -1181,16 +1182,16 @@ const formataCobertura = (c: number): string =>
                                                 <div className="w-9 h-9 rounded-lg bg-purple-700/40 flex items-center justify-center border border-purple-500/30 text-base">💧</div>
                                                 <div>
                                                     <h4 className="font-bold text-purple-100 text-sm">{entry.faucet_name}</h4>
-                                                    <p className="text-purple-500 text-[10px]">{entry.claim_count} claims | withdrawn: {entry.total_withdrawn.toLocaleString()}</p>
+                                                    <p className="text-purple-500 text-[10px]">{entry.claim_count} claims | withdrawn: {numeroLocal(entry.total_withdrawn)}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-4">
                                                 <div className="text-right">
-                                                    <p className="text-purple-100 font-bold text-sm">{entry.virtual_balance.toLocaleString()} CLAIM</p>
+                                                    <p className="text-purple-100 font-bold text-sm">{numeroLocal(entry.virtual_balance)} CLAIM</p>
                                                     <p className="text-purple-500 text-[10px]">
                                                         {entry.can_withdraw
                                                             ? `Min: ${entry.min_withdraw}`
-                                                            : `${entry.missing_to_withdraw.toLocaleString()} short of the minimum`}
+                                                            : `${numeroLocal(entry.missing_to_withdraw)} short of the minimum`}
                                                     </p>
                                                 </div>
                                                 {/* Quando nao da para sacar, o caminho e claimar mais -- e e

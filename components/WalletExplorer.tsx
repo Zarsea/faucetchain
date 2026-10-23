@@ -12,7 +12,7 @@ import {
     LoadingIcon,
     XMarkIcon
 } from './IconComponents';
-import { useLanguage } from './LanguageContext';
+import { dataLocal, horaLocal, numeroLocal, useLanguage } from './LanguageContext';
 import { useAuth } from './AuthContext';
 import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { WalletInfo } from '../types';
@@ -290,14 +290,14 @@ export const WalletExplorer: React.FC = () => {
                                 </div>
                             </div>
                             <p className="text-3xl font-bold text-white font-mono tracking-tight mb-3 tabular">
-                                {wallet.stakedAmount.toLocaleString()} <span className="text-xs text-brand-muted">$CLAIM</span>
+                                {numeroLocal(wallet.stakedAmount)} <span className="text-xs text-brand-muted">$CLAIM</span>
                             </p>
                             <div className="flex items-center gap-3 pt-3 border-t border-brand-border/20">
                                 <ArrowPathIcon className="w-3.5 h-3.5 text-brand-muted" />
                                 <div>
                                     <span className="text-[9px] font-bold text-brand-muted uppercase tracking-[0.1em] block">{t('walletExplorer.recentActivities')}</span>
                                     <span className="text-xs font-bold text-brand-secondary font-mono">
-                                        {new Date(wallet.lastActivity).toLocaleDateString()} @ {new Date(wallet.lastActivity).toLocaleTimeString()}
+                                        {dataLocal(wallet.lastActivity)} @ {horaLocal(wallet.lastActivity)}
                                     </span>
                                 </div>
                             </div>

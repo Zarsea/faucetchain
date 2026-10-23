@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XMarkIcon, SparklesIcon, SignalIcon, WalletIcon } from './IconComponents';
 import { API_BASE_URL } from '../apiConfig';
-import { useLanguage } from './LanguageContext';
+import { dataHoraLocal, useLanguage } from './LanguageContext';
 
 interface TransactionDetailsModalProps {
     txHash: string | null;
@@ -168,7 +168,7 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
                                     <div className="p-3 flex items-center justify-between">
                                         <span className="text-xs text-brand-muted">Timestamp</span>
                                         <span className="font-mono text-xs text-white font-bold">
-                                            {txData.timestamp ? new Date(txData.timestamp * 1000).toLocaleString() : 'Unknown'}
+                                            {txData.timestamp ? dataHoraLocal(txData.timestamp * 1000) : 'Unknown'}
                                         </span>
                                     </div>
                                     <div className="p-3 flex items-center justify-between">
