@@ -7305,7 +7305,13 @@ def init_settlement_tables():
             amount INTEGER NOT NULL,
             created_at INTEGER NOT NULL,
             batch_id INTEGER REFERENCES settlement_batches(id),
-            solana_address TEXT
+            solana_address TEXT,
+            -- A torneira que originou o credito. NULL quando nao houve uma:
+            -- credito direto do operador, parcela da tesouraria, ou linha
+            -- anterior a 23/10/2026, quando a coluna passou a existir.
+            -- Tambem esta em `_migrar_proveniencia_da_recompensa`, porque
+            -- banco novo nasce daqui e banco antigo e alterado la.
+            faucet_wallet TEXT
         )
     ''')
     # A position voided because it was created by a defect is not the same as one
@@ -7411,9 +7417,40 @@ def init_settlement_tables():
     conn.close()
 
 
+def _migrar_proveniencia_da_recompensa():
+    """`faucet_wallet` em bancos que nasceram antes dela.
+
+    A torneira que originou cada recompensa sempre esteve em escopo em
+    `_campaign_drip` -- a tabela de cooldown ao lado ja a gravava -- e a linha
+    da recompensa a descartava. O resultado e que o usuario via quanto ganhou
+    por campanha e nunca de qual torneira, que e a pergunta que ele faz
+    primeiro quando reconhece um valor e nao reconhece a origem.
+
+    Fica NULL nas linhas antigas e nas que nao tem torneira de verdade: o
+    credito direto do operador por `/api/solana/reward` e a parcela da
+    tesouraria. NULL aqui significa "nao registrado", nunca "sem origem", e a
+    tela precisa dizer essa diferenca em vez de inventar um nome.
+
+    Backfill nao e possivel com honestidade: `campaign_claim_cooldown` guarda
+    so o ULTIMO claim de cada (campanha, torneira, usuario), entao atribuir o
+    historico por ela seria chute com cara de registro.
+    """
+    conn = get_db_connection()
+    try:
+        colunas = {r[1] for r in conn.execute("PRAGMA table_info(settlement_rewards)")}
+        if colunas and "faucet_wallet" not in colunas:
+            conn.execute("ALTER TABLE settlement_rewards ADD COLUMN faucet_wallet TEXT")
+            conn.commit()
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
 @app.on_event("startup")
 def startup_settlement():
     init_settlement_tables()
+    _migrar_proveniencia_da_recompensa()
 
 
 def require_operator(token: Optional[str]) -> None:
@@ -7756,6 +7793,122 @@ async def get_campaign_holdings(address: str, request: Request):
             slot["collected"] = None
 
     return {"address": user, "tokens": list(por_token.values())}
+
+
+@app.get("/api/solana/history/{address}")
+async def get_campaign_history(address: str, request: Request, limit: int = 200):
+    """Cada credito de campanha deste usuario, e de qual torneira ele veio.
+
+    `/api/solana/holdings` responde "quanto", somado por token. Esta responde
+    "de onde", linha a linha, que e a pergunta que vem primeiro quando alguem
+    reconhece o valor e nao reconhece a origem.
+
+    `faucet_wallet` e nulo em tres casos honestos, e a tela precisa distingui-
+    los de um nome faltando:
+
+      - credito direto do operador por `/api/solana/reward`, que nao passa por
+        torneira nenhuma;
+      - a parcela da tesouraria, pelo mesmo motivo;
+      - qualquer linha anterior a 23/10/2026, porque ate esse dia a coluna nao
+        existia e `_campaign_drip` descartava a torneira que tinha em maos.
+
+    O ultimo caso nao tem conserto retroativo: `campaign_claim_cooldown` guarda
+    so o ULTIMO claim de cada trio, entao reconstruir o historico por ela seria
+    chute com aparencia de registro.
+    """
+    if not within_rate("holdings", request.client.host, HOLDINGS_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many reads from here this hour.")
+    try:
+        user = normalize_address(address)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        try:
+            rows = c.execute(
+                """SELECT r.campaign_id, r.amount, r.created_at, r.batch_id,
+                          r.solana_address, r.faucet_wallet,
+                          b.published_signature, b.root, b.root_index,
+                          sc.mint, sc.name AS campaign_name,
+                          t.name AS token_name, t.symbol, t.decimals
+                     FROM settlement_rewards r
+                     LEFT JOIN settlement_batches b   ON b.id = r.batch_id
+                     LEFT JOIN settlement_campaigns sc ON sc.campaign_id = r.campaign_id
+                     LEFT JOIN token_registry t        ON t.mint = sc.mint
+                    WHERE r.user_address = ?
+                    ORDER BY r.created_at DESC, r.id DESC
+                    LIMIT ?""",
+                (user, max(1, min(limit, 500))),
+            ).fetchall()
+        except sqlite3.OperationalError as e:
+            # Vazio aqui le-se "voce nunca recebeu nada", que e exatamente o que
+            # uma tabela faltando produz para quem recebeu bastante.
+            audit_logger.error(
+                f"history query failed for {user}: {e} -- answering as if the account "
+                f"had never been credited, which it may well have been"
+            )
+            rows = []
+
+        # O nome da torneira vai numa consulta separada de proposito. Juntar o
+        # `faucet_registry` na query acima significa que, se essa tabela faltar,
+        # o OperationalError leva o historico INTEIRO junto -- o usuario ficaria
+        # sem extrato por causa de um rotulo. Aqui a falta custa o nome e nada
+        # mais.
+        torneiras: Dict[str, tuple] = {}
+        carteiras = {row["faucet_wallet"] for row in rows if row["faucet_wallet"]}
+        if carteiras:
+            try:
+                marcas = ",".join("?" * len(carteiras))
+                for nome, site, carteira in c.execute(
+                    f"SELECT name, site_url, LOWER(wallet_address) FROM faucet_registry "
+                    f"WHERE LOWER(wallet_address) IN ({marcas})",
+                    tuple(carteiras),
+                ):
+                    torneiras[carteira] = (nome, site)
+            except sqlite3.OperationalError as e:
+                audit_logger.warning(f"faucet names unavailable for history: {e}")
+
+        lotes: Dict[int, tuple] = {}
+        for row in rows:
+            if row["batch_id"] is not None and row["published_signature"] and row["solana_address"]:
+                lotes.setdefault(
+                    row["batch_id"],
+                    (row["campaign_id"], row["root"], row["solana_address"]),
+                )
+        sacado = _batches_claimed(c, lotes)
+    finally:
+        conn.close()
+
+    entradas = []
+    for row in rows:
+        if row["batch_id"] is None:
+            estado = "credited"
+        elif not row["published_signature"]:
+            estado = "credited"          # lote fechado, raiz em lugar nenhum
+        else:
+            marcado = sacado.get(row["batch_id"])
+            estado = "collected" if marcado is True else (
+                "published" if marcado is False else "unknown")
+        nome, site = torneiras.get(row["faucet_wallet"] or "", (None, None))
+        entradas.append({
+            "campaign_id": row["campaign_id"],
+            "campaign_label": campaign_label(row["campaign_name"], row["token_name"],
+                                             row["symbol"], row["campaign_id"]),
+            "faucet_wallet": row["faucet_wallet"],
+            "faucet_name": nome,
+            "faucet_site": site,
+            "amount": row["amount"],
+            "symbol": row["symbol"],
+            "decimals": row["decimals"] if row["decimals"] is not None else 6,
+            "created_at": row["created_at"],
+            "paid_to": row["solana_address"],
+            "batch_id": row["batch_id"],
+            "root_index": row["root_index"],
+            "state": estado,
+        })
+    return {"address": user, "entries": entradas}
 
 
 @app.get("/api/solana/campaigns")
@@ -8841,10 +8994,15 @@ def _campaign_drip(conn, faucet_wallet: str, user_address: str, now: int = None,
             skipped.append(recusa)
             continue
 
+        # A torneira entra na linha. Ela ja estava em escopo aqui, e a tabela de
+        # cooldown logo abaixo sempre a gravou -- so a recompensa a perdia, e
+        # com ela a unica resposta para "de onde veio isto" no painel de quem
+        # recebeu.
         c.execute(
-            "INSERT INTO settlement_rewards (campaign_id, user_address, amount, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (campaign_id, user_address, pago["to_user"], now),
+            "INSERT INTO settlement_rewards "
+            "(campaign_id, user_address, amount, created_at, faucet_wallet) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (campaign_id, user_address, pago["to_user"], now, faucet_wallet.lower()),
         )
         c.execute(
             "UPDATE campaign_budget SET spent_total = spent_total + ?, spent_month = spent_month + ?, "

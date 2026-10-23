@@ -61,6 +61,9 @@ jobs:
       - name: A withdrawal counts even when our relayer did not sign it
         run: python tests/test_ledger_collected.py
 
+      - name: A campaign credit remembers which faucet sent it
+        run: python tests/test_reward_provenance.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci
