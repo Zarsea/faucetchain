@@ -137,7 +137,9 @@ export const MiningHub: React.FC = () => {
                                     {tri('Mining Hub', 'Central de Mineração', 'Centro de Minería')}
                                 </h2>
                                 <p className="text-xs text-brand-primary font-black uppercase tracking-[0.3em]">
-                                    Proof of Claim · Mineração por presença
+                                    {tri('Proof of Claim · Mining by presence',
+                                         'Proof of Claim · Mineração por presença',
+                                         'Proof of Claim · Minería por presencia')}
                                 </p>
                             </div>
                         </div>

@@ -84,6 +84,9 @@ jobs:
       - name: The ledger never denies a withdrawal the chain reports
         run: node test_ledger_contradiction.mjs
 
+      - name: A translated screen does not grow new Portuguese
+        run: node test_no_hardcoded_portuguese.mjs
+
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
 
