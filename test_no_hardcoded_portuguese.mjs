@@ -27,6 +27,7 @@ const CONVERTIDOS = [
     'components/CampaignHoldings.tsx',
     'components/SolanaPayouts.tsx',
     'components/SettlementLedger.tsx',
+    'components/Simulation.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',

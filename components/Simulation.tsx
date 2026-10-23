@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Validator, SimulationResult } from '../types';
 import { SectionCard } from './SectionCard';
+import { useLanguage } from './LanguageContext';
 import { BeakerIcon, ChartPieIcon, ChartBarIcon, SparklesIcon, ShieldCheckIcon, SignalIcon, BoltIcon, CpuChipIcon, XMarkIcon } from './IconComponents';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line } from 'recharts';
 
@@ -141,6 +142,7 @@ const Slider: React.FC<{label: string, value: number, setValue: (v: number) => v
 );
 
 export const Simulation: React.FC = () => {
+    const { tri } = useLanguage();
     const [mode, setMode] = useState<ConsensusMode>('LIVE');
     const [alpha, setAlpha] = useState(40);
     const [beta, setBeta] = useState(30);
@@ -173,13 +175,19 @@ export const Simulation: React.FC = () => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-1 space-y-6">
-                <SectionCard title="Stress Test Config" icon={<BeakerIcon className="w-5 h-5"/>}>
+                <SectionCard title={tri('Stress Test Config', 'Configuração do teste de estresse',
+                                         'Configuración de la prueba de estrés')}
+                             icon={<BeakerIcon className="w-5 h-5"/>}>
                      <div className="mb-6">
-                        <label className="text-[10px] font-black text-brand-muted uppercase mb-3 block tracking-widest">Which consensus</label>
+                        <label className="text-[10px] font-black text-brand-muted uppercase mb-3 block tracking-widest">
+                            {tri('Which consensus', 'Qual consenso', 'Cuál consenso')}
+                        </label>
                         <div className="grid grid-cols-2 gap-2">
                             {[
-                                { id: 'LIVE', label: 'Running today', color: 'border-brand-success' },
-                                { id: 'PROPOSED', label: 'Proposed', color: 'border-brand-accent' }
+                                { id: 'LIVE', label: tri('Running today', 'Rodando hoje', 'En marcha hoy'),
+                                  color: 'border-brand-success' },
+                                { id: 'PROPOSED', label: tri('Proposed', 'Proposto', 'Propuesto'),
+                                  color: 'border-brand-accent' }
                             ].map(m => (
                                 <button
                                     key={m.id}
@@ -193,12 +201,17 @@ export const Simulation: React.FC = () => {
                      </div>
 
                      <div className="mb-6">
-                        <label className="text-[10px] font-black text-brand-muted uppercase mb-3 block tracking-widest">Protocol Scenario</label>
+                        <label className="text-[10px] font-black text-brand-muted uppercase mb-3 block tracking-widest">
+                            {tri('Protocol Scenario', 'Cenário do protocolo', 'Escenario del protocolo')}
+                        </label>
                         <div className="grid grid-cols-3 gap-2">
                             {[
-                                { id: 'BOOTSTRAP', label: 'Merit', color: 'border-brand-primary' },
-                                { id: 'STABILITY', label: 'Balance', color: 'border-brand-success' },
-                                { id: 'CRISIS', label: 'Safety', color: 'border-brand-error' }
+                                { id: 'BOOTSTRAP', label: tri('Merit', 'Mérito', 'Mérito'),
+                                  color: 'border-brand-primary' },
+                                { id: 'STABILITY', label: tri('Balance', 'Equilíbrio', 'Equilibrio'),
+                                  color: 'border-brand-success' },
+                                { id: 'CRISIS', label: tri('Safety', 'Segurança', 'Seguridad'),
+                                  color: 'border-brand-error' }
                             ].map(e => (
                                 <button 
                                     key={e.id}
@@ -211,55 +224,93 @@ export const Simulation: React.FC = () => {
                         </div>
                      </div>
 
-                     <Slider label="Validator Count" value={numValidators} setValue={setNumValidators} min={50} max={1000} unit=""/>
+                     <Slider label={tri('Validator Count', 'Quantidade de validadores',
+                                        'Cantidad de validadores')} value={numValidators} setValue={setNumValidators} min={50} max={1000} unit=""/>
                      
                      {mode === 'LIVE' ? (
                      <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-success/30 mb-4">
-                        <h4 className="text-[10px] font-black text-brand-success uppercase mb-3 tracking-widest">Sealer weight, as it runs</h4>
+                        <h4 className="text-[10px] font-black text-brand-success uppercase mb-3 tracking-widest">
+                            {tri('Sealer weight, as it runs', 'Peso do selador, como ele roda',
+                                 'Peso del sellador, como funciona')}
+                        </h4>
                         <p className="font-mono text-xs text-white bg-brand-bg p-3 rounded-lg border border-brand-border">weight = 1 + activeStake</p>
                         <p className="text-[11px] text-brand-muted mt-3 leading-relaxed">
-                            One term. The draw runs among online nodes only, seeded by
-                            keccak256(parent_hash) so anyone can recompute it
-                            (<span className="font-mono">api_server.py:2336</span>). There is
-                            <span className="text-brand-error font-bold"> no cap on stake</span>,
-                            so the largest staker wins most rounds.
+                            {tri(
+                                'One term. The draw runs among online nodes only, seeded by keccak256(parent_hash) so anyone can recompute it',
+                                'Um termo só. O sorteio corre apenas entre nós online, semeado por keccak256(parent_hash) para qualquer um refazer a conta',
+                                'Un solo término. El sorteo corre solo entre nodos en línea, sembrado por keccak256(parent_hash) para que cualquiera rehaga la cuenta')}{' '}
+                            (<span className="font-mono">api_server.py:2336</span>).{' '}
+                            {tri('There is', 'Não há', 'No hay')}
+                            <span className="text-brand-error font-bold">
+                                {' '}{tri('no cap on stake', 'teto nenhum no stake', 'tope alguno al stake')}
+                            </span>,{' '}
+                            {tri('so the largest staker wins most rounds.',
+                                 'então quem travou mais ganha a maioria das rodadas.',
+                                 'así que quien bloqueó más gana la mayoría de las rondas.')}
                         </p>
                      </div>
                      ) : (
                      <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-accent/30 mb-4">
-                        <h4 className="text-[10px] font-black text-brand-accent uppercase mb-2 tracking-widest">PoC Vectors &mdash; not implemented</h4>
+                        <h4 className="text-[10px] font-black text-brand-accent uppercase mb-2 tracking-widest">
+                            {tri('PoC Vectors — not implemented', 'Vetores PoC — não implementados',
+                                 'Vectores PoC — no implementados')}
+                        </h4>
                         <p className="text-[11px] text-brand-muted mb-4 leading-relaxed">
-                            No merit or reputation term exists in the server. These sliders model
-                            a proposal, not the running chain.
+                            {tri(
+                                'No merit or reputation term exists in the server. These sliders model a proposal, not the running chain.',
+                                'Não existe termo de mérito nem de reputação no servidor. Estes controles modelam uma proposta, não a cadeia que roda.',
+                                'No existe término de mérito ni de reputación en el servidor. Estos controles modelan una propuesta, no la cadena en marcha.')}
                         </p>
-                        <Slider label="PoC Weight (α)" value={alpha} setValue={(v) => {
+                        <Slider label={tri('PoC Weight (α)', 'Peso PoC (α)', 'Peso PoC (α)')} value={alpha} setValue={(v) => {
                             if (v + beta > 100) setBeta(100 - v);
                             setAlpha(v);
                             setEra('STABILITY');
-                        }} unit="%" sublabel="Influence based on verifiable activity/contribution." />
-                        <Slider label="PoS Weight (β)" value={beta} setValue={(v) => {
+                        }} unit="%" sublabel={tri(
+                            'Influence based on verifiable activity/contribution.',
+                            'Influência pela atividade verificável, não pelo capital.',
+                            'Influencia por la actividad verificable, no por el capital.')} />
+                        <Slider label={tri('PoS Weight (β)', 'Peso PoS (β)', 'Peso PoS (β)')} value={beta} setValue={(v) => {
                             if (v + alpha > 100) setAlpha(100 - v);
                             setBeta(v);
                             setEra('STABILITY');
-                        }} unit="%" sublabel="Influence based on staked capital commitment." />
+                        }} unit="%" sublabel={tri(
+                            'Influence based on staked capital commitment.',
+                            'Influência pelo capital travado em stake.',
+                            'Influencia por el capital bloqueado en stake.')} />
                         <div className="flex justify-between items-center text-xs font-bold p-2 bg-brand-primary/10 rounded-lg text-brand-primary border border-brand-primary/20">
-                            <span className="flex items-center gap-2 font-mono uppercase tracking-tighter">AI Reputation (γ)</span>
+                            <span className="flex items-center gap-2 font-mono uppercase tracking-tighter">
+                                {tri('AI Reputation (γ)', 'Reputação da IA (γ)', 'Reputación de la IA (γ)')}
+                            </span>
                             <span>{gamma}%</span>
                         </div>
                      </div>
                      )}
 
                      <div className="p-4 bg-brand-bg/50 rounded-xl border border-brand-border">
-                        <h4 className="text-[10px] font-black text-brand-error uppercase mb-4 tracking-widest">Adversarial Parameters</h4>
-                        <Slider label="Sybil Nodes" value={maliciousness} setValue={setMaliciousness} min={0} max={40} unit="%" color="accent-brand-error" sublabel="% of nodes attempting to exploit the consensus." />
-                        <Slider label="Malicious Intensity" value={maliciousIntensity} setValue={setMaliciousIntensity} min={0} max={100} unit="%" color="accent-red-600" sublabel="Severity of bad actions (e.g. double-signing frequency)." />
+                        <h4 className="text-[10px] font-black text-brand-error uppercase mb-4 tracking-widest">
+                            {tri('Adversarial Parameters', 'Parâmetros do adversário',
+                                 'Parámetros del adversario')}
+                        </h4>
+                        <Slider label={tri('Sybil Nodes', 'Nós Sybil', 'Nodos Sybil')}
+                                value={maliciousness} setValue={setMaliciousness} min={0} max={40}
+                                unit="%" color="accent-brand-error"
+                                sublabel={tri('% of nodes attempting to exploit the consensus.',
+                                              '% dos nós tentando explorar o consenso.',
+                                              '% de los nodos intentando explotar el consenso.')} />
+                        <Slider label={tri('Malicious Intensity', 'Intensidade maliciosa', 'Intensidad maliciosa')}
+                                value={maliciousIntensity} setValue={setMaliciousIntensity} min={0}
+                                max={100} unit="%" color="accent-red-600"
+                                sublabel={tri('Severity of bad actions (e.g. double-signing frequency).',
+                                              'Gravidade das ações ruins (ex.: frequência de assinatura dupla).',
+                                              'Gravedad de las acciones malas (ej.: frecuencia de doble firma).')} />
                      </div>
 
                      <button
                         onClick={handleRunSimulation}
                         className="w-full bg-brand-primary text-brand-bg font-black py-4 px-4 rounded-xl hover:bg-white hover:shadow-glow-primary transition-all active:scale-95 uppercase tracking-wider text-sm mt-4"
                      >
-                        Generate Consensus Simulation
+                        {tri('Generate Consensus Simulation', 'Gerar simulação de consenso',
+                             'Generar simulación de consenso')}
                      </button>
                 </SectionCard>
             </div>
@@ -269,22 +320,40 @@ export const Simulation: React.FC = () => {
                     <div className="animate-fadeIn space-y-8">
                         {/* Summary Metrics Cards */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <SectionCard title="Network Stability" icon={<ShieldCheckIcon className="w-5 h-5"/>}>
+                            <SectionCard title={tri('Network Stability', 'Estabilidade da rede',
+                                                     'Estabilidad de la red')}
+                                         icon={<ShieldCheckIcon className="w-5 h-5"/>}>
                                 <div className="text-center p-6 bg-brand-bg/40 rounded-2xl border border-brand-border relative overflow-hidden h-full flex flex-col justify-center">
                                     <div className="absolute top-0 left-0 h-1 transition-all duration-1000" style={{ width: `${results.stabilityScore}%`, backgroundColor: results.stabilityScore > 80 ? '#4ade80' : results.stabilityScore > 50 ? '#fbbf24' : '#f43f5e' }}></div>
-                                    <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-2">Liveness Resilience</p>
+                                    <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-2">
+                                        {tri('Liveness Resilience', 'Resiliência de liveness',
+                                             'Resiliencia de liveness')}
+                                    </p>
                                     <p className={`text-6xl font-black font-mono tracking-tighter ${results.stabilityScore > 80 ? 'text-brand-success' : results.stabilityScore > 50 ? 'text-brand-accent' : 'text-brand-error'}`}>
                                         {results.stabilityScore}%
                                     </p>
                                     <p className="text-[10px] text-brand-muted mt-4">
-                                        {results.stabilityScore > 80 ? "CONSENSO ROBUSTO" : results.stabilityScore > 50 ? "RISCO DE FINALIDADE" : "COLAPSO DE REDE IMINENTE"}
+                                        {results.stabilityScore > 80
+                                            ? tri('ROBUST CONSENSUS', 'CONSENSO ROBUSTO',
+                                                  'CONSENSO ROBUSTO')
+                                            : results.stabilityScore > 50
+                                                ? tri('FINALITY AT RISK', 'RISCO DE FINALIDADE',
+                                                      'FINALIDAD EN RIESGO')
+                                                : tri('NETWORK COLLAPSE IMMINENT',
+                                                      'COLAPSO DE REDE IMINENTE',
+                                                      'COLAPSO DE RED INMINENTE')}
                                     </p>
                                 </div>
                             </SectionCard>
 
-                            <SectionCard title="Decentralization Index" icon={<ChartPieIcon className="w-5 h-5"/>}>
+                            <SectionCard title={tri('Decentralization Index', 'Índice de descentralização',
+                                                     'Índice de descentralización')}
+                                         icon={<ChartPieIcon className="w-5 h-5"/>}>
                                 <div className="text-center p-6 bg-brand-bg/40 rounded-2xl border border-brand-border relative overflow-hidden h-full flex flex-col justify-center">
-                                    <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-2">Gini Coefficient (Inverse)</p>
+                                    <p className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-2">
+                                        {tri('Gini Coefficient (Inverse)', 'Coeficiente de Gini (inverso)',
+                                             'Coeficiente de Gini (inverso)')}
+                                    </p>
                                     <p className="text-6xl font-black font-mono tracking-tighter text-brand-primary">
                                         {(1 - results.giniCoefficient).toFixed(2)}
                                     </p>
@@ -299,12 +368,24 @@ export const Simulation: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <SectionCard title="Validator Health State" icon={<SignalIcon className="w-5 h-5"/>}>
+                            <SectionCard title={tri('Validator Health State', 'Estado de saúde dos validadores',
+                                                 'Estado de salud de los validadores')}
+                                     icon={<SignalIcon className="w-5 h-5"/>}>
                                 <div style={{ width: '100%', height: 280 }}>
                                     <ResponsiveContainer>
                                         <PieChart>
                                             <Pie
-                                                data={results.healthDistribution}
+                                                {/* Os nomes nascem em `runSimulation`, que e funcao
+                                                    de modulo e nao alcanca o hook. Traduzir aqui, na
+                                                    renderizacao, mantem `name` como chave la e como
+                                                    rotulo aqui. 'Online' e 'Offline' sao iguais nas
+                                                    tres linguas; so 'Malicious' muda. */}
+                                                data={results.healthDistribution.map((d) => ({
+                                                    ...d,
+                                                    name: d.name === 'Malicious'
+                                                        ? tri('Malicious', 'Malicioso', 'Malicioso')
+                                                        : d.name,
+                                                }))}
                                                 innerRadius={65}
                                                 outerRadius={95}
                                                 paddingAngle={8}
@@ -326,7 +407,10 @@ export const Simulation: React.FC = () => {
                                 </div>
                             </SectionCard>
 
-                            <SectionCard title="Consensus Power Concentration" icon={<BoltIcon className="w-5 h-5 text-brand-accent"/>}>
+                            <SectionCard title={tri('Consensus Power Concentration',
+                                                     'Concentração de poder no consenso',
+                                                     'Concentración de poder en el consenso')}
+                                         icon={<BoltIcon className="w-5 h-5 text-brand-accent"/>}>
                                 <div style={{ width: '100%', height: 280 }}>
                                     <ResponsiveContainer>
                                         <PieChart>
@@ -353,15 +437,23 @@ export const Simulation: React.FC = () => {
                             </SectionCard>
                         </div>
 
-                        <SectionCard title="PoC Hybrid Weight Distribution" icon={<ChartBarIcon className="w-5 h-5 text-brand-primary"/>}>
+                        <SectionCard title={tri('PoC Hybrid Weight Distribution',
+                                                 'Distribuição do peso híbrido PoC',
+                                                 'Distribución del peso híbrido PoC')}
+                                     icon={<ChartBarIcon className="w-5 h-5 text-brand-primary"/>}>
                             <div className="mb-4 flex gap-4">
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-3 bg-brand-primary rounded-sm"></div>
-                                    <span className="text-[10px] text-brand-muted uppercase font-bold">Node Count</span>
+                                    <span className="text-[10px] text-brand-muted uppercase font-bold">
+                                        {tri('Node Count', 'Quantidade de nós', 'Cantidad de nodos')}
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-3 h-0.5 bg-brand-accent"></div>
-                                    <span className="text-[10px] text-brand-muted uppercase font-bold">Consensus Stability Trend</span>
+                                    <span className="text-[10px] text-brand-muted uppercase font-bold">
+                                        {tri('Consensus Stability Trend', 'Tendência da estabilidade',
+                                             'Tendencia de la estabilidad')}
+                                    </span>
                                 </div>
                             </div>
                             <div style={{ width: '100%', height: 320 }}>
@@ -387,13 +479,25 @@ export const Simulation: React.FC = () => {
                             <div className="absolute inset-0 bg-brand-primary/10 rounded-full animate-ping"></div>
                             <CpuChipIcon className="w-12 h-12 text-brand-primary opacity-60 relative z-10" />
                         </div>
-                        <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">Command Center: Simulation</h3>
+                        <h3 className="text-2xl font-bold text-white uppercase tracking-tighter">
+                            {tri('Command Center: Simulation', 'Centro de comando: simulação',
+                                 'Centro de mando: simulación')}
+                        </h3>
                         <p className="text-brand-muted max-w-sm mt-4 leading-relaxed font-medium">
-                            Run "Running today" to see the power distribution the current rule produces: weight = 1 + stake, with no cap. "Proposed" shows what merit and reputation would change, and neither exists on the server yet.
+                            {tri(
+                                'Run "Running today" to see the power distribution the current rule produces: weight = 1 + stake, with no cap. "Proposed" shows what merit and reputation would change, and neither exists on the server yet.',
+                                'Rode "Rodando hoje" para ver a distribuição de poder que a regra atual produz: peso = 1 + stake, sem teto. "Proposto" mostra o que mérito e reputação mudariam, e nenhum dos dois existe no servidor ainda.',
+                                'Ejecute "En marcha hoy" para ver la distribución de poder que produce la regla actual: peso = 1 + stake, sin tope. "Propuesto" muestra lo que cambiarían el mérito y la reputación, y ninguno de los dos existe en el servidor todavía.')}
                         </p>
                         <div className="mt-8 flex gap-3">
-                            <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">No Hardware Mining</span>
-                            <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">Stake-Weighted Sealing</span>
+                            <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">
+                                {tri('No Hardware Mining', 'Sem mineração por hardware',
+                                     'Sin minería por hardware')}
+                            </span>
+                            <span className="px-3 py-1 bg-brand-border/30 rounded-lg text-[10px] font-black uppercase tracking-widest text-brand-muted border border-brand-border">
+                                {tri('Stake-Weighted Sealing', 'Selagem ponderada por stake',
+                                     'Sellado ponderado por stake')}
+                            </span>
                         </div>
                     </div>
                 )}
