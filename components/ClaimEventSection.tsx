@@ -76,14 +76,47 @@ export const ClaimEventSection: React.FC = () => {
                     borderColor: "group-hover:border-green-400/50"
                 }
             ]
+        },
+        es: {
+            title: "Ciclo de Vida del 'Evento de Reclamo'",
+            description: "Un claim es la unidad de trabajo de esta red. Estos cuatro pasos son lo que hace el código; el diagrama al lado es el mismo camino, dibujado.",
+            steps: [
+                {
+                    title: "Claim, con prueba",
+                    desc: "El claim lleva una Prueba de Claim: keccak sobre la punta de la cadena, 16 bits, que suben con la cuota de la hora. Atarla a la punta es lo que hace imposible precomputarla en masa.",
+                    icon: <SignalIcon className="w-8 h-8 text-blue-400" />,
+                    bgColor: "bg-blue-400/10",
+                    borderColor: "group-hover:border-blue-400/50"
+                },
+                {
+                    title: "Acreditado 80/20",
+                    desc: "80 por ciento llega al usuario y 20 financia la continuidad. La división se escribe en el momento del crédito, no se cobra después, así que ya está en el árbol cuando se arma el lote.",
+                    icon: <WalletIcon className="w-8 h-8 text-brand-primary" />,
+                    bgColor: "bg-brand-primary/10",
+                    borderColor: "group-hover:border-brand-primary/50"
+                },
+                {
+                    title: "Sellado en un lote",
+                    desc: "Los claims se agrupan en un bloque, hasta diez, y la raíz del lote se publica en Solana. El programa rechaza una raíz cuya bóveda no cubra lo que la campaña ya prometió.",
+                    icon: <ArrowPathIcon className="w-8 h-8 text-purple-400" />,
+                    bgColor: "bg-purple-400/10",
+                    borderColor: "group-hover:border-purple-400/50"
+                },
+                {
+                    title: "Retirado por su dueño",
+                    desc: "El usuario prueba que su hoja está en esa raíz y retira. Cada hoja deriva de quien firma, así que ninguna otra clave la libera — ni la nuestra — y el relayer paga la comisión y el alquiler.",
+                    icon: <SparklesIcon className="w-8 h-8 text-green-400" />,
+                    bgColor: "bg-green-400/10",
+                    borderColor: "group-hover:border-green-400/50"
+                }
+            ]
         }
     };
 
-    // `content` ainda so tem `en` e `pt`. Ate ganhar um `es`, o espanhol lê o
-    // ingles em vez do portugues, que era o que esta linha entregava antes.
-    const t = lang === 'pt' ? content.pt
-            : lang === 'es' ? ((content as any).es ?? content.en)
-            : content.en;
+    // `content` tem as tres. Esta linha escolhia com `lang === 'en' ? en : pt`,
+    // entao quem pedia espanhol recebia portugues; depois passou a cair no
+    // ingles, que era honesto mas ainda nao era espanhol. Agora e.
+    const t = lang === 'pt' ? content.pt : lang === 'es' ? content.es : content.en;
 
     return (
         <div className="bg-brand-surface border border-brand-border rounded-2xl p-6 lg:p-10 shadow-2xl relative overflow-hidden animate-slideUpFadeIn">

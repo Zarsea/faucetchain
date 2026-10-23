@@ -35,6 +35,9 @@ const CONVERTIDOS = [
     'components/FaucetInternal.tsx',
     'components/InfrastructureMonitor.tsx',
     'components/FaucetHub.tsx',
+    'components/ApiDocs.tsx',
+    'components/ClaimEventSection.tsx',
+    'components/GeneralArticle.tsx',
     'components/MiningHub.tsx',
     'components/BountyBoard.tsx',
     'components/Tokenomics.tsx',
@@ -55,6 +58,72 @@ function faixasDeTri(fonte) {
         for (let i = m.index + m[0].length - 1; i < fonte.length; i++) {
             if (fonte[i] === '(') nivel++;
             else if (fonte[i] === ')') {
+                nivel--;
+                if (nivel === 0) { faixas.push([m.index, i + 1]); break; }
+            }
+        }
+    }
+    return faixas;
+}
+
+/** Trechos de chamadas a um tradutor LOCAL do próprio arquivo.
+ *
+ * ApiDocs e WalletPanel declaram o seu: `const T = (en, pt, es?) => ...`. É a
+ * mesma ideia do `tri`, com outro nome, e o texto dentro dessas chamadas está
+ * igualmente traduzido.
+ *
+ * A exigência é que a assinatura mencione as três línguas. Um helper de duas
+ * é exatamente o par que deixava o espanhol de fora, e continua reprovando.
+ */
+function faixasDeTradutorLocal(fonte) {
+    const nomes = [];
+    const decl = /const\s+([A-Za-z_$][\w$]*)\s*=\s*\(([^)]*)\)\s*(?::[^=]*)?=>/g;
+    let d;
+    while ((d = decl.exec(fonte)) !== null) {
+        const params = d[2];
+        if (/\ben\b/.test(params) && /\bpt\b/.test(params) && /\bes\b/.test(params)) {
+            nomes.push(d[1]);
+        }
+    }
+    const faixas = [];
+    for (const nome of nomes) {
+        const re = new RegExp(`\\b${nome}\\s*\\(`, 'g');
+        let m;
+        while ((m = re.exec(fonte)) !== null) {
+            let nivel = 0;
+            for (let i = m.index + m[0].length - 1; i < fonte.length; i++) {
+                if (fonte[i] === '(') nivel++;
+                else if (fonte[i] === ')') {
+                    nivel--;
+                    if (nivel === 0) { faixas.push([m.index, i + 1]); break; }
+                }
+            }
+        }
+    }
+    return faixas;
+}
+
+/** O ramo `pt: { ... }` de um objeto de conteúdo que também tem `es:`.
+ *
+ * ClaimEventSection e GeneralArticle guardam o artigo inteiro assim, um ramo
+ * por língua, porque são dezenas de campos e não frases soltas. O ramo PT só
+ * é alcançado quando a língua é PT.
+ *
+ * Como no caso da coluna Pt, exigir o `es` é o que mantém isto honesto: um
+ * objeto de dois ramos é o defeito original e continua reprovando.
+ */
+function faixasDeRamoPt(fonte) {
+    if (!/\bes\s*:\s*\{/.test(fonte)) return [];
+    const faixas = [];
+    // `es` entra junto porque espanhol e português dividem os acentos: sem
+    // isto o check acusaria a própria tradução que ele existe para exigir.
+    const re = /\b(pt|es)\s*:\s*\{/g;
+    let m;
+    while ((m = re.exec(fonte)) !== null) {
+        let nivel = 0;
+        for (let i = m.index + m[0].length - 1; i < fonte.length; i++) {
+            if (fonte[i] === '{') nivel++;
+            else if (fonte[i] === '}') {
                 nivel--;
                 if (nivel === 0) { faixas.push([m.index, i + 1]); break; }
             }
@@ -113,7 +182,8 @@ let verificados = 0;
 for (const arquivo of CONVERTIDOS) {
     const fonte = readFileSync(arquivo, 'utf8');
     const dentro = [...faixasDeTri(fonte), ...faixasDeComentario(fonte),
-                    ...faixasDeColunaPt(fonte)];
+                    ...faixasDeColunaPt(fonte), ...faixasDeTradutorLocal(fonte),
+                    ...faixasDeRamoPt(fonte)];
     const cobre = (p) => dentro.some(([a, b]) => p >= a && p < b);
 
     for (let i = 0; i < fonte.length; i++) {
