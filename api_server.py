@@ -7314,6 +7314,31 @@ def init_settlement_tables():
             faucet_wallet TEXT
         )
     ''')
+    # Cada saque visto na cadeia, inclusive os que nao passaram pelo relayer.
+    #
+    # `_collected_from_chain` ja monta essa lista ao vivo a cada leitura do
+    # ledger, e continua sendo a fonte. Esta tabela existe por uma coisa que a
+    # leitura ao vivo nao tem como saber: QUANDO. Um bit ligado nao carrega
+    # data, entao sem alguem olhando periodicamente nao ha linha do tempo
+    # nenhuma para quem sacou pagando a propria taxa.
+    #
+    # `first_seen_at` e quando ESTE servidor notou, nao quando a Solana
+    # executou. A diferenca e o intervalo da varredura, e o nome do campo diz
+    # isso de proposito -- chamar de `claimed_at` seria dar precisao que nao
+    # existe.
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS settlement_collections (
+            campaign_id   INTEGER NOT NULL,
+            root_index    INTEGER NOT NULL,
+            leaf_index    INTEGER NOT NULL,
+            batch_id      INTEGER,
+            recipient     TEXT NOT NULL,
+            amount        INTEGER NOT NULL,
+            first_seen_at INTEGER NOT NULL,
+            signature     TEXT,
+            PRIMARY KEY (campaign_id, root_index, leaf_index)
+        )
+    ''')
     # A position voided because it was created by a defect is not the same as one
     # the owner spent. is_spent takes it out of every weight and sum; this says
     # why, so nobody later reads it as a withdrawal that happened.
@@ -9556,6 +9581,17 @@ def _collected_from_chain(c, chain, off_chain: list, dados_das_raizes: list,
     for p in pagamentos:
         por_leaf.setdefault((p["root_index"], p["recipient"]), p)
 
+    # Quando a varredura notou cada saque. Unica data que existe para quem
+    # pagou a propria taxa: o bit na raiz nao carrega nenhuma.
+    visto_em = {}
+    try:
+        for root_index, leaf_index, quando in c.execute(
+            "SELECT root_index, leaf_index, first_seen_at FROM settlement_collections"
+        ):
+            visto_em[(root_index, leaf_index)] = quando
+    except sqlite3.OperationalError:
+        pass            # tabela ainda nao criada: a lista sai sem carimbo
+
     sacados = []
     leu_alguma = False
     for item, data in zip(off_chain, dados_das_raizes):
@@ -9582,9 +9618,140 @@ def _collected_from_chain(c, chain, off_chain: list, dados_das_raizes: list,
                 "leaf_index": folha["leaf_index"],
                 "signature": pago["signature"] if pago else None,
                 "paid_at": pago["paid_at"] if pago else None,
+                # Quando a varredura viu, que nao e quando a Solana executou.
+                # Nulo enquanto a varredura nao tiver passado por este leaf.
+                "first_seen_at": visto_em.get((item["root_index"], folha["leaf_index"])),
                 "relayed": pago is not None,
             })
     return sacados if leu_alguma else None
+
+
+# A cada quanto tempo olhar a cadeia atras de saque novo. Cinco minutos porque
+# o que se ganha e a RESOLUCAO do carimbo, nao o dado: quem sacou ja aparece ao
+# vivo no ledger. Varrer de minuto em minuto gastaria RPC para estreitar uma
+# janela que ninguem le com essa precisao.
+COLLECTION_SCAN_SECONDS = int(os.getenv("COLLECTION_SCAN_SECONDS", "300"))
+
+
+def varrer_saques() -> int:
+    """Anota todo saque que a cadeia mostra e esta tabela ainda nao tem.
+
+    Sincrona de proposito: toca rede e banco, e o laco que a chama a joga numa
+    thread, como `conferir_saldo_do_relayer` ja faz.
+
+    Nao tenta recuperar o passado. Um bit ligado nao diz quando foi ligado,
+    entao saque anterior a primeira varredura entra com o carimbo de agora se
+    for visto aqui -- por isso a primeira execucao grava muita coisa com a
+    mesma data, e por isso o campo se chama `first_seen_at`. A alternativa
+    seria `getSignaturesForAddress` com paginacao e parsing da instrucao, que e
+    outro tamanho de trabalho e depende da devnet ainda guardar o historico.
+
+    Devolve quantas linhas novas entraram.
+    """
+    try:
+        import solana_settlement as chain
+
+        idl = chain.load_idl()
+    except Exception as e:
+        audit_logger.warning(f"collection scan skipped, no Solana client: {e!r}")
+        return 0
+
+    from solders.pubkey import Pubkey
+
+    pid = chain.program_id(idl)
+    conn = get_db_connection()
+    c = conn.cursor()
+    novos = 0
+    try:
+        lotes = c.execute(
+            """SELECT b.id, b.campaign_id, b.root_index, b.root, sc.sponsor
+                 FROM settlement_batches b
+                 JOIN settlement_campaigns sc ON sc.campaign_id = b.campaign_id
+                WHERE b.published_signature IS NOT NULL
+                ORDER BY b.id"""
+        ).fetchall()
+        if not lotes:
+            return 0
+
+        ja_visto = {
+            (r[0], r[1], r[2])
+            for r in c.execute(
+                "SELECT campaign_id, root_index, leaf_index FROM settlement_collections"
+            )
+        }
+
+        enderecos, meta = [], []
+        for batch_id, campaign_id, root_index, root, sponsor in lotes:
+            campaign = chain.campaign_pda(pid, Pubkey.from_string(sponsor), campaign_id)
+            enderecos.append(chain.root_pda(pid, campaign, root_index))
+            meta.append((batch_id, campaign_id, root_index, root))
+
+        # getMultipleAccounts recusa mais de 100 enderecos por chamada, e um
+        # projeto com muitas campanhas chega la sem avisar.
+        rpc_url = chain.default_rpc_url()
+        dados = []
+        for i in range(0, len(enderecos), 100):
+            dados.extend(chain.fetch_accounts(rpc_url, enderecos[i:i + 100]))
+
+        agora = int(_time.time())
+        for (batch_id, campaign_id, root_index, root), bruto in zip(meta, dados):
+            if bruto is None:
+                continue
+            arvore = _batch_tree(c, batch_id, root)
+            if arvore is None:
+                continue
+            for folha in arvore["claims"]:
+                chave = (campaign_id, root_index, folha["leaf_index"])
+                if chave in ja_visto:
+                    continue
+                if not chain.leaf_claimed(bruto, folha["leaf_index"]):
+                    continue
+                # A assinatura e um extra: ela existe so para quem sacou pelo
+                # nosso relayer. Se a tabela faltar ou a consulta falhar, o
+                # saque continua sendo anotado SEM ela -- deixar o erro subir
+                # abortaria a varredura e o carimbo, que e a unica coisa que
+                # esta funcao sabe produzir e ninguem mais sabe.
+                try:
+                    assinatura = c.execute(
+                        "SELECT signature FROM relayer_spend WHERE batch_id = ? AND recipient = ? "
+                        "ORDER BY created_at LIMIT 1",
+                        (batch_id, folha["recipient"]),
+                    ).fetchone()
+                except sqlite3.OperationalError:
+                    assinatura = None
+                c.execute(
+                    """INSERT OR IGNORE INTO settlement_collections
+                       (campaign_id, root_index, leaf_index, batch_id, recipient,
+                        amount, first_seen_at, signature)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (campaign_id, root_index, folha["leaf_index"], batch_id,
+                     folha["recipient"], folha["amount"], agora,
+                     assinatura[0] if assinatura else None),
+                )
+                novos += c.rowcount
+        conn.commit()
+    except Exception as e:
+        audit_logger.warning(f"collection scan failed: {e!r}")
+    finally:
+        conn.close()
+    if novos:
+        audit_logger.info(f"collection scan recorded {novos} withdrawal(s) new to this table")
+    return novos
+
+
+async def _laco_saques():
+    while True:
+        await asyncio.sleep(COLLECTION_SCAN_SECONDS)
+        try:
+            # Toca rede, entao sai da thread do loop de eventos.
+            await asyncio.to_thread(varrer_saques)
+        except Exception as e:
+            audit_logger.warning("Varredura de saques tropecou: %r", e)
+
+
+@app.on_event("startup")
+async def startup_collection_scan():
+    asyncio.create_task(_laco_saques())
 
 
 # --- Pace limits on the two endpoints that cost something ---------------------

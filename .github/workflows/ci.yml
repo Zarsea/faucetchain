@@ -64,6 +64,9 @@ jobs:
       - name: A campaign credit remembers which faucet sent it
         run: python tests/test_reward_provenance.py
 
+      - name: The withdrawal scan gives a date to what the chain only dates by bit
+        run: python tests/test_collection_scan.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

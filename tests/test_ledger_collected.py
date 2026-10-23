@@ -73,15 +73,22 @@ def lote(batch_id, root_index, publicado=True):
 
 
 def rodar(lotes, dados, arvores, sacados_por_raiz, pagamentos=()):
-    """Chama a funcao com `_batch_tree` trocada pelas arvores dadas."""
+    """Chama a funcao com `_batch_tree` trocada pelas arvores dadas.
+
+    O cursor e real porque a funcao consulta `settlement_collections` atras do
+    carimbo de quando cada saque foi visto. Passar None aqui funcionava
+    enquanto ela so repassava o cursor para `_batch_tree`.
+    """
     original = srv._batch_tree
     srv._batch_tree = lambda c, batch_id, root: arvores.get(batch_id)
+    conn = srv.get_db_connection()
     try:
         return srv._collected_from_chain(
-            None, CadeiaFalsa(sacados_por_raiz), lotes, dados, list(pagamentos)
+            conn.cursor(), CadeiaFalsa(sacados_por_raiz), lotes, dados, list(pagamentos)
         )
     finally:
         srv._batch_tree = original
+        conn.close()
 
 
 # ─────────────────────────────────────── o check que faltava
