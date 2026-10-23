@@ -3,7 +3,7 @@ import React from 'react';
 import { SectionCard } from './SectionCard';
 import { MermaidDiagram } from './MermaidDiagram';
 import { CubeIcon, ShieldCheckIcon, SignalIcon, CreditCardIcon, SparklesIcon, ChartBarIcon, CpuChipIcon, BoltIcon } from './IconComponents';
-import { useLanguage } from './LanguageContext';
+import { useLanguage, localeDoIdioma } from './LanguageContext';
 import { diagrams } from '../constants';
 import { useNetwork } from './NetworkContext';
 
@@ -28,7 +28,7 @@ export const Overview: React.FC = () => {
     const { t, lang } = useLanguage();
     const { metrics } = useNetwork();
 
-    const formatNum = (n: number) => new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US').format(n);
+    const formatNum = (n: number) => new Intl.NumberFormat(localeDoIdioma(lang)).format(n);
 
     return (
         <div className="space-y-10 animate-slideUp relative z-0">

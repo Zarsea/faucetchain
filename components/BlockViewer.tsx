@@ -3,7 +3,7 @@ import { SectionCard } from './SectionCard';
 import { CubeIcon, CpuChipIcon, BoltIcon } from './IconComponents';
 import { API_BASE_URL } from '../apiConfig';
 import { useNetwork } from './NetworkContext';
-import { useLanguage } from './LanguageContext';
+import { useLanguage, localeDoIdioma } from './LanguageContext';
 
 interface BlockData {
     height: number;
@@ -14,7 +14,7 @@ interface BlockData {
     reward: number;
 }
 
-const formatNumber = (num: number, lang: string) => new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US').format(num);
+const formatNumber = (num: number, lang: string) => new Intl.NumberFormat(localeDoIdioma(lang)).format(num);
 
 export const BlockViewer: React.FC = () => {
     const { lang, tFn } = useLanguage();

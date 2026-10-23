@@ -4,13 +4,13 @@ import { SectionCard } from './SectionCard';
 import { SignalIcon, CubeIcon, ChartBarIcon, BeakerIcon } from './IconComponents';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, AreaChart, Area } from 'recharts';
 import { useNetwork } from './NetworkContext';
-import { useLanguage } from './LanguageContext';
+import { useLanguage, localeDoIdioma } from './LanguageContext';
 import { NetworkSentinel } from './NetworkSentinel';
 import { verifyBlockHashMerkleProof } from '../utils/merkle';
 import { API_BASE_URL } from '../apiConfig';
 import { BlockViewer } from './BlockViewer';
 
-const formatNumber = (num: number, lang: string) => new Intl.NumberFormat(lang === 'pt' ? 'pt-BR' : 'en-US').format(num);
+const formatNumber = (num: number, lang: string) => new Intl.NumberFormat(localeDoIdioma(lang)).format(num);
 
 const MetricItem: React.FC<{ label: string; value: string; trend?: 'UP' | 'DOWN' | 'NEUTRAL' }> = ({ label, value, trend }) => (
     <div className="bg-brand-bg/50 p-4 rounded-lg border border-brand-border hover:border-brand-primary/30 transition-colors duration-300">
@@ -33,7 +33,7 @@ const FAIXA_LEGENDA: Record<string, string> = {
 
 export const NetworkStatus: React.FC = () => {
     const { metrics, blocks, triggerAnomaly, anomaly } = useNetwork();
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
     const [currentTime, setCurrentTime] = useState(Date.now());
     const [verifyState, setVerifyState] = useState<Record<number, 'idle' | 'loading' | 'verified' | 'failed'>>({});
     const [epochActive, setEpochActive] = useState(true);
@@ -87,8 +87,8 @@ export const NetworkStatus: React.FC = () => {
 
     const getRelativeTime = (timestamp: number) => {
         const diff = Math.floor((currentTime - timestamp) / 1000);
-        if (diff < 2) return lang === 'pt' ? 'Agora mesmo' : 'Just now';
-        return lang === 'pt' ? `${diff}s atrás` : `${diff}s ago`;
+        if (diff < 2) return tri('Just now', 'Agora mesmo', 'Ahora mismo');
+        return tri(`${diff}s ago`, `${diff}s atrás`, `hace ${diff}s`);
     };
 
     const verifyBlock = async (height: number) => {

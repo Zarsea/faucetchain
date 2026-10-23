@@ -39,12 +39,17 @@ interface BountyStats {
     paidRewards: number;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; labelPt: string; color: string; bg: string; border: string }> = {
-    OPEN: { label: 'Open', labelPt: 'Aberta', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/30' },
-    CLAIMED: { label: 'In Progress', labelPt: 'Em Progresso', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
-    COMPLETED: { label: 'Completed', labelPt: 'Concluída', color: 'text-brand-primary', bg: 'bg-brand-primary/10', border: 'border-brand-primary/30' },
-    CANCELLED: { label: 'Cancelled', labelPt: 'Cancelada', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+const STATUS_CONFIG: Record<string, { label: string; labelPt: string; labelEs: string; color: string; bg: string; border: string }> = {
+    OPEN: { label: 'Open', labelPt: 'Aberta', labelEs: 'Abierta', color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/30' },
+    CLAIMED: { label: 'In Progress', labelPt: 'Em Progresso', labelEs: 'En Progreso', color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' },
+    COMPLETED: { label: 'Completed', labelPt: 'Concluída', labelEs: 'Completada', color: 'text-brand-primary', bg: 'bg-brand-primary/10', border: 'border-brand-primary/30' },
+    CANCELLED: { label: 'Cancelled', labelPt: 'Cancelada', labelEs: 'Cancelada', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
 };
+
+// O rotulo de status mora na tabela acima, nao numa chamada a `tri`, porque cor
+// e borda vem do mesmo registro. Esta funcao e so o seletor de coluna.
+const rotuloStatus = (lang: string, sc?: { label: string; labelPt: string; labelEs: string }) =>
+    !sc ? undefined : lang === 'pt' ? sc.labelPt : lang === 'es' ? sc.labelEs : sc.label;
 
 const formatTimeRemaining = (seconds: number): string => {
     if (seconds <= 0) return 'Expired';
@@ -57,7 +62,7 @@ const formatTimeRemaining = (seconds: number): string => {
 
 export const BountyBoard: React.FC = () => {
     const { userAddress, isConnected, authMethod } = useAuth();
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
 
     const [bounties, setBounties] = useState<Bounty[]>([]);
     const [stats, setStats] = useState<BountyStats | null>(null);
@@ -98,7 +103,7 @@ export const BountyBoard: React.FC = () => {
     const handleCreateBounty = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!isConnected || !userAddress) {
-            alert(lang === 'en' ? 'Connect your wallet first' : 'Conecte sua carteira primeiro');
+            alert(tri('Connect your wallet first', 'Conecte sua carteira primeiro', 'Conecte su billetera primero'));
             return;
         }
         setActionLoading(-1);
@@ -174,12 +179,13 @@ export const BountyBoard: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
                     <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter">
-                        {lang === 'en' ? 'Community Bounty Board' : 'Quadro de Bounties'}
+                        {tri('Community Bounty Board', 'Quadro de Bounties', 'Tablero de Recompensas')}
                     </h2>
                     <p className="text-brand-muted text-lg mt-2 max-w-2xl">
-                        {lang === 'en'
-                            ? 'Create bounties by locking $CLAIM as rewards. Complete tasks to earn tokens. A decentralized task marketplace powered by FaucetChain.'
-                            : 'Crie bounties travando $CLAIM como recompensa. Complete tarefas para ganhar tokens. Um marketplace descentralizado de tarefas na FaucetChain.'}
+                        {tri(
+                            'Create bounties by locking $CLAIM as rewards. Complete tasks to earn tokens. A decentralized task marketplace powered by FaucetChain.',
+                            'Crie bounties travando $CLAIM como recompensa. Complete tarefas para ganhar tokens. Um marketplace descentralizado de tarefas na FaucetChain.',
+                            'Cree recompensas bloqueando $CLAIM. Complete tareas para ganar tokens. Un mercado descentralizado de tareas sobre FaucetChain.')}
                     </p>
                 </div>
                 <button
@@ -188,8 +194,8 @@ export const BountyBoard: React.FC = () => {
                 >
                     <SparklesIcon className="w-5 h-5" />
                     {showForm
-                        ? (lang === 'en' ? 'Close' : 'Fechar')
-                        : (lang === 'en' ? 'New Bounty' : 'Nova Bounty')}
+                        ? tri('Close', 'Fechar', 'Cerrar')
+                        : tri('New Bounty', 'Nova Bounty', 'Nueva Recompensa')}
                 </button>
             </div>
 
@@ -197,11 +203,11 @@ export const BountyBoard: React.FC = () => {
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {[
-                        { label: lang === 'en' ? 'Total Bounties' : 'Total', value: stats.totalBounties.toString(), icon: <CubeIcon className="w-5 h-5" /> },
-                        { label: lang === 'en' ? 'Open' : 'Abertas', value: stats.openBounties.toString(), icon: <SignalIcon className="w-5 h-5 text-green-400" /> },
-                        { label: lang === 'en' ? 'Completed' : 'Concluídas', value: stats.completedBounties.toString(), icon: <ShieldCheckIcon className="w-5 h-5 text-brand-primary" /> },
-                        { label: lang === 'en' ? 'CLAIM Locked' : 'CLAIM Travados', value: `${stats.lockedRewards.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-yellow-400" /> },
-                        { label: lang === 'en' ? 'CLAIM Paid' : 'CLAIM Pagos', value: `${stats.paidRewards.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
+                        { label: tri('Total Bounties', 'Total', 'Total'), value: stats.totalBounties.toString(), icon: <CubeIcon className="w-5 h-5" /> },
+                        { label: tri('Open', 'Abertas', 'Abiertas'), value: stats.openBounties.toString(), icon: <SignalIcon className="w-5 h-5 text-green-400" /> },
+                        { label: tri('Completed', 'Concluídas', 'Completadas'), value: stats.completedBounties.toString(), icon: <ShieldCheckIcon className="w-5 h-5 text-brand-primary" /> },
+                        { label: tri('CLAIM Locked', 'CLAIM Travados', 'CLAIM Bloqueados'), value: `${stats.lockedRewards.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-yellow-400" /> },
+                        { label: tri('CLAIM Paid', 'CLAIM Pagos', 'CLAIM Pagados'), value: `${stats.paidRewards.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
                     ].map((stat, i) => (
                         <div key={i} className="glass border border-brand-border/50 rounded-2xl p-5 hover:border-brand-primary/30 transition-colors">
                             <div className="flex items-center gap-2 mb-2 text-brand-muted">{stat.icon}
@@ -216,36 +222,36 @@ export const BountyBoard: React.FC = () => {
             {/* Create Form */}
             {showForm && (
                 <div className="animate-slideUp">
-                    <SectionCard title={lang === 'en' ? 'Create New Bounty' : 'Criar Nova Bounty'} icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
+                    <SectionCard title={tri('Create New Bounty', 'Criar Nova Bounty', 'Crear Nueva Recompensa')} icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
                         <form onSubmit={handleCreateBounty} className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                             <div className="md:col-span-2">
                                 <label className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-2">
-                                    {lang === 'en' ? 'Title' : 'Título'} *
+                                    {tri('Title', 'Título', 'Título')} *
                                 </label>
                                 <input
                                     type="text"
                                     value={formTitle}
                                     onChange={e => setFormTitle(e.target.value)}
-                                    placeholder={lang === 'en' ? 'e.g. Write documentation for API v2' : 'ex. Escrever documentação para API v2'}
+                                    placeholder={tri('e.g. Write documentation for API v2', 'ex. Escrever documentação para API v2', 'ej. Escribir documentación para la API v2')}
                                     className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-brand-secondary placeholder:text-brand-muted/40 focus:outline-none focus:border-brand-primary/50 font-mono text-sm"
                                     required
                                 />
                             </div>
                             <div className="md:col-span-2">
                                 <label className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-2">
-                                    {lang === 'en' ? 'Description' : 'Descrição'}
+                                    {tri('Description', 'Descrição', 'Descripción')}
                                 </label>
                                 <textarea
                                     value={formDescription}
                                     onChange={e => setFormDescription(e.target.value)}
-                                    placeholder={lang === 'en' ? 'Describe the task requirements...' : 'Descreva os requisitos da tarefa...'}
+                                    placeholder={tri('Describe the task requirements...', 'Descreva os requisitos da tarefa...', 'Describa los requisitos de la tarea...')}
                                     rows={3}
                                     className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-brand-secondary placeholder:text-brand-muted/40 focus:outline-none focus:border-brand-primary/50 font-mono text-sm resize-none"
                                 />
                             </div>
                             <div>
                                 <label className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-2">
-                                    {lang === 'en' ? 'Reward ($CLAIM)' : 'Recompensa ($CLAIM)'} *
+                                    {tri('Reward ($CLAIM)', 'Recompensa ($CLAIM)', 'Recompensa ($CLAIM)')} *
                                 </label>
                                 <input
                                     type="number"
@@ -260,18 +266,18 @@ export const BountyBoard: React.FC = () => {
                             </div>
                             <div>
                                 <label className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-2">
-                                    {lang === 'en' ? 'Duration (hours)' : 'Duração (horas)'}
+                                    {tri('Duration (hours)', 'Duração (horas)', 'Duración (horas)')}
                                 </label>
                                 <select
                                     value={formDuration}
                                     onChange={e => setFormDuration(e.target.value)}
                                     className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-brand-secondary focus:outline-none focus:border-brand-primary/50 font-mono text-sm"
                                 >
-                                    <option value="1">1 {lang === 'en' ? 'hour' : 'hora'}</option>
-                                    <option value="6">6 {lang === 'en' ? 'hours' : 'horas'}</option>
-                                    <option value="24">24 {lang === 'en' ? 'hours' : 'horas'}</option>
-                                    <option value="72">3 {lang === 'en' ? 'days' : 'dias'}</option>
-                                    <option value="168">7 {lang === 'en' ? 'days' : 'dias'}</option>
+                                    <option value="1">1 {tri('hour', 'hora', 'hora')}</option>
+                                    <option value="6">6 {tri('hours', 'horas', 'horas')}</option>
+                                    <option value="24">24 {tri('hours', 'horas', 'horas')}</option>
+                                    <option value="72">3 {tri('days', 'dias', 'días')}</option>
+                                    <option value="168">7 {tri('days', 'dias', 'días')}</option>
                                 </select>
                             </div>
                             <div className="md:col-span-2">
@@ -282,11 +288,11 @@ export const BountyBoard: React.FC = () => {
                                 >
                                     {actionLoading === -1
                                         ? <LoadingIcon className="w-5 h-5 animate-spin mx-auto" />
-                                        : (lang === 'en' ? '🔒 Lock CLAIM & Create Bounty' : '🔒 Travar CLAIM & Criar Bounty')}
+                                        : tri('🔒 Lock CLAIM & Create Bounty', '🔒 Travar CLAIM & Criar Bounty', '🔒 Bloquear CLAIM y Crear Recompensa')}
                                 </button>
                                 {!isConnected && (
                                     <p className="text-center text-xs text-red-400 mt-2">
-                                        {lang === 'en' ? 'Connect your wallet to create bounties' : 'Conecte sua carteira para criar bounties'}
+                                        {tri('Connect your wallet to create bounties', 'Conecte sua carteira para criar bounties', 'Conecte su billetera para crear recompensas')}
                                     </p>
                                 )}
                             </div>
@@ -307,7 +313,7 @@ export const BountyBoard: React.FC = () => {
                                 : 'text-brand-muted hover:text-white hover:bg-brand-bg/50'
                         }`}
                     >
-                        {f === 'ALL' ? (lang === 'en' ? 'All' : 'Todas') : STATUS_CONFIG[f]?.[lang === 'pt' ? 'labelPt' : 'label'] || f}
+                        {f === 'ALL' ? tri('All', 'Todas', 'Todas') : rotuloStatus(lang, STATUS_CONFIG[f]) || f}
                     </button>
                 ))}
             </div>
@@ -321,10 +327,10 @@ export const BountyBoard: React.FC = () => {
                 <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
                     <CubeIcon className="w-24 h-24 text-brand-muted mb-6" />
                     <h3 className="text-xl font-black text-white uppercase tracking-widest">
-                        {lang === 'en' ? 'No Bounties Found' : 'Nenhuma Bounty Encontrada'}
+                        {tri('No Bounties Found', 'Nenhuma Bounty Encontrada', 'Ninguna Recompensa Encontrada')}
                     </h3>
                     <p className="text-brand-muted mt-2">
-                        {lang === 'en' ? 'Create the first bounty to get started!' : 'Crie a primeira bounty para começar!'}
+                        {tri('Create the first bounty to get started!', 'Crie a primeira bounty para começar!', '¡Cree la primera recompensa para empezar!')}
                     </p>
                 </div>
             ) : (
@@ -345,11 +351,11 @@ export const BountyBoard: React.FC = () => {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${sc.color} ${sc.bg} border ${sc.border}`}>
-                                                {lang === 'pt' ? sc.labelPt : sc.label}
+                                                {rotuloStatus(lang, sc)}
                                             </span>
                                             {bounty.is_expired && bounty.status === 'OPEN' && (
                                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest text-red-400 bg-red-500/10 border border-red-500/30">
-                                                    {lang === 'en' ? 'Expired' : 'Expirada'}
+                                                    {tri('Expired', 'Expirada', 'Expirada')}
                                                 </span>
                                             )}
                                         </div>
@@ -371,7 +377,7 @@ export const BountyBoard: React.FC = () => {
                                 {/* Meta */}
                                 <div className="space-y-2 mb-4">
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-brand-muted">{lang === 'en' ? 'Creator' : 'Criador'}</span>
+                                        <span className="text-brand-muted">{tri('Creator', 'Criador', 'Creador')}</span>
                                         <span className="font-mono text-brand-secondary opacity-70">{bounty.creator_address.substring(0, 10)}...</span>
                                     </div>
                                     {bounty.hunter_address && (
@@ -381,9 +387,14 @@ export const BountyBoard: React.FC = () => {
                                         </div>
                                     )}
                                     <div className="flex justify-between text-xs">
-                                        <span className="text-brand-muted">{lang === 'en' ? 'Time Left' : 'Tempo Restante'}</span>
+                                        <span className="text-brand-muted">{tri('Time Left', 'Tempo Restante', 'Tiempo Restante')}</span>
                                         <span className={`font-mono font-bold ${bounty.is_expired ? 'text-red-400' : 'text-green-400'}`}>
-                                            {bounty.is_expired ? (lang === 'en' ? 'Expired' : 'Expirada') : formatTimeRemaining(bounty.time_remaining)}
+                                            {/* `|| time_remaining <= 0` porque formatTimeRemaining devolve
+                                                um 'Expired' cravado em ingles nesse caso, e o backend pode
+                                                zerar o tempo sem ter marcado is_expired ainda. */}
+                                            {bounty.is_expired || bounty.time_remaining <= 0
+                                                ? tri('Expired', 'Expirada', 'Expirada')
+                                                : formatTimeRemaining(bounty.time_remaining)}
                                         </span>
                                     </div>
                                 </div>
@@ -406,7 +417,7 @@ export const BountyBoard: React.FC = () => {
                                             disabled={actionLoading === bounty.id}
                                             className="flex-1 bg-green-500/10 text-green-400 border border-green-500/30 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-500/20 transition-all active:scale-95 disabled:opacity-40"
                                         >
-                                            {actionLoading === bounty.id ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : (lang === 'en' ? '⚡ Accept' : '⚡ Aceitar')}
+                                            {actionLoading === bounty.id ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : tri('⚡ Accept', '⚡ Aceitar', '⚡ Aceptar')}
                                         </button>
                                     )}
                                     {canApprove && (
@@ -415,7 +426,7 @@ export const BountyBoard: React.FC = () => {
                                             disabled={actionLoading === bounty.id}
                                             className="flex-1 bg-brand-primary/10 text-brand-primary border border-brand-primary/30 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-brand-primary/20 transition-all active:scale-95 disabled:opacity-40"
                                         >
-                                            {actionLoading === bounty.id ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : (lang === 'en' ? '✅ Approve & Pay' : '✅ Aprovar & Pagar')}
+                                            {actionLoading === bounty.id ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : tri('✅ Approve & Pay', '✅ Aprovar & Pagar', '✅ Aprobar y Pagar')}
                                         </button>
                                     )}
                                     {canCancel && (
@@ -424,7 +435,7 @@ export const BountyBoard: React.FC = () => {
                                             disabled={actionLoading === bounty.id}
                                             className="flex-1 bg-red-500/10 text-red-400 border border-red-500/30 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-500/20 transition-all active:scale-95 disabled:opacity-40"
                                         >
-                                            {actionLoading === bounty.id ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : (lang === 'en' ? '✕ Cancel' : '✕ Cancelar')}
+                                            {actionLoading === bounty.id ? <LoadingIcon className="w-4 h-4 animate-spin mx-auto" /> : tri('✕ Cancel', '✕ Cancelar', '✕ Cancelar')}
                                         </button>
                                     )}
                                 </div>

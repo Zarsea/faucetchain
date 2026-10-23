@@ -57,7 +57,7 @@ interface Reward {
 
 export const MiningHub: React.FC = () => {
     const { userAddress, isConnected } = useAuth();
-    const { lang } = useLanguage();
+    const { tri } = useLanguage();
 
     const [stats, setStats] = useState<MiningStats | null>(null);
     const [sealer, setSealer] = useState<SealerState | null>(null);
@@ -134,7 +134,7 @@ export const MiningHub: React.FC = () => {
                             </div>
                             <div>
                                 <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter">
-                                    {lang === 'en' ? 'Mining Hub' : 'Central de Mineração'}
+                                    {tri('Mining Hub', 'Central de Mineração', 'Centro de Minería')}
                                 </h2>
                                 <p className="text-xs text-brand-primary font-black uppercase tracking-[0.3em]">
                                     Proof of Claim · Mineração por presença
@@ -142,9 +142,10 @@ export const MiningHub: React.FC = () => {
                             </div>
                         </div>
                         <p className="text-brand-muted max-w-xl leading-relaxed">
-                            {lang === 'en'
-                                ? `Run a node on your own machine. It pays for presence, not for hashing: the hourly pool of ${stats?.epochReward ?? '…'} $CLAIM is split by how long each node stayed online. The pool is fixed, so more nodes means less each — and the machine has to stay on, which is a cost you pay in electricity.`
-                                : `Rode um nó na sua própria máquina. Ele paga por presença, não por hash: o pool de ${stats?.epochReward ?? '…'} $CLAIM por hora é dividido por quanto tempo cada nó ficou online. O pool é fixo, então mais nós significa menos para cada um — e a máquina precisa ficar ligada, que é um custo que você paga em energia.`}
+                            {tri(
+                                `Run a node on your own machine. It pays for presence, not for hashing: the hourly pool of ${stats?.epochReward ?? '…'} $CLAIM is split by how long each node stayed online. The pool is fixed, so more nodes means less each — and the machine has to stay on, which is a cost you pay in electricity.`,
+                                `Rode um nó na sua própria máquina. Ele paga por presença, não por hash: o pool de ${stats?.epochReward ?? '…'} $CLAIM por hora é dividido por quanto tempo cada nó ficou online. O pool é fixo, então mais nós significa menos para cada um — e a máquina precisa ficar ligada, que é um custo que você paga em energia.`,
+                                `Ejecute un nodo en su propia máquina. Paga por presencia, no por hash: el pool de ${stats?.epochReward ?? '…'} $CLAIM por hora se reparte según cuánto tiempo estuvo en línea cada nodo. El pool es fijo, así que más nodos significa menos para cada uno — y la máquina tiene que quedar encendida, que es un costo que usted paga en electricidad.`)}
                         </p>
                     </div>
 
@@ -161,7 +162,7 @@ export const MiningHub: React.FC = () => {
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
                                 <span className="text-2xl font-black text-white font-mono">{formatCountdown(epochCountdown)}</span>
                                 <span className="text-[8px] font-black text-brand-muted uppercase tracking-widest">
-                                    {lang === 'en' ? 'Next Epoch' : 'Próx. Epoch'}
+                                    {tri('Next Epoch', 'Próx. Epoch', 'Próx. Epoch')}
                                 </span>
                             </div>
                         </div>
@@ -173,10 +174,10 @@ export const MiningHub: React.FC = () => {
             {stats && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
-                        { label: lang === 'en' ? 'Nodes Online' : 'Nós Online', value: stats.nodesOnline.toString(), icon: <SignalIcon className="w-5 h-5 text-green-400" />, highlight: true },
-                        { label: lang === 'en' ? 'CLAIM/Hour' : 'CLAIM/Hora', value: stats.epochReward.toLocaleString(), icon: <BoltIcon className="w-5 h-5 text-yellow-400" /> },
-                        { label: lang === 'en' ? 'Est. per Node' : 'Est. por Nó', value: `${stats.estimatedRewardPerNode}`, icon: <SparklesIcon className="w-5 h-5 text-brand-primary" /> },
-                        { label: lang === 'en' ? 'Total Distributed' : 'Total Distribuído', value: `${stats.totalDistributed.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
+                        { label: tri('Nodes Online', 'Nós Online', 'Nodos en Línea'), value: stats.nodesOnline.toString(), icon: <SignalIcon className="w-5 h-5 text-green-400" />, highlight: true },
+                        { label: tri('CLAIM/Hour', 'CLAIM/Hora', 'CLAIM/Hora'), value: stats.epochReward.toLocaleString(), icon: <BoltIcon className="w-5 h-5 text-yellow-400" /> },
+                        { label: tri('Est. per Node', 'Est. por Nó', 'Est. por Nodo'), value: `${stats.estimatedRewardPerNode}`, icon: <SparklesIcon className="w-5 h-5 text-brand-primary" /> },
+                        { label: tri('Total Distributed', 'Total Distribuído', 'Total Distribuido'), value: `${stats.totalDistributed.toLocaleString()}`, icon: <ChartBarIcon className="w-5 h-5 text-brand-accent" /> },
                     ].map((s, i) => (
                         <div key={i} className={`glass border rounded-2xl p-5 transition-all hover:border-brand-primary/30 ${
                             s.highlight ? 'border-green-500/30 bg-green-500/5' : 'border-brand-border/50'
@@ -196,25 +197,27 @@ export const MiningHub: React.FC = () => {
                 /api/mining/sealer, e qualquer um refaz a conta. */}
             {sealer && (
                 <SectionCard
-                    title={lang === 'en' ? 'Who seals the next block' : 'Quem sela o proximo bloco'}
+                    title={tri('Who seals the next block', 'Quem sela o proximo bloco', 'Quién sella el próximo bloque')}
                     icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}
                 >
                     <div className="space-y-5">
                         <p className="text-sm text-brand-muted leading-relaxed max-w-2xl">
-                            {lang === 'en'
-                                ? 'The draw is a function of the parent block hash and active stake, so anyone holding the chain can recompute it. Weight is 1 + min(stake, cap): the +1 keeps a node with no stake in the draw, and the cap stops the largest staker from sealing every round.'
-                                : 'O sorteio e funcao do hash do bloco pai e do stake ativo, entao qualquer um que tenha a cadeia refaz a conta. O peso e 1 + min(stake, teto): o +1 mantem no sorteio um no sem stake, e o teto impede que quem travou mais sele toda rodada.'}
+                            {tri(
+                                'The draw is a function of the parent block hash and active stake, so anyone holding the chain can recompute it. Weight is 1 + min(stake, cap): the +1 keeps a node with no stake in the draw, and the cap stops the largest staker from sealing every round.',
+                                'O sorteio e funcao do hash do bloco pai e do stake ativo, entao qualquer um que tenha a cadeia refaz a conta. O peso e 1 + min(stake, teto): o +1 mantem no sorteio um no sem stake, e o teto impede que quem travou mais sele toda rodada.',
+                                'El sorteo es función del hash del bloque padre y del stake activo, así que cualquiera que tenga la cadena rehace la cuenta. El peso es 1 + min(stake, tope): el +1 mantiene en el sorteo a un nodo sin stake, y el tope impide que quien más bloqueó selle cada ronda.')}
                         </p>
 
                         {sealer.bootstrap ? (
                             <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-yellow-400 mb-1">
-                                    {lang === 'en' ? 'Bootstrap - no consensus running' : 'Bootstrap - sem consenso rodando'}
+                                    {tri('Bootstrap - no consensus running', 'Bootstrap - sem consenso rodando', 'Bootstrap - sin consenso en marcha')}
                                 </p>
                                 <p className="text-sm text-brand-muted leading-relaxed">
-                                    {lang === 'en'
-                                        ? 'No node is online, so the election has no participants and any caller may seal. Start a node to change that.'
-                                        : 'Nenhum no online, entao a eleicao nao tem participantes e qualquer chamador pode selar. Suba um no para mudar isso.'}
+                                    {tri(
+                                        'No node is online, so the election has no participants and any caller may seal. Start a node to change that.',
+                                        'Nenhum no online, entao a eleicao nao tem participantes e qualquer chamador pode selar. Suba um no para mudar isso.',
+                                        'Ningún nodo está en línea, así que la elección no tiene participantes y cualquier llamador puede sellar. Encienda un nodo para cambiarlo.')}
                                 </p>
                             </div>
                         ) : (
@@ -226,7 +229,7 @@ export const MiningHub: React.FC = () => {
                                                 {n.wallet}
                                                 {n.wallet === sealer.elected && (
                                                     <span className="ml-2 text-[9px] font-black uppercase tracking-widest text-green-400">
-                                                        {lang === 'en' ? 'elected' : 'sorteado'}
+                                                        {tri('elected', 'sorteado', 'sorteado')}
                                                     </span>
                                                 )}
                                             </span>
@@ -239,7 +242,7 @@ export const MiningHub: React.FC = () => {
                                                  style={{ width: `${Math.max(n.share * 100, 0.4)}%` }} />
                                         </div>
                                         <p className="mt-2 text-[11px] text-brand-muted font-mono">
-                                            stake {n.stake.toLocaleString()} -&gt; {lang === 'en' ? 'weight' : 'peso'} {n.weight.toLocaleString()}
+                                            stake {n.stake.toLocaleString()} -&gt; {tri('weight', 'peso', 'peso')} {n.weight.toLocaleString()}
                                         </p>
                                     </div>
                                 ))}
@@ -251,19 +254,19 @@ export const MiningHub: React.FC = () => {
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
-                                        {lang === 'en' ? 'Queued to seal' : 'Fila para selar'}
+                                        {tri('Queued to seal', 'Fila para selar', 'Cola para sellar')}
                                     </p>
                                     <p className="text-2xl font-black font-mono text-white tabular-nums">{sealer.pending_claims}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
-                                        {lang === 'en' ? 'Chain height' : 'Altura da cadeia'}
+                                        {tri('Chain height', 'Altura da cadeia', 'Altura de la cadena')}
                                     </p>
                                     <p className="text-2xl font-black font-mono text-white tabular-nums">{sealer.tip.height}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">
-                                        {lang === 'en' ? 'Last block' : 'Ultimo bloco'}
+                                        {tri('Last block', 'Ultimo bloco', 'Último bloque')}
                                     </p>
                                     <p className="text-sm font-mono text-brand-secondary pt-1">
                                         {sealer.tip.sealed_at
@@ -274,9 +277,10 @@ export const MiningHub: React.FC = () => {
                             </div>
                             {sealer.pending_claims === 0 && (
                                 <p className="text-sm text-brand-muted leading-relaxed">
-                                    {lang === 'en'
-                                        ? 'Nothing is queued, so the elected node has nothing to seal. Only the browser Proof of Claim creates blocks - the partner faucet bridge credits off-chain by design and never queues one. Until somebody claims natively, this election decides nothing.'
-                                        : 'Nao ha nada na fila, entao o no sorteado nao tem o que selar. So o Proof of Claim do navegador cria blocos - a ponte das torneiras parceiras credita fora da cadeia por projeto e nunca enfileira nada. Enquanto ninguem fizer claim nativo, esta eleicao nao decide nada.'}
+                                    {tri(
+                                        'Nothing is queued, so the elected node has nothing to seal. Only the browser Proof of Claim creates blocks - the partner faucet bridge credits off-chain by design and never queues one. Until somebody claims natively, this election decides nothing.',
+                                        'Nao ha nada na fila, entao o no sorteado nao tem o que selar. So o Proof of Claim do navegador cria blocos - a ponte das torneiras parceiras credita fora da cadeia por projeto e nunca enfileira nada. Enquanto ninguem fizer claim nativo, esta eleicao nao decide nada.',
+                                        'No hay nada en cola, así que el nodo sorteado no tiene qué sellar. Solo el Proof of Claim del navegador crea bloques: el puente de los grifos socios acredita fuera de la cadena por diseño y nunca encola nada. Mientras nadie haga claim nativo, esta elección no decide nada.')}
                                 </p>
                             )}
                         </div>
@@ -284,27 +288,27 @@ export const MiningHub: React.FC = () => {
                 </SectionCard>
             )}
 
-            <SectionCard title={lang === 'en' ? 'Start mining' : 'Começar a minerar'} icon={<CpuChipIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title={tri('Start mining', 'Começar a minerar', 'Empezar a minar')} icon={<CpuChipIcon className="w-5 h-5 text-brand-primary" />}>
                 <div className="space-y-4 mt-2">
                     {[
                         {
                             step: '1',
-                            title: lang === 'en' ? 'Navigate to the mining-node folder' : 'Navegue até a pasta mining-node',
+                            title: tri('Navigate to the mining-node folder', 'Navegue até a pasta mining-node', 'Vaya a la carpeta mining-node'),
                             cmd: 'cd mining-node'
                         },
                         {
                             step: '2',
-                            title: lang === 'en' ? 'Install dependencies' : 'Instale as dependências',
+                            title: tri('Install dependencies', 'Instale as dependências', 'Instale las dependencias'),
                             cmd: 'npm install'
                         },
                         {
                             step: '3',
-                            title: lang === 'en' ? 'Configure your wallet' : 'Configure sua carteira',
+                            title: tri('Configure your wallet', 'Configure sua carteira', 'Configure su billetera'),
                             cmd: 'cp .env.example .env   # Edit .env and set WALLET_ADDRESS'
                         },
                         {
                             step: '4',
-                            title: lang === 'en' ? 'Start mining' : 'Comece a minerar',
+                            title: tri('Start mining', 'Comece a minerar', 'Empiece a minar'),
                             cmd: 'npm start'
                         },
                     ].map((item, i) => (
@@ -325,11 +329,11 @@ export const MiningHub: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Leaderboard */}
-                <SectionCard title={lang === 'en' ? 'Leaderboard — Top Nodes' : 'Leaderboard — Melhores Nós'} icon={<ChartBarIcon className="w-5 h-5 text-yellow-400" />}>
+                <SectionCard title={tri('Leaderboard — Top Nodes', 'Leaderboard — Melhores Nós', 'Clasificación — Mejores Nodos')} icon={<ChartBarIcon className="w-5 h-5 text-yellow-400" />}>
                     {leaderboard.length === 0 ? (
                         <div className="text-center py-12 opacity-30">
                             <CubeIcon className="w-16 h-16 text-brand-muted mx-auto mb-3" />
-                            <p className="text-sm text-brand-muted">{lang === 'en' ? 'No nodes yet — be the first!' : 'Nenhum nó ainda — seja o primeiro!'}</p>
+                            <p className="text-sm text-brand-muted">{tri('No nodes yet — be the first!', 'Nenhum nó ainda — seja o primeiro!', '¡Ningún nodo todavía — sea el primero!')}</p>
                         </div>
                     ) : (
                         <div className="space-y-2 mt-2 max-h-[500px] overflow-y-auto scrollbar-hide">
@@ -374,16 +378,16 @@ export const MiningHub: React.FC = () => {
                 </SectionCard>
 
                 {/* My Rewards */}
-                <SectionCard title={lang === 'en' ? 'My Reward History' : 'Meu Histórico de Recompensas'} icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
+                <SectionCard title={tri('My Reward History', 'Meu Histórico de Recompensas', 'Mi Historial de Recompensas')} icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
                     {!isConnected ? (
                         <div className="text-center py-12 opacity-40">
                             <ShieldCheckIcon className="w-16 h-16 text-brand-muted mx-auto mb-3" />
-                            <p className="text-sm text-brand-muted">{lang === 'en' ? 'Connect wallet to see rewards' : 'Conecte a carteira para ver recompensas'}</p>
+                            <p className="text-sm text-brand-muted">{tri('Connect wallet to see rewards', 'Conecte a carteira para ver recompensas', 'Conecte la billetera para ver recompensas')}</p>
                         </div>
                     ) : myRewards.length === 0 ? (
                         <div className="text-center py-12 opacity-30">
                             <BoltIcon className="w-16 h-16 text-brand-muted mx-auto mb-3" />
-                            <p className="text-sm text-brand-muted">{lang === 'en' ? 'No rewards yet — start a node' : 'Nenhuma recompensa ainda — ligue um nó'}</p>
+                            <p className="text-sm text-brand-muted">{tri('No rewards yet — start a node', 'Nenhuma recompensa ainda — ligue um nó', 'Ninguna recompensa todavía — encienda un nodo')}</p>
                         </div>
                     ) : (
                         <div className="space-y-2 mt-2 max-h-[500px] overflow-y-auto scrollbar-hide">
@@ -407,25 +411,25 @@ export const MiningHub: React.FC = () => {
             </div>
 
             {/* Network Specs */}
-            <SectionCard title={lang === 'en' ? 'Network Parameters' : 'Parâmetros da Rede'} icon={<ShieldCheckIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title={tri('Network Parameters', 'Parâmetros da Rede', 'Parámetros de la Red')} icon={<ShieldCheckIcon className="w-5 h-5 text-brand-primary" />}>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
                     {[
                         // Os valores saem do /api/mining/stats que esta tela ja busca.
                         // Estavam escritos a mao, e um deles estava errado: o pool da
                         // mineracao e 1.695, nao 2.000 -- 2.000 e a quota da rede
                         // inteira, dividida com os claims e o staking.
-                        { param: lang === 'en' ? 'Epoch Duration' : 'Duração do Epoch',
+                        { param: tri('Epoch Duration', 'Duração do Epoch', 'Duración del Epoch'),
                           value: stats ? `${Math.round(stats.epochDuration / 60)} min` : '—' },
-                        { param: lang === 'en' ? 'Mining pool/epoch' : 'Pool da mineração/epoch',
+                        { param: tri('Mining pool/epoch', 'Pool da mineração/epoch', 'Pool de minería/epoch'),
                           value: stats ? `${stats.epochReward.toLocaleString()} CLAIM` : '—' },
                         { param: 'Heartbeat', value: stats ? `${stats.heartbeatInterval}s` : '—' },
                         { param: 'Timeout', value: '90s' },
-                        { param: lang === 'en' ? 'Max Nodes/Wallet' : 'Max Nós/Wallet', value: '3' },
+                        { param: tri('Max Nodes/Wallet', 'Max Nós/Wallet', 'Max Nodos/Billetera'), value: '3' },
                         // Era "Anti-Sybil: CPU + RAM metrics". O no reporta as duas
                         // coisas e o servidor as guarda, mas nenhuma decisao olha para
                         // elas -- zero comparacoes no codigo. O que de fato limita e o
                         // teto por carteira acima e o de registros por IP.
-                        { param: lang === 'en' ? 'New nodes/IP per hour' : 'Nós novos/IP por hora',
+                        { param: tri('New nodes/IP per hour', 'Nós novos/IP por hora', 'Nodos nuevos/IP por hora'),
                           value: '8' },
                     ].map((item, i) => (
                         <div key={i} className="flex justify-between items-center p-3 bg-brand-bg/40 rounded-lg border border-brand-border/30">

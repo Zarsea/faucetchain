@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth } from './AuthContext';
-import { useLanguage } from './LanguageContext';
+import { useLanguage, localeDoIdioma } from './LanguageContext';
 import { TransferWidget } from './UserDashboard';
 import {
     BoltIcon,
@@ -261,7 +261,7 @@ export const WalletButton: React.FC<{ onNavigate?: (aba: string) => void }> = ({
 
                     <div className="p-4">
                         <p className="text-3xl font-black text-brand-secondary tracking-tight tabular-nums">
-                            {total.toLocaleString(lang === 'pt' ? 'pt-BR' : 'en-US',
+                            {total.toLocaleString(localeDoIdioma(lang),
                                 { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                             <span className="ml-2 text-base font-bold text-brand-muted">$CLAIM</span>
                         </p>
