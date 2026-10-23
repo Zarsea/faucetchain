@@ -3,16 +3,17 @@
 // A campanha 711670 mostrava, na mesma pagina:
 //
 //     Collected   350,00      (lido de on_chain.paid, a Solana falando)
-//     "The roots below already promise value; nobody has collected it."
+//     "The roots below already promise value; <negativa de qualquer saque>"
 //
 // As duas frases liam fontes diferentes e a segunda nao sabia disso. A cadeia
-// conta TODO saque; a tabela `payouts` vem de `relayer_spend`, que so ganha
-// linha quando o NOSSO relayer assina e paga a taxa. Quem saca pagando a
-// propria taxa liquida na Solana sem passar por este servidor.
+// conta TODO saque; a tabela vinha de `relayer_spend`, que so ganha linha
+// quando o NOSSO relayer assina e paga a taxa. Quem saca pagando a propria
+// taxa liquida na Solana sem passar por este servidor.
 //
-// Entao a tabela vazia nunca provou que ninguem sacou. Provou que nos nao
-// sacamos por ninguem -- e o texto transformava isso em "nobody has collected
-// it", que para a 711670 era simplesmente falso: 350 ja tinham saido.
+// A primeira correcao so ajustou o texto. A definitiva trocou a FONTE: a
+// secao passou a ser montada do bitmap de cada raiz publicada, entao ela ve
+// todo saque e a assinatura virou uma coluna, em vez de ser o que decide se a
+// linha existe.
 //
 // Nenhum teste pegou porque os dois numeros estavam certos. O defeito estava
 // na frase que os ligava, e frase nao tem assert. Estes checks olham o fonte.
@@ -24,91 +25,80 @@ import { readFileSync } from 'node:fs';
 const ARQUIVO = 'components/SettlementLedger.tsx';
 const fonte = readFileSync(ARQUIVO, 'utf8');
 
-/** O bloco do ternario que decide o que dizer quando `payouts` vem vazio. */
-function ramoDaTabelaVazia() {
-    const marca = '!ledger?.payouts?.length ?';
-    const inicio = fonte.indexOf(marca);
-    assert.ok(inicio >= 0, `${ARQUIVO}: nao encontrei o ramo da tabela vazia`);
-    const abre = fonte.indexOf('(', inicio + marca.length);
-    assert.ok(abre > 0, `${ARQUIVO}: ternario sem parentese`);
-    let nivel = 0;
-    for (let i = abre; i < fonte.length; i++) {
-        if (fonte[i] === '(') nivel++;
-        else if (fonte[i] === ')') {
-            nivel--;
-            if (nivel === 0) return fonte.slice(abre, i + 1);
-        }
-    }
-    assert.fail(`${ARQUIVO}: parenteses nao fecham no ramo da tabela vazia`);
-}
-
-const ramo = ramoDaTabelaVazia();
-
-// ─────────────────────────────────────── o check que faltava
-
-// A frase so pode existir depois de perguntar a cadeia. Sem isto, qualquer
-// reescrita volta a afirmar ausencia de saque a partir de uma tabela vazia.
+// A secao tem de comecar perguntando se a cadeia foi lida. Enquanto ela
+// decidir por uma tabela nossa, volta a negar saque que a Solana registrou.
 assert.ok(
-    /state\.paid/.test(ramo),
-    `${ARQUIVO}: o texto da tabela vazia decide sem olhar state.paid, que e ` +
-    `o numero da cadeia. Foi exatamente assim que a 711670 disse "nobody has ` +
-    `collected it" embaixo de "Collected 350,00".`
+    fonte.includes('ledger?.collected == null ?'),
+    `${ARQUIVO}: a secao de saques nao comeca perguntando se a cadeia respondeu.`
 );
 
-// Os tres estados sao diferentes e precisam de frases diferentes.
+// ─────────────────────────────────────── a fonte
+
+// A lista tem de vir da cadeia. `payouts` so enxerga o nosso relayer.
 assert.ok(
-    /!state\s*\?/.test(ramo),
-    `${ARQUIVO}: falta o caso da cadeia ilegivel. Sem ela nao da para afirmar ` +
-    `nem que sacaram nem que nao sacaram.`
+    /ledger\.collected\.map/.test(fonte),
+    `${ARQUIVO}: as linhas nao saem de ledger.collected. Se saem de payouts, ` +
+    `quem pagou a propria taxa some da tela outra vez.`
 );
 assert.ok(
-    /state\.paid\s*>\s*0\s*\?/.test(ramo),
-    `${ARQUIVO}: falta o caso de a cadeia reportar saque sem linha no relayer, ` +
-    `que e o caso da 711670.`
+    !/ledger\.payouts\.map/.test(fonte),
+    `${ARQUIVO}: ainda ha uma tabela montada sobre payouts, que e parcial por ` +
+    `construcao.`
 );
 
-// A afirmacao antiga, chapada, nao pode voltar.
+// ─────────────────────────────────────── silencio nao e ausencia
+
+// `null` (cadeia muda) e `[]` (cadeia disse que ninguem sacou) sao fatos
+// diferentes e precisam de frases diferentes. Juntar os dois foi o defeito.
 assert.ok(
-    !/nobody has collected it/i.test(fonte),
-    `${ARQUIVO}: a frase "nobody has collected it" voltou. Ela afirma sobre a ` +
-    `cadeia inteira a partir de uma tabela que so ve o nosso relayer.`
+    /collected\.length === 0/.test(fonte),
+    `${ARQUIVO}: nada separa "a cadeia nao respondeu" de "a cadeia disse que ` +
+    `ninguem sacou". Lista vazia vira negativa, que e como 711670 mentiu.`
 );
 
-// ─────────────────────────────────────── o mesmo erro um passo adiante
-
-// Com linhas presentes, `paid_total` parece o total pago e e so a parte
-// relayada. A reconciliacao tem de aparecer quando a cadeia diz mais.
+// A afirmacao chapada nao pode voltar em nenhuma forma.
 assert.ok(
-    /state\.paid\s*>\s*ledger\.paid_total/.test(fonte),
-    `${ARQUIVO}: com a tabela cheia nada compara paid_total com o total da ` +
-    `cadeia, entao a diferenca sacada por fora fica invisivel.`
+    !/nobody has collected/i.test(fonte),
+    `${ARQUIVO}: voltou uma negativa de saque que nao depende da cadeia.`
 );
 
-// ─────────────────────────────────────── o rotulo
+// ─────────────────────────────────────── a assinatura e coluna, nao filtro
 
-// "paid out" lido ao lado de "Collected" da cadeia sugere o mesmo numero.
+// Sem assinatura o saque continua real; a celula explica, a linha fica.
 assert.ok(
-    /relayed/.test(fonte),
-    `${ARQUIVO}: o total da tabela precisa dizer que e o relayado, nao o pago.`
+    /p\.signature \?/.test(fonte),
+    `${ARQUIVO}: a assinatura precisa ser uma coluna condicional. Se ela ` +
+    `filtrar a linha, o saque sem relayer desaparece de novo.`
+);
+assert.ok(
+    /paid their own fee/.test(fonte),
+    `${ARQUIVO}: falta dizer, na linha sem assinatura, por que ela nao tem uma.`
 );
 
 // ─────────────────────────────────────── prova de que o check pega o defeito
 
 {
-    const antigo = `(
-        <p className="text-brand-muted">
-            No withdrawal has been signed on this campaign yet. The roots below
-            already promise value; nobody has collected it.
-        </p>
-    )`;
+    // A secao antiga, montada sobre payouts e negando saque quando ela vinha
+    // vazia. Se este bloco passasse nos checks acima, eles nao provariam nada.
+    const antigo = `
+        {!ledger?.payouts?.length ? (
+            <p>No withdrawal has been signed on this campaign yet. The roots below
+               already promise value; nobody has collected it.</p>
+        ) : (
+            <tbody>{ledger.payouts.map((p) => (<tr key={p.signature} />))}</tbody>
+        )}`;
     assert.ok(
-        !/state\.paid/.test(antigo),
-        'o ramo antigo nao se reproduz: ele deveria ignorar a cadeia'
+        !/ledger\?\.collected == null \?/.test(antigo),
+        'a secao antiga nao se reproduz: ela deveria ignorar a cadeia'
     );
     assert.ok(
-        /nobody has collected it/i.test(antigo),
-        'o ramo antigo nao se reproduz: ele deveria conter a afirmacao chapada'
+        /ledger\.payouts\.map/.test(antigo),
+        'a secao antiga nao se reproduz: ela deveria montar sobre payouts'
+    );
+    assert.ok(
+        /nobody has collected/i.test(antigo),
+        'a secao antiga nao se reproduz: ela deveria negar o saque'
     );
 }
 
-console.log('ok  o ledger nao afirma mais ausencia de saque a partir da propria tabela');
+console.log('ok  a secao de saques le a cadeia, e a assinatura e coluna e nao filtro');

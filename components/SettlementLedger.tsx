@@ -61,6 +61,17 @@ interface Payout {
     root_index: number;
 }
 
+/** Um saque segundo a Solana, com ou sem assinatura guardada por nós. */
+interface Collected {
+    recipient: string;
+    amount: number;
+    root_index: number;
+    leaf_index: number;
+    signature: string | null;
+    paid_at: number | null;
+    relayed: boolean;
+}
+
 interface Ledger {
     campaign_id: number;
     sponsor: string;
@@ -69,6 +80,13 @@ interface Ledger {
     payouts: Payout[];
     paid_total: number;
     paid_recipients: number;
+    // Montado do bitmap de cada raiz, então cobre também quem pagou a própria
+    // taxa e nunca passou pelo nosso relayer. `null` quando nenhuma raiz pôde
+    // ser lida: lista vazia aqui significa "ninguém sacou", e isso só a cadeia
+    // pode afirmar.
+    collected: Collected[] | null;
+    collected_total: number | null;
+    collected_recipients: number | null;
     on_chain: CampaignState | null;
     token?: TokenMeta | null;
 }
@@ -307,95 +325,75 @@ export const SettlementLedger: React.FC = () => {
             )}
 
             <SectionCard
-                title={`Paid out (${ledger?.payouts?.length ?? 0})`}
+                title={`Collected (${ledger?.collected?.length ?? 0})`}
                 icon={<CubeIcon className="w-6 h-6" />}
             >
                 <p className="text-sm text-brand-muted mb-4 max-w-3xl">
-                    Who was paid through this server's relayer, and how much. Every row exists
-                    because the relayer signed a transfer and Solana confirmed it — the
-                    signature beside it opens in the explorer and shows the same thing without
-                    passing through this server. A published root says what the campaign{' '}
-                    <em>owes</em>; this table says what the relayer <em>paid</em>. A withdrawal
-                    whose fee the recipient paid themselves settles on chain without appearing
-                    here, which is why the vault figures above are the ones to trust for a
-                    total.
+                    Who actually withdrew, rebuilt from the claimed bitmap on each published
+                    root. It counts every withdrawal Solana accepted, not only the ones this
+                    server's relayer signed. A published root says what the campaign{' '}
+                    <em>owes</em>; this table says what left the vault.
                 </p>
 
-                {/* Esta mensagem negava qualquer saque sempre que a tabela vinha
-                    vazia, e a campanha 711670 exibia essa negativa logo abaixo
-                    de "Collected 350,00" lido da cadeia. As duas frases liam
-                    fontes diferentes: a cadeia conta todo saque, esta tabela so
-                    os que o nosso relayer assinou. Tabela vazia nunca provou
-                    que ninguem sacou -- provou que nao sacamos por ninguem.
-                    Agora e a cadeia que decide o que a frase diz. */}
-                {!ledger?.payouts?.length ? (
-                    !state ? (
-                        <p className="text-brand-muted">
-                            The relayer has signed no withdrawal on this campaign. Whether
-                            anyone collected by paying their own fee is a question for Solana,
-                            and the chain could not be read just now.
-                        </p>
-                    ) : state.paid > 0 ? (
-                        <p className="text-brand-muted">
-                            The relayer has signed no withdrawal here, but Solana reports{' '}
-                            <span className="text-white font-mono font-bold tabular-nums">
-                                {amount(state.paid)}
-                            </span>{' '}
-                            already collected on this campaign. Those recipients paid their own
-                            transaction fee, so the transfers settled without passing through
-                            this server and leave no row below.
-                        </p>
-                    ) : (
-                        <p className="text-brand-muted">
-                            No withdrawal has been signed on this campaign, and Solana agrees
-                            that nothing has been collected. The roots below promise value that
-                            is still waiting.
-                        </p>
-                    )
+                {/* Esta secao lia so `payouts`, que vem de relayer_spend e so ganha
+                    linha quando o NOSSO relayer assina e paga a taxa. Quem paga a
+                    propria taxa liquida na Solana sem passar por aqui, entao sumia
+                    daqui -- e a campanha 711670 negava qualquer saque logo embaixo
+                    de "Collected 350,00" lido da cadeia, as duas frases certas
+                    sobre fontes diferentes.
+                    O dado nunca faltou: o bit do leaf esta ligado na conta da raiz
+                    e a arvore diz de quem ele e. `collected` cruza os dois, entao
+                    a lista passa a ser completa e a assinatura vira uma COLUNA, em
+                    vez de ser o que decide se a linha existe. */}
+                {ledger?.collected == null ? (
+                    <p className="text-brand-muted">
+                        Solana could not be read just now, so who collected is an open
+                        question. This table is built from the chain, and an empty list here
+                        would be a claim this server is in no position to make.
+                    </p>
+                ) : ledger.collected.length === 0 ? (
+                    <p className="text-brand-muted">
+                        Solana reports nothing collected on this campaign. The roots below
+                        promise value that is still waiting.
+                    </p>
                 ) : (
                     <>
                         <div className="flex flex-wrap gap-6 mb-4 text-sm">
                             <span className="text-brand-muted">
-                                relayed{' '}
+                                collected{' '}
                                 <span className="text-white font-mono font-bold tabular-nums">
-                                    {(ledger.paid_total / UNIT).toFixed(6)}
+                                    {amount(ledger.collected_total ?? 0)}
                                 </span>
                             </span>
                             <span className="text-brand-muted">
                                 recipients{' '}
-                                <span className="text-white font-mono font-bold">{ledger.paid_recipients}</span>
+                                <span className="text-white font-mono font-bold">
+                                    {ledger.collected_recipients ?? 0}
+                                </span>
+                            </span>
+                            <span className="text-brand-muted">
+                                of which relayed by us{' '}
+                                <span className="text-white font-mono font-bold">
+                                    {ledger.collected.filter((x) => x.relayed).length}
+                                </span>
                             </span>
                         </div>
-                        {/* Mesma armadilha da tabela vazia, um passo adiante: com
-                            linhas presentes o total daqui parece o total pago, e
-                            e so a parte que passou pelo relayer. */}
-                        {state && state.paid > ledger.paid_total && (
-                            <p className="text-sm text-brand-muted mb-4 max-w-3xl">
-                                Solana reports{' '}
-                                <span className="text-white font-mono font-bold tabular-nums">
-                                    {amount(state.paid)}
-                                </span>{' '}
-                                collected in total, so{' '}
-                                <span className="text-white font-mono font-bold tabular-nums">
-                                    {amount(state.paid - ledger.paid_total)}
-                                </span>{' '}
-                                of it was withdrawn by recipients paying their own fee. Those
-                                transfers are final on chain and simply have no row here.
-                            </p>
-                        )}
                         <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
+                            <table className="w-full text-sm min-w-[640px]">
                                 <thead>
                                     <tr className="text-left text-[11px] uppercase tracking-widest text-brand-muted">
                                         <th className="py-2 pr-4">to</th>
                                         <th className="py-2 pr-4 text-right">units</th>
                                         <th className="py-2 pr-4">root</th>
-                                        <th className="py-2">signature</th>
+                                        <th className="py-2">proof we hold</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {ledger.payouts.map((p) => (
-                                        <tr key={p.signature} className="border-t border-brand-border/40">
+                                    {ledger.collected.map((p) => (
+                                        <tr
+                                            key={`${p.root_index}-${p.leaf_index}`}
+                                            className="border-t border-brand-border/40"
+                                        >
                                             <td className="py-2 pr-4 font-mono text-xs text-brand-secondary">
                                                 <a
                                                     href={`${EXPLORER}/address/${p.recipient}?cluster=devnet`}
@@ -413,14 +411,20 @@ export const SettlementLedger: React.FC = () => {
                                                 #{p.root_index}
                                             </td>
                                             <td className="py-2 font-mono text-xs">
-                                                <a
-                                                    href={`${EXPLORER}/tx/${p.signature}?cluster=devnet`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-brand-primary hover:underline"
-                                                >
-                                                    {p.signature.slice(0, 12)}… ↗
-                                                </a>
+                                                {p.signature ? (
+                                                    <a
+                                                        href={`${EXPLORER}/tx/${p.signature}?cluster=devnet`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-brand-primary hover:underline"
+                                                    >
+                                                        {p.signature.slice(0, 12)}… ↗
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-brand-muted">
+                                                        paid their own fee — no signature here
+                                                    </span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

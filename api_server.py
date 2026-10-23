@@ -9227,7 +9227,8 @@ async def get_campaign_ledger(campaign_id: int):
     )
     registered = c.fetchone()
     c.execute(
-        """SELECT root_index, root, total_amount, leaf_count, created_at, published_signature
+        """SELECT root_index, root, total_amount, leaf_count, created_at, published_signature,
+                  id
              FROM settlement_batches WHERE campaign_id = ? ORDER BY root_index""",
         (campaign_id,),
     )
@@ -9265,8 +9266,11 @@ async def get_campaign_ledger(campaign_id: int):
     except sqlite3.OperationalError as e:
         audit_logger.warning(f"could not read payouts for campaign {campaign_id}: {e}")
         pagamentos = []
-    conn.close()
+    # A conexao fica aberta ate o fim: reconstruir as arvores para saber de quem
+    # e cada leaf sacado precisa do banco, e isso acontece depois de ler a
+    # cadeia. Fechar aqui era seguro enquanto nada mais consultava.
     if not registered:
+        conn.close()
         raise HTTPException(status_code=404, detail=f"Campaign {campaign_id} is not registered here")
 
     off_chain = [
@@ -9277,6 +9281,7 @@ async def get_campaign_ledger(campaign_id: int):
             "leaf_count": row[3],
             "created_at": row[4],
             "published_signature": row[5],
+            "batch_id": row[6],
         }
         for row in batches
     ]
@@ -9290,62 +9295,138 @@ async def get_campaign_ledger(campaign_id: int):
         "payouts": pagamentos,
         "paid_total": sum(p["amount"] for p in pagamentos),
         "paid_recipients": len({p["recipient"] for p in pagamentos}),
+        # Quem sacou, segundo a Solana e nao segundo este servidor. `payouts`
+        # acima so enxerga o que o nosso relayer assinou, e quem paga a propria
+        # taxa liquida sem passar por aqui -- foi esse o buraco da 711670, com
+        # 350 pagos na cadeia e nenhuma linha deste lado. Preenchido abaixo,
+        # quando a cadeia responde; nulo quando ela nao responde, porque lista
+        # vazia aqui ja significou "ninguem sacou" uma vez e nao vai significar
+        # de novo.
+        "collected": None,
+        "collected_total": None,
+        "collected_recipients": None,
         "on_chain": None,
     }
 
     try:
-        import solana_settlement as chain
+        try:
+            import solana_settlement as chain
 
-        idl = chain.load_idl()
-    except Exception as e:
-        # Mudo, isto custou uma noite: o servidor rodando no interpretador
-        # errado (sem solders) servia tudo e lia nada da cadeia, e a tela
-        # dizia "nao consegui ler" sem nada no log apontando o porque.
-        audit_logger.error(
-            f"Settlement reads are OFF -- cannot load the Solana client: {e!r}. "
-            "Every on-chain figure will come back null. Usually the wrong "
-            "Python: check that solders is installed in the one running this."
-        )
+            idl = chain.load_idl()
+        except Exception as e:
+            # Mudo, isto custou uma noite: o servidor rodando no interpretador
+            # errado (sem solders) servia tudo e lia nada da cadeia, e a tela
+            # dizia "nao consegui ler" sem nada no log apontando o porque.
+            audit_logger.error(
+                f"Settlement reads are OFF -- cannot load the Solana client: {e!r}. "
+                "Every on-chain figure will come back null. Usually the wrong "
+                "Python: check that solders is installed in the one running this."
+            )
+            return result
+
+        from solders.pubkey import Pubkey
+
+        pid = chain.program_id(idl)
+        campaign = chain.campaign_pda(pid, Pubkey.from_string(registered[0]), campaign_id)
+        vault = chain.vault_pda(pid, campaign)
+        roots = [chain.root_pda(pid, campaign, item["root_index"]) for item in off_chain]
+
+        try:
+            rpc_url = chain.default_rpc_url()
+            accounts = chain.fetch_accounts(rpc_url, [campaign] + roots)
+            vault_amount = chain.token_balance(rpc_url, vault)
+        except Exception as e:
+            # The page says the chain could not be read, rather than quietly
+            # falling back to numbers this server made up.
+            audit_logger.warning(f"Could not read campaign {campaign_id} from Solana: {e}")
+            return result
+
+        if accounts[0] is None:
+            return result
+
+        state = chain.decode_campaign(accounts[0])
+        state["vault"] = str(vault)
+        state["vault_amount"] = vault_amount
+        state["address"] = str(campaign)
+        state["program"] = str(pid)
+
+        # O nome do token, se alguem o criou. A tela precisa saber a diferenca
+        # entre "chama-se X" e "nao tem nome", e so a cadeia responde isso.
+        try:
+            result["token"] = chain.mint_metadata(rpc_url, Pubkey.from_string(registered[1]))
+        except Exception as e:
+            audit_logger.warning(f"Could not read token metadata for campaign {campaign_id}: {e}")
+            result["token"] = None
+        for item, data, address in zip(off_chain, accounts[1:], roots):
+            item["address"] = str(address)
+            item["on_chain"] = chain.decode_reward_root(data) if data else None
+        result["on_chain"] = state
+
+        sacados = _collected_from_chain(c, chain, off_chain, accounts[1:], pagamentos)
+        if sacados is not None:
+            result["collected"] = sacados
+            result["collected_total"] = sum(x["amount"] for x in sacados)
+            result["collected_recipients"] = len({x["recipient"] for x in sacados})
         return result
+    finally:
+        conn.close()
 
-    from solders.pubkey import Pubkey
 
-    pid = chain.program_id(idl)
-    campaign = chain.campaign_pda(pid, Pubkey.from_string(registered[0]), campaign_id)
-    vault = chain.vault_pda(pid, campaign)
-    roots = [chain.root_pda(pid, campaign, item["root_index"]) for item in off_chain]
+def _collected_from_chain(c, chain, off_chain: list, dados_das_raizes: list,
+                          pagamentos: list):
+    """Quem sacou de verdade, montado a partir do bitmap de cada raiz.
 
-    try:
-        rpc_url = chain.default_rpc_url()
-        accounts = chain.fetch_accounts(rpc_url, [campaign] + roots)
-        vault_amount = chain.token_balance(rpc_url, vault)
-    except Exception as e:
-        # The page says the chain could not be read, rather than quietly
-        # falling back to numbers this server made up.
-        audit_logger.warning(f"Could not read campaign {campaign_id} from Solana: {e}")
-        return result
+    Fecha o buraco que a campanha 711670 expos: `relayer_spend` so registra
+    saque que o NOSSO relayer assinou, entao quem paga a propria taxa liquida
+    na Solana e some desta tela. A cadeia sempre soube quem foi -- o bit do
+    leaf esta ligado na conta da raiz -- e a arvore sempre soube de quem e o
+    leaf. Faltava cruzar as duas coisas.
 
-    if accounts[0] is None:
-        return result
+    Nao custa chamada nova: os bytes crus das raizes ja vieram no
+    `fetch_accounts` que a rota faz, e `_batch_tree` guarda a arvore
+    reconstruida. O cruzamento e local.
 
-    state = chain.decode_campaign(accounts[0])
-    state["vault"] = str(vault)
-    state["vault_amount"] = vault_amount
-    state["address"] = str(campaign)
-    state["program"] = str(pid)
+    Devolve None quando nenhuma raiz pode ser lida, porque lista vazia aqui
+    significa "ninguem sacou" e essa afirmacao precisa vir da cadeia, nunca de
+    uma falha nossa.
 
-    # O nome do token, se alguem o criou. A tela precisa saber a diferenca
-    # entre "chama-se X" e "nao tem nome", e so a cadeia responde isso.
-    try:
-        result["token"] = chain.mint_metadata(rpc_url, Pubkey.from_string(registered[1]))
-    except Exception as e:
-        audit_logger.warning(f"Could not read token metadata for campaign {campaign_id}: {e}")
-        result["token"] = None
-    for item, data, address in zip(off_chain, accounts[1:], roots):
-        item["address"] = str(address)
-        item["on_chain"] = chain.decode_reward_root(data) if data else None
-    result["on_chain"] = state
-    return result
+    A assinatura, quando existe, vem de `pagamentos`. Quando nao existe, o saque
+    nao e menos real: `relayed` fica False e a tela diz que a pessoa pagou a
+    propria taxa, em vez de omitir a linha.
+    """
+    por_leaf = {}
+    for p in pagamentos:
+        por_leaf.setdefault((p["root_index"], p["recipient"]), p)
+
+    sacados = []
+    leu_alguma = False
+    for item, data in zip(off_chain, dados_das_raizes):
+        if data is None or not item.get("published_signature"):
+            continue
+        arvore = _batch_tree(c, item["batch_id"], item["root"])
+        if arvore is None:
+            # Nao reconstroi para a raiz publicada: nao da para dizer de quem
+            # e cada leaf, entao esta raiz fica de fora em vez de chutar.
+            audit_logger.error(
+                f"Settlement batch {item['batch_id']} no longer rebuilds to its "
+                f"published root; its collections cannot be attributed"
+            )
+            continue
+        leu_alguma = True
+        for folha in arvore["claims"]:
+            if not chain.leaf_claimed(data, folha["leaf_index"]):
+                continue
+            pago = por_leaf.get((item["root_index"], folha["recipient"]))
+            sacados.append({
+                "recipient": folha["recipient"],
+                "amount": folha["amount"],
+                "root_index": item["root_index"],
+                "leaf_index": folha["leaf_index"],
+                "signature": pago["signature"] if pago else None,
+                "paid_at": pago["paid_at"] if pago else None,
+                "relayed": pago is not None,
+            })
+    return sacados if leu_alguma else None
 
 
 # --- Pace limits on the two endpoints that cost something ---------------------

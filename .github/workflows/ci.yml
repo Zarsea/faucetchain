@@ -58,6 +58,9 @@ jobs:
       - name: The balance screen never offers a withdrawal that already happened
         run: python tests/test_holdings_collected.py
 
+      - name: A withdrawal counts even when our relayer did not sign it
+        run: python tests/test_ledger_collected.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci
