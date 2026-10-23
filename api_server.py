@@ -7654,6 +7654,12 @@ async def get_campaign_holdings(address: str, request: Request):
     `collected` vem do bitmap da raiz na cadeia, entao e a Solana dizendo, nao
     este servidor. Quando a cadeia nao responde ele fica nulo e a tela diz que
     nao sabe, em vez de contar como nao sacado.
+
+    Esse paragrafo descrevia uma intencao e nao o codigo ate 23/10/2026:
+    `collected` nascia 0 e nenhuma linha o incrementava, entao o que ja estava
+    sacado seguia somado em `published` e a tela oferecia saque de valor que ja
+    tinha saido. Quem clicasse levava "already withdrawn" do programa sem
+    entender por que. Agora o numero vem de `_batches_claimed`.
     """
     # Quatro tabelas em JOIN por chamada, e nada pacseava isto: 40 de 40
     # rajadas passaram na auditoria. O inventario de endpoints nao pegou porque
@@ -7670,7 +7676,8 @@ async def get_campaign_holdings(address: str, request: Request):
     c = conn.cursor()
     try:
         rows = c.execute(
-            """SELECT r.campaign_id, r.amount, r.batch_id, b.published_signature,
+            """SELECT r.campaign_id, r.amount, r.batch_id, r.solana_address,
+                      b.published_signature, b.root, b.root_index,
                       sc.mint, sc.name AS campaign_name, t.name, t.symbol, t.decimals
                  FROM settlement_rewards r
                  LEFT JOIN settlement_batches b   ON b.id = r.batch_id
@@ -7689,6 +7696,19 @@ async def get_campaign_holdings(address: str, request: Request):
             f"were empty, which it may not be"
         )
         rows = []
+
+    # Quais lotes publicados este usuario tem, e com qual carteira cada um foi
+    # construido. A carteira vem da linha, nao do vinculo atual: uma raiz paga
+    # a carteira para a qual foi feita, e quem revinculou depois ainda sacou
+    # naquela.
+    lotes: Dict[int, tuple] = {}
+    for row in rows:
+        if row["batch_id"] is not None and row["published_signature"] and row["solana_address"]:
+            lotes.setdefault(
+                row["batch_id"],
+                (row["campaign_id"], row["root"], row["solana_address"]),
+            )
+    sacado = _batches_claimed(c, lotes)
     conn.close()
 
     por_token: Dict[str, dict] = {}
@@ -7713,11 +7733,27 @@ async def get_campaign_holdings(address: str, request: Request):
         if row["batch_id"] is None:
             slot["credited"] += row["amount"]
         elif row["published_signature"]:
-            slot["published"] += row["amount"]
+            estado = sacado.get(row["batch_id"])
+            if estado is True:
+                slot["collected"] += row["amount"]
+            else:
+                # Sacavel, ou indeterminado. Nos dois casos o valor segue em
+                # `published`; a diferenca e que o indeterminado marca o token,
+                # e logo abaixo o `collected` dele vira nulo.
+                slot["published"] += row["amount"]
+                if estado is None:
+                    slot["_incerto"] = True
         else:
             # Em lote fechado e ainda nao publicado: prometido aqui e em lugar
             # nenhum na cadeia. Conta como creditado, que e o estado honesto.
             slot["credited"] += row["amount"]
+
+    # Um `collected` parcial seria pior que nenhum: a tela o leria como total e
+    # diria que o usuario sacou menos do que sacou. Entao basta um lote sem
+    # resposta da cadeia para o token inteiro dizer "nao sei".
+    for slot in por_token.values():
+        if slot.pop("_incerto", False):
+            slot["collected"] = None
 
     return {"address": user, "tokens": list(por_token.values())}
 
@@ -9464,6 +9500,46 @@ def _mark_claimed(c, proofs: list) -> None:
         data = bitmaps.get(roots.get(proof["batch_id"]))
         if data is not None:
             proof["claimed"] = chain.leaf_claimed(data, proof["leaf_index"])
+
+
+def _batches_claimed(c, lotes: Dict[int, tuple]) -> Dict[int, bool]:
+    """Diz, por lote, se o leaf daquela carteira ja foi sacado na Solana.
+
+    Existe porque `/api/solana/holdings` prometia um campo `collected` vindo do
+    bitmap da raiz e nunca o preenchia: ele era inicializado em 0 e nenhuma
+    linha o incrementava. O efeito para quem usa e pior do que um zero errado.
+    O valor ja sacado continuava contado como `published`, que a tela mostra
+    como sacavel, entao a pessoa clicava para sacar o que ja estava na carteira
+    dela e recebia "already withdrawn" do programa. Medido em 22/10/2026 na
+    conta 0xb3dff5: tres posicoes sacadas na cadeia, `collected` em 0 nas tres.
+
+    `lotes` mapeia batch_id -> (campaign_id, raiz publicada, carteira solana).
+    A carteira vem da linha da recompensa, nao do vinculo atual, pelo mesmo
+    motivo que `_batch_rewards` faz assim.
+
+    Um lote ausente do retorno significa "nao sei", nunca "nao sacado": ou a
+    cadeia nao respondeu, ou o lote nao reconstroi para a raiz publicada. Quem
+    chama trata a ausencia como incerteza, porque contar incerteza como zero e
+    o defeito que esta funcao existe para corrigir.
+    """
+    if not lotes:
+        return {}
+    provas = []
+    for batch_id, (campaign_id, root, solana_address) in lotes.items():
+        rebuilt = _batch_tree(c, batch_id, root)
+        if rebuilt is None:
+            continue
+        claim = next((x for x in rebuilt["claims"] if x["recipient"] == solana_address), None)
+        if claim is None:
+            continue
+        provas.append({
+            "batch_id": batch_id,
+            "campaign_id": campaign_id,
+            "leaf_index": claim["leaf_index"],
+            "claimed": None,
+        })
+    _mark_claimed(c, provas)
+    return {p["batch_id"]: p["claimed"] for p in provas if p["claimed"] is not None}
 
 
 # --- The relayer -------------------------------------------------------------
