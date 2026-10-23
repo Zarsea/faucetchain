@@ -1,0 +1,18 @@
+{
+  "AddressTracker.tsx": 9,
+  "CodeViewer.tsx": 1,
+  "ConnectYourFaucet.tsx": 2,
+  "DappsEnvironment.tsx": 1,
+  "Faucet.tsx": 10,
+  "FaucetHub.tsx": 6,
+  "FaucetInternal.tsx": 1,
+  "GeneralArticle.tsx": 4,
+  "InfrastructureMonitor.tsx": 6,
+  "NetworkStatus.tsx": 5,
+  "Overview.tsx": 2,
+  "Tabs.tsx": 2,
+  "TechnicalSpecs.tsx": 7,
+  "Tokenomics.tsx": 3,
+  "UserDashboard.tsx": 2,
+  "Whitepaper.tsx": 27
+}

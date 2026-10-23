@@ -174,8 +174,15 @@ export const L2ProfileDashboard: React.FC<L2ProfileDashboardProps> = ({ drip, on
                             )) : (
                                 <div className="col-span-full py-12 text-center text-brand-muted border-2 border-dashed border-brand-border/30 rounded-2xl flex flex-col items-center">
                                     <span className="text-4xl mb-2 opacity-50">📭</span>
-                                    <p className="text-sm">No gamification NFT found.</p>
-                                    <p className="text-xs opacity-50">Mantenha seu streak ou alcance novos Ranks para ganhar.</p>
+                                    <p className="text-sm">
+                                        {tri('No gamification NFT found.', 'Nenhum NFT de gamificação encontrado.',
+                                             'Ningún NFT de gamificación encontrado.')}
+                                    </p>
+                                    <p className="text-xs opacity-50">
+                                        {tri('Keep your streak or reach new Ranks to earn one.',
+                                             'Mantenha seu streak ou alcance novos Ranks para ganhar.',
+                                             'Mantenga su racha o alcance nuevos Rangos para ganar uno.')}
+                                    </p>
                                 </div>
                             )}
                         </div>

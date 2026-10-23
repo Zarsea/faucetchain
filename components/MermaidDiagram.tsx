@@ -252,7 +252,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                             className="flex items-center gap-2 px-8 py-4 bg-brand-surface border border-brand-border rounded-2xl text-white font-black uppercase tracking-widest shadow-xl active:scale-95"
                         >
                             <XMarkIcon className="w-5 h-5" />
-                            Sair do Visualizador
+                            {tri('Leave the viewer', 'Sair do visualizador', 'Salir del visor')}
                         </button>
                     </div>
                 </div>
@@ -293,7 +293,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({
                         <button 
                             onClick={() => setIsFullscreen(false)}
                             className="p-4 md:p-3 bg-brand-surface border border-brand-border rounded-full text-brand-muted hover:text-brand-primary hover:border-brand-primary transition-all shadow-2xl active:scale-90"
-                            aria-label="Close Diagram"
+                            aria-label={tri('Close diagram', 'Fechar o diagrama', 'Cerrar el diagrama')}
                         >
                             <XMarkIcon className="w-8 h-8 md:w-6 md:h-6" />
                         </button>

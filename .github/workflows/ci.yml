@@ -90,6 +90,9 @@ jobs:
       - name: Dates follow the language the reader picked, not the browser
         run: node test_locale_do_app.mjs
 
+      - name: Screen text stuck in one language does not increase
+        run: node test_no_hardcoded_english.mjs
+
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
 

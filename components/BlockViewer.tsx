@@ -17,7 +17,7 @@ interface BlockData {
 const formatNumber = (num: number, lang: string) => new Intl.NumberFormat(localeDoIdioma(lang)).format(num);
 
 export const BlockViewer: React.FC = () => {
-    const { lang, tFn } = useLanguage();
+    const { lang, tFn, tri } = useLanguage();
     const { metrics } = useNetwork();
     const [recentBlocks, setRecentBlocks] = useState<BlockData[]>([]);
     const [miningStats, setMiningStats] = useState<any>(null);
@@ -62,7 +62,8 @@ export const BlockViewer: React.FC = () => {
         <div className="space-y-8 animate-fadeIn">
             <div>
                 <h2 className="text-3xl font-bold text-brand-secondary bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">
-                    Live Block Explorer
+                    {tri('Live Block Explorer', 'Explorador de blocos ao vivo',
+                         'Explorador de bloques en vivo')}
                 </h2>
                 <p className="text-brand-muted mt-2">
                     A real-time view of mining and block exploration activity on FaucetChain.
@@ -85,7 +86,8 @@ export const BlockViewer: React.FC = () => {
                             <div>
                                 <div className="text-[10px] font-black tracking-widest text-brand-primary uppercase mb-1 flex items-center gap-2">
                                     <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></span>
-                                    Exploring the next block
+                                    {tri('Exploring the next block', 'Explorando o próximo bloco',
+                                         'Explorando el próximo bloque')}
                                 </div>
                                 <h3 className="text-4xl font-black text-brand-secondary">
                                     #{formatNumber(nextBlockHeight, lang)}
@@ -114,7 +116,8 @@ export const BlockViewer: React.FC = () => {
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Status do Epoch</p>
+                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">
+                                    {tri('Epoch status', 'Status do epoch', 'Estado del epoch')}</p>
                                 <p className="text-xl font-mono text-brand-secondary">
                                     {epochStatus?.isActive ? 'Ativo' : 'Aguardando'}
                                 </p>
@@ -136,7 +139,8 @@ export const BlockViewer: React.FC = () => {
             </div>
 
             {/* Mined Blocks Conveyor */}
-            <SectionCard title="Blocos Recentes" icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title={tri('Recent blocks', 'Blocos recentes', 'Bloques recientes')}
+                         icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}>
                 <div className="flex flex-col gap-4">
                     {recentBlocks.map((block, i) => (
                         <div 
