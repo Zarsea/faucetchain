@@ -49,20 +49,25 @@ export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNav
     const [authError, setAuthError] = useState('');
 
     const toggleLang = () => {
-        // Sem espanhol, ate ele existir.
+        // O espanhol voltou em 22/10/2026.
         //
-        // O ciclo era en -> pt -> es, e o dicionario tem as tres linguas, mas
-        // nenhuma TELA fala espanhol: medido em 21/10/2026, renderizando as 21
-        // abas nas tres, o texto em ES saiu identico ao PT em 14 delas e
-        // identico ao EN nas outras 7.
+        // Ele saiu daqui no dia 21 porque dezesseis componentes escolhiam texto
+        // com `lang === 'pt' ? a : b`, e um ternario binario nao tem terceiro
+        // ramo: quem clicava em ES recebia portugues achando que era espanhol.
+        // O botao foi removido para parar de prometer o que nao existia.
         //
-        // A causa e estrutural: 17 componentes decidem idioma com
-        // `lang === 'pt' ? a : b`, e um ternario binario nao tem onde por a
-        // terceira lingua. Oferecer o botao enquanto isso dura e prometer o que
-        // nao temos -- quem clicasse em ES recebia portugues achando que era
-        // espanhol. `resourcesEs` fica no i18n.ts, pronto, e o 'es' volta aqui
-        // no dia em que esses 17 passarem a ler do dicionario.
-        setLang(lang === 'en' ? 'pt' : 'en');
+        // A trava era essa, e ela acabou. `tri(en, pt, es)` no LanguageContext
+        // deu o ramo que faltava, e cem chamadas foram convertidas com espanhol
+        // escrito de verdade. Medido hoje: ZERO componentes devolvem portugues
+        // para quem pede espanhol.
+        //
+        // Treze pontos ainda caem no ingles -- os 22 textos do ApiDocs, as
+        // respostas do AIChatAgent e dois objetos de conteudo. Isso e lacuna de
+        // traducao, nao mentira: quem le espanhol ve ingles nessas telas e
+        // percebe na hora. O que nao acontece mais e receber portugues com o
+        // rotulo de espanhol, que era o problema real.
+        const ciclo = { en: 'pt', pt: 'es', es: 'en' } as const;
+        setLang(ciclo[lang] ?? 'en');
     };
 
     const handleEmailAuth = async (action: 'login' | 'register') => {
