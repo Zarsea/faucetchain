@@ -311,23 +311,52 @@ export const SettlementLedger: React.FC = () => {
                 icon={<CubeIcon className="w-6 h-6" />}
             >
                 <p className="text-sm text-brand-muted mb-4 max-w-3xl">
-                    Who was actually paid, and how much. Every row exists because a transfer
-                    was signed and confirmed on Solana — the signature beside it opens in the
-                    explorer and shows the same thing without passing through this server.
-                    A published root says what the campaign <em>owes</em>; this table says
-                    what it <em>paid</em>.
+                    Who was paid through this server's relayer, and how much. Every row exists
+                    because the relayer signed a transfer and Solana confirmed it — the
+                    signature beside it opens in the explorer and shows the same thing without
+                    passing through this server. A published root says what the campaign{' '}
+                    <em>owes</em>; this table says what the relayer <em>paid</em>. A withdrawal
+                    whose fee the recipient paid themselves settles on chain without appearing
+                    here, which is why the vault figures above are the ones to trust for a
+                    total.
                 </p>
 
+                {/* Esta mensagem negava qualquer saque sempre que a tabela vinha
+                    vazia, e a campanha 711670 exibia essa negativa logo abaixo
+                    de "Collected 350,00" lido da cadeia. As duas frases liam
+                    fontes diferentes: a cadeia conta todo saque, esta tabela so
+                    os que o nosso relayer assinou. Tabela vazia nunca provou
+                    que ninguem sacou -- provou que nao sacamos por ninguem.
+                    Agora e a cadeia que decide o que a frase diz. */}
                 {!ledger?.payouts?.length ? (
-                    <p className="text-brand-muted">
-                        No withdrawal has been signed on this campaign yet. The roots below
-                        already promise value; nobody has collected it.
-                    </p>
+                    !state ? (
+                        <p className="text-brand-muted">
+                            The relayer has signed no withdrawal on this campaign. Whether
+                            anyone collected by paying their own fee is a question for Solana,
+                            and the chain could not be read just now.
+                        </p>
+                    ) : state.paid > 0 ? (
+                        <p className="text-brand-muted">
+                            The relayer has signed no withdrawal here, but Solana reports{' '}
+                            <span className="text-white font-mono font-bold tabular-nums">
+                                {amount(state.paid)}
+                            </span>{' '}
+                            already collected on this campaign. Those recipients paid their own
+                            transaction fee, so the transfers settled without passing through
+                            this server and leave no row below.
+                        </p>
+                    ) : (
+                        <p className="text-brand-muted">
+                            No withdrawal has been signed on this campaign, and Solana agrees
+                            that nothing has been collected. The roots below promise value that
+                            is still waiting.
+                        </p>
+                    )
                 ) : (
                     <>
                         <div className="flex flex-wrap gap-6 mb-4 text-sm">
                             <span className="text-brand-muted">
-                                paid out{' '}
+                                relayed{' '}
                                 <span className="text-white font-mono font-bold tabular-nums">
                                     {(ledger.paid_total / UNIT).toFixed(6)}
                                 </span>
@@ -337,6 +366,23 @@ export const SettlementLedger: React.FC = () => {
                                 <span className="text-white font-mono font-bold">{ledger.paid_recipients}</span>
                             </span>
                         </div>
+                        {/* Mesma armadilha da tabela vazia, um passo adiante: com
+                            linhas presentes o total daqui parece o total pago, e
+                            e so a parte que passou pelo relayer. */}
+                        {state && state.paid > ledger.paid_total && (
+                            <p className="text-sm text-brand-muted mb-4 max-w-3xl">
+                                Solana reports{' '}
+                                <span className="text-white font-mono font-bold tabular-nums">
+                                    {amount(state.paid)}
+                                </span>{' '}
+                                collected in total, so{' '}
+                                <span className="text-white font-mono font-bold tabular-nums">
+                                    {amount(state.paid - ledger.paid_total)}
+                                </span>{' '}
+                                of it was withdrawn by recipients paying their own fee. Those
+                                transfers are final on chain and simply have no row here.
+                            </p>
+                        )}
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>

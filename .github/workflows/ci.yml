@@ -72,6 +72,9 @@ jobs:
       - name: A storage wrapper calls the storage it wraps
         run: node test_storage_helpers.mjs
 
+      - name: The ledger never denies a withdrawal the chain reports
+        run: node test_ledger_contradiction.mjs
+
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
 
