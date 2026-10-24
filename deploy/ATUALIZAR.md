@@ -1,156 +1,126 @@
 # Atualizar — para o DoniJR
 
-**Revisado em 21/10/2026, depois do seu deploy.** A API ficou certa. O que falta
-é o **frontend**, e ele está com um defeito sério no ar.
+**Revisado em 23/10/2026.** São **20 commits** parados desde o último deploy
+(`9837b82`). Nada aqui é urgente como da outra vez: não há defeito no ar. É um
+lote grande de melhorias que só existe no repositório.
+
+Sobe os dois, **API e frontend**. A ordem não importa — explico no fim por quê.
 
 ---
 
-## ⚠️ Urgente: o frontend precisa subir de novo
-
-O bundle que está servindo hoje não guarda a sessão de ninguém. Um envelope de
-`localStorage` chamava a si mesmo, a recursão estourava a pilha e um `catch`
-vazio engolia o erro — sem nada no console, sem nada na tela.
-
-O que isso quebra, agora, para todo usuário:
-
-- **O Merit Faucet não funciona.** O claim sai sem token, leva 401 e o app
-  desloga a pessoa na hora. Reproduzido em produção: a mensagem é
-  *"Could not process the transaction: Your session has ended"*.
-- **Nenhuma sessão sobrevive a um F5.**
-- **A tela de privacidade não carrega**, pelo mesmo motivo.
-
-Corrigido em `4f4f410`, com um teste que lê o fonte e falha se o envelope voltar
-a não chamar o armazenamento. Está no CI.
-
-```
-Vercel → projeto do explorer → Redeploy, no commit 4f4f410 ou mais novo
-```
-
-Conferir depois: entrar como convidado, apertar F5. Se continuar logado, subiu.
-
-> **Detalhe do build:** o rodapé da barra lateral mostra `dev` em vez do commit.
-> O `git rev-parse` falhou no ambiente de build e a variável da Vercel também
-> veio vazia. Não quebra nada, mas enquanto estiver assim não dá para saber pela
-> tela qual versão está no ar — que é justamente para o que esse campo existe.
-
----
-
-## O que já está certo
-
-Conferido de fora: `/api/account/identities` responde **401** (existe e pede
-sessão), e `/api/staking/stats` traz `epochPool: 200.0` com os pesos dos tiers.
-A API está no código novo.
-
----
-
-## O que o seu deploy já mudou
-
-A maior era o **staking**. Ele pagava uma taxa por posição — 0,5% em 1 hora,
-2% em 24h, 10% em 7 dias — e isso não é recompensa, é emissão proporcional ao
-depósito. Quem tivesse 400.000 $CLAIM presos emitia 2.000/hora sozinho, que é a
-emissão programada da rede inteira, e nada no código olhava para isso.
-
-Agora o rendimento sai de um pool fixo de 200/hora, rateado. Depositar mais
-deixou de emitir mais. O cofre estava vazio na hora da troca, então ninguém
-perdeu rendimento acumulado.
-
-Também subiram: vinculação de conta Google, painel de carteira, a skill de
-integração para agentes, correções de texto em telas que afirmavam coisas que o
-código não faz, e acessibilidade.
-
-## 1. Deploy da API — ✅ feito
+## 1. A API
 
 ```bash
-git pull
 fly deploy -c deploy/fly.toml
 ```
 
-Conferido de fora: a API está no código novo.
+Três coisas acontecem sozinhas quando o container sobe. Não precisa rodar nada
+à mão, mas vale saber que existem, para reconhecer no log:
 
-## 2. O backfill — rode se ainda não rodou
+**Uma migração de banco.** `settlement_rewards` ganha a coluna
+`faucet_wallet`, que registra de qual torneira veio cada crédito. Roda uma vez,
+é idempotente, e não toca nas linhas antigas — elas ficam com `NULL`, que a tela
+mostra como *"não registrado"*.
 
-Daqui de fora não dá para ver se isto já rodou, e rodar de novo não faz mal:
-o script escreve a diferença, então a segunda execução não escreve nada.
+**Uma tabela nova.** `settlement_collections`, onde entram os saques vistos na
+cadeia. Criada no startup.
 
-Há 184,5 $CLAIM de rendimento antigo que o contador de supply não enxerga. Eles
-foram pagos pelo caminho velho, que gravava em `transactions`, e o contador novo
-lê `staking_rewards`. Sem esta linha, `get_total_minted` subestima o supply para
-sempre.
+**Um laço de fundo novo.** De 5 em 5 minutos ele lê as raízes publicadas na
+Solana e anota os saques que ainda não estavam anotados. No log aparece como
+`collection scan recorded N withdrawal(s)`. A primeira passagem vai gravar
+bastante de uma vez, com a mesma data — é esperado, o campo se chama
+`first_seen_at` justamente porque é quando o servidor viu, não quando a Solana
+executou.
+
+> Se quiser mudar o intervalo: `COLLECTION_SCAN_SECONDS` (padrão `300`).
+> Não precisa configurar nada para funcionar.
+
+**De quebra, o rebuild renova o armazenamento de certificados.** A imagem atual
+é de 9 de outubro e as intermediárias comprometidas da eMudhra foram revogadas
+no dia 17. Nossas chamadas de saída (RPC da Solana, API da FaucetHunter)
+confiam nesse armazenamento. O `fly deploy` resolve isso de passagem.
+
+### Depois que subir
 
 ```bash
-fly ssh console -a faucetchain-api
-cd /app
-
-python scripts/backfill_staking_yield.py --self-check   # banco de brinquedo, não toca no seu
-python scripts/backfill_staking_yield.py --dry-run      # mostra e não escreve
-python scripts/backfill_staking_yield.py                # escreve
+fly ssh console -C "python scripts/backfill_staking_yield.py"
 ```
 
-Três coisas que o script já resolve sozinho, para você não precisar lembrar:
-
-- **Acha o banco certo.** Ele usa `$DATA_DIR/blockchain.db`, que é onde o
-  `entrypoint.sh` põe o ledger vivo. A imagem também carrega uma cópia velha em
-  `/app` pelo `COPY . .`; apontar para ela mexeria no arquivo errado e diria que
-  deu certo.
-- **Rodar antes do deploy não quebra nada.** A tabela `staking_rewards` nasce no
-  startup do código novo; sem ela o script avisa e sai com código 2.
-- **Rodar duas vezes não soma duas vezes.** Ele escreve a diferença entre o que
-  deveria estar gravado e o que já está, então a segunda execução não escreve
-  nada.
+Idempotente, pode rodar de novo sem risco.
 
 ---
 
-## 3. O CORS da FaucetHunter — ✅ feito
+## 2. O frontend
 
-O preflight de `faucethunter.net` responde **200**. Era 400, e era por isso que
-a FaucetHunter dizia que a FaucetChain estava offline enquanto ela estava de pé.
+Build e deploy normal na Vercel. Nenhuma variável nova.
 
-## 4. Conferir
+O que muda para quem usa:
 
-```bash
-# o staking novo está no ar
-curl -s https://www.faucetchain.com.br/api/staking/stats | grep epochPool
-
-# a tela de privacidade existe (401 = existe e pede sessão; 404 = não subiu)
-curl -s -o /dev/null -w "%{http_code}\n" https://www.faucetchain.com.br/api/account/identities
-
-# o CORS da FaucetHunter
-curl -s -i -X OPTIONS https://www.faucetchain.com.br/api/faucethub/microclaim/balance/0x0 \
-  -H "Origin: https://faucethunter.net" \
-  -H "Access-Control-Request-Method: GET" | head -1
-```
-
-| Comando | Esperado | Hoje |
-|---|---|---|
-| `epochPool` | aparece | ✅ `200.0` |
-| `/api/account/identities` | **401** | ✅ 401 |
-| preflight do CORS | **200** | ✅ 200 |
-
-Os três já passam. **O que falta não é checável por `curl`**, porque mora no
-navegador:
-
-1. Abra `www.faucetchain.com.br` e entre como convidado.
-2. Aperte **F5**.
-3. Se continuar logado, o frontend novo subiu. Se cair para "Connect Wallet", o
-   bundle velho ainda está no ar.
-
-O mesmo teste cobre o Merit Faucet: com o bundle velho, o claim responde 401 e
-desloga; com o novo, credita e a pessoa continua dentro.
-
-E o rodapé da barra lateral passa a mostrar o commit do build em vez de `dev` —
-a forma mais rápida de saber qual versão está no ar sem abrir terminal.
+- **O seletor de idioma volta a oferecer espanhol.** Ele tinha sido removido em
+  21/10 porque a tela entregava português com rótulo de espanhol. Agora são 22
+  telas convertidas de verdade.
+- **Datas e números seguem o idioma do app**, não mais o do navegador.
+- **O painel do usuário ganha "De onde veio"**, com a torneira que originou cada
+  crédito.
+- A tela de liquidação para de dizer que ninguém sacou quando a cadeia diz que
+  alguém sacou.
 
 ---
 
-## Se alguma coisa der errado
+## 3. Por que a ordem não importa
 
-O deploy é reversível: `fly releases -a faucetchain-api` lista as versões e
-`fly deploy --image <a anterior>` volta.
+O frontend novo chama uma rota que só existe na API nova
+(`/api/solana/history/{address}`). Se ele subir primeiro, essa chamada falha
+sozinha e a seção *"De onde veio"* simplesmente não aparece — o resto do painel
+continua funcionando. Se a API subir primeiro, nada acontece até o frontend
+chegar.
 
-O backfill escreve **uma linha** em `staking_rewards`, com `epoch_id = 0`. Para
-desfazer, `DELETE FROM staking_rewards WHERE epoch_id = 0`. A distribuição normal
-nunca usa o epoch 0 — ela faz `MAX(epoch_id) + 1` e começa em 1 — então essa
-linha não se confunde com nenhuma outra.
+Então pode subir na ordem que for mais cômoda. Só não deixe um dos dois para
+depois de amanhã, porque a diferença entre eles é uma seção faltando.
 
-O CI está verde em `12b440f`, nos dois jobs: `Sequencer and settlement` e
-`Solana program`.
+---
+
+## 4. O que NÃO é com você
+
+A **FaucetHunter está na Hostinger** e o PHP dela é do dono do projeto, não seu.
+Se alguém te pedir para atualizar PHP ou mexer em painel de hospedagem, é pedido
+no lugar errado — você só manda no servidor da FaucetChain.
+
+---
+
+## 5. Conferir que subiu
+
+```bash
+# a API responde e está na versão nova
+curl -s https://www.faucetchain.com.br/api/mining/stats | head -c 200
+
+# a rota nova existe (200 com lista, não 404)
+curl -s -o /dev/null -w "%{http_code}\n" \
+  https://www.faucetchain.com.br/api/solana/history/0x0000000000000000000000000000000000000000
+
+# o laço de varredura está vivo
+fly logs -a faucetchain-api | grep -i "collection scan"
+```
+
+O terceiro pode demorar até 5 minutos para aparecer depois do deploy, que é o
+intervalo da primeira passagem.
+
+---
+
+## O que está em cada commit
+
+Se precisar olhar antes de subir, os 20 em ordem cronológica:
+
+| | |
+|---|---|
+| `4cdb7dc` | Piso do Node acima da RCE do Brotli; DOMPurify corrigido |
+| `cfc0394` `557cabb` `92167ac` | Espanhol funcionando e de volta ao seletor |
+| `e084648` | Tela de saldo lê a cadeia antes de oferecer saque |
+| `9110eaf` `1510360` | Liquidação para de negar saque que a cadeia registrou |
+| `8b09db0` | Qual torneira creditou cada recompensa, e no painel |
+| `816c7fe` | Varredura que dá data aos saques (o laço novo) |
+| `0d565ff` … `09cca76` | Tradução das telas restantes |
+| `cc6cccf` | Data e número seguem o idioma do app |
+| `68fa749` | Catraca contra texto preso numa língua só |
+
+Todos passaram no CI: 25 checks verdes.
