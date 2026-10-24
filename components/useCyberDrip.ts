@@ -185,7 +185,13 @@ export function useCyberDrip(walletAddress: string, faucetWallet: string) {
       const d = await r.json();
       if (r.ok) {
         setStatus({ text: `+${Number(d.credited).toFixed(2)} CLAIM injetado no sistema`, type: 'success' });
-        setCooldown(300);
+        // A resposta ja traz `next_claim_in`. Aqui havia 300 escrito a mao:
+        // concorda com MICROCLAIM_COOLDOWN hoje e passa a mentir no dia em que
+        // ele mudar, em silencio -- o botao contaria cinco minutos enquanto o
+        // servidor cobra outra coisa. Quem decide o intervalo e quem o aplica.
+        // Sem o campo, zero em vez de um palpite: o 429 do proximo clique traz
+        // os segundos que faltam de verdade.
+        setCooldown(Number(d.next_claim_in) || 0);
         fetchProfile(); fetchBalance(); fetchLeaderboard();
         startMinigame(); // Start Data Intercept
       } else {
