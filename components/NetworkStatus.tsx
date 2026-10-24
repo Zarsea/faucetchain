@@ -21,14 +21,36 @@ const MetricItem: React.FC<{ label: string; value: string; trend?: 'UP' | 'DOWN'
     </div>
 );
 
-// O que cada coluna representa, por faixa. O titulo do grafico dizer "hourly"
-// enquanto o eixo mostra datas foi parte do que fazia esta tela nao bater.
-const FAIXA_LEGENDA: Record<string, string> = {
-    '4h': '10 minutes',
-    '24h': 'hour',
-    '7d': '6 hours',
-    '30d': 'day',
-    'all': 'day',
+// O que cada coluna representa, lido de `bucket_seconds` da resposta.
+//
+// Aqui havia uma tabela fixa de faixa para palavra, e ela estava errada em
+// `all`: o backend faz o balde crescer com o historico
+// (`passo = 86400 * (dias // 60 + 1)` passados 60 dias), entao com cinco meses
+// de blocos o eixo ja desenhava baldes de tres dias enquanto o titulo dizia
+// "by day". Qualquer tabela escrita aqui envelhece errada, porque o tamanho do
+// balde e decisao de quem agrupa -- e quem agrupa ja manda o numero junto.
+export const legendaDoBalde = (
+    segundos: number | null | undefined,
+    tri: (en: string, pt: string, es?: string) => string,
+): string => {
+    if (!segundos || segundos <= 0) return '';
+    if (segundos % 86400 === 0) {
+        const d = segundos / 86400;
+        return d === 1 ? tri('day', 'dia', 'día')
+                       : tri(`${d} days`, `${d} dias`, `${d} días`);
+    }
+    if (segundos % 3600 === 0) {
+        const h = segundos / 3600;
+        return h === 1 ? tri('hour', 'hora', 'hora')
+                       : tri(`${h} hours`, `${h} horas`, `${h} horas`);
+    }
+    const m = Math.round(segundos / 60);
+    if (m >= 1) {
+        return m === 1 ? tri('minute', 'minuto', 'minuto')
+                       : tri(`${m} minutes`, `${m} minutos`, `${m} minutos`);
+    }
+    return segundos === 1 ? tri('second', 'segundo', 'segundo')
+                          : tri(`${segundos} seconds`, `${segundos} segundos`, `${segundos} segundos`);
 };
 
 export const NetworkStatus: React.FC = () => {
@@ -46,6 +68,10 @@ export const NetworkStatus: React.FC = () => {
     const [faixa, setFaixa] = useState<'4h' | '24h' | '7d' | '30d' | 'all'>('24h');
     const [serie, setSerie] = useState<{ label: string; txs: number; blocks: number; tps: number }[]>([]);
     const [totais, setTotais] = useState<{ blocos: number; txs: number } | null>(null);
+    // Quem agrupou e quem sabe o tamanho do balde. Guardar o numero e o que
+    // mantem o titulo do grafico concordando com o eixo dele.
+    const [balde, setBalde] = useState<number | null>(null);
+    const porBalde = legendaDoBalde(balde, tri);
 
     // Recarrega quando a faixa muda, e de minuto em minuto. Nao de segundo em
     // segundo como o resto desta tela: o balde mais curto tem dez minutos,
@@ -60,10 +86,13 @@ export const NetworkStatus: React.FC = () => {
                 if (!vivo) return;
                 setSerie(d.points ?? []);
                 setTotais({ blocos: d.total_blocks ?? 0, txs: d.total_txs ?? 0 });
+                setBalde(typeof d.bucket_seconds === 'number' ? d.bucket_seconds : null);
             } catch {
                 // Serie vazia e melhor que serie velha: o grafico fica em
                 // branco em vez de desenhar um passado que nao se confirmou.
-                if (vivo) { setSerie([]); setTotais(null); }
+                // O balde vai junto: titulo sem serie para descrever mentiria
+                // sobre dados que nao chegaram.
+                if (vivo) { setSerie([]); setTotais(null); setBalde(null); }
             }
         };
         buscar();
@@ -203,7 +232,13 @@ export const NetworkStatus: React.FC = () => {
                 <div className="lg:col-span-2 space-y-6">
                     <SectionCard title="Transaction Volume" icon={<ChartBarIcon className="w-5 h-5" />}>
                         <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">
-                            Transactions per block, by {FAIXA_LEGENDA[faixa]}
+                            {porBalde
+                                ? tri(`Transactions per block, by ${porBalde}`,
+                                      `Transações por bloco, por ${porBalde}`,
+                                      `Transacciones por bloque, por ${porBalde}`)
+                                : tri('Transactions per block',
+                                      'Transações por bloco',
+                                      'Transacciones por bloque')}
                         </h4>
                         <div style={{ width: '100%', height: 260 }}>
                             <ResponsiveContainer>
@@ -237,7 +272,13 @@ export const NetworkStatus: React.FC = () => {
                             de lugar nenhum. Isto e medido: transacoes do balde
                             divididas pelos segundos dele. */}
                         <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">
-                            Transactions per second, measured per {FAIXA_LEGENDA[faixa]}
+                            {porBalde
+                                ? tri(`Transactions per second, measured per ${porBalde}`,
+                                      `Transações por segundo, medidas por ${porBalde}`,
+                                      `Transacciones por segundo, medidas por ${porBalde}`)
+                                : tri('Transactions per second, measured',
+                                      'Transações por segundo, medidas',
+                                      'Transacciones por segundo, medidas')}
                         </h4>
                         <div style={{ width: '100%', height: 260 }}>
                             <ResponsiveContainer>
