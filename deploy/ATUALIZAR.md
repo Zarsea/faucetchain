@@ -1,6 +1,12 @@
 # Atualizar — para o DoniJR
 
-**24/10/2026.** 24 commits parados desde o último deploy (`9837b82`, de 22/10).
+**24/10/2026.** 27 commits parados desde o último deploy (`9837b82`, de 22/10).
+
+Para conferir o número por conta própria, sem acreditar nesta linha:
+
+```bash
+git rev-list --count 9837b82..origin/main
+```
 
 **Os juízes do Colosseum estão avaliando agora.** O que eles abrem é o que está
 no ar, e o que está no ar tem dois dias de atraso — incluindo um gráfico que
