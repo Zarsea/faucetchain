@@ -1,7 +1,10 @@
 # Atualizar — para o DoniJR
 
-**23/10/2026.** 21 commits parados desde o último deploy (`9837b82`).
-Nada quebrado no ar: é um lote de melhorias que só existe no repositório.
+**24/10/2026.** 24 commits parados desde o último deploy (`9837b82`, de 22/10).
+
+**Os juízes do Colosseum estão avaliando agora.** O que eles abrem é o que está
+no ar, e o que está no ar tem dois dias de atraso — incluindo um gráfico que
+mostra o rótulo errado na tela de Network Status, que já foi fotografado.
 
 Sobe os dois. A ordem não importa.
 
@@ -38,6 +41,29 @@ Sobe os dois. A ordem não importa.
   # o laço novo está vivo (pode levar 5 min para aparecer)
   fly logs -a faucetchain-api | grep -i "collection scan"
   ```
+
+  E no navegador, porque é o que o juiz vê: **Explore → Network Status → All
+  time.** O título do gráfico tem de dizer *"by 3 days"*. Se disser *"by day"*,
+  o frontend antigo ainda está no ar.
+
+---
+
+## Duas perguntas que só você responde
+
+Não são tarefa, são informação que falta deste lado:
+
+1. **De onde sai o frontend que está no ar?** O rodapé do site mostra `dev` em
+   vez do hash do commit. O build pega o hash de `git rev-parse` e, se não
+   houver `.git`, da variável da Vercel. Mostrar `dev` significa que o build
+   saiu de um clone sem `.git` **e** fora da Vercel — então talvez quem serve a
+   tela seja o `dist/` de dentro da imagem, não a Vercel.
+
+   Se for, o passo 2 desta lista está incompleto: o `fly deploy` precisa de um
+   `dist/` recém-buildado dentro dele.
+
+2. **Dá para o build sair de um clone com `.git`?** Aí o rodapé passa a mostrar
+   o commit que está no ar, e ninguém mais precisa adivinhar quanto está
+   parado. É meia linha e responde essa pergunta para sempre.
 
 ---
 
@@ -80,6 +106,9 @@ API subir antes, nada acontece até o frontend chegar.
 
 ## O que muda para quem usa
 
+- **O gráfico de Network Status para de mentir o tamanho da coluna.** Em "All
+  time" o título dizia "by day" enquanto cada coluna já valia três dias. Agora
+  o título lê o tamanho real do balde da própria resposta da API.
 - **O seletor de idioma volta a oferecer espanhol.** 22 telas convertidas.
 - **Datas e números seguem o idioma do app**, não o do navegador.
 - **Painel do usuário ganha "De onde veio"**, com a torneira de cada crédito.
@@ -87,4 +116,13 @@ API subir antes, nada acontece até o frontend chegar.
   alguém sacou.
 - Node atualizado contra a RCE do Brotli; DOMPurify corrigido.
 
-CI verde nos 25 checks.
+CI verde nos 31 passos.
+
+---
+
+## O que NÃO entra neste deploy
+
+Para você não procurar: os 15 lotes fechados e nunca publicados continuam
+travados. A rota que os destrava (`/api/solana/batch/{id}/reopen`) sobe junto
+com esta API, mas **chamá-la é decisão de operação, não deste deploy.** Não
+precisa fazer nada com isso agora.
