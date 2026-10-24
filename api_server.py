@@ -9362,6 +9362,126 @@ async def mark_batch_published(
     return {"status": "published", "batch_id": batch_id, "signature": req.signature.strip()}
 
 
+@app.post("/api/solana/batch/{batch_id}/reopen")
+async def reopen_batch(batch_id: int, x_operator_token: Optional[str] = Header(None)):
+    """Devolve ao jogo as recompensas de um lote que nunca foi publicado.
+
+    Fechar um lote era porta de mao unica. A recompensa ganha `batch_id`, o
+    fechamento seguinte so olha `batch_id IS NULL`, e nenhum caminho limpava
+    esse campo -- entao um lote fechado e nunca publicado congelava o valor dele
+    para sempre. Medido em 23/10/2026: 15 lotes nessa situacao ha 35 a 37 dias,
+    segurando 43 recompensas que o usuario nunca conseguiria sacar.
+
+    Reabrir e seguro **exatamente porque** nada na cadeia aponta para esse lote.
+    Sem raiz publicada, a arvore dele nao prometeu nada a ninguem, e as
+    recompensas podem entrar na proxima arvore sem quebrar prova nenhuma.
+
+    Tres recusas, e cada uma existe por um motivo diferente:
+
+    - **ja publicado aqui**: ha assinatura gravada, entao a raiz esta na cadeia
+      e alguem pode estar sacando contra ela agora;
+    - **raiz existe na cadeia**: alguem publicou sem registrar a assinatura
+      deste lado. A ausencia de assinatura no nosso banco NAO prova ausencia na
+      cadeia, e e a cadeia que manda;
+    - **nao e o ultimo indice da campanha**: `root_index` nasce de
+      `COUNT(*)` por campanha, entao apagar um lote do meio faz o proximo
+      fechamento reusar um indice que ja tem raiz publicada. So o ultimo volta.
+
+    Quando a cadeia nao responde, recusa com 503. Nao da para provar ausencia
+    com silencio, e e a ausencia que autoriza apagar.
+    """
+    require_operator(x_operator_token)
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        c.execute(
+            """SELECT b.campaign_id, b.root_index, b.published_signature, sc.sponsor
+                 FROM settlement_batches b
+                 LEFT JOIN settlement_campaigns sc ON sc.campaign_id = b.campaign_id
+                WHERE b.id = ?""",
+            (batch_id,),
+        )
+        linha = c.fetchone()
+        if not linha:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        campaign_id, root_index, assinatura, sponsor = linha
+
+        if assinatura:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Batch {batch_id} is published ({assinatura}). Its root is on "
+                       f"Solana and somebody may be withdrawing against it.",
+            )
+
+        c.execute(
+            "SELECT MAX(root_index) FROM settlement_batches WHERE campaign_id = ?",
+            (campaign_id,),
+        )
+        maior = c.fetchone()[0]
+        if root_index != maior:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Batch {batch_id} is index {root_index} and campaign {campaign_id} "
+                       f"already has index {maior}. Only the last batch of a campaign can be "
+                       f"reopened, because the index counter would otherwise collide with a "
+                       f"root that is already published.",
+            )
+
+        if not sponsor:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Campaign {campaign_id} has no sponsor recorded, so the root address "
+                       f"cannot be derived and absence on chain cannot be proved.",
+            )
+
+        # A cadeia decide. Silencio nao e ausencia.
+        try:
+            import solana_settlement as chain
+            from solders.pubkey import Pubkey
+
+            pid = chain.program_id(chain.load_idl())
+            campaign = chain.campaign_pda(pid, Pubkey.from_string(sponsor), campaign_id)
+            raiz = chain.root_pda(pid, campaign, root_index)
+            dados = chain.fetch_accounts(chain.default_rpc_url(), [raiz])
+        except Exception as e:
+            audit_logger.warning(f"reopen of batch {batch_id} refused, chain unreadable: {e!r}")
+            raise HTTPException(
+                status_code=503,
+                detail="Solana could not be read, so it cannot be proved that this root was "
+                       "never published. Try again when the chain answers.",
+            )
+
+        if dados and dados[0] is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A root already exists on chain at index {root_index} of campaign "
+                       f"{campaign_id} ({raiz}), even though no signature is recorded here. "
+                       f"Record the signature with /published instead of reopening.",
+            )
+
+        c.execute(
+            "UPDATE settlement_rewards SET batch_id = NULL, solana_address = NULL "
+            "WHERE batch_id = ?",
+            (batch_id,),
+        )
+        soltas = c.rowcount
+        c.execute("DELETE FROM settlement_batches WHERE id = ?", (batch_id,))
+        conn.commit()
+        audit_logger.info(
+            f"batch {batch_id} reopened: {soltas} reward(s) released back to unbatched, "
+            f"campaign {campaign_id} index {root_index} freed"
+        )
+        return {
+            "status": "reopened",
+            "batch_id": batch_id,
+            "campaign_id": campaign_id,
+            "root_index_freed": root_index,
+            "rewards_released": soltas,
+        }
+    finally:
+        conn.close()
+
+
 @app.get("/api/solana/batches")
 async def list_settlement_batches(campaign_id: Optional[int] = None, limit: int = 50):
     conn = get_db_connection()

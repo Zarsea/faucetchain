@@ -67,6 +67,9 @@ jobs:
       - name: The withdrawal scan gives a date to what the chain only dates by bit
         run: python tests/test_collection_scan.py
 
+      - name: A frozen batch can only be reopened when the chain says it was never published
+        run: python tests/test_batch_reopen.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci
