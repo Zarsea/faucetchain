@@ -43,6 +43,25 @@ forged, mints anything.
    campaign ids would have to be globally unique, which needs a registry
    somebody has to run.
 
+   **The token program is pinned to classic SPL here, and that is enforced, not
+   advised.** `#[account(address = anchor_spl::token::ID)]` on `token_program`
+   rejects a Token-2022 mint at campaign creation, before any value reaches the
+   vault. `TokenInterface` would accept Token-2022, and such a mint may carry a
+   `TransferFee`: the vault would be debited what the leaf says while the
+   recipient receives less. A root that pays 98 where it published 100 is not a
+   rounding problem, it is the guarantee failing quietly. The vault is created
+   under this program and never changes program afterwards, so pinning it once
+   at creation is enough — a Token-2022 mint can never reach `claim_reward`.
+
+   What this admits and refuses, verified on chain rather than from memory on
+   2026-10-24: USDC is classic SPL on both devnet
+   (`4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU`, six decimals) and mainnet,
+   so a stablecoin campaign needs no change to this program. PYUSD is
+   Token-2022 and is refused.
+
+   There is no mint allowlist above that: campaign registration validates the
+   mint as an address, and the token program constraint does the rest.
+
    One label, composed in one place — `campaign_label()` in api_server.py:
    the campaign's own name, else the token's name, else its symbol, else
    `#652608`. The last rung carries no word on purpose, so a trilingual
@@ -85,6 +104,35 @@ forged, mints anything.
    campaign joins as one more leaf — one per batch, not one per click — so it
    travels under the same root, the same proof and the same reserve check as any
    user's reward.
+
+   **A campaign can set a floor.** `settlement_campaigns.min_withdraw` keeps a
+   recipient out of the batch until their total reaches it; their rows stay
+   unbatched and accrue into the next one. Delivering to someone new costs rent
+   once per person per token — 1,488,440 lamports, measured — so under some
+   figure the delivery costs more than it delivers. Only the sponsor knows what
+   their token is worth, so only the sponsor sets the number.
+
+   **Closing a batch used to be a door with no handle.** A reward took a
+   `batch_id`, the next close only looked at `batch_id IS NULL`, and no path
+   ever cleared that field, so a batch closed and never published froze its
+   value for good. Measured on 2026-10-23: fifteen batches had been in that
+   state for thirty-five days, holding 78% of everything this network had ever
+   batched. The bridge was crediting correctly on one side and not delivering on
+   the other.
+
+   `POST /api/solana/batch/{batch_id}/reopen` releases them, and it is safe
+   precisely
+   because nothing on chain points at the batch. It refuses on four counts: a
+   published signature; a root account that exists on chain even with no
+   signature recorded here, because the chain is the authority and not our
+   database; a batch that is not the campaign's last, because `root_index`
+   comes from `COUNT(*)` and deleting from the middle would make the next close
+   reuse an index that already has a published root; and a chain it could not
+   read at all. Silence from the chain is not absence, and it is absence that
+   authorises the delete.
+
+   Reopening is an operator decision, never automatic. Nine tests cover it, and
+   six of them are the refusals.
 6. **`publish_root(index, root, total_amount, leaf_count)`** — the operator
    publishes the root. The program refuses it unless
    `vault.amount >= committed - paid + total_amount`. Proof of reserve is
@@ -97,6 +145,13 @@ forged, mints anything.
    leaf's bit is set in the root's bitmap, so a replay fails on a bit that is
    already set. `payer` is a separate signer from `recipient`, so a relayer
    covers the fee for a user holding no SOL.
+   **A withdrawal gets its date from the chain, not from us.** `varrer_saques()`
+   reads the published roots every `COLLECTION_SCAN_SECONDS` (300 by default)
+   and records newly-set bits in `settlement_collections`. The column is called
+   `first_seen_at` rather than `collected_at` because it is honest about what it
+   knows: when this server noticed, not when Solana executed. The first pass
+   after deployment writes many rows carrying the same timestamp, which looks
+   wrong and is not.
 8. **`withdraw_surplus(amount)`** — the partner takes back what the vault holds
    above `committed - paid`. A reward inside a published root was never part of
    the surplus. **`close_campaign()`** stops new roots without touching the
@@ -175,6 +230,48 @@ instruction, a tampered amount, a second instruction smuggled behind the
 withdrawal, an unsigned transaction and a batch belonging to someone else are
 each refused before anything is sent. Those five refusals are tests, not
 claims.
+
+### What the subsidy actually costs
+
+`GET /api/solana/relayer` prices it from what has been spent, not from an
+estimate. Measured on 2026-10-24, over four withdrawals to three first-time
+recipients:
+
+| | lamports | share |
+| --- | ---: | ---: |
+| Rent for the recipients' token accounts | 4,465,320 | 92.9% |
+| Priority fee | 300,000 | 6.2% |
+| Base signature fee | 40,000 | 0.8% |
+
+**Rent is a one-time deposit per person per token, not a cost per withdrawal,**
+and that changes the shape of the whole subsidy. The same balance pays for about
+2,335 new recipients or roughly 43,750 withdrawals by people who already have an
+account: the cost scales with *new users*, not with traffic, and a returning
+user costs under 6% of a first-time one. It is also recoverable in principle —
+closing a token account returns the rent — and never recovered in practice,
+because nobody closes one. On devnet that is irrelevant. On mainnet it is a
+deposit the project puts up and does not see again.
+
+This is the number that decides a campaign's `min_withdraw`, and the two are
+easy to set independently and wrongly.
+
+### The alarm, and what it does not do
+
+`conferir_saldo_do_relayer()` runs every `RELAYER_CHECK_SECONDS` and shouts when
+the balance crosses `RELAYER_ALERT_LOW` (500 affordable new recipients) or
+`RELAYER_ALERT_CRITICAL` (100). It shouts **on the change of state**, keeping
+one row per alarm in `alert_state`: the same line repeated every five minutes
+teaches whoever reads it to ignore the line that matters.
+
+It exists because the failure does not look like its cause. When the relayer
+runs dry, withdrawals stop and the screen shows a transaction error — nothing in
+that error says anything about a balance.
+
+**It writes only to `audit_logger`.** No mail, no webhook, no banner. Whoever
+needs to know finds out by reading the server log, which means finding out late.
+The `webhooks` module already has signing and a retry queue, but it is aimed at
+the partner faucet, which is the wrong recipient for an operations alert about
+this network's own wallet. Open, and listed under Known gaps.
 
 ## The tree
 
@@ -261,10 +358,22 @@ identity and a well-formed address nobody registered, and expects 401 from both.
 
 | Table | Purpose |
 | --- | --- |
-| `settlement_campaigns` | campaign_id -> sponsor and mint, so one sequencer can serve several partners |
+| `settlement_campaigns` | campaign_id -> sponsor and mint, plus the display name and the withdrawal floor, so one sequencer can serve several partners |
 | `solana_links` | FaucetChain account -> Solana wallet, one row per user |
-| `settlement_rewards` | campaign, user, amount, batch_id, and the wallet the batch was built for |
+| `settlement_rewards` | campaign, user, amount, batch_id, the wallet the batch was built for, and `faucet_wallet` |
 | `settlement_batches` | campaign, root_index, root, totals, and the signature that published it |
+| `settlement_collections` | which leaf was seen collected on chain, and when this server first saw it |
+
+**`faucet_wallet` answers a question the user was already asking.** Which faucet
+credited this reward was always in scope inside `_campaign_drip` — the cooldown
+table beside it recorded the faucet — and the reward row threw it away. The
+result was a dashboard that could say how much a campaign paid and never which
+tap it came through. Rows written before the column exists stay `NULL`, and the
+screen says "not recorded" rather than guessing.
+
+`solana_links` has `user_address` as its primary key, which is to say **one
+settlement wallet per user, globally**. That is the constraint that would have
+to change first if this ever settled on more than one chain — see below.
 
 A closed batch is immutable, so the tree rebuilt for a proof request is cached.
 Only a tree that matched its published root is ever cached: serving a proof from
@@ -334,10 +443,18 @@ These are open on purpose, not oversights:
   first is deliberate — the answer is what gets asked about, and shipping an
   expiry path would mean reopening the one part that is already proven end to
   end.
-- **Token-2022 mints with a transfer fee would break the accounting.** The vault
-  would deliver less than the leaf promises while `paid` records the full
-  amount. Campaigns should be restricted to plain SPL mints until this is
-  handled.
+- **Nobody is told when the relayer runs low.** The alarm fires correctly and
+  writes only to the server log. The day it matters, withdrawals fail with a
+  transaction error that says nothing about a balance, and whoever could have
+  refilled it reads about it afterwards. The missing piece is a decision, not
+  code: the existing `webhooks` queue points at the partner faucet, which is the
+  wrong recipient for an alert about this network's own wallet.
+
+- **Fifteen closed batches are still frozen, and the door now exists.**
+  `reopen` shipped on 2026-10-23; calling it is an operator decision that has
+  not been made. Until it is, 78% of everything credited on this network cannot
+  be withdrawn by the people it was credited to. This is the largest open item
+  by value.
 - **The proof endpoint has no rate limit.** The cache removes the repeated cost,
   but the first request on a large batch still costs real CPU — about 0.7s for
   ten thousand leaves.
@@ -424,6 +541,46 @@ partner's page quietly showing nothing. The same test pins the derivation:
 `faucet_user_address()` and `/api/auth/solana` must land on the same account,
 or the reward sits somewhere the user cannot reach and nothing else in this
 repository would notice.
+
+## If this ever settles on a second chain
+
+Not planned, and worth deciding before it is, because the cheap version and the
+expensive version look alike until one of them has shipped.
+
+Moving roots instead of money is what makes a second chain cheap at all. A root
+is thirty-two bytes; the sequencer, the leaf, the batch and the proof do not
+know what Solana is. A second chain needs a second verifier and a second link
+table, not a second ledger.
+
+**The danger is not the code, it is the guard.** `claimed_bits` is the
+anti-double-claim bitmap and it lives in one account on one chain. If the same
+leaf could be claimed on two chains, the project pays twice — and the leaf is
+the promise the program exists to keep. So either a leaf is bound to exactly one
+chain when the batch closes, or there has to be coordination across chains,
+which is where bridges lose money.
+
+**The economics also invert, which is less obvious.** Here, 93% of the relayer's
+cost is rent: a one-time deposit per person, so cost scales with new users. On a
+chain with gas and no rent, cost scales with withdrawals instead. The
+`min_withdraw` that makes sense on one is wrong on the other, and "the user
+never needs the native token" gets much more expensive where every claim is
+paid for.
+
+**Decided, if it happens: bind the chain to the campaign, not to the user.**
+`settlement_campaigns` takes a `chain` column and the sponsor chooses where
+their campaign settles. That keeps one root on one chain, keeps the bitmap
+authoritative over the whole of it, requires no cross-chain coordination, and
+changes `root_index` not at all — it already counts per campaign. The batch
+close joins on the wallet for that campaign's chain, and whoever has no wallet
+there simply does not enter the batch, which is the behaviour that already
+exists and already recovers by itself on the next close.
+
+The expensive version — the user picks a chain at withdrawal time — spreads one
+tree across several chains, and then no chain can verify the whole of it. That
+one should not be built.
+
+Either way, `solana_links.user_address` being a primary key is the first thing
+that has to give: today a user has exactly one settlement wallet.
 
 ## The FaucetPay link, and what it is not
 
@@ -601,6 +758,47 @@ user's own screen when the faucet they claimed from cannot cover them. The board
 knows; the user does not.
 
 ## Change log
+
+**2026-10-24 - this document catches up with sixteen days, and says what is
+still frozen.** It had not been touched since 8 October while the settlement
+half kept moving, so it was missing `settlement_collections`, `faucet_wallet`,
+`min_withdraw`, `varrer_saques`, the relayer's measured economics and the
+reopen door. Six things the document of record did not record.
+
+The sharpest of them: **closing a batch was a door with no handle.** A reward
+took a `batch_id` and nothing ever cleared it, so a batch closed and never
+published froze its value permanently. Fifteen batches had been in that state
+for thirty-five days, holding 78% of everything this network had ever batched —
+the bridge crediting correctly on one side and not delivering on the other.
+`reopen` gives them a way back, with four refusals, nine tests, and no
+automation: calling it is an operator decision, and it has not been made.
+
+**Two corrections this document was carrying.** Token-2022 was listed as an open
+gap to be handled by restricting campaigns to plain SPL mints; the program has
+been enforcing exactly that at `create_campaign` with an `address` constraint,
+so the gap was closed and the text understated the system. And the relayer's
+cost had never been written down at all: measured, 92.9% of it is rent, a
+one-time deposit per recipient, which means the subsidy scales with new users
+rather than with traffic. That number is what should set a campaign's
+`min_withdraw`, and nothing said so.
+
+**A chart was naming a bucket it did not draw.** The Network Status title came
+from a fixed table of range to word while the API already returned
+`bucket_seconds`, which the component fetched and discarded. In "all time" the
+backend grows the bucket past sixty days of history, so five months of blocks
+drew three-day columns under a title that said "by day". Fixed by reading the
+number from whoever grouped the rows; `test_bucket_legend.mjs` pins both the
+conversion and the source, because a new fixed table would pass a test that only
+checked the conversion.
+
+**A decision recorded before it is needed:** if this ever settles on a second
+chain, the chain binds to the campaign, not to the user. The reasoning is in its
+own section above, and the short version is that `claimed_bits` is per chain, so
+a leaf has to belong to exactly one.
+
+Twenty-seven commits were waiting on deployment as this was written, since
+`9837b82` on 22 October. Everything above exists in the repository; the running
+site is older than all of it.
 
 **2026-10-08 - batch 21, published so the demo has a withdrawal to film.** The
 shot list had been built around campaign 479079's 347,221 units, which were

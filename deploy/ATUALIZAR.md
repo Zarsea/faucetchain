@@ -129,6 +129,6 @@ CI verde nos 31 passos.
 ## O que NÃO entra neste deploy
 
 Para você não procurar: os 15 lotes fechados e nunca publicados continuam
-travados. A rota que os destrava (`/api/solana/batch/{id}/reopen`) sobe junto
+travados. A rota que os destrava (`/api/solana/batch/{batch_id}/reopen`) sobe junto
 com esta API, mas **chamá-la é decisão de operação, não deste deploy.** Não
 precisa fazer nada com isso agora.
