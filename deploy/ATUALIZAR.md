@@ -1,6 +1,6 @@
 # Atualizar — para o DoniJR
 
-**24/10/2026.** 27 commits parados desde o último deploy (`9837b82`, de 22/10).
+**25/10/2026.** 31 commits parados desde o último deploy (`9837b82`, de 22/10).
 
 Para conferir o número por conta própria, sem acreditar nesta linha:
 
@@ -9,10 +9,24 @@ git rev-list --count 9837b82..origin/main
 ```
 
 **Os juízes do Colosseum estão avaliando agora.** O que eles abrem é o que está
-no ar, e o que está no ar tem dois dias de atraso — incluindo um gráfico que
-mostra o rótulo errado na tela de Network Status, que já foi fotografado.
+no ar, e o que está no ar tem três dias de atraso.
+
+> **Há um item de segurança que não está escrito aqui**, porque este arquivo é
+> público. O Ryan te manda em separado. Faça antes ou junto com este deploy.
 
 Sobe os dois. A ordem não importa.
+
+### Por que este deploy ficou seguro só agora
+
+Vale saber, caso alguém tenha pedido antes: **até ontem este deploy trocaria uma
+tela que funciona por um app que não abre.** O Infra Monitor chamava uma função
+de tradução fora de escopo, e como o React 19 não tem barreira aqui, a tela
+derrubava a aplicação inteira — barra lateral e tudo. Estava dentro dos commits
+pendentes, e o site no ar nunca teve o defeito.
+
+Corrigido, e conferido num build de produção aberto no navegador, não só lendo o
+código. O checador de tipos agora roda no CI, que é o que pega essa classe de
+erro antes de virar deploy.
 
 ---
 
@@ -48,9 +62,15 @@ Sobe os dois. A ordem não importa.
   fly logs -a faucetchain-api | grep -i "collection scan"
   ```
 
-  E no navegador, porque é o que o juiz vê: **Explore → Network Status → All
-  time.** O título do gráfico tem de dizer *"by 3 days"*. Se disser *"by day"*,
-  o frontend antigo ainda está no ar.
+  E no navegador, porque é o que o juiz vê. Três checagens de dez segundos:
+
+  | Onde | Tem de mostrar | Se mostrar isto, o frontend antigo ficou |
+  |---|---|---|
+  | Explore → **Infra Monitor** | a tela, com os painéis | tela preta, app sem barra lateral |
+  | Explore → **Network Status** → All time | título *"by 3 days"* | *"by day"* |
+  | Explore → **Network Status** → tiles | `LATEST BLOCK` perto de `#28` e **nenhum tile de Hashrate** | `#156` e `1950 TH/s` |
+
+  A primeira linha é a que importa. Se o Infra Monitor abrir, o deploy está bom.
 
 ---
 
@@ -112,6 +132,14 @@ API subir antes, nada acontece até o frontend chegar.
 
 ## O que muda para quem usa
 
+- **O Infra Monitor deixa de derrubar o app.** Era o defeito mais caro do lote,
+  e nunca chegou ao ar.
+- **Os números da Network Status passam a sair da tabela de blocos.** A altura
+  era `claims + transações` e dava `#156` enquanto `/api/blocks` tinha a ponta
+  no `#28`; o hashrate era essa soma vezes 12,5, numa rede que não calcula hash
+  nenhum. O tile de hashrate saiu, e o que a rede não mede escreve um traço em
+  vez de um número. **Não estranhe os valores caírem** — eles não caíram, só
+  deixaram de ser inventados.
 - **O gráfico de Network Status para de mentir o tamanho da coluna.** Em "All
   time" o título dizia "by day" enquanto cada coluna já valia três dias. Agora
   o título lê o tamanho real do balde da própria resposta da API.
@@ -122,7 +150,7 @@ API subir antes, nada acontece até o frontend chegar.
   alguém sacou.
 - Node atualizado contra a RCE do Brotli; DOMPurify corrigido.
 
-CI verde nos 31 passos.
+CI verde nos 33 passos.
 
 ---
 

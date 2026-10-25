@@ -1,15 +1,36 @@
+import os
 import requests
 import time
 import threading
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = os.getenv("AUDIT_BASE_URL", "http://localhost:8000")
 
 # Fake Data
 USER_WALLET = "0x9999999999999999999999999999999999999999"
 FAUCET_WALLET = "0x84da71247cbfb0737a9112de1f10dae9823fc298"
 FAKE_FAUCET_WALLET = "0x7777777777777777777777777777777777777777"
-VALID_API_KEY = "fch_internal_faucet_key_77777777777777777777777777777777"
+
+# A chave real sai do ambiente, e nunca mais daqui.
+#
+# Estava escrita neste arquivo, em texto claro, desde o commit de baseline de
+# 15/09/2026 -- quarenta dias num repositorio publico. O SHA-256 dela batia com
+# uma linha `is_active = 1` de `faucet_api_keys`, com 55 usos registrados: quem
+# lesse o repositorio podia creditar recompensa em nome daquela torneira e
+# drenar o orcamento de toda campanha em que ela estivesse inscrita.
+#
+# `api_server.py` ja tinha fechado a porta pela qual a chave vazava
+# (`/api/faucethub/my-key/{wallet}` parou de devolve-la), e ja guarda so o hash
+# no banco. O literal aqui sobreviveu as duas correcoes.
+#
+# Tirar daqui nao conserta sozinho: a chave esteve publica e continua no
+# historico do git. **O conserto e revogar e trocar.** Isto so impede que a
+# proxima pessoa a abrir o repositorio encontre a seguinte.
+VALID_API_KEY = os.getenv("AUDIT_FAUCET_API_KEY", "")
 FAKE_API_KEY = "fake_api_key_123"
+
+if not VALID_API_KEY:
+    print("AUDIT_FAUCET_API_KEY nao definida: os testes que exigem uma chave "
+          "valida vao reprovar por falta de chave, nao por falha do servidor.")
 
 def print_test_header(title):
     print(f"\n{'='*50}\nRUNNING TEST: {title}\n{'='*50}")
