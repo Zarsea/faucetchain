@@ -218,7 +218,7 @@ const EventFeed: React.FC<{ events: LiveEvent[] }> = ({ events }) => {
             {events.length === 0 && (
                 <div className="text-center py-12 text-brand-muted">
                     <p className="text-xs uppercase tracking-widest font-bold">
-                        {tri('Awaiting events...', 'Aguardando eventos...', 'Esperando eventos...')}
+                        {triGlobal('Awaiting events...', 'Aguardando eventos...', 'Esperando eventos...')}
                     </p>
                     <p className="text-[10px] mt-1">Real-time protocol actions will appear here</p>
                 </div>

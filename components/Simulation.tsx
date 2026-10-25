@@ -374,12 +374,18 @@ export const Simulation: React.FC = () => {
                                 <div style={{ width: '100%', height: 280 }}>
                                     <ResponsiveContainer>
                                         <PieChart>
+                                            {/* Os nomes nascem em `runSimulation`, que e funcao de
+                                                modulo e nao alcanca o hook. Traduzir aqui, na
+                                                renderizacao, mantem `name` como chave la e como
+                                                rotulo aqui. 'Online' e 'Offline' sao iguais nas tres
+                                                linguas; so 'Malicious' muda.
+
+                                                Este comentario ficava entre `<Pie` e `data=`, que e
+                                                posicao de atributo e nao aceita comentario JSX. O
+                                                esbuild tolerava e o `tsc` parava ali -- e parar no
+                                                primeiro arquivo e o motivo de o typechecker nunca ter
+                                                visto o resto do projeto. */}
                                             <Pie
-                                                {/* Os nomes nascem em `runSimulation`, que e funcao
-                                                    de modulo e nao alcanca o hook. Traduzir aqui, na
-                                                    renderizacao, mantem `name` como chave la e como
-                                                    rotulo aqui. 'Online' e 'Offline' sao iguais nas
-                                                    tres linguas; so 'Malicious' muda. */}
                                                 data={results.healthDistribution.map((d) => ({
                                                     ...d,
                                                     name: d.name === 'Malicious'
