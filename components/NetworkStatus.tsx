@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { SectionCard } from './SectionCard';
 import { SignalIcon, CubeIcon, ChartBarIcon, BeakerIcon } from './IconComponents';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, AreaChart, Area } from 'recharts';
-import { useNetwork } from './NetworkContext';
+import { duracaoOuTraco, medidaOuTraco, semMedida, useNetwork } from './NetworkContext';
 import { localeDoIdioma, numeroLocal, useLanguage } from './LanguageContext';
 import { NetworkSentinel } from './NetworkSentinel';
 import { verifyBlockHashMerkleProof } from '../utils/merkle';
@@ -173,34 +173,30 @@ export const NetworkStatus: React.FC = () => {
 
             <SectionCard title="Live Network Metrics" icon={<SignalIcon className="w-5 h-5 animate-pulse text-green-500" />}>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {/* Cada campo aqui sai de `blocks`. O "Block Time" era a
+                        string "2.1s" escrita no JSX, e o "Hashrate" era a altura
+                        inventada vezes 12,5 -- numa rede que nao calcula hash. O
+                        que nao e medido escreve um traco, porque um traco nao e
+                        desmentido pela propria cadeia logo abaixo. */}
                     <MetricItem label="Latest Block" value={`#${formatNumber(metrics.blockHeight, lang)}`} />
-                    <MetricItem label="Block Time" value="2.1s" />
+                    <MetricItem label="Block Time" value={duracaoOuTraco(metrics.avgBlockFinalizationTime)} />
                     <MetricItem label="Epoch Quota" value={epochActive ? "ACTIVE" : "DEPLETED"} trend={epochActive ? "DOWN" : "UP"} />
-                    <MetricItem
-                        label="Avg Finality"
-                        value={`${metrics.avgBlockFinalizationTime}s`}
-                        trend={metrics.avgBlockFinalizationTime > 2 ? 'UP' : 'NEUTRAL'}
-                    />
+                    <MetricItem label="Blocks Sealed" value={formatNumber(metrics.blockCount, lang)} />
                     <MetricItem label="Total Nodes" value={formatNumber(metrics.nodeCount, lang)} />
                     <MetricItem
                         label="Validators"
                         value={formatNumber(metrics.activeValidators, lang)}
-                        trend={metrics.activeValidators < 100 ? 'DOWN' : 'NEUTRAL'}
+                        trend={metrics.activeValidators < 1 ? 'DOWN' : 'NEUTRAL'}
                     />
                     <MetricItem label="Connections" value={formatNumber(metrics.activeConnections, lang)} />
                     <MetricItem label="Total Staked" value={`${formatNumber(metrics.totalStaked, lang)} $CLAIM`} />
                     <MetricItem label="Total Transactions" value={formatNumber(metrics.totalTransactions, lang)} />
                     <MetricItem
                         label="Avg Network Fee"
-                        value={`${metrics.avgGasPrice} µCLAIM`}
-                        trend={metrics.avgGasPrice > 4 ? 'UP' : 'NEUTRAL'}
+                        value={metrics.avgGasPrice == null ? semMedida
+                            : `${formatNumber(metrics.avgGasPrice, lang)} µCLAIM`}
                     />
-                    <MetricItem label="Hashrate" value={`${metrics.networkHashrate} TH/s`} />
-                    <MetricItem
-                        label="Current TPS"
-                        value={metrics.tps.toString()}
-                        trend={metrics.tps > 300 ? 'UP' : 'NEUTRAL'}
-                    />
+                    <MetricItem label="Current TPS" value={medidaOuTraco(metrics.tps, 4)} />
                 </div>
             </SectionCard>
 

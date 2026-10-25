@@ -3867,41 +3867,97 @@ async def network_history(range: str = "24h"):
     }
 
 
+# Quantos blocos do fim da cadeia entram na media de intervalo e no TPS. Vinte
+# cobre a hora corrente sem deixar uma pausa de ontem achatar o numero de hoje.
+METRICS_RECENT_BLOCKS = 20
+
+
 @app.get("/api/network-metrics")
 async def get_network_metrics():
-    """Return network metrics for the frontend dashboard."""
+    """O que esta rede realmente mede, e nada alem disso.
+
+    Aqui `blockHeight` era `total_claims + total_txs`, que nao e altura de bloco
+    nenhuma, e `networkHashrate` era essa mesma soma vezes 12.5. O resultado
+    aparecia na tela como "LATEST BLOCK #156" enquanto `/api/blocks` tinha a
+    ponta no #53, e como "1950 TH/s" de uma rede que nao calcula um unico hash.
+    `totalTransactions` repetia a soma, entao era sempre igual a altura, e
+    `activeConnections` era `nodes_online + 1`, sempre igual a `nodeCount`.
+
+    Isso nao e detalhe de vitrine: o README promete, em negrito, que todo numero
+    aqui pode ser conferido sem pedir nada a ninguem. Um numero que a propria
+    cadeia desmente custa mais do que a ausencia dele.
+
+    A tabela `blocks` tem altura, `tx_count` e carimbo de tempo, entao tudo o que
+    se segue sai de la. **O que esta rede nao mede volta `None`, nao zero e nao
+    estimativa** -- zero afirma que foi medido e deu zero, e a tela escreve um
+    traco para `None`, que e a resposta honesta.
+    """
     conn = get_db_connection()
     c = conn.cursor()
 
-    # Block height = total claims (each claim mines a block)
-    c.execute("SELECT COUNT(*) FROM user_claims")
-    total_claims = c.fetchone()[0]
-
-    # Also count transactions
-    total_txs = 0
+    altura, total_txs, blocos = 0, 0, 0
+    intervalo_medio, tps, taxa_media = None, None, None
     try:
-        c.execute("SELECT COUNT(*) FROM transactions")
-        total_txs = c.fetchone()[0]
-    except Exception:
-        pass
+        linha = c.execute(
+            "SELECT COUNT(*) n, MAX(height) alt, COALESCE(SUM(tx_count), 0) txs FROM blocks"
+        ).fetchone()
+        blocos = linha[0] or 0
+        altura = linha[1] or 0
+        total_txs = linha[2] or 0
 
-    block_height = max(1, total_claims + total_txs)
+        # Intervalo e TPS saem da ponta da cadeia, nao de toda a historia: uma
+        # rede parada ontem e ativa agora tem de mostrar agora.
+        recentes = c.execute(
+            "SELECT timestamp, COALESCE(tx_count, 0) FROM blocks "
+            "ORDER BY height DESC LIMIT ?", (METRICS_RECENT_BLOCKS,)).fetchall()
+        if len(recentes) >= 2:
+            janela = recentes[0][0] - recentes[-1][0]
+            # **Mediana, nao media.** Esta rede sela em rajadas, com pausas
+            # longas entre elas: medido em 25/10, um unico intervalo de 103 dias
+            # puxava a media dos vinte ultimos blocos para 7,3 dias enquanto a
+            # mediana dava 24,8 horas. A media descreve o hiato, a mediana
+            # descreve a rede -- e e a rede que a tela diz estar medindo.
+            intervalos = sorted(
+                recentes[i][0] - recentes[i + 1][0] for i in range(len(recentes) - 1))
+            intervalos = [d for d in intervalos if d > 0]
+            if intervalos:
+                meio = len(intervalos) // 2
+                intervalo_medio = float(intervalos[meio]) if len(intervalos) % 2 \
+                    else round((intervalos[meio - 1] + intervalos[meio]) / 2, 2)
+            if janela > 0:
+                # Transacoes da janela divididas pelos segundos dela. Medido,
+                # como em /api/network/history, e nao uma formula com 30 dentro.
+                # Numa rede que sela por dia isso da perto de zero, e perto de
+                # zero e a resposta certa.
+                tps = round(sum(r[1] for r in recentes[:-1]) / janela, 8)
+
+        # Taxa: so existe se a coluna existir e houver bloco para medir.
+        try:
+            g = c.execute(
+                "SELECT AVG(COALESCE(gas_used, 0)) FROM (SELECT gas_used FROM blocks "
+                "ORDER BY height DESC LIMIT ?)", (METRICS_RECENT_BLOCKS,)).fetchone()[0]
+            if g is not None:
+                taxa_media = round(float(g), 2)
+        except sqlite3.OperationalError:
+            pass
+    except sqlite3.OperationalError:
+        # Sem a tabela de blocos nao ha o que relatar, e relatar zero seria
+        # afirmar uma cadeia vazia em vez de admitir que nao foi lida.
+        altura, total_txs, blocos = 0, 0, 0
 
     current_reward = current_claim_reward(c)
 
-    # Mining nodes online
     nodes_online = 0
     try:
-        c.execute("SELECT COUNT(*) FROM active_miners WHERE is_online = 1")
-        nodes_online = c.fetchone()[0]
+        nodes_online = c.execute(
+            "SELECT COUNT(*) FROM active_miners WHERE is_online = 1").fetchone()[0]
     except Exception:
         pass
 
-    # Total staked
     total_staked = 0
     try:
-        c.execute("SELECT SUM(deposit_amount) FROM staking_positions WHERE is_spent = 0")
-        res = c.fetchone()[0]
+        res = c.execute("SELECT SUM(deposit_amount) FROM staking_positions "
+                        "WHERE is_spent = 0").fetchone()[0]
         total_staked = res if res else 0
     except Exception:
         pass
@@ -3909,17 +3965,21 @@ async def get_network_metrics():
     conn.close()
 
     return {
-        "blockHeight": block_height,
-        "activeValidators": max(1, nodes_online),
+        "blockHeight": altura,
+        "blockCount": blocos,
+        "activeValidators": nodes_online,
         "totalStaked": total_staked,
-        "tps": round(total_claims / max(1, (block_height * 30)) * 100, 2),
-        "avgGasPrice": 0,
-        "networkHashrate": block_height * 12.5,
-        "totalTransactions": total_claims + total_txs,
-        "activeConnections": nodes_online + 1,
-        "nodeCount": nodes_online + 1,
-        "avgBlockFinalizationTime": 1.2,
-        "currentReward": current_reward
+        "tps": tps,
+        "avgGasPrice": taxa_media,
+        # Esta rede nao faz prova de trabalho: nao ha hash para contar. O campo
+        # fica para a tela saber que a resposta e "nao se aplica", em vez de
+        # sumir e virar `undefined` num `.toFixed`.
+        "networkHashrate": None,
+        "totalTransactions": total_txs,
+        "activeConnections": nodes_online,
+        "nodeCount": nodes_online,
+        "avgBlockFinalizationTime": intervalo_medio,
+        "currentReward": current_reward,
     }
 
 

@@ -99,6 +99,9 @@ jobs:
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
 
+      - name: The dashboard numbers come from the block table
+        run: python tests/test_network_metrics.py
+
       - name: A chart title names the bucket its own axis draws
         run: node test_bucket_legend.mjs
 

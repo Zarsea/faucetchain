@@ -3,19 +3,52 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { ethers } from 'ethers';
 import { API_BASE_URL, WS_BASE_URL } from '../apiConfig';
 
-interface NetworkMetrics {
+// `null` nos campos que a rede pode nao ter medido ainda, e `networkHashrate`
+// sempre nulo porque nao ha prova de trabalho aqui para contar hash nenhum.
+//
+// O tipo e nulo de proposito. Era `number` em tudo, e o servidor preenchia o
+// que nao sabia com estimativa -- `blockHeight` virava claims + transacoes,
+// `networkHashrate` virava essa soma vezes 12.5. Deixar o tipo admitir a
+// ausencia e o que obriga cada tela a escolher o que escrever quando nao ha
+// medida, em vez de receber um numero que parece medido.
+export interface NetworkMetrics {
     blockHeight: number;
+    blockCount: number;
     activeValidators: number;
     totalStaked: number;
-    tps: number;
-    avgGasPrice: number;
-    networkHashrate: number;
+    tps: number | null;
+    avgGasPrice: number | null;
+    networkHashrate: number | null;
     totalTransactions: number;
     activeConnections: number;
     nodeCount: number;
-    avgBlockFinalizationTime: number;
+    avgBlockFinalizationTime: number | null;
     currentReward: number;
 }
+
+/** O que uma tela escreve quando a medida nao existe. */
+export const semMedida = '—';
+
+/** Numero medido, ou um traco. Nunca um zero que se passa por medicao. */
+export const medidaOuTraco = (
+    v: number | null | undefined,
+    casas = 2,
+    sufixo = '',
+): string => (v == null ? semMedida : `${v.toFixed(casas)}${sufixo}`);
+
+/** Segundos em unidade legivel, ou um traco.
+ *
+ * Esta rede sela em rajadas: o intervalo tipico entre blocos foi medido em
+ * 89.378 segundos. Escrito assim nao se le, e arredondar para segundos com
+ * duas casas sugere uma precisao que a medida nao tem.
+ */
+export const duracaoOuTraco = (s: number | null | undefined): string => {
+    if (s == null) return semMedida;
+    if (s < 90) return `${Math.round(s)}s`;
+    if (s < 5400) return `${(s / 60).toFixed(1)}min`;
+    if (s < 172800) return `${(s / 3600).toFixed(1)}h`;
+    return `${(s / 86400).toFixed(1)}d`;
+};
 
 interface Block {
     height: number;
@@ -47,15 +80,18 @@ export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children })
     const [anomaly, setAnomaly] = useState<Anomaly>({ type: 'NONE', severity: 'LOW', timestamp: Date.now(), description: 'Network stable.' });
     const [metrics, setMetrics] = useState<NetworkMetrics>({
         blockHeight: 0,
+        blockCount: 0,
         activeValidators: 0,
         totalStaked: 0,
-        tps: 0,
-        avgGasPrice: 0,
-        networkHashrate: 0,
+        // Antes da primeira resposta nada foi medido, entao nulo. Zerar aqui
+        // faria a tela anunciar uma rede parada durante o carregamento.
+        tps: null,
+        avgGasPrice: null,
+        networkHashrate: null,
         totalTransactions: 0,
         activeConnections: 0,
         nodeCount: 0,
-        avgBlockFinalizationTime: 0,
+        avgBlockFinalizationTime: null,
         currentReward: 0
     });
 

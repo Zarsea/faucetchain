@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SectionCard } from './SectionCard';
 import { CubeIcon, CpuChipIcon, BoltIcon } from './IconComponents';
 import { API_BASE_URL } from '../apiConfig';
-import { useNetwork } from './NetworkContext';
+import { duracaoOuTraco, useNetwork } from './NetworkContext';
 import { useLanguage, localeDoIdioma } from './LanguageContext';
 
 interface BlockData {
@@ -97,16 +97,26 @@ export const BlockViewer: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                             <div>
-                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">{tFn('explorer.networkHashrate')}</p>
+                                {/* Era o hashrate: o mesmo numero inventado que a
+                                    Network Status rotulava TH/s, aqui dividido por
+                                    1e6 e rotulado MH/s -- duas unidades diferentes
+                                    para o mesmo valor, nenhuma delas medida. Esta
+                                    rede nao faz prova de trabalho. O intervalo
+                                    entre blocos, esse existe e sai de `blocks`. */}
+                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">
+                                    {tri('Block time', 'Tempo de bloco', 'Tiempo de bloque')}
+                                </p>
                                 <p className="text-xl font-mono text-brand-secondary">
-                                    {(metrics.networkHashrate / 1000000).toFixed(2)} MH/s
+                                    {duracaoOuTraco(metrics.avgBlockFinalizationTime)}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">Nodes mining</p>
+                                <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">
+                                    {tri('Nodes mining', 'Nós minerando', 'Nodos minando')}
+                                </p>
                                 <p className="text-xl font-mono text-brand-secondary flex items-center gap-2">
                                     <CpuChipIcon className="w-4 h-4 text-brand-primary" />
-                                    {miningStats?.nodesOnline || 0} Ativos
+                                    {miningStats?.nodesOnline || 0} {tri('active', 'ativos', 'activos')}
                                 </p>
                             </div>
                             <div>
@@ -119,7 +129,9 @@ export const BlockViewer: React.FC = () => {
                                 <p className="text-xs text-brand-muted uppercase tracking-wider mb-1">
                                     {tri('Epoch status', 'Status do epoch', 'Estado del epoch')}</p>
                                 <p className="text-xl font-mono text-brand-secondary">
-                                    {epochStatus?.isActive ? 'Ativo' : 'Aguardando'}
+                                    {epochStatus?.isActive
+                                        ? tri('Active', 'Ativo', 'Activo')
+                                        : tri('Waiting', 'Aguardando', 'Esperando')}
                                 </p>
                             </div>
                         </div>
@@ -128,8 +140,8 @@ export const BlockViewer: React.FC = () => {
                     {/* Progress bar simulation */}
                     <div className="mt-8 pt-6 border-t border-brand-border/50">
                         <div className="flex justify-between text-xs text-brand-muted mb-2 font-mono">
-                            <span>Buscando PoC...</span>
-                            <span>Validando PoS...</span>
+                            <span>{tri('Fetching PoC...', 'Buscando PoC...', 'Buscando PoC...')}</span>
+                            <span>{tri('Validating PoS...', 'Validando PoS...', 'Validando PoS...')}</span>
                         </div>
                         <div className="w-full h-2 bg-brand-bg rounded-full overflow-hidden border border-brand-border/50">
                             <div className="h-full bg-brand-primary relative animate-shimmer" style={{ width: '100%', backgroundImage: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%)', backgroundSize: '200% 100%' }}></div>
@@ -172,7 +184,9 @@ export const BlockViewer: React.FC = () => {
                                     <p className="font-mono text-green-400">{(block.reward || 0).toFixed(2)} CLAIM</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] uppercase text-brand-muted tracking-wider mb-1">Validador</p>
+                                    <p className="text-[10px] uppercase text-brand-muted tracking-wider mb-1">
+                                        {tri('Validator', 'Validador', 'Validador')}
+                                    </p>
                                     <p className="font-mono text-brand-primary text-sm truncate w-24">
                                         {block.validator || 'Genesis'}
                                     </p>

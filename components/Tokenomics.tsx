@@ -28,7 +28,9 @@ const CLAIM_PROOF_DIFFICULTY_BITS = 16;  // api_server.py
 const CLAIM_PROOF_MAX_EXTRA_BITS = 3;
 
 const generateDifficultyData = () => {
-    const data = [];
+    // Anotado porque `[]` sozinho vira `never[]` sob strictNullChecks, e aí o
+    // push nao compila. Dizer a forma uma vez e mais barato que afrouxar o flag.
+    const data: { quota: number; work: number; bits: number }[] = [];
     for (let pct = 0; pct <= 100; pct += 2) {
         const extra = Math.min(CLAIM_PROOF_MAX_EXTRA_BITS, Math.floor((pct / 100) * 4));
         data.push({
