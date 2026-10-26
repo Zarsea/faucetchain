@@ -133,6 +133,12 @@ forged, mints anything.
 
    Reopening is an operator decision, never automatic. Nine tests cover it, and
    six of them are the refusals.
+
+   **What `reopen` does not fix, and was wrongly said to fix here:** the fifteen
+   batches that prompted it all belong to campaigns that never existed on chain,
+   so returning their rewards to `batch_id = NULL` leads to a root that cannot
+   be published. Those rewards are unpayable rather than frozen, for a reason
+   that sits upstream of this step entirely. Known gaps carries it.
 6. **`publish_root(index, root, total_amount, leaf_count)`** — the operator
    publishes the root. The program refuses it unless
    `vault.amount >= committed - paid + total_amount`. Proof of reserve is
@@ -407,14 +413,21 @@ rejects.
 These are open on purpose, not oversights:
 
 - **The ledger still carries the address-login era, and nobody has decided what
-  to do with it.** Thirteen of the seventeen registered faucets are named "Demo
-  Partner Faucet", and seven of the ten addresses holding a balance are not rows
-  in `users` — they were reachable while pasting an address was a way in, which
+  to do with it.** This entry used to open by saying thirteen of seventeen
+  registered faucets were named "Demo Partner Faucet". **That was cleaned up and
+  the entry was not:** `GET /api/faucethub/faucets` returns six faucets on 25
+  October and none of them carries that name. What a visitor meets instead is
+  three rows all called "FaucetInternal" and one called "Test Faucet", four of
+  the six with zero liquidity — on a board whose own card invites the reader to
+  audit it. Smaller than thirteen placeholders, same kind of problem.
+
+  The rest of this entry was written in the same period and has **not** been
+  re-verified against production: seven of the ten addresses holding a balance
+  are not rows in `users` — they were reachable while pasting an address was a way in, which
   it stopped being on 24 September. Those seven hold
   1,196,254 $CLAIM, which is most of everything ever emitted. Nothing is broken:
   the books close, and `reconcile.py` counts those balances as real because they
-  are. But a visitor reading the faucet directory meets thirteen placeholders,
-  and a visitor reading the supply meets a number almost nobody can spend.
+  are. But a visitor reading the supply meets a number almost nobody can spend.
 
   Three ways out, none of them urgent. **Leave it**, as the honest record of a
   system that was tested and then changed. **Branch a demonstration database**,
@@ -450,19 +463,44 @@ These are open on purpose, not oversights:
   code: the existing `webhooks` queue points at the partner faucet, which is the
   wrong recipient for an alert about this network's own wallet.
 
-- **Fifteen closed batches are still frozen, and the door now exists.**
-  `reopen` shipped on 2026-10-23; calling it is an operator decision that has
-  not been made. Until it is, 78% of everything credited on this network cannot
-  be withdrawn by the people it was credited to. This is the largest open item
-  by value.
-- **The proof endpoint has no rate limit.** The cache removes the repeated cost,
-  but the first request on a large batch still costs real CPU — about 0.7s for
-  ten thousand leaves.
-- **The relayer has no rate limit.** It refuses to sign anything but a
-  withdrawal it built, and it checks the leaf's bit first so an
-  already-collected reward costs nothing to refuse. What is left is volume: a
-  caller with many unclaimed leaves can still make it pay for all of them at
-  once, which is a spending pace question rather than a hole.
+- **Fifteen closed batches hold rewards that no instruction can pay, and
+  `reopen` is not the answer to it.** This entry said the opposite on 24
+  October, and the correction matters more than the original claim.
+
+  All fifteen belong to campaigns that have been retired, each with a different
+  mint, and **fourteen of those fifteen mints do not exist on devnet at all**;
+  the fifteenth is the Clock sysvar, which is not a mint either. `getProgramAccounts`
+  returns five Campaign accounts for this program — the five live ones. None of
+  the retired campaigns was ever created on chain.
+
+  So the 3,400,210,048 units are not frozen awaiting a decision. `reopen` would
+  return the rewards to `batch_id = NULL` correctly, and they would then wait
+  for a root that cannot be published: `publish_root` needs a Campaign account
+  and a vault that covers the amount, and these campaigns have neither, nor a
+  real mint to pay in. **The value is unpayable, not frozen**, and calling
+  `reopen` on these fifteen changes nothing except which column the rows sit in.
+
+  The cause is upstream, in `POST /api/solana/campaign`: it validates that
+  `sponsor` and `mint` decode as base58 and asks the chain nothing. A mint that
+  does not exist registers happily, rewards accrue against it, and a batch
+  closes over them. Twenty-three of the twenty-eight campaigns were later
+  retired for exactly this, with reasons recorded verbatim as "nao existe conta
+  nenhuma neste endereco" and "a conta existe mas pertence a Sysvar1111" — so
+  the diagnosis was made and the registration was never tightened.
+
+  **Open, and the open part is a decision, not a patch:** what to tell the
+  people holding credited balances that no vault backs. Validating the mint at
+  registration stops the next one and does nothing for these.
+Two entries used to sit here claiming the proof endpoint and the relayer had no
+rate limit. **Both have had one for some time** — `PROOF_HOURLY_PER_IP` (120,
+applied in `/api/solana/proof`) and `RELAY_HOURLY_PER_ADDRESS` (12, applied in
+both `relay/prepare` and `relay/submit`), and the README documents both. A
+known-gaps list that understates its own system is worse than one that is
+merely incomplete, because the next reader trusts it and builds the guard twice.
+
+What remains true of the relayer is narrower, and is about pace rather than
+access: a caller with many unclaimed leaves can still spend their hourly
+allowance all at once.
 
 ## How a partner budget is dripped
 
@@ -758,6 +796,38 @@ user's own screen when the faucet they claimed from cannot cover them. The board
 knows; the user does not.
 
 ## Change log
+
+**2026-10-25 - three things this document asserted and the system contradicted.**
+Yesterday's entry brought the record up to date and introduced one error of its
+own, which is the first of these.
+
+**The fifteen frozen batches are not frozen, they are unpayable, and `reopen`
+does not reach them.** Yesterday this document said the door existed and the
+only thing missing was an operator's decision. All fifteen belong to retired
+campaigns; fourteen of their fifteen mints do not exist on devnet and the
+fifteenth is the Clock sysvar. `getProgramAccounts` returns five Campaign
+accounts, the five live ones, so none of those campaigns was ever created on
+chain. `reopen` would move the rows correctly and leave them waiting for a root
+`publish_root` cannot accept. The cause is that campaign registration validates
+`mint` as base58 and asks the chain nothing — which is also why twenty-three of
+twenty-eight campaigns were retired with reasons that say, in so many words,
+that the address holds no account.
+
+**Two known gaps claimed a control was missing that exists.** The proof endpoint
+and the relayer were both listed as having no rate limit; both have had one,
+`PROOF_HOURLY_PER_IP` and `RELAY_HOURLY_PER_ADDRESS`, applied and documented in
+the README. A gaps list that understates the system gets the guard built twice.
+
+**The faucet directory entry described a cleanup that already happened.** It
+said thirteen of seventeen faucets were named "Demo Partner Faucet"; the live
+endpoint returns six faucets and none of them is. What it should have said is
+that three of the six share the name "FaucetInternal" and a fourth is called
+"Test Faucet", on a board that invites the reader to audit it.
+
+Also fixed: the root count in `merkle.rs`, which had gone stale twice (19, then
+6, now 7 on chain) and now names `verify_published_roots.py` instead of a
+number. Dated change-log entries are left as they were written, including their
+counts — a log that is edited to stay true stops being a log.
 
 **2026-10-24 - this document catches up with sixteen days, and says what is
 still frozen.** It had not been touched since 8 October while the settlement
