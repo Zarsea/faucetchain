@@ -210,7 +210,7 @@ export const ConnectFaucet: React.FC = () => {
                                     'É a integração inteira. Depois do seu commit, com o erro engolido: se a FaucetChain estiver fora, seu usuário recebe o claim dele e ninguém fica sabendo.',
                                     'Esa es la integración entera. Después de tu commit, con el error tragado: si FaucetChain está caída, tu usuario igual recibe y nadie se entera.')}
                             </p>
-                            <Snippet label="POST /api/faucethub/microclaim" code={`curl -X POST ${API_BASE_URL}/api/faucethub/microclaim \\\n  -H "X-Api-Key: fch_…" \\\n  -H "Content-Type: application/json" \\\n  -d '{"user_wallet":"<carteira Solana do usuario>","amount":1.0}'`} />
+                            <Snippet label="POST /api/faucethub/microclaim" code={`curl -X POST ${API_BASE_URL}/api/faucethub/microclaim \\\n  -H "X-Api-Key: fch_…" \\\n  -H "Content-Type: application/json" \\\n  -d '{"user_wallet":"<user Solana wallet>","amount":1.0}'`} />
                             <p className="text-xs">
                                 {tri('The reply carries campaigns. An empty list is success: it means your faucet is enrolled in none yet. A 429 is the five-minute cooldown, not a failure.',
                                     'A resposta traz campaigns. Lista vazia é sucesso: significa que sua torneira ainda não está inscrita em campanha nenhuma. 429 é o cooldown de 5 minutos, não erro.',

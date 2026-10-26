@@ -52,6 +52,10 @@ const CONVERTIDOS = [
     // portugues para quem pedia espanhol, em dezoito pontos.
     'components/ConnectFaucet.tsx',
     'components/BlockViewer.tsx',
+    // Os dois que a varredura por acento nunca ia alcançar: "Travado", "Valor",
+    // "UTXOs Ativos", "Mineradores", "Hubs Externas" — nenhuma tem acento.
+    'components/AddressTracker.tsx',
+    'components/StakingVault.tsx',
 ];
 
 /** Trechos [inicio, fim) de cada chamada `tri(`, com parênteses equilibrados. */
@@ -209,6 +213,110 @@ for (const arquivo of CONVERTIDOS) {
 }
 
 assert.ok(verificados > 0, 'nenhuma string com acento encontrada: o check nao esta olhando nada');
+
+// ─────────────────────────────── português SEM acento, que o resto não pega
+//
+// O comentário da prova abaixo já admitia isto: "campanha" não tem acento,
+// então a varredura por acento passa batido. Em 25/10 isso custou quatro telas
+// — "Travado", "Valor", "UTXOs Ativos", "Mineradores", "Hubs Externas" —
+// aparecendo em português para quem lia em inglês.
+//
+// A dificuldade é que este código nomeia variável em português: `valor`,
+// `faixas`, `estimativaPorEpoch`. Uma lista de palavras varrendo o arquivo
+// inteiro acusaria o código junto com a tela. Por isso esta parte olha só onde
+// texto chega ao usuário: nó de texto JSX e literal de string.
+const SEM_ACENTO = [
+    'ativo', 'ativos', 'ativa', 'ativas', 'travado', 'travada', 'destravado',
+    'aguardando', 'buscando', 'carregando', 'salvando', 'enviando', 'minerando',
+    'minerador', 'mineradores', 'validador', 'validadores',
+    'campanha', 'campanhas', 'torneira', 'torneiras', 'carteira', 'carteiras',
+    'saldo', 'saldos', 'saque', 'saques', 'resgate', 'recompensa', 'recompensas',
+    'sucesso', 'falha', 'erro', 'pendente', 'pendentes', 'externas',
+    'fechado', 'fechada', 'aberto', 'aberta', 'estimativa', 'liquidacao',
+];
+const RE_SEM_ACENTO = new RegExp(`\\b(${SEM_ACENTO.join('|')})\\b`, 'gi');
+
+/** Literal que é VALOR e não rótulo: comparado com `===`, `!==` ou `==`.
+ *
+ * `f.status === 'Ativa'` é contrato com o servidor, não texto de tela. O
+ * servidor devolve "Ativa" e o componente compara; traduzir isso quebraria a
+ * comparação em vez de traduzir coisa alguma. O que precisa de `tri()` é o que
+ * sai do outro lado do ternário, e esse a varredura continua vendo.
+ */
+function faixasDeComparacao(fonte) {
+    const faixas = [];
+    const re = /[=!]==?\s*('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/g;
+    let m;
+    while ((m = re.exec(fonte)) !== null) {
+        const inicio = m.index + m[0].indexOf(m[1]);
+        faixas.push([inicio, inicio + m[1].length]);
+    }
+    return faixas;
+}
+
+/** Nó de texto JSX e literal de string: onde texto alcança a tela. */
+function faixasDeTextoVisivel(fonte) {
+    const faixas = [];
+    for (const re of [
+        />([^<>{}\n]{2,})</g,                       // texto entre tags
+        /'((?:[^'\\\n]|\\.){2,})'/g,                // literal com aspas simples
+        /"((?:[^"\\\n]|\\.){2,})"/g,                // literal com aspas duplas
+        /`((?:[^`\\]|\\.){2,})`/g,                  // template literal
+    ]) {
+        let m;
+        while ((m = re.exec(fonte)) !== null) {
+            const inicio = m.index + m[0].indexOf(m[1]);
+            faixas.push([inicio, inicio + m[1].length]);
+        }
+    }
+    return faixas;
+}
+
+let semAcentoVerificados = 0;
+for (const arquivo of CONVERTIDOS) {
+    const fonte = readFileSync(arquivo, 'utf8');
+    const dentro = [...faixasDeTri(fonte), ...faixasDeComentario(fonte),
+                    ...faixasDeColunaPt(fonte), ...faixasDeTradutorLocal(fonte),
+                    ...faixasDeRamoPt(fonte), ...faixasDeComparacao(fonte)];
+    const cobre = (p) => dentro.some(([a, b]) => p >= a && p < b);
+    const visivel = faixasDeTextoVisivel(fonte);
+    const naTela = (p) => visivel.some(([a, b]) => p >= a && p < b);
+
+    let m;
+    RE_SEM_ACENTO.lastIndex = 0;
+    while ((m = RE_SEM_ACENTO.exec(fonte)) !== null) {
+        if (!naTela(m.index) || cobre(m.index)) continue;
+        semAcentoVerificados++;
+        assert.fail(
+            `${arquivo}: "${m[1]}" é português sem acento, em texto que chega à tela, ` +
+            `fora de tri(). Perto de: ` +
+            `${fonte.slice(Math.max(0, m.index - 50), m.index + 50).split(QUEBRA).join(' ')}. ` +
+            `  A varredura por acento não pega palavra sem acento, e foi assim que ` +
+            `"Travado", "Valor" e "Mineradores" ficaram em português em quatro telas.`
+        );
+    }
+}
+
+// Prova de que a parte sem acento pega o defeito: o caso exato de 25/10.
+{
+    const ruim = `<span className="x">Travado</span>`;
+    const visivel = faixasDeTextoVisivel(ruim);
+    RE_SEM_ACENTO.lastIndex = 0;
+    const achou = RE_SEM_ACENTO.exec(ruim);
+    assert.ok(achou, 'a lista sem acento nao achou "Travado"');
+    assert.ok(visivel.some(([a, b]) => achou.index >= a && achou.index < b),
+              'o texto entre tags nao foi reconhecido como visivel');
+
+    // E de que nao acusa identificador em portugues, que este codigo usa muito.
+    const codigo = `const valor = calcularSaldo(campanha);`;
+    const vis2 = faixasDeTextoVisivel(codigo);
+    RE_SEM_ACENTO.lastIndex = 0;
+    let f, falsos = 0;
+    while ((f = RE_SEM_ACENTO.exec(codigo)) !== null) {
+        if (vis2.some(([a, b]) => f.index >= a && f.index < b)) falsos++;
+    }
+    assert.equal(falsos, 0, 'a lista acusou identificador em portugues fora de string');
+}
 
 // Prova de que o check pega o defeito: a forma exata que eu escrevi.
 {

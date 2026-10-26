@@ -342,7 +342,11 @@ export const FaucetInternal: React.FC<Props> = ({ onBack }) => {
                         </tr>
                       ))}
                       {drip.leaderboard.length === 0 && (
-                        <tr><td colSpan={5} className="py-8 text-center text-gray-600 text-xs italic">Aguardando registros na rede...</td></tr>
+                        <tr><td colSpan={5} className="py-8 text-center text-gray-600 text-xs italic">
+                          {tri('Awaiting records on the network...',
+                               'Aguardando registros na rede...',
+                               'Esperando registros en la red...')}
+                        </td></tr>
                       )}
                     </tbody>
                   </table>

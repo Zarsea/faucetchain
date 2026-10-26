@@ -98,7 +98,12 @@ export const StakingVault: React.FC = () => {
     const { userAddress, isConnected, authMethod } = useAuth();
 
     const signStakingAction = (buildMessage: (ts: number) => string) => signAction(authMethod, buildMessage);
-    const { tFn: t } = useLanguage();
+    // `tri` ao lado do `tFn`: o dicionario cobre a estrutura da tela, e sobrava
+    // uma dezena de strings escritas direto em portugues -- as mensagens de
+    // retorno do stake e quatro rotulos. Quem lia em ingles ou espanhol recebia
+    // essas em portugues, e nenhum ratchet pegava: "Travado", "Valor" e
+    // "Ativos" nao tem acento.
+    const { tFn: t, tri } = useLanguage();
 
     const [positions, setPositions] = useState<StakingPosition[]>([]);
     const [stats, setStats] = useState<VaultStats | null>(null);
@@ -155,14 +160,28 @@ export const StakingVault: React.FC = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                setFeedback({ type: 'success', msg: `UTXO #${data.token_id} criado! Lock: ${data.tier_label} | Estimativa: ~${data.estimated_yield} CLAIM no periodo` });
+                setFeedback({
+                    type: 'success',
+                    msg: tri(
+                        `UTXO #${data.token_id} created. Lock: ${data.tier_label} · estimate ~${data.estimated_yield} CLAIM for the period`,
+                        `UTXO #${data.token_id} criado. Trava: ${data.tier_label} · estimativa ~${data.estimated_yield} CLAIM no período`,
+                        `UTXO #${data.token_id} creado. Bloqueo: ${data.tier_label} · estimación ~${data.estimated_yield} CLAIM en el período`),
+                });
                 setStakeAmount('');
                 fetchData();
             } else {
-                setFeedback({ type: 'error', msg: data.detail || 'Erro ao criar stake' });
+                setFeedback({
+                    type: 'error',
+                    msg: data.detail || tri('Could not create the stake',
+                                            'Erro ao criar stake',
+                                            'No se pudo crear el stake'),
+                });
             }
         } catch {
-            setFeedback({ type: 'error', msg: 'API indisponível' });
+            setFeedback({
+                type: 'error',
+                msg: tri('API unavailable', 'API indisponível', 'API no disponible'),
+            });
         } finally {
             setIsStaking(false);
         }
@@ -185,13 +204,27 @@ export const StakingVault: React.FC = () => {
             });
             const data = await res.json();
             if (res.ok) {
-                setFeedback({ type: 'success', msg: `UTXO #${tokenId} gasto! Recebido: ${data.total_payout} CLAIM (yield: +${data.yield_paid})` });
+                setFeedback({
+                    type: 'success',
+                    msg: tri(
+                        `UTXO #${tokenId} spent. Received ${data.total_payout} CLAIM (yield +${data.yield_paid})`,
+                        `UTXO #${tokenId} gasto. Recebido ${data.total_payout} CLAIM (rendimento +${data.yield_paid})`,
+                        `UTXO #${tokenId} gastado. Recibido ${data.total_payout} CLAIM (rendimiento +${data.yield_paid})`),
+                });
                 fetchData();
             } else {
-                setFeedback({ type: 'error', msg: data.detail || 'Erro ao gastar UTXO' });
+                setFeedback({
+                    type: 'error',
+                    msg: data.detail || tri('Could not spend the UTXO',
+                                            'Erro ao gastar UTXO',
+                                            'No se pudo gastar el UTXO'),
+                });
             }
         } catch {
-            setFeedback({ type: 'error', msg: 'API indisponível' });
+            setFeedback({
+                type: 'error',
+                msg: tri('API unavailable', 'API indisponível', 'API no disponible'),
+            });
         } finally {
             setIsUnstaking(null);
         }
@@ -239,7 +272,7 @@ export const StakingVault: React.FC = () => {
                 {/* Quick Stats */}
                 <div className="flex gap-3 relative z-10">
                     <div className="p-3 bg-brand-bg/70 border border-brand-border rounded-xl text-center min-w-[90px]">
-                        <span className="text-[9px] font-black text-brand-muted uppercase block">Travado</span>
+                        <span className="text-[9px] font-black text-brand-muted uppercase block">{tri('Locked', 'Travado', 'Bloqueado')}</span>
                         <span className="text-sm font-black text-brand-primary font-mono">{totalUserLocked.toFixed(1)}</span>
                     </div>
                     <div className="p-3 bg-brand-bg/70 border border-brand-border rounded-xl text-center min-w-[90px]">
@@ -303,11 +336,22 @@ export const StakingVault: React.FC = () => {
                                 {stakeAmount && parseFloat(stakeAmount) > 0 && (
                                     <div className="mt-2 p-2 bg-brand-success/5 border border-brand-success/20 rounded-lg">
                                         <span className="text-[10px] text-brand-success font-bold block">
-                                            Estimativa: ~{estimativaPorEpoch(stats, parseFloat(stakeAmount), selectedTier).toFixed(4)} CLAIM por hora
+                                            {(() => {
+                                                const v = estimativaPorEpoch(stats, parseFloat(stakeAmount), selectedTier).toFixed(4);
+                                                return tri(`Estimate: ~${v} CLAIM per hour`,
+                                                           `Estimativa: ~${v} CLAIM por hora`,
+                                                           `Estimación: ~${v} CLAIM por hora`);
+                                            })()}
                                         </span>
                                         {/* Dito antes do clique, porque depois vira desculpa. */}
                                         <span className="text-[10px] text-brand-muted block mt-1">
-                                            Fatia de um pool de {stats?.epochPool ?? 0} CLAIM/hora dividido entre as posições abertas. Cai quando entra mais gente.
+                                            {(() => {
+                                                const p = stats?.epochPool ?? 0;
+                                                return tri(
+                                                    `A share of a ${p} CLAIM/hour pool split between the open positions. It falls as more people join.`,
+                                                    `Fatia de um pool de ${p} CLAIM/hora dividido entre as posições abertas. Cai quando entra mais gente.`,
+                                                    `Una parte de un pool de ${p} CLAIM/hora repartido entre las posiciones abiertas. Baja cuando entra más gente.`);
+                                            })()}
                                         </span>
                                     </div>
                                 )}
@@ -379,7 +423,7 @@ export const StakingVault: React.FC = () => {
                                 ? 'bg-brand-primary text-brand-bg'
                                 : 'bg-brand-surface border border-brand-border text-brand-muted hover:text-white'}`}
                         >
-                            UTXOs Ativos ({activePositions.length})
+                            {tri('Active UTXOs', 'UTXOs ativos', 'UTXOs activos')} ({activePositions.length})
                         </button>
                         <button
                             onClick={() => setViewMode('spent')}
@@ -450,7 +494,9 @@ export const StakingVault: React.FC = () => {
                                                                 : pos.is_unlocked
                                                                     ? 'bg-brand-success/10 border-brand-success/20 text-brand-success'
                                                                     : 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent'}`}>
-                                                                {pos.is_spent ? 'GASTO' : pos.is_unlocked ? 'DESBLOQUEADO' : 'TRAVADO'}
+                                                                {pos.is_spent ? tri('SPENT', 'GASTO', 'GASTADO')
+                                                                    : pos.is_unlocked ? tri('UNLOCKED', 'DESBLOQUEADO', 'DESBLOQUEADO')
+                                                                    : tri('LOCKED', 'TRAVADO', 'BLOQUEADO')}
                                                             </span>
                                                             <span className="px-2 py-0.5 bg-brand-bg/50 border border-brand-border/30 rounded-md text-[8px] font-bold text-brand-muted">
                                                                 {tierInfo.label}
@@ -459,7 +505,7 @@ export const StakingVault: React.FC = () => {
 
                                                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                                                             <div>
-                                                                <span className="text-[8px] font-black text-brand-muted uppercase block">Valor</span>
+                                                                <span className="text-[8px] font-black text-brand-muted uppercase block">{tri('Amount', 'Valor', 'Monto')}</span>
                                                                 <span className="text-sm font-black text-brand-primary font-mono">{pos.deposit_amount.toFixed(2)}</span>
                                                                 <span className="text-[9px] text-brand-muted ml-1">CLAIM</span>
                                                             </div>

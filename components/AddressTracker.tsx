@@ -55,13 +55,31 @@ interface ActivityData {
     total_mining_rewards: number;
 }
 
+// Chave e icone sao fixos. O rotulo NAO pode morar aqui: esta constante e
+// avaliada uma vez no import, entao um `tri(...)` dentro dela congelaria o
+// idioma daquele instante e a aba continuaria em portugues depois de trocar.
+// Por isso o rotulo e resolvido no render, logo abaixo.
+//
+// A lista tambem estava meio em portugues e meio em ingles -- "Todos",
+// "Mineradores", "Hubs Externas" ao lado de "Users" e "Custom" -- entao quem
+// lia em qualquer uma das tres linguas via as duas outras.
 const CATEGORIES = [
-    { key: 'all', label: 'Todos', icon: '🌐' },
-    { key: 'user', label: 'Users', icon: '👤' },
-    { key: 'miner', label: 'Mineradores', icon: '⛏️' },
-    { key: 'hub', label: 'Hubs Externas', icon: '🔗' },
-    { key: 'custom', label: 'Custom', icon: '🏷️' },
+    { key: 'all', icon: '🌐' },
+    { key: 'user', icon: '👤' },
+    { key: 'miner', icon: '⛏️' },
+    { key: 'hub', icon: '🔗' },
+    { key: 'custom', icon: '🏷️' },
 ];
+
+type Tri = (en: string, pt: string, es?: string) => string;
+
+const rotuloDaCategoria = (chave: string, tri: Tri): string => ({
+    all: tri('All', 'Todos', 'Todos'),
+    user: tri('Users', 'Usuários', 'Usuarios'),
+    miner: tri('Miners', 'Mineradores', 'Mineradores'),
+    hub: tri('External hubs', 'Hubs externas', 'Hubs externos'),
+    custom: tri('Custom', 'Personalizado', 'Personalizado'),
+}[chave] ?? chave);
 
 const CATEGORY_COLORS: Record<string, string> = {
     user: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
@@ -71,7 +89,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = ({ onNavigate }) => {
-    const { lang } = useLanguage();
+    const { lang, tri } = useLanguage();
     const { isConnected } = useAuth();
 
     const [addresses, setAddresses] = useState<TrackedAddress[]>([]);
@@ -135,7 +153,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                 fetchData();
             } else {
                 const data = await res.json();
-                setAddError(data.detail || 'Erro ao adicionar');
+                setAddError(data.detail || tri('Could not add', 'Erro ao adicionar', 'No se pudo agregar'));
             }
         } catch (err) {
             setAddError('Server unreachable');
@@ -207,11 +225,11 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
             {summary && (
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {[
-                        { label: 'Total', value: summary.total, icon: '📋', color: 'border-brand-border/50' },
-                        { label: 'Users', value: summary.users, icon: '👤', color: 'border-blue-500/30 bg-blue-500/5' },
-                        { label: 'Mineradores', value: summary.miners, icon: '⛏️', color: 'border-amber-500/30 bg-amber-500/5' },
-                        { label: 'Hubs', value: summary.hubs, icon: '🔗', color: 'border-purple-500/30 bg-purple-500/5' },
-                        { label: 'Custom', value: summary.custom, icon: '🏷️', color: 'border-brand-border/50' },
+                        { label: tri('Total', 'Total', 'Total'), value: summary.total, icon: '📋', color: 'border-brand-border/50' },
+                        { label: rotuloDaCategoria('user', tri), value: summary.users, icon: '👤', color: 'border-blue-500/30 bg-blue-500/5' },
+                        { label: rotuloDaCategoria('miner', tri), value: summary.miners, icon: '⛏️', color: 'border-amber-500/30 bg-amber-500/5' },
+                        { label: tri('Hubs', 'Hubs', 'Hubs'), value: summary.hubs, icon: '🔗', color: 'border-purple-500/30 bg-purple-500/5' },
+                        { label: rotuloDaCategoria('custom', tri), value: summary.custom, icon: '🏷️', color: 'border-brand-border/50' },
                     ].map((s, i) => (
                         <div key={i} className={`glass border rounded-2xl p-4 transition-all hover:border-brand-primary/30 ${s.color}`}>
                             <div className="flex items-center gap-2 mb-1">
@@ -246,10 +264,10 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                         onChange={e => setNewCategory(e.target.value)}
                         className="md:w-40 bg-brand-bg/80 border border-brand-border/50 rounded-xl px-4 py-3 text-sm text-brand-secondary focus:outline-none focus:border-brand-primary/50 appearance-none cursor-pointer"
                     >
-                        <option value="user">👤 User</option>
-                        <option value="miner">⛏️ Minerador</option>
-                        <option value="hub">🔗 Hub Externa</option>
-                        <option value="custom">🏷️ Custom</option>
+                        <option value="user">👤 {rotuloDaCategoria('user', tri)}</option>
+                        <option value="miner">⛏️ {rotuloDaCategoria('miner', tri)}</option>
+                        <option value="hub">🔗 {rotuloDaCategoria('hub', tri)}</option>
+                        <option value="custom">🏷️ {rotuloDaCategoria('custom', tri)}</option>
                     </select>
                     <button
                         type="submit"
@@ -274,7 +292,7 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                             }`}
                     >
                         <span>{cat.icon}</span>
-                        {cat.label}
+                        {rotuloDaCategoria(cat.key, tri)}
                         {summary && (
                             <span className="ml-1 text-[10px] opacity-60">
                                 ({cat.key === 'all' ? summary.total : (summary as any)[cat.key === 'all' ? 'total' : `${cat.key}s` === 'customs' ? 'custom' : `${cat.key}s`] ?? (summary as any)[cat.key] ?? 0})
@@ -438,7 +456,8 @@ export const AddressTracker: React.FC<{ onNavigate?: (tab: string) => void }> = 
                                                 <div key={i} className="flex items-center justify-between p-3 bg-brand-bg/30 rounded-xl border border-brand-border/20">
                                                     <div>
                                                         <span className="text-xs font-bold text-brand-secondary">UTXO #{s.token_id} — Tier {s.tier}</span>
-                                                        <p className="text-[10px] text-brand-muted mt-0.5">{s.is_spent ? '🔴 Gasto' : '🟢 Ativo'}</p>
+                                                        <p className="text-[10px] text-brand-muted mt-0.5">{s.is_spent ? tri('🔴 Spent', '🔴 Gasto', '🔴 Gastado')
+                                                                     : tri('🟢 Active', '🟢 Ativo', '🟢 Activo')}</p>
                                                     </div>
                                                     <div className="text-right">
                                                         <span className="text-sm font-black text-brand-primary font-mono">{s.deposit_amount}</span>
