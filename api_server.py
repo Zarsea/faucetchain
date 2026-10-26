@@ -7635,6 +7635,80 @@ class CampaignRegisterRequest(BaseModel):
     name: Optional[str] = None
 
 
+def conferir_mint_na_cadeia(mint: str) -> dict:
+    """Recusa um mint que a cadeia não reconhece, antes de ele virar dívida.
+
+    Esta checagem não existia, e o custo foi medido: das 28 campanhas
+    registradas, 23 foram aposentadas por terem mint que não é mint -- 14
+    endereços sem conta nenhuma e um que é o sysvar Clock. Como o registro só
+    conferia se o endereço decodifica em base58, elas entraram, acumularam
+    recompensa e tiveram lote fechado em cima.
+
+    O resultado é que 3.400.210.048 unidades estão creditadas contra campanhas
+    que nunca existiram na cadeia. Não é valor congelado à espera de uma
+    decisão: `publish_root` exige conta Campaign e cofre que cubra, e não há
+    nenhum dos dois. **É impagável**, e nenhuma rota deste servidor conserta,
+    porque o erro foi aceitar o registro.
+
+    Três recusas, e a terceira é a que o programa imporia de qualquer jeito:
+
+      - endereço sem conta na cadeia;
+      - conta que existe mas não é um mint (foi o caso do sysvar Clock);
+      - mint de Token-2022, que `create_campaign` recusa pelo `token_program`
+        travado -- registrar aqui seria registrar algo que nunca paga.
+
+    **Cadeia muda recusa com 503.** Silêncio não é ausência, e deixar passar
+    "porque não deu para conferir" é exatamente como as 23 entraram.
+    """
+    import solana_settlement as chain
+
+    try:
+        rpc_url = chain.default_rpc_url()
+        info = chain.rpc(rpc_url, "getAccountInfo",
+                         [mint, {"encoding": "jsonParsed"}])["value"]
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Could not read the chain to verify the mint: {e}. "
+                   "Registering without checking is what left 23 campaigns unpayable.")
+
+    if not info:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No account at {mint} on this cluster. A campaign whose mint "
+                   "does not exist can accrue rewards and never pay them.")
+
+    if not isinstance(info, dict):
+        raise HTTPException(
+            status_code=503,
+            detail="The chain answered in a shape this server does not understand; "
+                   "refusing rather than registering on a guess.")
+
+    # `data` vem como DICIONARIO so quando a Solana sabe interpretar a conta.
+    # Quando nao sabe, devolve LISTA -- `[base64, "base64"]` -- e e exatamente
+    # esse o caso que interessa aqui: uma conta que nao e de um programa de
+    # token conhecido. Tratar a lista como dicionario estoura com 500 em vez de
+    # recusar, e um 500 nao impede ninguem de registrar de novo.
+    dados = info.get("data")
+    parsed = dados.get("parsed") if isinstance(dados, dict) else None
+    if not isinstance(parsed, dict) or parsed.get("type") != "mint":
+        raise HTTPException(
+            status_code=400,
+            detail=f"{mint} is an account but not a token mint "
+                   f"(owned by {info.get('owner')}).")
+
+    dono = info.get("owner")
+    if dono != str(chain.TOKEN_PROGRAM):
+        raise HTTPException(
+            status_code=400,
+            detail=f"{mint} belongs to {dono}, not the classic SPL Token program. "
+                   "create_campaign pins token_program to classic SPL, because a "
+                   "Token-2022 transfer fee would debit the vault more than the "
+                   "leaf promised. This mint could never pay a reward.")
+
+    return {"decimals": parsed["info"].get("decimals"), "owner": dono}
+
+
 @app.post("/api/solana/campaign")
 async def register_campaign(
     req: CampaignRegisterRequest, x_operator_token: Optional[str] = Header(None)
@@ -7645,6 +7719,9 @@ async def register_campaign(
     campaign address is derived from the sponsor, and the tokens come from that
     mint. Keeping them here is what lets one sequencer serve more than one
     partner.
+
+    The mint is verified against the chain before the row is written -- see
+    `conferir_mint_na_cadeia` for what that costs when it is not.
     """
     require_operator(x_operator_token)
     for name, value in (("sponsor", req.sponsor), ("mint", req.mint)):
@@ -7652,6 +7729,12 @@ async def register_campaign(
             settlement.decode_pubkey(value.strip())
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"{name}: {e}")
+
+    # O patrocinador NAO e conferido na cadeia de proposito: uma carteira nova
+    # nao tem conta ate receber o primeiro lamport, e exigir que ela exista
+    # impediria abrir campanha antes de financiar o cofre. O mint e diferente --
+    # ele tem de existir para o cofre existir.
+    conferir_mint_na_cadeia(req.mint.strip())
 
     conn = get_db_connection()
     c = conn.cursor()

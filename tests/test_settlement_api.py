@@ -43,6 +43,17 @@ import indexer_service  # noqa: E402
 indexer_service.init_db()
 
 import api_server as srv  # noqa: E402
+
+# O registro de campanha confere o mint na cadeia desde 25/10, e estes testes
+# registram campanhas com mint inventado porque estao medindo outra coisa --
+# gotejamento, ritmo do relayer, cota da tesouraria. Sem isto eles passariam a
+# depender de rede e devolveriam 503 em CI.
+#
+# Desligado AQUI, por nome, e nao por variavel de ambiente: uma variavel que
+# pula a checagem acaba ligada em producao, e foi a ausencia dessa checagem que
+# deixou 23 campanhas impagaveis. Quem exercita a funcao de verdade e
+# `tests/test_campaign_mint_check.py`.
+srv.conferir_mint_na_cadeia = lambda mint: {"decimals": 6, "owner": "stub"}
 import settlement  # noqa: E402
 
 srv.HAS_VECTOR_DB = False  # do not load ChromaDB or the model in tests

@@ -47,6 +47,13 @@ def main() -> int:
     from fastapi.testclient import TestClient
 
     api_server.init_settlement_tables()
+
+    # Este arquivo mede o NOME da campanha, nao o mint. O registro passou a
+    # conferir o mint na cadeia em 25/10, entao sem isto todo `registra()`
+    # abaixo viraria 503 por falta de rede. A checagem de verdade tem o seu
+    # proprio arquivo: tests/test_campaign_mint_check.py.
+    api_server.conferir_mint_na_cadeia = lambda mint: {"decimals": 6, "owner": "stub"}
+
     client = TestClient(api_server.app)
     op = {"X-Operator-Token": "op-teste"}
 
