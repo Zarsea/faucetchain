@@ -71,8 +71,12 @@ const Snippet: React.FC<{ label: string; code: string }> = ({ label, code }) => 
 
 export const ConnectFaucet: React.FC = () => {
     const { isConnected, userAddress } = useAuth();
-    const { lang } = useLanguage();
-    const pt = lang !== 'en';
+    // `tri` e nao `lang`: aqui havia `const pt = lang !== 'en'` e dezoito
+    // ternarios binarios. Quem escolhia espanhol caia no ramo `pt` e recebia a
+    // tela inteira em portugues -- em `ConnectFaucet`, que e por onde um
+    // parceiro novo entra. O ratchet nao pegava porque guardava
+    // `ConnectYourFaucet`, que e outro componente, usado so dentro do Dapps.
+    const { tri } = useLanguage();
 
     const [mine, setMine] = useState<MyFaucet[]>([]);
     const [loading, setLoading] = useState(true);
@@ -108,7 +112,7 @@ export const ConnectFaucet: React.FC = () => {
                 body: JSON.stringify({ name, wallet_address: userAddress }),
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || (pt ? 'Não foi possível registrar.' : 'Could not register.'));
+            if (!res.ok) throw new Error(data.detail || (tri('Could not register.', 'Não foi possível registrar.', 'No se pudo registrar.')));
             setFreshKey(data.api_key);
             setName('');
             load();
@@ -124,11 +128,11 @@ export const ConnectFaucet: React.FC = () => {
 
     if (!isConnected) {
         return (
-            <SectionCard title={pt ? 'Conectar sua torneira' : 'Connect your faucet'} icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title={tri('Connect your faucet', 'Conectar sua torneira', 'Conecta tu grifo')} icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}>
                 <p className="text-sm text-brand-muted leading-relaxed max-w-2xl">
-                    {pt
-                        ? 'Entre com sua carteira ou e-mail primeiro. A torneira fica ligada à conta que a registra — é essa conta que vai poder ver e trocar a chave de API depois, então não dá para registrar em nome de ninguém.'
-                        : 'Sign in with your wallet or email first. A faucet is bound to the account that registers it, because that account is what can reveal and rotate the API key later, so there is nobody to register on behalf of.'}
+                    {tri('Sign in with your wallet or email first. A faucet is bound to the account that registers it, because that account is what can reveal and rotate the API key later, so there is nobody to register on behalf of.',
+                        'Entre com sua carteira ou e-mail primeiro. A torneira fica ligada à conta que a registra — é essa conta que vai poder ver e trocar a chave de API depois, então não dá para registrar em nome de ninguém.',
+                        'Inicia sesión con tu billetera o correo primero. Un grifo queda ligado a la cuenta que lo registra, porque esa cuenta es la que podrá ver y rotar la clave de API después, así que no hay a quién registrar en nombre de otro.')}
                 </p>
             </SectionCard>
         );
@@ -136,24 +140,24 @@ export const ConnectFaucet: React.FC = () => {
 
     return (
         <div className="space-y-6 max-w-4xl">
-            <SectionCard title={pt ? 'Conectar sua torneira' : 'Connect your faucet'} icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}>
+            <SectionCard title={tri('Connect your faucet', 'Conectar sua torneira', 'Conecta tu grifo')} icon={<CubeIcon className="w-5 h-5 text-brand-primary" />}>
                 <div className="space-y-6">
                     <p className="text-sm text-brand-muted leading-relaxed max-w-2xl">
-                        {pt
-                            ? 'Um clique na sua torneira passa a valer duas vezes: o usuário recebe o que já recebe de você, e a parte que lhe cabe do orçamento das campanhas de parceiros. Esse valor sai do bolso do patrocinador, nunca do seu.'
-                            : 'A click on your faucet starts paying twice: your user gets what you already give them, plus their share of a partner campaign budget. That second amount comes from the sponsor, never from you.'}
+                        {tri('A click on your faucet starts paying twice: your user gets what you already give them, plus their share of a partner campaign budget. That second amount comes from the sponsor, never from you.',
+                            'Um clique na sua torneira passa a valer duas vezes: o usuário recebe o que já recebe de você, e a parte que lhe cabe do orçamento das campanhas de parceiros. Esse valor sai do bolso do patrocinador, nunca do seu.',
+                            'Un clic en tu grifo pasa a pagar dos veces: tu usuario recibe lo que ya le das, más la parte que le toca del presupuesto de una campaña de socios. Ese segundo monto sale del patrocinador, nunca de ti.')}
                     </p>
 
                     <div className="space-y-5">
-                        <Step n={1} done={registered} title={pt ? 'Registrar a torneira' : 'Register the faucet'}>
+                        <Step n={1} done={registered} title={tri('Register the faucet', 'Registrar a torneira', 'Registrar el grifo')}>
                             {registered ? (
-                                <p>{pt ? 'Feito. Suas torneiras estão listadas abaixo.' : 'Done. Your faucets are listed below.'}</p>
+                                <p>{tri('Done. Your faucets are listed below.', 'Feito. Suas torneiras estão listadas abaixo.', 'Listo. Tus grifos aparecen abajo.')}</p>
                             ) : (
                                 <>
                                     <p>
-                                        {pt
-                                            ? 'Ela nasce ligada a esta conta. Não há campo de endereço de propósito: quem registra é quem vai poder trocar a chave se ela vazar.'
-                                            : 'It is bound to this account. There is no address field on purpose: whoever registers is who can rotate the key if it leaks.'}
+                                        {tri('It is bound to this account. There is no address field on purpose: whoever registers is who can rotate the key if it leaks.',
+                                            'Ela nasce ligada a esta conta. Não há campo de endereço de propósito: quem registra é quem vai poder trocar a chave se ela vazar.',
+                                            'Queda ligado a esta cuenta. No hay campo de dirección a propósito: quien registra es quien podrá rotar la clave si se filtra.')}
                                     </p>
                                     <p className="font-mono text-[11px] text-brand-secondary break-all bg-brand-bg/60 rounded-lg px-3 py-2">
                                         {userAddress}
@@ -164,12 +168,12 @@ export const ConnectFaucet: React.FC = () => {
                                             value={name}
                                             onChange={e => setName(e.target.value)}
                                             required
-                                            placeholder={pt ? 'Nome da sua torneira' : 'Your faucet name'}
+                                            placeholder={tri('Your faucet name', 'Nome da sua torneira', 'Nombre de tu grifo')}
                                             className="flex-1 min-w-[200px] bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-brand-primary transition-colors"
                                         />
                                         <button type="submit" disabled={busy || !name.trim()}
                                             className="flex-none bg-brand-primary text-brand-bg font-black text-sm px-6 py-3 rounded-xl hover:bg-white transition-colors disabled:opacity-40">
-                                            {busy ? '…' : (pt ? 'Registrar' : 'Register')}
+                                            {busy ? '…' : (tri('Register', 'Registrar', 'Registrar'))}
                                         </button>
                                     </form>
                                     {error && <p className="text-brand-error text-sm">{error}</p>}
@@ -180,45 +184,45 @@ export const ConnectFaucet: React.FC = () => {
                         {freshKey && (
                             <div className="rounded-xl border border-brand-success/40 bg-brand-success/5 p-4 space-y-3">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-brand-success">
-                                    {pt ? 'Sua chave — mostrada uma vez só' : 'Your key — shown once'}
+                                    {tri('Your key — shown once', 'Sua chave — mostrada uma vez só', 'Tu clave — se muestra una sola vez')}
                                 </p>
-                                <Snippet label={pt ? 'guarde agora' : 'save it now'} code={freshKey} />
+                                <Snippet label={tri('save it now', 'guarde agora', 'guárdala ahora')} code={freshKey} />
                                 <p className="text-xs text-brand-muted leading-relaxed">
-                                    {pt
-                                        ? 'Quem tem essa chave distribui em seu nome. Ela não aparece de novo: para vê-la outra vez você assina com esta conta, e para trocá-la também.'
-                                        : 'Whoever holds this key distributes in your name. It is not shown again: seeing it later takes a signature from this account, and so does replacing it.'}
+                                    {tri('Whoever holds this key distributes in your name. It is not shown again: seeing it later takes a signature from this account, and so does replacing it.',
+                                        'Quem tem essa chave distribui em seu nome. Ela não aparece de novo: para vê-la outra vez você assina com esta conta, e para trocá-la também.',
+                                        'Quien tenga esta clave distribuye en tu nombre. No se muestra de nuevo: verla otra vez exige una firma de esta cuenta, y reemplazarla también.')}
                                 </p>
                             </div>
                         )}
 
-                        <Step n={2} done={false} title={pt ? 'Guardar a chave no seu servidor' : 'Put the key on your server'}>
+                        <Step n={2} done={false} title={tri('Put the key on your server', 'Guardar a chave no seu servidor', 'Guardar la clave en tu servidor')}>
                             <p>
-                                {pt
-                                    ? 'Fora da pasta pública, como qualquer segredo. A ponte lê as duas variáveis abaixo e fica inerte enquanto elas não existirem — de propósito, melhor desligada do que meio ligada.'
-                                    : 'Outside the public folder, like any secret. The bridge reads the two variables below and stays inert until they exist — on purpose, better off than half on.'}
+                                {tri('Outside the public folder, like any secret. The bridge reads the two variables below and stays inert until they exist — on purpose, better off than half on.',
+                                    'Fora da pasta pública, como qualquer segredo. A ponte lê as duas variáveis abaixo e fica inerte enquanto elas não existirem — de propósito, melhor desligada do que meio ligada.',
+                                    'Fuera de la carpeta pública, como cualquier secreto. El puente lee las dos variables de abajo y queda inerte mientras no existan — a propósito, mejor apagado que a medias.')}
                             </p>
                             <Snippet label="secrets.php" code={`putenv('FAUCETCHAIN_URL=${API_BASE_URL}');\nputenv('FAUCETCHAIN_KEY=fch_…');`} />
                         </Step>
 
-                        <Step n={3} done={false} title={pt ? 'Uma chamada, depois do seu commit' : 'One call, after your own commit'}>
+                        <Step n={3} done={false} title={tri('One call, after your own commit', 'Uma chamada, depois do seu commit', 'Una llamada, después de tu propio commit')}>
                             <p>
-                                {pt
-                                    ? 'É a integração inteira. Depois do seu commit, com o erro engolido: se a FaucetChain estiver fora, seu usuário recebe o claim dele e ninguém fica sabendo.'
-                                    : 'That is the whole integration. After your commit, with the error swallowed: if FaucetChain is down your user still gets paid and nobody finds out.'}
+                                {tri('That is the whole integration. After your commit, with the error swallowed: if FaucetChain is down your user still gets paid and nobody finds out.',
+                                    'É a integração inteira. Depois do seu commit, com o erro engolido: se a FaucetChain estiver fora, seu usuário recebe o claim dele e ninguém fica sabendo.',
+                                    'Esa es la integración entera. Después de tu commit, con el error tragado: si FaucetChain está caída, tu usuario igual recibe y nadie se entera.')}
                             </p>
                             <Snippet label="POST /api/faucethub/microclaim" code={`curl -X POST ${API_BASE_URL}/api/faucethub/microclaim \\\n  -H "X-Api-Key: fch_…" \\\n  -H "Content-Type: application/json" \\\n  -d '{"user_wallet":"<carteira Solana do usuario>","amount":1.0}'`} />
                             <p className="text-xs">
-                                {pt
-                                    ? 'A resposta traz campaigns. Lista vazia é sucesso: significa que sua torneira ainda não está inscrita em campanha nenhuma. 429 é o cooldown de 5 minutos, não erro.'
-                                    : 'The reply carries campaigns. An empty list is success: it means your faucet is enrolled in none yet. A 429 is the five-minute cooldown, not a failure.'}
+                                {tri('The reply carries campaigns. An empty list is success: it means your faucet is enrolled in none yet. A 429 is the five-minute cooldown, not a failure.',
+                                    'A resposta traz campaigns. Lista vazia é sucesso: significa que sua torneira ainda não está inscrita em campanha nenhuma. 429 é o cooldown de 5 minutos, não erro.',
+                                    'La respuesta trae campaigns. Una lista vacía es éxito: significa que tu grifo todavía no está inscrito en ninguna campaña. Un 429 es el enfriamiento de cinco minutos, no un fallo.')}
                             </p>
                         </Step>
 
-                        <Step n={4} done={hasTraffic} title={pt ? 'Um clique de verdade' : 'A real click'}>
+                        <Step n={4} done={hasTraffic} title={tri('A real click', 'Um clique de verdade', 'Un clic de verdad')}>
                             <p>
-                                {pt
-                                    ? 'A partir daí a FaucetChain credita o usuário do orçamento da campanha, e o que é devido vira uma raiz de Merkle publicada na Solana — o programa recusa publicar raiz que o vault não cubra.'
-                                    : 'From there FaucetChain credits the user from the campaign budget, and what is owed becomes a Merkle root published on Solana — the program refuses to publish a root its vault cannot cover.'}
+                                {tri('From there FaucetChain credits the user from the campaign budget, and what is owed becomes a Merkle root published on Solana — the program refuses to publish a root its vault cannot cover.',
+                                    'A partir daí a FaucetChain credita o usuário do orçamento da campanha, e o que é devido vira uma raiz de Merkle publicada na Solana — o programa recusa publicar raiz que o vault não cubra.',
+                                    'Desde ahí FaucetChain acredita al usuario del presupuesto de la campaña, y lo adeudado se vuelve una raíz de Merkle publicada en Solana — el programa se niega a publicar una raíz que su bóveda no cubra.')}
                             </p>
                         </Step>
                     </div>
@@ -228,7 +232,7 @@ export const ConnectFaucet: React.FC = () => {
             {loading ? (
                 <div className="flex items-center gap-2 text-brand-muted text-sm"><LoadingIcon className="w-4 h-4" /> …</div>
             ) : registered && (
-                <SectionCard title={pt ? 'Suas torneiras' : 'Your faucets'} icon={<ShieldCheckIcon className="w-5 h-5 text-brand-success" />}>
+                <SectionCard title={tri('Your faucets', 'Suas torneiras', 'Tus grifos')} icon={<ShieldCheckIcon className="w-5 h-5 text-brand-success" />}>
                     <div className="space-y-3">
                         {mine.map(f => (
                             <div key={f.wallet_address} className="rounded-xl border border-brand-border/50 bg-brand-bg/40 p-4">
@@ -242,20 +246,20 @@ export const ConnectFaucet: React.FC = () => {
                                             ? 'text-brand-success bg-brand-success/10'
                                             : 'text-brand-muted bg-brand-surface'
                                     }`}>
-                                        {f.status === 'Ativa' ? (pt ? 'recebendo cliques' : 'taking clicks') : (pt ? 'sem tráfego ainda' : 'no traffic yet')}
+                                        {f.status === 'Ativa' ? (tri('taking clicks', 'recebendo cliques', 'recibiendo clics')) : (tri('no traffic yet', 'sem tráfego ainda', 'sin tráfico todavía'))}
                                     </span>
                                 </div>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4">
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{pt ? 'Liquidações' : 'Settlements'}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{tri('Settlements', 'Liquidações', 'Liquidaciones')}</p>
                                         <p className="font-mono text-lg font-black text-white tabular-nums">{f.settlements}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{pt ? 'Volume liquidado' : 'Volume settled'}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{tri('Volume settled', 'Volume liquidado', 'Volumen liquidado')}</p>
                                         <p className="font-mono text-lg font-black text-white tabular-nums">{numeroLocal(f.volume_settled)}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{pt ? 'Registrada em' : 'Registered'}</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">{tri('Registered', 'Registrada em', 'Registrado')}</p>
                                         <p className="font-mono text-sm text-brand-secondary pt-1">
                                             {dataLocal(f.registered_at * 1000)}
                                         </p>
@@ -264,25 +268,26 @@ export const ConnectFaucet: React.FC = () => {
                             </div>
                         ))}
                         <p className="text-xs text-brand-muted leading-relaxed pt-1">
-                            {pt
-                                ? 'Liquidação é quando você move o seu próprio $CLAIM para um usuário — é o modelo antigo e continua funcionando. As recompensas de campanha não passam por aqui: elas saem do orçamento do patrocinador e são sacadas pelo usuário contra a Solana.'
-                                : 'A settlement is you moving your own $CLAIM to a user — the original model, still working. Campaign rewards do not pass through here: they come from the sponsor budget and the user withdraws them against Solana.'}
+                            {tri('A settlement is you moving your own $CLAIM to a user — the original model, still working. Campaign rewards do not pass through here: they come from the sponsor budget and the user withdraws them against Solana.',
+                                'Liquidação é quando você move o seu próprio $CLAIM para um usuário — é o modelo antigo e continua funcionando. As recompensas de campanha não passam por aqui: elas saem do orçamento do patrocinador e são sacadas pelo usuário contra a Solana.',
+                                'Una liquidación es que tú muevas tu propio $CLAIM a un usuario — el modelo original, que sigue funcionando. Las recompensas de campaña no pasan por aquí: salen del presupuesto del patrocinador y el usuario las retira contra Solana.')}
                         </p>
                     </div>
                 </SectionCard>
             )}
 
-            <SectionCard title={pt ? 'O que ainda não existe' : 'What does not exist yet'} icon={<SparklesIcon className="w-5 h-5 text-brand-muted" />}>
+            <SectionCard title={tri('What does not exist yet', 'O que ainda não existe', 'Lo que todavía no existe')} icon={<SparklesIcon className="w-5 h-5 text-brand-muted" />}>
                 <ul className="text-sm text-brand-muted leading-relaxed space-y-2 list-disc pl-5 max-w-2xl">
                     <li>
-                        {pt
-                            ? 'Inscrever a sua torneira numa campanha é decisão do patrocinador, não sua, e hoje passa pelo operador da rede. Uma torneira não entra sozinha no orçamento de ninguém.'
-                            : 'Enrolling your faucet in a campaign is the sponsor\'s call, not yours, and today it goes through the network operator. A faucet cannot opt itself into somebody else\'s budget.'}
+                        {tri(
+                            'Enrolling your faucet in a campaign is the sponsor\'s call, not yours, and today it goes through the network operator. A faucet cannot opt itself into somebody else\'s budget.',
+                            'Inscrever a sua torneira numa campanha é decisão do patrocinador, não sua, e hoje passa pelo operador da rede. Uma torneira não entra sozinha no orçamento de ninguém.',
+                            'Inscribir tu grifo en una campaña es decisión del patrocinador, no tuya, y hoy pasa por el operador de la red. Un grifo no entra solo en el presupuesto de nadie.')}
                     </li>
                     <li>
-                        {pt
-                            ? 'Não há fiança nem reputação: registrar é grátis, e por isso o patrocinador ainda não tem motivo técnico para confiar numa torneira nova.'
-                            : 'There is no bond and no reputation: registering is free, which is why a sponsor has no technical reason yet to trust a new faucet.'}
+                        {tri('There is no bond and no reputation: registering is free, which is why a sponsor has no technical reason yet to trust a new faucet.',
+                            'Não há fiança nem reputação: registrar é grátis, e por isso o patrocinador ainda não tem motivo técnico para confiar numa torneira nova.',
+                            'No hay fianza ni reputación: registrar es gratis, y por eso un patrocinador todavía no tiene razón técnica para confiar en un grifo nuevo.')}
                     </li>
                 </ul>
             </SectionCard>
