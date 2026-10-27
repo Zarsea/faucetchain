@@ -10151,6 +10151,15 @@ def _mark_claimed(c, proofs: list) -> None:
     pid = chain.program_id(idl)
     roots = {}
     for proof in proofs:
+        # Prova sem `root_index` nao da para derivar: a resposta certa e "nao
+        # sei", que e `claimed` seguindo None, e nao uma excecao. Levantar aqui
+        # derruba o endpoint inteiro do chamador -- foi assim que a carteira
+        # sumiu da tela em 26/10, por uma chave ausente numa prova entre varias.
+        if proof.get("root_index") is None:
+            audit_logger.warning(
+                "Prova do lote %s chegou sem root_index; fica como nao sabido.",
+                proof.get("batch_id"))
+            continue
         c.execute(
             "SELECT sponsor FROM settlement_campaigns WHERE campaign_id = ?", (proof["campaign_id"],)
         )
@@ -10193,8 +10202,26 @@ def _batches_claimed(c, lotes: Dict[int, tuple]) -> Dict[int, bool]:
     """
     if not lotes:
         return {}
+
+    # `root_index` e o que deriva o endereco da raiz na cadeia, e `_mark_claimed`
+    # precisa dele. Faltava aqui: esta funcao montava a prova sem ele e o
+    # endpoint de holdings respondia 500 -- a carteira inteira do usuario
+    # desaparecia da tela por causa de uma chave ausente num dicionario.
+    #
+    # Lido de uma vez, antes do laco, e nao dentro dele: cursor do sqlite3
+    # reusado no meio da propria iteracao devolve a linha errada.
+    marcas = ",".join("?" * len(lotes))
+    indices = {
+        linha[0]: linha[1]
+        for linha in c.execute(
+            f"SELECT id, root_index FROM settlement_batches WHERE id IN ({marcas})",
+            tuple(lotes)).fetchall()
+    }
+
     provas = []
     for batch_id, (campaign_id, root, solana_address) in lotes.items():
+        if batch_id not in indices:
+            continue
         rebuilt = _batch_tree(c, batch_id, root)
         if rebuilt is None:
             continue
@@ -10204,6 +10231,7 @@ def _batches_claimed(c, lotes: Dict[int, tuple]) -> Dict[int, bool]:
         provas.append({
             "batch_id": batch_id,
             "campaign_id": campaign_id,
+            "root_index": indices[batch_id],
             "leaf_index": claim["leaf_index"],
             "claimed": None,
         })

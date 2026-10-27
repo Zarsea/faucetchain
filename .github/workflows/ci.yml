@@ -73,6 +73,9 @@ jobs:
       - name: A campaign cannot register a mint the chain does not know
         run: python tests/test_campaign_mint_check.py
 
+      - name: A proof reaches the chain carrying the index it is derived from
+        run: python tests/test_claimed_contract.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci
