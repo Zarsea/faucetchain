@@ -2079,6 +2079,7 @@ async def my_campaigns(x_api_key: Optional[str] = Header(None)):
     try:
         c.execute(
             "SELECT f.campaign_id, s.mint, s.name AS campaign_name, "
+            "       s.min_withdraw, "
             "       t.name AS token_name, t.symbol, t.decimals "
             "FROM campaign_faucets f "
             "LEFT JOIN settlement_campaigns s ON s.campaign_id = f.campaign_id "
@@ -2102,6 +2103,17 @@ async def my_campaigns(x_api_key: Optional[str] = Header(None)):
                 "decimals": r["decimals"],
                 "funding": orc["funding"] if orc else None,
                 "per_click_estimate": pago["to_user"] if pago else 0,
+                # Na menor unidade, como `per_click_estimate`, para a torneira
+                # dividir os dois pela mesma potencia de dez.
+                #
+                # Faltava aqui, e a falta aparecia so no fim: o usuario via o
+                # saldo subir e nao tinha como saber por que nao dava para
+                # sacar. Com os dois numeros juntos a tela calcula quantos
+                # cliques faltam -- que e a unica forma de a pessoa entender
+                # uma campanha de stablecoin, onde a gota e pequena de
+                # proposito e o piso existe porque entregar custa rent uma vez
+                # por pessoa, qualquer que seja o valor.
+                "min_withdraw": r["min_withdraw"] or 0,
                 "cooldown_seconds": MICROCLAIM_COOLDOWN,
                 # "active", ou o mesmo motivo que o claim devolveria em
                 # campaigns_skipped. Sao seis motivos, nao quatro:
