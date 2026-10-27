@@ -47,6 +47,15 @@ def main():
     ap.add_argument("--fund", type=float, default=50_000.0, help="tokens moved into the vault")
     ap.add_argument("--total-budget", type=float, default=50_000.0)
     ap.add_argument("--monthly-cap", type=float, default=5_000.0)
+    # Em tokens, como os outros valores aqui; vira a menor unidade na chamada.
+    #
+    # Zero mantem o comportamento de sempre: todo mundo entra no lote. Vale
+    # definir quando o token vale alguma coisa, porque entregar custa rent uma
+    # vez por pessoa -- 1.488.440 lamports, medido -- e abaixo de certo valor a
+    # entrega custa mais do que entrega. Quem conhece o preco do token e o
+    # patrocinador, entao o numero e dele.
+    ap.add_argument("--min-withdraw", type=float, default=0.0,
+                    help="minimo acumulado para entrar num lote, em tokens")
     # Sem nome o mint nasce anonimo, e anonimo ele aparece na carteira de quem
     # o recebe -- so o endereco base58, sem simbolo e sem logo. O nome mora numa
     # conta do Metaplex que ninguem e obrigado a criar, e por isso quase todo
@@ -139,6 +148,7 @@ def main():
         # 'vault' is a claim about money, and here it is true: the vault above
         # holds it and the program refuses a root it cannot cover.
         "funding": "vault",
+        "min_withdraw": int(args.min_withdraw * UNIT),
     }, headers=h, timeout=30).raise_for_status()
 
     r = requests.post(f"{api}/api/solana/campaign/{args.campaign_id}/faucets",
