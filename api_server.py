@@ -9068,6 +9068,23 @@ def _campaign_quote(c, campaign_id: int, now: int, write: bool = True):
     def recusa(reason, detail):
         return None, {"campaign_id": campaign_id, "reason": reason, "detail": detail}
 
+    # Campanha aposentada nao paga mais nada, e isto faltava.
+    #
+    # Aposentar escondia a campanha de /api/solana/campaigns e nao tocava no
+    # gotejamento: inscrita numa torneira, ela continuava creditando. Medido em
+    # 27/10/2026 na campanha 690894, aposentada no proprio dia em que nasceu
+    # com o motivo gravado -- "a conta existe mas pertence a Sysvar..., nao a um
+    # programa de token" -- e com 1.424.854.745 unidades creditadas depois
+    # disso, para um unico usuario, num token que nao existe.
+    #
+    # O diagnostico estava certo e a torneira nunca soube dele. Recusar aqui e
+    # o que faz a aposentadoria significar alguma coisa.
+    c.execute("SELECT retired_at, retired_reason FROM settlement_campaigns "
+              "WHERE campaign_id = ?", (campaign_id,))
+    camp = c.fetchone()
+    if camp and camp["retired_at"]:
+        return recusa("retired", camp["retired_reason"] or "This campaign was retired")
+
     c.execute("SELECT * FROM campaign_budget WHERE campaign_id = ?", (campaign_id,))
     row = c.fetchone()
     if not row:

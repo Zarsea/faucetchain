@@ -76,6 +76,9 @@ jobs:
       - name: A proof reaches the chain carrying the index it is derived from
         run: python tests/test_claimed_contract.py
 
+      - name: A retired campaign stops paying
+        run: python tests/test_retired_stops_paying.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci
