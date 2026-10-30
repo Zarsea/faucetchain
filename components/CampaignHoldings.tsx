@@ -105,6 +105,9 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
     const [tokens, setTokens] = useState<TokenHolding[] | null>(null);
     const [history, setHistory] = useState<HistoryEntry[] | null>(null);
     const [failed, setFailed] = useState(false);
+    // O extrato chega com ate 200 linhas, uma por clique, e empurrava o resto
+    // do painel para longe. Os dez mais recentes respondem "de onde veio".
+    const [tudo, setTudo] = useState(false);
 
     useEffect(() => {
         if (!userAddress) { setTokens(null); setHistory(null); return; }
@@ -221,7 +224,7 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
                                 </tr>
                             </thead>
                             <tbody>
-                                {history.map((e, i) => (
+                                {(tudo ? history : history.slice(0, 10)).map((e, i) => (
                                     <tr key={`${e.campaign_id}-${e.created_at}-${i}`}
                                         className="border-t border-brand-border/30">
                                         <td className="py-2 pr-4 text-brand-muted whitespace-nowrap">
@@ -247,7 +250,7 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
                                             )}
                                         </td>
                                         <td className="py-2 pr-4 text-brand-secondary">{e.campaign_label}</td>
-                                        <td className="py-2 pr-4 text-right font-mono tabular-nums text-white">
+                                        <td className="py-2 pr-4 text-right font-mono tabular-nums text-white whitespace-nowrap">
                                             {fmt(e.amount, e.decimals)}{e.symbol ? ` ${e.symbol}` : ''}
                                         </td>
                                         <td className="py-2 pr-4 font-mono text-brand-muted">
@@ -285,6 +288,18 @@ export const CampaignHoldings: React.FC<{ userAddress: string | null }> = ({ use
                             </tbody>
                         </table>
                     </div>
+                    {history.length > 10 && (
+                        <button
+                            type="button"
+                            onClick={() => setTudo(v => !v)}
+                            className="mt-3 text-[11px] font-bold text-brand-primary hover:underline"
+                        >
+                            {tudo
+                                ? tri('Show fewer', 'Mostrar menos', 'Mostrar menos')
+                                : tri(`Show all (${history.length})`, `Ver tudo (${history.length})`,
+                                      `Ver todo (${history.length})`)}
+                        </button>
+                    )}
                 </div>
             )}
         </div>

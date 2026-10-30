@@ -478,17 +478,12 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                         </div>
                     </SectionCard>
 
-                    {/* O saldo acima e $CLAIM, a unidade interna desta rede. O que
-                        carrega valor vem de campanha, e nao aparecia em tela nenhuma:
-                        o usuario clicava, ganhava token de alguem, e nao ficava
-                        sabendo. */}
-                    <CampaignHoldings userAddress={userAddress} />
-
-                    <SectionCard title={t('dashboard.p2p')} icon={<ArrowUpRightIcon className="w-5 h-5 text-brand-primary" />}>
-                        <TransferWidget
-                            userAddress={userAddress}
-                            onTransferSuccess={() => setRefreshTick(t => t + 1)}
-                        />
+                    {/* Staking logo abaixo do saldo: no fim da coluna ele ficava
+                        depois do extrato inteiro de campanha. O envio P2P saiu
+                        daqui porque o painel da carteira, no endereco do
+                        cabecalho, ja abre o mesmo TransferWidget. */}
+                    <SectionCard title={t('dashboard.myStaking')} icon={<BoltIcon className="w-5 h-5 text-brand-accent" />}>
+                        <StakingSummaryWidget userAddress={userAddress} onNavigate={onNavigate} />
                     </SectionCard>
 
                     <SectionCard title={t('dashboard.reputation')} icon={<ShieldCheckIcon className="w-5 h-5 text-brand-accent" />}>
@@ -509,11 +504,6 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                         </div>
                     </SectionCard>
 
-                    {/* Staking Summary */}
-                    <SectionCard title={t('dashboard.myStaking')} icon={<BoltIcon className="w-5 h-5 text-brand-accent" />}>
-                        <StakingSummaryWidget userAddress={userAddress} onNavigate={onNavigate} />
-                    </SectionCard>
-
                     {/* Watched Addresses Quick-View */}
                     <SectionCard title={t('dashboard.watchedAddresses')} icon={<SignalIcon className="w-5 h-5 text-brand-accent" />}>
                         <WatchedAddressesWidget onNavigate={onNavigate} />
@@ -522,6 +512,13 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
 
                 {/* Right Column: Activity & Insights */}
                 <div className="lg:col-span-2 space-y-8">
+                    {/* O saldo de $CLAIM e a unidade interna desta rede. O que
+                        carrega valor vem de campanha, e nao aparecia em tela nenhuma:
+                        o usuario clicava, ganhava token de alguem, e nao ficava
+                        sabendo. Fica na coluna larga porque o extrato tem quatro
+                        colunas e, na estreita, o valor caia fora do recorte. */}
+                    <CampaignHoldings userAddress={userAddress} />
+
                     <SectionCard title={t('dashboard.recentActivity')} icon={<BoltIcon className="w-5 h-5 text-brand-accent" />}>
                         <div className="space-y-3">
                             {isLoading ? (
@@ -556,9 +553,6 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                 ))
                             )}
                         </div>
-                    </SectionCard>
-
-                    <SectionCard title={t('dashboard.sentinelAnalysis')} icon={<SparklesIcon className="w-5 h-5 text-brand-primary" />}>
                     </SectionCard>
                 </div>
             </div>
