@@ -1,0 +1,8 @@
+{
+  "name": "FaucetsWeb3 Liquidity Test",
+  "symbol": "FWLT",
+  "description": "Alternative campaign token distributed like an airdrop through FaucetChain, withdrawn from a Solana vault against a published Merkle root. Devnet test token, no monetary value.",
+  "image": "https://raw.githubusercontent.com/Zarsea/faucetchain/main/public/tokens/fwlt.png",
+  "external_url": "https://www.faucetchain.com.br",
+  "properties": { "category": "image", "files": [{ "uri": "https://raw.githubusercontent.com/Zarsea/faucetchain/main/public/tokens/fwlt.png", "type": "image/png" }] }
+}

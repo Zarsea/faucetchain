@@ -1,0 +1,8 @@
+{
+  "name": "FaucetHunter Rewards",
+  "symbol": "FHR",
+  "description": "Campaign token paid by FaucetHunter clicks through FaucetChain, withdrawn from a Solana vault against a published Merkle root. Devnet test token, no monetary value.",
+  "image": "https://raw.githubusercontent.com/Zarsea/faucetchain/main/public/tokens/fhr.png",
+  "external_url": "https://www.faucetchain.com.br",
+  "properties": { "category": "image", "files": [{ "uri": "https://raw.githubusercontent.com/Zarsea/faucetchain/main/public/tokens/fhr.png", "type": "image/png" }] }
+}
