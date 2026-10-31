@@ -1,0 +1,16 @@
+{
+  "name": "StableCoin Test",
+  "symbol": "USDCT",
+  "description": "Campaign token paid by faucet clicks through FaucetChain, withdrawn from a Solana vault against a published Merkle root. Devnet test token, no monetary value.",
+  "image": "https://raw.githubusercontent.com/Zarsea/faucetchain/main/public/tokens/usdct.png",
+  "external_url": "https://www.faucetchain.com.br",
+  "properties": {
+    "category": "image",
+    "files": [
+      {
+        "uri": "https://raw.githubusercontent.com/Zarsea/faucetchain/main/public/tokens/usdct.png",
+        "type": "image/png"
+      }
+    ]
+  }
+}
