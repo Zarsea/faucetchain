@@ -85,6 +85,9 @@ jobs:
       - name: A node registered with a Solana address pays an account that wallet reaches
         run: python tests/test_miner_solana_payout.py
 
+      - name: The public ledger shows what the next batch would carry, and the batch agrees
+        run: python tests/test_awaiting_batch.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

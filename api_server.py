@@ -9736,6 +9736,60 @@ async def list_settlement_batches(campaign_id: Optional[int] = None, limit: int 
     }
 
 
+def _awaiting_batch(c, campaign_id: int) -> dict:
+    """O que o proximo lote desta campanha levaria, antes de alguem fechar.
+
+    Sem isto o credito so aparecia por pessoa, na tela de quem clicou, e o
+    operador descobria se havia lote fechando -- e um 400 "Nothing to settle"
+    era a unica resposta. A conta e a de close_settlement_batch: so entra quem
+    vinculou carteira Solana, e quem fica abaixo do piso espera o seguinte.
+    """
+    c.execute("SELECT COALESCE(min_withdraw, 0) FROM settlement_campaigns WHERE campaign_id = ?",
+              (campaign_id,))
+    row = c.fetchone()
+    minimo = int(row[0]) if row else 0
+    c.execute(
+        """SELECT r.user_address, l.solana_address, COALESCE(r.faucet_wallet, ''),
+                  COUNT(*), SUM(r.amount)
+             FROM settlement_rewards r
+             LEFT JOIN solana_links l ON l.user_address = r.user_address
+            WHERE r.campaign_id = ? AND r.batch_id IS NULL
+            GROUP BY r.user_address, l.solana_address, r.faucet_wallet""",
+        (campaign_id,),
+    )
+    por_carteira, sem_carteira, torneiras = defaultdict(int), set(), defaultdict(lambda: [0, set(), 0])
+    claims = 0
+    for user, sol, faucet, n, total in c.fetchall():
+        claims += n
+        t = torneiras[faucet or None]
+        t[0] += n
+        t[1].add(user)
+        t[2] += int(total)
+        if sol:
+            por_carteira[sol] += int(total)
+        else:
+            sem_carteira.add(user)
+    c.execute("SELECT COALESCE(treasury_owed, 0) FROM campaign_budget WHERE campaign_id = ?",
+              (campaign_id,))
+    row = c.fetchone()
+    tesouraria = int(row[0]) if row else 0
+    aptos = {a: v for a, v in por_carteira.items() if v >= minimo}
+    return {
+        "claims": claims,
+        "users": len({u for t in torneiras.values() for u in t[1]}),
+        "users_without_solana_wallet": len(sem_carteira),
+        "min_withdraw": minimo,
+        "eligible_wallets": len(aptos),
+        "eligible_amount": sum(aptos.values()),
+        "below_min_wallets": len(por_carteira) - len(aptos),
+        "treasury_owed": tesouraria,
+        "by_faucet": [
+            {"faucet_wallet": f, "claims": v[0], "users": len(v[1]), "amount": v[2]}
+            for f, v in sorted(torneiras.items(), key=lambda kv: -kv[1][2])
+        ],
+    }
+
+
 @app.get("/api/solana/ledger/{campaign_id}")
 async def get_campaign_ledger(campaign_id: int):
     """What Solana says about a campaign, not what this server says.
@@ -9814,6 +9868,7 @@ async def get_campaign_ledger(campaign_id: int):
         "sponsor": registered[0],
         "mint": registered[1],
         "batches": off_chain,
+        "awaiting_batch": _awaiting_batch(c, campaign_id),
         # Prometido e pago sao numeros diferentes e vao em listas diferentes,
         # porque junta-los foi o erro que este projeto existe para nao repetir.
         "payouts": pagamentos,
