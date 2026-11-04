@@ -237,7 +237,7 @@ def seed_knowledge_base():
             "metadata": {"category": "accounts", "tags": ["derivation", "solana", "linking"], "source": "api_server.py account_reached_by_wallet"}
         },
         {
-            "content": "A campaign budget is dripped rather than airdropped. distribution.py computes a per-click rate from what the month still allows, the days left in it, and how many people claimed yesterday, against a floor of 30 users so a small faucet cannot hand each visitor a fifth of the month. That floor was 100 until 2 October; lowering it tripled the rate on a nearly empty campaign and tripled what one person can take of a day's allowance, from 10% to 33%. Participation sits in the divisor and has a floor of 0.01, so a day with almost no traffic multiplies the rate tenfold rather than lowering it; with both floors at their devnet settings one person on an empty campaign can take 2.67 times a day's allowance. Deliberate for a simulator, listed under Before mainnet in PENDING.md as a gate on real money. Unspent budget rolls into the next month, and the credit never exceeds what the budget still holds.",
+            "content": "A campaign budget is dripped rather than airdropped. distribution.py computes a per-click rate from what the month still allows, the days left in it, and how many people claimed yesterday, against a floor of 30 users so a small faucet cannot hand each visitor a fifth of the month. That floor was 100 until 2 October; lowering it tripled the rate on a nearly empty campaign and tripled what one person can take of a day's allowance, from 10% to 33%. Participation sits in the divisor and has a floor of 0.01, so a day with almost no traffic multiplies the rate tenfold rather than lowering it; with both floors at their devnet settings one person on an empty campaign can take 2.67 times a day's allowance. Deliberate for a simulator, listed in BEFORE_MAINNET.md as a gate on real money. Unspent budget rolls into the next month, and the credit never exceeds what the budget still holds.",
             "metadata": {"category": "campaigns", "tags": ["drip", "budget", "distribution"], "source": "distribution.py"}
         },
         {
@@ -257,8 +257,8 @@ def seed_knowledge_base():
             "metadata": {"category": "security", "tags": ["authorization", "routes", "ci"], "source": "test_endpoint_inventory.py"}
         },
         {
-            "content": "No third party has audited this code. There is no bug bounty, no formal verification, and no audit engagement with any firm. An independent review of the Solana program is recorded as outstanding work in PENDING.md, and until somebody does it, nobody has checked it who did not write it.",
-            "metadata": {"category": "security", "tags": ["audit", "review", "status"], "source": "PENDING.md"}
+            "content": "No third party has audited this code. There is no bug bounty, no formal verification, and no audit engagement with any firm. An independent review of the Solana program is still outstanding, and until somebody does it, nobody has checked it who did not write it.",
+            "metadata": {"category": "security", "tags": ["audit", "review", "status"], "source": "BEFORE_MAINNET.md"}
         },
         {
             "content": "The books are checked by reconcile.py, which holds five invariants: nothing mints past the cap, nobody stakes more than exists, no balance goes negative, no claim is counted twice, and the treasury's share of every campaign is accounted for. It runs in CI, and it is what caught 1,495,538 $CLAIM of treasury share that had been credited to nobody.",
@@ -269,7 +269,7 @@ def seed_knowledge_base():
             "metadata": {"category": "settlement", "tags": ["devnet", "program", "token-2022"], "source": "create_campaign.rs"}
         },
         {
-            "content": "A mining node is paid by uptime, not by work: the hourly reward is split by how long each node was present. It does seal, though. When a merit claim is waiting, the node calls /api/mining/explore, and the stake-weighted draw over the parent hash decides who may close that block; a node that was not drawn is refused until a 60-second grace expires. Block 24 was sealed this way on 29 September, carrying a claim whose proof of work had just been solved. What the sealer still does not do is close the settlement batch and publish its root, which is design work recorded for after the deadline.",
+            "content": "A mining node is paid by uptime, not by work: the hourly reward is split by how long each node was present. It does seal, though. When a merit claim is waiting, the node calls /api/mining/explore, and the stake-weighted draw over the parent hash decides who may close that block; a node that was not drawn is refused until a 60-second grace expires. Block 24 was sealed this way on 29 September, carrying a claim whose proof of work had just been solved. What the sealer still does not do is close the settlement batch and publish its root, which is design work not yet done.",
             "metadata": {"category": "mining", "tags": ["nodes", "uptime", "rewards"], "source": "mining-node/"}
         },
         {

@@ -118,10 +118,10 @@ flowchart TD
     `,
     TREASURY_ALLOCATION_DIAGRAM: `
 pie title "Proposed split of the 99M cap, not yet committed"
-    "Proof of Work, miners: 30" : 30
-    "Proof of Stake, vault: 30" : 30
-    "Proof of Claim, merit: 20" : 20
-    "Core team and liquidity: 20" : 20
+    "Proof of Work, miners: 29.7M" : 30
+    "Proof of Stake, vault: 29.7M" : 30
+    "Proof of Claim, merit: 19.8M" : 20
+    "Core team and liquidity: 19.8M" : 20
     `
   },
   pt: {
@@ -229,10 +229,10 @@ flowchart TD
     `,
     TREASURY_ALLOCATION_DIAGRAM: `
 pie title "Divisao proposta do teto de 99M, ainda nao decidida"
-    "Proof of Work, mineradores: 30" : 30
-    "Proof of Stake, cofre: 30" : 30
-    "Proof of Claim, merito: 20" : 20
-    "Core team e liquidez: 20" : 20
+    "Proof of Work, mineradores: 29,7M" : 30
+    "Proof of Stake, cofre: 29,7M" : 30
+    "Proof of Claim, merito: 19,8M" : 20
+    "Core team e liquidez: 19,8M" : 20
     `
   }
 };
@@ -254,7 +254,7 @@ export function diagrams(lang: string) {
 // O primeiro era um `calculate_adaptive_v2_weight` em Rust, exibido com o
 // titulo `consensus/src/weight_modulator.rs` -- um caminho de arquivo numa
 // pasta que nunca existiu. As funcoes dentro dele tambem nao: `merit_points`,
-// `sentinel_reputation`, `uptime_multiplier`. Um juiz que procurasse o arquivo
+// `sentinel_reputation`, `uptime_multiplier`. Quem procurasse o arquivo
 // no GitHub nao acharia nada.
 //
 // O segundo mostrava uma auditoria por entropia de Shannon. Esse ja vinha

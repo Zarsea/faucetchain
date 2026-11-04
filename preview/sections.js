@@ -174,7 +174,7 @@
           '</div>';
         }).join('') +
       '</div>' +
-      aviso('Seis torneiras têm registro, e três dos nomes são <span class="mono">FaucetInternal</span> ou <span class="mono">Test Faucet</span> — resto de teste que ainda aparece no diretório. Está em <span class="mono">PENDING.md</span> como decisão aberta: limpar, ramificar um banco de demonstração, ou deixar como registro honesto.')
+      aviso('Seis torneiras têm registro, e três dos nomes são <span class="mono">FaucetInternal</span> ou <span class="mono">Test Faucet</span> — resto de teste que ainda aparece no diretório. É uma decisão aberta: limpar, ramificar um banco de demonstração, ou deixar como registro honesto.')
   });
 
   S.push({
@@ -235,7 +235,7 @@
   S.push({
     id: 'ledger', nome: 'Settlement Ledger', grupo: 'Liquidação', selo: 'real', cheia: 'ledger.html',
     titulo: 'Settlement Ledger',
-    sub: 'Toda raiz publicada, com a assinatura que a levou à Solana. É o livro que um juiz pode conferir sem falar com a gente.',
+    sub: 'Toda raiz publicada, com a assinatura que a levou à Solana. É o livro que qualquer pessoa pode conferir sem falar com a gente.',
     html:
       tabela([['lote', 1], ['campanha', 0], ['raiz', 0], ['folhas', 1], ['valor', 1], ['data', 0]],
         [['20', '652608', '<span style="color:var(--primary)">0x67788a35…</span>', '1', '370.305', '02/10'],
@@ -421,7 +421,7 @@
           '<button class="btn btn-marca" type="button" style="flex:1 1 140px">Adicionar</button></div></div>' +
       vazio(ICONE_VAZIO.lupa, 'Nenhum endereço acompanhado',
         'A tabela <span class="mono">tracked_addresses</span> está vazia — zero linhas de verdade. A lista é pública e compartilhada por todos, o que também é o motivo de ela ter um teto: a exposição aqui é vandalismo, não perda de valor.') +
-      aviso('Em <span class="mono">PENDING.md</span>: tornar a lista por conta é funcionalidade, não correção. E foi aqui que uma leitura caríssima passou sem limite de taxa — <span class="mono">HOLDINGS_HOURLY_PER_IP</span> existe por causa desta tela.')
+      aviso('Tornar a lista por conta é funcionalidade, não correção. E foi aqui que uma leitura caríssima passou sem limite de taxa — <span class="mono">HOLDINGS_HOURLY_PER_IP</span> existe por causa desta tela.')
   });
 
   // ===== LER =============================================================

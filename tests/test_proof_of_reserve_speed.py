@@ -1,7 +1,7 @@
 """A prova de reserva: a rota mais cara, e a que decide se alguem confia.
 
 Lia 28 campanhas em serie, cada uma consultando a Solana: 29 segundos medidos
-em producao. Um juiz ou um operador abre essa pagina uma vez para decidir se
+em producao. Um visitante ou um operador abre essa pagina uma vez para decidir se
 confia, e meio minuto de tela parada responde essa pergunta sozinho.
 
 O que estes checks protegem:

@@ -3,7 +3,7 @@
 //     node test_diagrams_parse.mjs
 //
 // Um erro de sintaxe num diagrama nao quebra o build nem o typecheck: aparece
-// como caixa vermelha para quem abrir a pagina, que no nosso caso e um juiz.
+// como caixa vermelha para quem abrir a pagina.
 // Nada cobria isso ate 8/10/2026, quando os sete diagramas foram reescritos
 // para incluir a liquidacao na Solana.
 //

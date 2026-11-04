@@ -50,7 +50,7 @@ DEFAULT_PARTICIPATION = 0.10
 # pouca gente olhando. Combinado com FLOOR_USERS = 30 isso deixa uma pessoa
 # sozinha levar 2,67x o orcamento de um dia -- medido, prendido no _self_check,
 # e aceito de proposito enquanto a rede e um simulador em devnet.
-# ANTES DA MAINNET: ver "Antes da mainnet" em PENDING.md. Este numero e
+# ANTES DA MAINNET: ver BEFORE_MAINNET.md. Este numero e
 # FLOOR_USERS sao os dois lados da mesma conta e precisam subir juntos.
 PARTICIPATION_FLOOR = 0.01
 

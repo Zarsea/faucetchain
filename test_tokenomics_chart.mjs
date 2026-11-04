@@ -4,7 +4,7 @@
 // como "vinte milhões" por quem olha -- inclusive pelo operador deste projeto,
 // que foi exatamente como isto apareceu em 3 de outubro. Vinte por cento de 99M
 // é 19,8M, então as duas leituras divergem por três ordens de grandeza num
-// número que fala de dinheiro, numa tela que um juiz abre.
+// número que fala de dinheiro, numa tela pública.
 //
 // Duas coisas são presas aqui, e as duas são fáceis de desfazer sem perceber:
 //

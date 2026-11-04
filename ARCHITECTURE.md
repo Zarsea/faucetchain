@@ -533,7 +533,7 @@ how far. At the devnet setting of 0.01 a day with one click in it pays ten times
 what the default would, and the two floors multiply — one person on an otherwise
 empty campaign can take 2.67 times a day's allowance. Deliberate while this is a
 simulator, wrong for real money, and listed under "Before mainnet" in
-[PENDING.md](PENDING.md) so it cannot be inherited by accident.
+[BEFORE_MAINNET.md](BEFORE_MAINNET.md) so it cannot be inherited by accident.
 
 Enrolment belongs to the campaign: `POST /api/solana/campaign/{id}/faucets`
 declares where it wants to appear. A faucet cannot opt itself into somebody
@@ -1038,7 +1038,7 @@ The damage was bounded and worth stating exactly, because it explains why this
 sat so long. A pasted session never received a token, so `sessionHeaders()` sent
 nothing and every acting route answered 401 -- nobody could move a balance that
 way. What it could do is *look*: open any address and read it as though signed
-in. Read-only impersonation, in the same modal a judge opens first, next to a
+in. Read-only impersonation, in the same modal a visitor opens first, next to a
 button that is a real cryptographic proof.
 
 Removing the field is not enough on its own, and that is the part worth

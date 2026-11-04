@@ -394,7 +394,7 @@ body.calma .torneira:hover { transform: none; }
 .sec-topo p { margin: 8px 0 0; max-width: 56ch; color: var(--muted); font-size: 15px; line-height: 1.6; }
 
 /* Estado vazio. Desenhá-lo é metade do trabalho de uma tela e quase sempre
-   fica para depois — e "depois" é quando um juiz abre a aba e vê um vão. */
+   fica para depois — e "depois" é quando alguém abre a aba e vê um vão. */
 .vazio {
   display: grid; gap: 14px; justify-items: center; text-align: center;
   padding: 56px 24px; border: 1px dashed var(--border); border-radius: 16px;

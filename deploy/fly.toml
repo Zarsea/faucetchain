@@ -2,7 +2,7 @@
 #
 #     fly launch --no-deploy --copy-config    # reads this file
 #     fly volumes create faucetchain_data --size 1 --region gru
-#     fly secrets set ...                     # see deploy/LEIA-PRIMEIRO.md
+#     fly secrets set ...                     # see the private deploy notes
 #     fly deploy
 #
 # Three settings below are load-bearing and explained where they appear:

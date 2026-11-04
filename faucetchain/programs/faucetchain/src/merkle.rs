@@ -23,7 +23,7 @@ use solana_keccak_hasher::hashv;
 /// So the rule for anyone extending this program: **never pass a caller-supplied
 /// leaf to `verify_proof`.** An instruction that takes a leaf as an argument
 /// reopens the hole completely, and no constraint elsewhere would catch it.
-/// Real domain separation is listed under "Before mainnet" in PENDING.md,
+/// Real domain separation is listed in BEFORE_MAINNET.md,
 /// because adding a prefix changes every root -- including every root already
 /// published, whose proofs would stop verifying.
 ///
