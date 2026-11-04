@@ -79,6 +79,12 @@ jobs:
       - name: A retired campaign stops paying
         run: python tests/test_retired_stops_paying.py
 
+      - name: No readable secret stays in the ledger and no NaN reaches it
+        run: python tests/test_secrets_and_inputs.py
+
+      - name: A node registered with a Solana address pays an account that wallet reaches
+        run: python tests/test_miner_solana_payout.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci
@@ -107,6 +113,9 @@ jobs:
 
       - name: Every diagram parses, and no language without one breaks the page
         run: node test_diagrams_parse.mjs
+
+      - name: The allocation chart says tokens, not just slices
+        run: node test_tokenomics_chart.mjs
 
       - name: The dashboard numbers come from the block table
         run: python tests/test_network_metrics.py

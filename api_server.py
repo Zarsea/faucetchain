@@ -27,8 +27,10 @@ import faucetpay    # identity against FaucetPay; moves no money
 import social_auth  # signing in through a platform, proved rather than announced
 import settlement  # the sentences wallets sign live here, shared with the browser
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, validator
-from typing import List, Optional, Dict
+from fastapi.exceptions import RequestValidationError
+from pydantic import BaseModel, Field, validator
+from urllib.parse import urlsplit
+from typing import Annotated, List, Optional, Dict
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 import uvicorn
@@ -87,6 +89,10 @@ except ImportError:
 # nem o nome do cabecalho a forjar. Fica ligada em desenvolvimento, onde ela
 # serve a quem esta construindo.
 EXPOSE_API_DOCS = os.getenv("EXPOSE_API_DOCS", "0") == "1"
+
+# json.loads aceita NaN, e NaN responde False a toda comparacao: passava por
+# `<= 0`, por `> 100` e por `saldo < valor`, e o SQLite gravava NULL no razao.
+ValorFinito = Annotated[float, Field(allow_inf_nan=False)]
 
 app = FastAPI(
     title="FaucetChain Vector Knowledge API",
@@ -182,6 +188,17 @@ async def unhandled_exception(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": f"Something failed on our side. Incident {incidente}."},
+    )
+
+
+# A resposta padrao repete a entrada recebida, e NaN nao se serializa em JSON:
+# a recusa de um valor invalido virava 500.
+@app.exception_handler(RequestValidationError)
+async def entrada_invalida(request: Request, exc: RequestValidationError):
+    campos = ("type", "loc", "msg")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": [{k: e[k] for k in campos if k in e} for e in exc.errors()]},
     )
 
 
@@ -1001,7 +1018,7 @@ async def notify_block(payload: dict, request: Request):
     expected_secret = os.getenv("INTERNAL_SECRET")
     if not expected_secret:
         raise HTTPException(status_code=503, detail="Internal secret not configured")
-    if request.headers.get("X-Internal-Secret") != expected_secret:
+    if not hmac.compare_digest(request.headers.get("X-Internal-Secret", "").encode(), expected_secret.encode()):
         raise HTTPException(status_code=403, detail="Unauthorized internal call")
     try:
         # Trigger broadcast to all UI clients
@@ -1042,6 +1059,23 @@ class FaucetRegisterRequest(BaseModel):
     name: str
     wallet_address: str
     site_url: Optional[str] = None
+
+    @validator("name")
+    def nome_curto(cls, v):
+        if not v.strip() or len(v) > 100:
+            raise ValueError("name must have between 1 and 100 characters")
+        return v
+
+    @validator("site_url")
+    def site_navegavel(cls, v):
+        # Vira href numa tela publica, e o cadastro nao pede login.
+        v = (v or "").strip()
+        if not v:
+            return None
+        partes = urlsplit(v)
+        if len(v) > 300 or partes.scheme not in ("http", "https") or not partes.netloc:
+            raise ValueError("site_url must be an http or https address up to 300 characters")
+        return v
 
 @app.post("/api/faucethub/register")
 async def register_faucet(req: FaucetRegisterRequest, request: Request):
@@ -1764,7 +1798,7 @@ async def faucetpay_devs():
 
 class SettlementRequest(BaseModel):
     user_wallet: str
-    amount: float
+    amount: ValorFinito
 
 @app.post("/api/faucethub/settle")
 async def settle_claim(req: SettlementRequest, x_api_key: Optional[str] = Header(None)):
@@ -1825,7 +1859,7 @@ async def settle_claim(req: SettlementRequest, x_api_key: Optional[str] = Header
         c.execute('''
             INSERT INTO faucet_settlements (faucet_wallet, user_wallet, amount, tx_hash, timestamp, api_key_used)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (faucet_wallet, user_lower, req.amount, tx_hash, timestamp, x_api_key))
+        ''', (faucet_wallet, user_lower, req.amount, tx_hash, timestamp, _hash_token(x_api_key)))
         
         # Update API key stats
         c.execute('''
@@ -1839,7 +1873,7 @@ async def settle_claim(req: SettlementRequest, x_api_key: Optional[str] = Header
         conn.commit()
     except Exception as e:
         conn.close()
-        raise HTTPException(status_code=500, detail=f"Settlement failed: {e}")
+        raise falha_interna(e)
     
     conn.close()
     
@@ -1916,7 +1950,7 @@ def faucet_user_address(given: str) -> str:
 
 class MicroClaimRequest(BaseModel):
     user_wallet: str
-    amount: float
+    amount: ValorFinito
     # Uma torneira que da um claim por token precisa dizer o que este clique e.
     # Ausentes os dois, nada muda: o clique paga $CLAIM e toda campanha, que e
     # o que as outras torneiras ja esperam deste endpoint.
@@ -2446,8 +2480,8 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
     except Exception as e:
         conn.close()
         _avisar_saque("withdrawal.failed", faucet_lower, user_lower,
-                      withdraw_amount, "CLAIM", "", reason=f"Settlement error: {e}")
-        raise HTTPException(status_code=500, detail=f"Withdrawal failed: {e}")
+                      withdraw_amount, "CLAIM", "", reason="Settlement error")
+        raise falha_interna(e)
     
     conn.close()
     
@@ -2783,7 +2817,7 @@ async def get_user_balance(address: str):
 class TransferRequest(BaseModel):
     sender: str
     receiver: str
-    amount: float
+    amount: ValorFinito
     nonce: int
     # Only a wallet can sign. An account whose key nobody holds -- which is
     # every account this product creates -- proves itself with its session.
@@ -3558,7 +3592,7 @@ async def get_anchor_roots():
 # isso passaria despercebido ate o dia em que nao passasse.
 _PROVA_POR_VEZ = int(os.getenv("PROOF_OF_RESERVE_CONCURRENCY", "8"))
 
-# A rota mais cara que existe aqui, e a que um juiz ou um operador abre uma vez
+# A rota mais cara que existe aqui, e a que um visitante ou um operador abre uma vez
 # para decidir se confia. Reserva nao muda de segundo em segundo; um minuto de
 # cache transforma "toda visita paga a conta" em "um visitante por minuto paga".
 # generatedAt continua sendo a hora do calculo, nao a da resposta: uma prova de
@@ -4153,7 +4187,7 @@ async def get_staked_dapps():
 
 class ClaimRequest(BaseModel):
     user_address: str
-    amount: Optional[float] = None  # ignorado: o valor vem de current_claim_reward()
+    amount: Optional[ValorFinito] = None  # ignorado: o valor vem de current_claim_reward()
     block_height: int
     tx_hash: str
     source_platform: Optional[str] = 'WEB3'
@@ -4649,7 +4683,7 @@ async def startup_staking():
 
 class StakeRequest(BaseModel):
     staker_address: str
-    amount: float
+    amount: ValorFinito
     tier: int
     # fix B6: assinatura da ação (obrigatória para carteiras Web3)
     signature: Optional[str] = None
@@ -4783,7 +4817,7 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
     except Exception as e:
         conn.rollback()
         conn.close()
-        raise HTTPException(status_code=500, detail=f"Could not open the stake: {e}")
+        raise falha_interna(e)
     finally:
         conn.close()
 
@@ -5091,7 +5125,7 @@ class CreateBountyRequest(BaseModel):
     creator_address: str
     title: str
     description: str = ""
-    reward: float
+    reward: ValorFinito
     duration_hours: int = 24
     signature: Optional[str] = None
     sig_timestamp: Optional[int] = None
@@ -5503,9 +5537,24 @@ def require_node_token(node_id: str, token: Optional[str]) -> str:
             detail=("This node registered before tokens existed. Register again "
                     "to get one."),
         )
-    if not hmac.compare_digest(token, row["node_token"]):
+    if not hmac.compare_digest(_hash_token(token), row["node_token"]):
         raise HTTPException(status_code=401, detail="That token is not this node's.")
     return row["wallet_address"]
+
+
+def miner_payout_address(given: str) -> str:
+    """Onde a recompensa de um no cai.
+
+    Um endereco Solana passa pela mesma resolucao da torneira parceira: em
+    minusculas, base58 vira uma conta que nenhuma carteira alcanca, e a
+    recompensa ficava presa la. Qualquer outra coisa segue como sempre foi.
+    """
+    s = (given or "").strip()
+    try:
+        settlement.decode_pubkey(s)
+    except ValueError:
+        return s.lower()
+    return faucet_user_address(s)
 
 
 @app.post("/api/mining/register")
@@ -5515,13 +5564,14 @@ async def register_miner(req: MiningRegisterRequest, request: Request,
     client_ip = request.client.host
     if not check_rate_limit(client_ip):
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
+    wallet = miner_payout_address(req.wallet_address)
     conn = get_db_connection()
     c = conn.cursor()
 
     # Check max nodes per wallet
     c.execute(
         "SELECT COUNT(*) FROM active_miners WHERE wallet_address = ?",
-        (req.wallet_address.strip().lower(),)
+        (wallet,)
     )
     node_count = c.fetchone()[0]
     if node_count >= MINING_CONFIG["max_nodes_per_wallet"]:
@@ -5539,7 +5589,6 @@ async def register_miner(req: MiningRegisterRequest, request: Request,
         # reconnects under the same id — and used to keep paying whoever was
         # registered first. It said "reconnected" and mined for a stranger.
         current_ts = int(datetime.now().timestamp())
-        wallet = req.wallet_address.strip().lower()
         c.execute("SELECT wallet_address, node_token FROM active_miners WHERE node_id = ?",
                   (req.node_id,))
         prev_row = c.fetchone()
@@ -5549,20 +5598,20 @@ async def register_miner(req: MiningRegisterRequest, request: Request,
         # paid. Without the token, knowing somebody's node id was enough to
         # take over their miner's earnings.
         if existing_token:
-            if not x_node_token or not hmac.compare_digest(x_node_token, existing_token):
+            if not x_node_token or not hmac.compare_digest(_hash_token(x_node_token), existing_token):
                 conn.close()
                 raise HTTPException(
                     status_code=401,
                     detail=("That node id is taken. Reconnecting to it needs the "
                             "token it was issued (X-Node-Token)."),
                 )
-            issued_token = existing_token
+            issued_token = x_node_token
         else:
             # Registered before tokens existed: issue one now rather than lock
             # the miner out of its own node.
             issued_token = generate_api_key()
             c.execute("UPDATE active_miners SET node_token = ? WHERE node_id = ?",
-                      (issued_token, req.node_id))
+                      (_hash_token(issued_token), req.node_id))
 
         if previous != wallet:
             # Uptime earned for the old address does not follow the node to the
@@ -5612,14 +5661,14 @@ async def register_miner(req: MiningRegisterRequest, request: Request,
     c.execute('''
         INSERT INTO active_miners (node_id, wallet_address, node_name, registered_at, last_heartbeat, is_online, version, node_token)
         VALUES (?, ?, ?, ?, ?, 1, ?, ?)
-    ''', (req.node_id, req.wallet_address.strip().lower(), req.node_name, current_ts, current_ts, req.version, issued_token))
+    ''', (req.node_id, wallet, req.node_name, current_ts, current_ts, req.version, _hash_token(issued_token)))
     conn.commit()
     conn.close()
 
     return {
         "status": "registered",
         "node_id": req.node_id,
-        "wallet": req.wallet_address,
+        "wallet": wallet,
         "node_token": issued_token,
         "config": {
             "heartbeat_interval": MINING_CONFIG["heartbeat_interval"],
@@ -5697,7 +5746,7 @@ async def disconnect_miner(req: DisconnectRequest,
     conn = get_db_connection()
     c = conn.cursor()
     c.execute("UPDATE active_miners SET is_online = 0 WHERE node_id = ? AND wallet_address = ?",
-              (req.node_id, req.wallet_address.strip().lower()))
+              (req.node_id, miner_payout_address(req.wallet_address)))
     conn.commit()
     conn.close()
     return {"status": "disconnected", "node_id": req.node_id}
@@ -5870,7 +5919,7 @@ async def get_node_info(address: str):
                   total_uptime_seconds, epoch_uptime_seconds, total_earned,
                   epochs_active, is_online, cpu_load, memory_free, version
              FROM active_miners WHERE wallet_address = ? ORDER BY registered_at DESC""",
-        (address.strip().lower(),)
+        (miner_payout_address(address),)
     )
     rows = c.fetchall()
     conn.close()
@@ -6101,7 +6150,7 @@ def get_mining_rewards(address: str, limit: int = 50):
         WHERE wallet_address = ?
         ORDER BY distributed_at DESC
         LIMIT ?
-    ''', (address.strip().lower(), limit))
+    ''', (miner_payout_address(address), limit))
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
     return rows
@@ -10794,6 +10843,38 @@ if os.path.isdir("dist"):
             return FileResponse(file_path)
             
         return FileResponse("dist/index.html")
+
+def _migrar_segredos_em_claro():
+    """Troca por hash o que ainda esta legivel. Idempotente.
+
+    Um hash sha256 sao 64 caracteres hex; os segredos emitidos aqui nunca tem
+    esse formato, entao a segunda passada nao encontra nada.
+    """
+    conn = get_db_connection()
+    try:
+        for tabela, coluna, chave in (("active_miners", "node_token", "node_id"),
+                                      ("faucet_settlements", "api_key_used", "id")):
+            try:
+                linhas = conn.execute(
+                    f"SELECT {chave}, {coluna} FROM {tabela} WHERE {coluna} IS NOT NULL").fetchall()
+            except sqlite3.OperationalError:
+                continue  # tabela ainda nao existe neste banco
+            for linha in linhas:
+                valor = linha[1]
+                # L2_WITHDRAW e rotulo de saque, nao segredo.
+                if valor == "L2_WITHDRAW" or re.fullmatch(r"[0-9a-f]{64}", valor):
+                    continue
+                conn.execute(f"UPDATE {tabela} SET {coluna} = ? WHERE {chave} = ?",
+                             (_hash_token(valor), linha[0]))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@app.on_event("startup")
+async def startup_segredos_em_claro():
+    _migrar_segredos_em_claro()
+
 
 if __name__ == "__main__":
     import sqlite3 
