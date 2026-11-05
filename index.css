@@ -109,6 +109,15 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--brand-primary);
 }
+/* Bloco de codigo: linha longa rola de lado. O polegar global tem a cor da
+   borda, que some sobre a superficie do bloco, e quem lia achava o codigo
+   cortado. As classes scrollbar-* que estavam no <pre> eram de um plugin do
+   Tailwind que este projeto nao instala, e nao faziam nada. */
+.code-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: var(--brand-muted) transparent;
+}
+
 @keyframes slideUpFadeIn {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }

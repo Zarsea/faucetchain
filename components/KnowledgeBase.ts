@@ -1,8 +1,11 @@
 
-// FaucetChain Sentinel AI - Knowledge Base
-// ==========================================
-// This file acts as the "Brain" of the Local Agent.
-// You can "Train" the AI by adding new patterns here.
+// Respostas escritas do chat "Ask Sentinel", escolhidas por palavra-chave.
+//
+// Em 05/11/2026 sairam treze entradas que descreviam o que nao existe:
+// "Proof of Carrier", formulas de consenso e de peso de merito que nenhum
+// codigo calcula, MetaMask, bloco de 12 s, rollup com 7 dias de desafio,
+// APY de validador, slashing, bonus DeFi e um modulo de "machine learning".
+// Cada resposta aqui tem de bater com o codigo; na duvida, nao responda.
 
 export interface IntentPattern {
     id: string;
@@ -17,11 +20,11 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
     // --- IDENTITY & PERSONA ---
     {
         id: 'identity',
-        description: 'Who are you?',
-        keywords: ['who are you', 'quem é você', 'what is this', 'o que é isso'],
+        description: "Who are you?",
+        keywords: ["who are you", "quem é você", "quem e voce", "what are you", "your name", "seu nome"],
         response: [
-            "I am Sentinel AI (V3.0 Local), the guardian of FaucetChain. I run directly on your node to ensure low-latency consensus monitoring.",
-            "Eu sou o Sentinel AI. Minha lógica executa localmente neste navegador, garantindo soberania total sobre seus dados e interações com a rede."
+            "I answer questions about FaucetChain from its own documentation, here in your browser. I am a set of written answers matched to keywords, not a model, and I cannot move tokens or change the network.",
+            "Eu respondo perguntas sobre a FaucetChain a partir da documentação dela, aqui no seu navegador. Sou um conjunto de respostas escritas, escolhidas por palavras-chave, não um modelo, e não consigo mover tokens nem mudar a rede."
         ]
     },
     {
@@ -37,62 +40,35 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
     // --- ACTIONS (FAUCET & SIMULATION) ---
     {
         id: 'faucet_request',
-        description: 'User asks for tokens',
-        keywords: ['faucet', 'mint', 'token', 'coins', 'drop', 'minta', 'moeda', 'dinheiro'],
+        description: "Asks the chat to mint",
+        keywords: ["mint", "mintar", "send me tokens", "me envie tokens", "give me tokens", "cunhar"],
         action: 'MINT_TOKENS',
         response: [
-            "Executing 'mint_test_tokens' protocol... Assets incoming.",
-            "Iniciando protocolo de emissão de Mérito. Tokens enviados para sua carteira de teste."
+            "I can't mint tokens.",
+            "Eu não consigo cunhar tokens."
         ]
     },
     {
         id: 'stress_test',
-        description: 'Trigger Anomalies',
-        keywords: ['anomaly', 'stress', 'congestion', 'crash', 'attack', 'anomalia', 'congestionamento', 'ataque', 'validator drop', 'queda de validadores', 'validadores caíram', 'validator_drop'],
+        description: "Asks the chat to simulate load",
+        keywords: ["stress test", "simulate congestion", "simular congestionamento", "teste de estresse", "validator drop"],
         action: 'TRIGGER_ANOMALY',
         response: [
-            "Initiating Stress Test Sequence: CONGESTION. Prepare for heavy load.",
-            "Simulação de Anomalia ativada. Monitorando estabilidade da rede sob estresse..."
+            "I can't change the network.",
+            "Eu não consigo mudar a rede."
         ]
     },
 
     // --- TECHNICAL CONCEPTS ---
-    {
-        id: 'consensus_explain',
-        description: 'Explain PoC/PoS',
-        keywords: ['consensus', 'poc', 'pos', 'proof', 'carrier', 'consenso', 'híbrido'],
-        response: [
-            "FaucetChain uses a Hybrid Consensus: Proof of Carrier (PoC) validates data transmission, while Proof of Stake (PoS) secures the ledger. It's the best of both worlds.",
-            "Utilizamos Consenso Híbrido. O PoC (Proof of Carrier) garante a entrega de dados, enquanto o PoS protege a integridade financeira. Eficiência máxima."
-        ]
-    },
 
     // --- PROTOCOL ARCHITECTURE ---
     {
-        id: 'architecture',
-        description: 'FaucetChain Architecture',
-        keywords: ['architecture', 'arquitetura', 'structure', 'estrutura', 'design', 'how it works', 'como funciona'],
-        response: [
-            "FaucetChain V3 is a Hybrid PoS+PoC Layer-1 blockchain with its own native consensus. It uses Merit-based block production where validators earn weight through uptime and traffic routing (Proof of Carrier).",
-            "A arquitetura da FaucetChain combina PoS (segurança financeira) com PoC (validação de tráfego). Cada bloco é produzido e finalizado nativamente na rede FaucetChain para garantir imutabilidade."
-        ]
-    },
-    {
-        id: 'validators',
-        description: 'Validator System',
-        keywords: ['validator', 'validador', 'node', 'nó', 'staking', 'stake'],
-        response: [
-            "Currently {{activeValidators}} validators are active. Validators must stake $CLAIM tokens and maintain >99% uptime to earn maximum Merit Weight. The PoC (Proof of Claim (PoC)) calculates consensus power using: base_weight = ln(stake) * uptime_bonus * participation_score.",
-            "Temos {{activeValidators}} validadores ativos. Para se tornar validador, você precisa fazer stake de tokens $CLAIM e manter alta disponibilidade. O peso de voto é calculado logaritmicamente para evitar centralização."
-        ]
-    },
-    {
         id: 'faucet_mechanics',
-        description: 'V3 Merit Faucet',
-        keywords: ['faucet', 'claim', 'reivindicar', 'how to claim', 'como reivindicar', 'merit'],
+        description: "How the built-in Merit Faucet works",
+        keywords: ["merit faucet", "built-in faucet", "torneira interna", "how to claim", "como clamar", "como fazer claim", "puzzle", "desafio"],
         response: [
-            "The V3 Merit Faucet allows you to claim test $CLAIM tokens. Each claim triggers a FaucetChain transaction to generate a verifiable hash. This creates a new 'Application Block' in the chain.",
-            "O Faucet V3 permite reivindicar tokens de teste. Cada Claim gera uma transação na rede FaucetChain que serve como prova criptográfica. Isso adiciona um novo bloco à chain."
+            "The Merit Faucet pays test $CLAIM. Each claim carries a keccak puzzle tied to the chain tip, solved in your browser, so claims cannot be precomputed in bulk. One claim per wallet per hour, at most five wallets per IP in an hour, and the puzzle gets harder as the network's 2,000 $CLAIM hourly quota is spent.",
+            "A Merit Faucet paga $CLAIM de teste. Cada claim carrega um desafio keccak amarrado à ponta da cadeia, resolvido no seu navegador, então não dá para calcular claims em massa. Um claim por carteira por hora, no máximo cinco carteiras por IP por hora, e o desafio fica mais difícil conforme a cota de 2.000 $CLAIM por hora da rede é gasta."
         ]
     },
     {
@@ -102,15 +78,6 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         response: [
             "$CLAIM has a fixed supply of 99,000,000 and nothing mints beyond it. Emission is capped per hour, not per block: the network releases at most 2,000 $CLAIM an hour across every faucet connected to it, and the claim puzzle gets harder as that hour's quota is spent. There is no halving — the hourly ceiling is the emission control. Claiming and receiving cost nothing; withdrawing to Solana costs a fee a relayer pays.",
             "O $CLAIM tem supply fixo de 99.000.000 e nada emite além disso. A emissão é limitada por hora, não por bloco: a rede libera no máximo 2.000 $CLAIM por hora somando todas as torneiras conectadas, e o desafio do claim fica mais difícil conforme a cota da hora é gasta. Não há halving — o teto horário é o controle de emissão. Claim e recebimento não custam nada; sacar para a Solana custa uma taxa que um relayer paga."
-        ]
-    },
-    {
-        id: 'hybrid_consensus',
-        description: 'Hybrid Consensus Deep Dive',
-        keywords: ['hybrid', 'híbrido', 'consensus mechanism', 'mecanismo de consenso', 'poc+pos'],
-        response: [
-            "Our Hybrid Consensus combines PoS (financial security) with PoC (data transmission validation). Consensus power = (traffic_volume * 0.6) + (stake_amount * 0.4). This ensures both capital commitment and network utility.",
-            "O consenso híbrido equilibra segurança financeira (PoS) com utilidade de rede (PoC). A fórmula é: poder_consenso = (volume_tráfego * 0.6) + (stake * 0.4). Isso previne ataques Sybil e incentiva participação ativa."
         ]
     },
     {
@@ -132,21 +99,12 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         ]
     },
     {
-        id: 'block_production',
-        description: 'Block Production',
-        keywords: ['block production', 'produção de bloco', 'block time', 'tempo de bloco', 'finality'],
-        response: [
-            "Target block time: 12 seconds (matching Ethereum). Current block: #{{blockHeight}}. Blocks achieve soft finality instantly and hard finality after L1 checkpoint (~20 minutes).",
-            "Tempo alvo de bloco: 12 segundos. Bloco atual: #{{blockHeight}}. Finalidade suave é instantânea, finalidade definitiva ocorre após checkpoint na L1 (~20 minutos)."
-        ]
-    },
-    {
         id: 'wallet_connection',
-        description: 'Wallet and MetaMask',
-        keywords: ['wallet', 'carteira', 'metamask', 'connect', 'conectar', 'login'],
+        description: "How to sign in",
+        keywords: ["connect", "conectar", "wallet", "carteira", "login", "entrar", "phantom", "sign in"],
         response: [
-            "Connect your MetaMask wallet to interact with FaucetChain. We use our own native network for transaction processing. Make sure you have CLAIM tokens for gas fees.",
-            "Conecte sua carteira MetaMask para interagir com a FaucetChain. Usamos nossa rede nativa para processamento de transações. Certifique-se de ter tokens CLAIM para taxas de gás."
+            "Sign in with Phantom, with Google or with an email. To withdraw a campaign reward you link a Solana wallet, because the payout lands there and only that wallet can sign for it. Claiming and receiving cost you nothing.",
+            "Entre com a Phantom, com o Google ou com um e-mail. Para sacar uma recompensa de campanha você vincula uma carteira Solana, porque o pagamento cai nela e só ela consegue assinar o saque. Clamar e receber não custam nada."
         ]
     },
     {
@@ -160,33 +118,6 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
     },
 
     // --- ADVANCED ARCHITECTURE & AUTONOMY ---
-    {
-        id: 'layer2_scaling',
-        description: 'Layer 2 Scaling Strategy',
-        keywords: ['layer 2', 'l2', 'scaling', 'escalabilidade', 'rollup', 'scale'],
-        response: [
-            "FaucetChain uses its native L1 consensus with optimistic rollup-style batching. Transactions are processed on-chain with fraud proofs allowing a 7-day challenge period. This achieves high throughput while maintaining security.",
-            "FaucetChain usa consenso L1 nativo com batching estilo rollup otimista. Transações são processadas on-chain com provas de fraude permitindo período de desafio de 7 dias. Isso garante alta capacidade mantendo segurança total."
-        ]
-    },
-    {
-        id: 'validator_economics',
-        description: 'Validator Economics Deep Dive',
-        keywords: ['validator economics', 'economia validador', 'incentives', 'incentivos', 'roi', 'return'],
-        response: [
-            "Validator ROI calculation: base_reward = (100 tokens/block * 0.4) + (tx_fees * 0.5). With {{activeValidators}} validators, expected annual return: ~15-20% APY. Slashing penalty for downtime: 1% stake per hour offline. This creates strong uptime incentives.",
-            "Cálculo de ROI do validador: recompensa_base = (100 tokens/bloco * 0.4) + (taxas_tx * 0.5). Com {{activeValidators}} validadores, retorno anual esperado: ~15-20% APY. Penalidade por downtime: 1% stake por hora offline."
-        ]
-    },
-    {
-        id: 'why_hybrid_consensus',
-        description: 'Design Decision: Why Hybrid',
-        keywords: ['why hybrid', 'porque híbrido', 'design decision', 'decisão de design', 'why poc'],
-        response: [
-            "We chose Hybrid PoS+PoC to solve the 'Nothing at Stake' problem while incentivizing real network utility. Pure PoS allows validators to vote on multiple forks without cost. PoC adds a physical constraint: validators must route actual data packets, making Sybil attacks expensive.",
-            "Escolhemos PoS+PoC híbrido para resolver o problema 'Nothing at Stake' e incentivar utilidade real. PoS puro permite validadores votarem em múltiplos forks sem custo. PoC adiciona restrição física: validadores precisam rotear pacotes reais, tornando ataques Sybil caros."
-        ]
-    },
     {
         id: 'optimize_performance',
         description: 'Performance Optimization',
@@ -214,77 +145,35 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
             "O trabalho realmente aberto: uma revisão independente do programa Solana, que ninguém que o escreveu pode fazer; uma campanha financiada de verdade para uma torneira parceira pagar de um vault que qualquer pessoa consegue ler; dar trabalho ao selador, que hoje é pago por presença e eleito para selar uma fila vazia; e decidir o que o $CLAIM compra, porque um token sem uso e sem mercado não é nem uma coisa nem outra."
         ]
     },
-    {
-        id: 'explain_merit_weight',
-        description: 'Merit Weight Calculation',
-        keywords: ['merit weight', 'peso mérito', 'how calculated', 'como calculado', 'voting power'],
-        response: [
-            "Merit Weight formula: MW = ln(stake_amount) * uptime_coefficient * traffic_volume. Logarithmic stake prevents whale dominance. Uptime coefficient: 1.0 for 99%+, 0.5 for 95-99%, 0.1 for <95%. Traffic volume measured in GB/day routed through validator node.",
-            "Fórmula do Peso de Mérito: PM = ln(stake) * coef_uptime * volume_tráfego. Stake logarítmico previne dominância de baleias. Coeficiente uptime: 1.0 para 99%+, 0.5 para 95-99%, 0.1 para <95%. Volume medido em GB/dia roteado pelo nó."
-        ]
-    },
 
     // --- FRAUD DETECTION & ML ---
     {
         id: 'fraud_detection',
-        description: 'Fraud Detection System',
-        keywords: ['fraud', 'fraude', 'sybil', 'bot', 'detection', 'detecção', 'ml', 'machine learning'],
+        description: "How farming is held back",
+        keywords: ["fraud", "fraude", "sybil", "bot", "farm", "farming", "abuse", "abuso"],
         response: [
-            "FaucetChain uses the SentinelV3Engine (Python ML module) for fraud detection. It analyzes claim patterns using: (1) Temporal analysis (claims <60s apart = suspicious), (2) Gas price uniformity detection, (3) Compression-based pattern matching. Flagged nodes receive 0.1x multiplier penalty.",
-            "Usamos o SentinelV3Engine (módulo ML em Python) para detectar fraudes. Analisa padrões de claim usando: (1) Análise temporal (claims <60s = suspeito), (2) Detecção de uniformidade de gás, (3) Matching de padrões via compressão. Nós suspeitos recebem penalidade de 0.1x."
-        ]
-    },
-    {
-        id: 'bonus_system',
-        description: 'Validator Bonus Calculation',
-        keywords: ['bonus', 'bônus', 'reward', 'recompensa', 'defi activity', 'atividade defi'],
-        response: [
-            "Validators earn bonus multipliers (1.0x to 2.5x) based on DeFi activity: Liquidity provision (30% weight), Protocol diversity (20%), Transaction volume (30%), Uptime (20%). Example: $50k liquidity + 3 protocols + $100k volume + 99.5% uptime = ~1.8x multiplier.",
-            "Validadores ganham multiplicadores de bônus (1.0x a 2.5x) baseado em atividade DeFi: Provisão de liquidez (peso 30%), Diversidade de protocolos (20%), Volume de transações (30%), Uptime (20%). Exemplo: $50k liquidez + 3 protocolos + $100k volume + 99.5% uptime = ~1.8x."
-        ]
-    },
-    {
-        id: 'ml_architecture',
-        description: 'Machine Learning Architecture',
-        keywords: ['ml architecture', 'arquitetura ml', 'ai module', 'módulo ia', 'python'],
-        response: [
-            "The ML module (FraudAndBonusDetector.py) runs alongside the TypeScript frontend. It uses: (1) FraudDetector class for Sybil pattern recognition via compression ratios, (2) BonusCalculator for DeFi activity scoring, (3) SentinelV3Engine for orchestration. Results are logged for network health monitoring.",
-            "O módulo ML (FraudAndBonusDetector.py) roda junto ao frontend TypeScript. Usa: (1) Classe FraudDetector para reconhecimento de padrões Sybil via taxa de compressão, (2) BonusCalculator para scoring de atividade DeFi, (3) SentinelV3Engine para orquestração. Resultados são logados para monitoramento de saúde da rede."
+            "What holds farming back is arithmetic, not a classifier: one claim per wallet per hour, at most five wallets per IP in an hour, the 2,000 $CLAIM hourly ceiling, and a puzzle that costs more as the hour fills. On top of that the server refuses a claim if two of the wallet's last twenty came less than a minute apart. There is no machine learning in this path.",
+            "O que segura o farm é aritmética, não um classificador: um claim por carteira por hora, no máximo cinco carteiras por IP por hora, o teto de 2.000 $CLAIM por hora e um desafio que fica mais caro conforme a hora enche. Além disso o servidor recusa o claim se dois dos últimos vinte da carteira vieram com menos de um minuto de diferença. Não há aprendizado de máquina nesse caminho."
         ]
     },
 
     // --- LOCAL AI CORE & NEURAL BEHAVIOR ---
     {
         id: 'local_ai_core',
-        description: 'Explain Local Sentinel AI Core',
-        keywords: [
-            'local ai',
-            'local core',
-            'sentinel local',
-            'núcleo local',
-            'processamento local',
-            'offline ai',
-            'sem nuvem'
-        ],
+        description: "How this chat works",
+        keywords: ["local ai", "local core", "how do you work", "como você funciona", "offline", "sem nuvem", "llm"],
         response: [
-            "The Sentinel AI Local Core runs entirely in your browser, using a rule-based neural intent map instead of remote LLM calls. Each intent is encoded in the local Knowledge Base and combined with live network metrics (TPS, gas, validators) to generate responses with near-zero latency.",
-            "O Núcleo Local da Sentinel AI roda 100% no seu navegador, usando um mapa neural de intenções baseado em regras em vez de chamadas para LLMs remotos. Cada intenção é codificada na Knowledge Base local e combinada com métricas vivas da rede (TPS, gás, validadores) para gerar respostas com latência quase zero."
+            "This chat runs in your browser and calls no AI service. It matches your question against written answers by keyword, fills in live numbers like the block height, and when nothing matches well it searches the project documentation on the server.",
+            "Este chat roda no seu navegador e não chama nenhum serviço de IA. Ele compara sua pergunta com respostas escritas por palavra-chave, preenche números ao vivo como a altura do bloco e, quando nada combina bem, busca na documentação do projeto no servidor."
         ]
     },
     {
         id: 'low_tps_diagnosis',
-        description: 'Diagnose Low TPS or Throughput',
-        keywords: [
-            'low tps',
-            'baixa tps',
-            'throughput baixo',
-            'poucas transações',
-            'slow network',
-            'rede lenta'
-        ],
+        description: "Why TPS reads low",
+        keywords: ["low tps", "baixa tps", "tps", "throughput", "rede lenta", "slow network"],
         response: [
-            "Current TPS is {{tps}}. Low throughput usually means either: (1) Few active users, (2) Validators not propagating traffic, or (3) Misconfigured gas prices discouraging transactions. You can simulate stress via the anomaly tools to validate consensus robustness under higher load.",
-            "A TPS atual é {{tps}}. Throughput baixo geralmente indica: (1) Poucos usuários ativos, (2) Validadores sem propagar tráfego, ou (3) Preços de gás desalinhados que desincentivam transações. Você pode simular estresse via as ferramentas de anomalia para validar a robustez do consenso sob carga mais alta."
+            "Current TPS is {{tps}}. A low number here is expected: partner faucets credit their users off this chain's blocks, and what carries value settles on Solana in one transaction per batch. TPS counts the appchain's own blocks only.",
+            "A TPS atual é {{tps}}. Um número baixo aqui é esperado: as torneiras parceiras creditam seus usuários fora dos blocos desta cadeia, e o que carrega valor liquida na Solana em uma transação por lote. A TPS conta só os blocos da própria appchain."
         ]
     },
     {
@@ -301,38 +190,6 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
         response: [
             "FaucetChain has no halving. An earlier draft described one and it was never built; what limits emission is a hard ceiling of 2,000 $CLAIM an hour across the whole network, against a fixed supply of 99,000,000. Two things follow: a botnet cannot drain a day of emission in ten minutes, and the cost of attacking the network scales with time rather than with hardware. Within the hour the claim puzzle gets harder as the quota is spent, so the cheapest claims go to whoever arrives first.",
             "A FaucetChain não tem halving. Uma versão antiga do papel descrevia um e ele nunca foi construído; o que limita a emissão é um teto rígido de 2.000 $CLAIM por hora para a rede inteira, contra um supply fixo de 99.000.000. Daí saem duas coisas: uma botnet não drena a emissão de um dia em dez minutos, e o custo de atacar a rede cresce com o tempo em vez de crescer com hardware. Dentro da hora o desafio do claim fica mais difícil conforme a cota é gasta, então os claims mais baratos vão para quem chega primeiro."
-        ]
-    },
-    {
-        id: 'run_validator_node',
-        description: 'How to Run a Validator Node',
-        keywords: [
-            'run validator',
-            'rodar validador',
-            'como ser validador',
-            'start node',
-            'iniciar nó',
-            'become validator'
-        ],
-        response: [
-            "To run a validator you need: (1) A FaucetChain-compatible client, (2) Sufficient $CLAIM staked, and (3) Stable connectivity. Operational best practice: use a Linux server with monitoring, automatic restarts, and alerts for latency or missed slots.",
-            "Para operar um validador você precisa de: (1) Um cliente compatível com FaucetChain, (2) Quantidade suficiente de $CLAIM em stake e (3) Conectividade estável. Boas práticas: usar um servidor Linux com monitoramento, auto‑restart e alertas para latência ou slots perdidos."
-        ]
-    },
-    {
-        id: 'governance_hybrid',
-        description: 'Hybrid Governance and Parameter Changes',
-        keywords: [
-            'governance',
-            'governança',
-            'votação',
-            'voting',
-            'mudar parâmetros',
-            'change parameters'
-        ],
-        response: [
-            "Hybrid governance in FaucetChain mixes stake weight and merit participation. Critical parameters like the hourly emission ceiling, the claim difficulty and slashing rules can be changed only through on-chain proposals where both economic weight and protocol usage are taken into account.",
-            "A governança híbrida na FaucetChain mistura peso de stake com participação em mérito. Parâmetros críticos como o teto horario de emissao, a dificuldade do claim e as regras de slashing só podem ser alterados via propostas on-chain onde tanto o peso econômico quanto o uso real do protocolo são considerados."
         ]
     },
 
@@ -378,12 +235,75 @@ export const KNOWLEDGE_BASE: IntentPattern[] = [
 
     // --- DEFAULT FALLBACK ---
     {
-        id: 'help',
-        description: 'Help / Unknown',
-        keywords: ['help', 'ajuda', 'socorro', 'options'],
+        id: 'what_is',
+        description: "What FaucetChain is",
+        keywords: ["what is faucetchain", "o que é a faucetchain", "o que e a faucetchain", "what does it do", "o que faz", "faucetchain"],
         response: [
-            "Systems operational. You can ask me about: 'Network Status', 'Consensus', or request 'Mint Tokens' for testing.",
-            "Sistemas operacionais. Você pode perguntar sobre: 'Status da Rede', 'Consenso', ou pedir para 'Mintar Tokens'."
+            "FaucetChain is a micro-distribution rail. Sponsors fund a campaign vault on Solana, partner faucets credit their users here for each claim, and the credits are settled on Solana in batches, where each user withdraws with their own wallet.",
+            "A FaucetChain é um trilho de micro-distribuição. Patrocinadores financiam o cofre de uma campanha na Solana, torneiras parceiras creditam seus usuários aqui a cada claim, e os créditos são liquidados na Solana em lotes, onde cada usuário saca com a própria carteira."
         ]
-    }
+    },
+    {
+        id: 'settlement',
+        description: "How settlement on Solana works",
+        keywords: ["settlement", "settle", "liquidação", "liquidacao", "liquidar", "solana", "merkle", "root", "raiz", "batch", "lote", "vault", "cofre"],
+        response: [
+            "Credits pile up on the appchain. When a batch closes, every wallet's total becomes one leaf of a Merkle tree, and its root is published to the FaucetChain program on Solana. The program refuses a root the campaign vault cannot cover, so the reserve is checked on Solana, not reported by us.",
+            "Os créditos se acumulam na appchain. Quando um lote fecha, o total de cada carteira vira uma folha de uma árvore de Merkle, e a raiz é publicada no programa da FaucetChain na Solana. O programa recusa uma raiz que o cofre da campanha não cubra, então a reserva é conferida na Solana, não informada por nós."
+        ]
+    },
+    {
+        id: 'withdraw',
+        description: "How to withdraw",
+        keywords: ["withdraw", "saque", "sacar", "retirar", "payout", "pagamento", "receive", "receber"],
+        response: [
+            "After your batch's root is on Solana, open Solana Payouts, signed in. You prove your leaf is in that root and sign with your linked Solana wallet; the tokens leave the campaign vault. A receipt blocks a second withdrawal, and the relayer can pay the fee so you need no SOL. Below the campaign's minimum, your credit waits for the next batch.",
+            "Depois que a raiz do seu lote está na Solana, abra Solana Payouts com login. Você prova que sua folha está naquela raiz e assina com a carteira Solana vinculada; os tokens saem do cofre da campanha. Um recibo impede um segundo saque, e o relayer pode pagar a taxa, então você não precisa de SOL. Abaixo do mínimo da campanha, seu crédito espera o próximo lote."
+        ]
+    },
+    {
+        id: 'connect_faucet',
+        description: "How a partner faucet integrates",
+        keywords: ["connect a faucet", "conectar torneira", "conectar uma torneira", "integrate", "integrar", "integração", "api key", "partner", "parceira", "my faucet", "minha torneira"],
+        response: [
+            "A faucet registers once and gets an API key, shown once. Then it makes one HTTP call per claim, after its own payout is recorded, so nothing it owes a user waits on us. Time out after four seconds and log the error instead of stopping. The FaucetHub API screen has the requests, and 'npx skills add Zarsea/faucetchain' gives your coding agent the whole integration.",
+            "Uma torneira se registra uma vez e recebe uma chave de API, mostrada uma vez só. Depois faz uma chamada HTTP por claim, depois de registrar o próprio pagamento, então nada que ela deve a um usuário espera por nós. Use timeout de quatro segundos e registre o erro em vez de parar. A tela FaucetHub API tem as requisições, e 'npx skills add Zarsea/faucetchain' entrega a integração inteira ao seu agente."
+        ]
+    },
+    {
+        id: 'campaigns',
+        description: "What a campaign is",
+        keywords: ["campaign", "campanha", "sponsor", "patrocinador", "usdct", "adst", "agtt"],
+        response: [
+            "A campaign is a sponsor's token budget, held in its own vault on Solana. The sponsor sets a monthly cap and a minimum withdrawal; each claim on an enrolled faucet drips part of the budget, 80 percent to the user and 20 to the treasury.",
+            "Uma campanha é o orçamento em token de um patrocinador, guardado num cofre próprio na Solana. O patrocinador define um teto mensal e um saque mínimo; cada claim numa torneira inscrita libera uma parte do orçamento, 80% para o usuário e 20% para a tesouraria."
+        ]
+    },
+    {
+        id: 'consensus',
+        description: "How blocks are sealed",
+        keywords: ["consensus", "consenso", "seal", "selar", "sealer", "validator", "validador", "proof of claim", "stake weight", "architecture", "arquitetura"],
+        response: [
+            "The appchain seals blocks by a stake-weighted draw seeded by the parent hash. A node's weight is 1 + min(stake, cap): the +1 keeps a node with no capital in the running, and the cap stops whoever locks the most from sealing every round. Nodes are paid by uptime share. Anything that carries value is final on Solana, not here.",
+            "A appchain sela blocos por um sorteio ponderado por stake, com semente no hash do bloco anterior. O peso de um nó é 1 + min(stake, teto): o +1 mantém na disputa um nó sem capital, e o teto impede quem trava mais de selar toda rodada. Os nós são pagos pela fatia de tempo online. O que carrega valor tem finalidade na Solana, não aqui."
+        ]
+    },
+    {
+        id: 'governance',
+        description: "Governance",
+        keywords: ["governance", "governança", "governanca", "vote", "votar", "proposal", "proposta", "dao"],
+        response: [
+            "Governance is designed, not built. Today the operator sets parameters like the hourly ceiling and the sealer cap, and they live in the server's configuration.",
+            "A governança está desenhada, não construída. Hoje o operador define parâmetros como o teto por hora e o teto do selador, e eles ficam na configuração do servidor."
+        ]
+    },
+    {
+        id: 'help',
+        description: "Help / Unknown",
+        keywords: ["help", "ajuda", "socorro", "options", "opções"],
+        response: [
+            "You can ask how settlement on Solana works, how to withdraw, how to connect a faucet, what a campaign is, how the Merit Faucet works, or the network status.",
+            "Você pode perguntar como funciona a liquidação na Solana, como sacar, como conectar uma torneira, o que é uma campanha, como funciona a Merit Faucet, ou o status da rede."
+        ]
+    },
 ];

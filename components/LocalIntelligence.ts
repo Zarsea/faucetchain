@@ -43,22 +43,31 @@ export class LocalIntelligence {
         const isPortuguese = portugueseKeywords.some(keyword => normalizedInput.includes(keyword));
 
         // 1. Find Matching Intent and compute confidence
-        let best: { pattern: IntentPattern; confidence: number } | null = null;
-
-        for (const pattern of KNOWLEDGE_BASE) {
-            let confidence = 0;
-            if (pattern.regex && pattern.regex.test(normalizedInput)) {
-                confidence = 1;
-            } else {
-                const matchingKeywords = pattern.keywords.filter(k => searchText.includes(k));
-                if (matchingKeywords.length > 0) {
-                    confidence = Math.min(1, 0.3 + (matchingKeywords.length / pattern.keywords.length) * 0.7);
+        //
+        // Tres defeitos deixavam o chat responder a pergunta errada:
+        //  - a mensagem anterior, inclusive a resposta do proprio chat, entrava
+        //    na busca junto com a pergunta; a saudacao fala em "faucet", e
+        //    "how does settlement work?" caia na resposta da torneira;
+        //  - a nota era a FRACAO de palavras-chave casadas, entao uma entrada
+        //    com muitas palavras perdia para uma com poucas;
+        //  - `includes` casava pedaco de palavra: "bot" dentro de "both".
+        // Agora a pergunta decide sozinha, conta quantas palavras bateram (a
+        // mais longa desempata) e so olha o contexto se nada bateu.
+        const casa = (texto: string, k: string) =>
+            new RegExp(`(^|[^\\p{L}\\p{N}])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}\\p{N}])`, 'u').test(texto);
+        const melhor = (texto: string) => {
+            let achado: { pattern: IntentPattern; confidence: number; score: number } | null = null;
+            for (const pattern of KNOWLEDGE_BASE) {
+                const batidas = pattern.keywords.filter(k => casa(texto, k));
+                if (!batidas.length) continue;
+                const score = batidas.length * 1000 + Math.max(...batidas.map(k => k.length));
+                if (!achado || score > achado.score) {
+                    achado = { pattern, score, confidence: Math.min(1, 0.4 + 0.2 * (batidas.length - 1)) };
                 }
             }
-            if (confidence > 0 && (!best || confidence > best.confidence)) {
-                best = { pattern, confidence };
-            }
-        }
+            return achado;
+        };
+        const best = melhor(normalizedInput) ?? (contextText ? melhor(searchText) : null);
 
         const pattern = best?.pattern ?? KNOWLEDGE_BASE.find(p => p.id === 'help')!;
         const confidence = best?.confidence ?? 0;

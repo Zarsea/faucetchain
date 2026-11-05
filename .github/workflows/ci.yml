@@ -120,6 +120,9 @@ jobs:
       - name: A chart title names the bucket its own axis draws
         run: node test_bucket_legend.mjs
 
+      - name: The chat answers the question that was asked, and nothing it says is invented
+        run: node test_chat_answers.mjs
+
       # Um comentario JSX em posicao de atributo fazia o tsc parar no primeiro
       # arquivo, e parar no primeiro arquivo e nao olhar nenhum outro. Enquanto
       # isso durou, `tri` fora de escopo num componente passou para o repositorio

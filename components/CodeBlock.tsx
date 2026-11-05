@@ -18,7 +18,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ code, language, title }) =
                 </h4>
             </div>
             <div className="p-4">
-                <pre className="text-sm overflow-x-auto font-mono text-brand-secondary/90 mb-4 scrollbar-thin scrollbar-thumb-brand-border scrollbar-track-transparent">
+                <pre className="code-scroll text-sm overflow-x-auto font-mono text-brand-secondary/90 pb-3">
                     <code>{code.trim()}</code>
                 </pre>
             </div>
