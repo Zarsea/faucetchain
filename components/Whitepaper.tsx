@@ -82,18 +82,22 @@ export const Whitepaper: React.FC = () => {
                         '13. Roadmap',
                         '14. Conclusion',
                     ].map((item, i) => (
-                        <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-bg/40 transition-colors group cursor-default">
+                        // Era uma lista de quatorze titulos que nao levava a lugar nenhum,
+                        // no topo de uma pagina de quase 10 mil pixels.
+                        <a key={i} href={`#wp-${i + 1}`}
+                           onClick={(e) => { e.preventDefault(); const alvo = document.getElementById(`wp-${i + 1}`); if (alvo) window.scrollTo({ top: alvo.getBoundingClientRect().top + window.scrollY - 104, behavior: 'smooth' }); }}
+                           className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-bg/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-primary transition-colors group">
                             <div className="w-6 h-6 rounded-full bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-[10px] font-black text-brand-primary group-hover:bg-brand-primary/20 transition-colors">
                                 {i + 1}
                             </div>
                             <span className="text-sm text-brand-secondary group-hover:text-white transition-colors">{item.replace(/^\d+\.\s*/, '')}</span>
-                        </div>
+                        </a>
                     ))}
                 </div>
             </SectionCard>
 
             {/* 1. ABSTRACT */}
-            <SectionCard title="1. Abstract" icon={<DocumentTextIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-1" title="1. Abstract" icon={<DocumentTextIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     This paper introduces <strong className="text-brand-secondary">FaucetChain</strong>, a high-throughput
                     Layer-1 blockchain designed to address the persistent challenges of centralization, energy waste, and
@@ -116,7 +120,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 2. INTRODUCTION */}
-            <SectionCard title="2. Introduction & Motivation" icon={<DocumentTextIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-2" title="2. Introduction & Motivation" icon={<DocumentTextIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     The blockchain landscape faces a fundamental tension: mechanisms that achieve decentralization and security
                     often sacrifice scalability and fairness. <strong className="text-brand-secondary">Proof-of-Work (PoW)</strong>, while
@@ -147,7 +151,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 3. HYBRID CONSENSUS */}
-            <SectionCard title="3. Hybrid Consensus Mechanism" icon={<CpuChipIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-3" title="3. Hybrid Consensus Mechanism" icon={<CpuChipIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain's consensus mechanism operates on a three-pillar architecture where a validator's influence
                     is determined by a composite score reflecting their historical merit contributions (PoC), their staked
@@ -170,7 +174,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 4. PROOF OF CLAIM */}
-            <SectionCard title="4. Proof of Claim (PoC)" icon={<SparklesIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-4" title="4. Proof of Claim (PoC)" icon={<SparklesIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     Proof of Claim (PoC) is FaucetChain's novel consensus primitive. Unlike Proof-of-Work
                     which proves computational effort, or Proof-of-Stake which proves capital commitment, PoC proves
@@ -200,7 +204,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 5. SEALER SELECTION */}
-            <SectionCard title="5. Choosing who seals the block" icon={<CpuChipIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-5" title="5. Choosing who seals the block" icon={<CpuChipIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     Each round picks one sealer from the miners currently online, weighted by stake.
                     The draw is <strong className="text-brand-secondary">deterministic and reproducible</strong>: it is
@@ -224,7 +228,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 6. EPOCH EMISSION */}
-            <SectionCard title="6. Epoch-Based Token Emission" icon={<CubeIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-6" title="6. Epoch-Based Token Emission" icon={<CubeIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain implements a unique <strong className="text-brand-secondary">Hourly Epoch System</strong> for
                     token emission control. Unlike continuous emission models, each hour constitutes an "epoch" with a
@@ -267,7 +271,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 7. TOKENOMICS */}
-            <SectionCard title="7. Tokenomics ($CLAIM)" icon={<CreditCardIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-7" title="7. Tokenomics ($CLAIM)" icon={<CreditCardIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     The native token <strong className="text-brand-secondary">$CLAIM</strong> serves as the fundamental unit of value
                     within the FaucetChain ecosystem. Its design follows a deflationary model inspired by Bitcoin's scarcity
@@ -304,7 +308,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 8. UTXO STAKING */}
-            <SectionCard title="8. UTXO Staking Vault" icon={<CubeIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-8" title="8. UTXO Staking Vault" icon={<CubeIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain uses a <strong className="text-brand-secondary">UTXO-style staking model</strong>, borrowing
                     from Bitcoin's Unspent Transaction Outputs rather than from a running account balance.
@@ -331,7 +335,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 9. SECURITY */}
-            <SectionCard title="9. Security & Sentinel AI" icon={<ShieldCheckIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-9" title="9. Security & Sentinel AI" icon={<ShieldCheckIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain's security model operates at three layers: <strong className="text-brand-secondary">economic security</strong> (PoS
                     slashing), <strong className="text-brand-secondary">behavioral security</strong> (Sentinel AI fraud detection),
@@ -381,7 +385,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 10. NETWORK ARCHITECTURE */}
-            <SectionCard title="10. Network Architecture" icon={<SignalIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-10" title="10. Network Architecture" icon={<SignalIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain's infrastructure follows a modular, layered architecture with clear separation of concerns:
                 </p>
@@ -407,7 +411,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 11. THE SOLANA SETTLEMENT PROGRAM */}
-            <SectionCard title="11. The Settlement Program on Solana" icon={<CubeIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-11" title="11. The Settlement Program on Solana" icon={<CubeIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed mb-4">
                     Custody of every partner budget lives in one Anchor program on Solana, at{' '}
                     <code className="text-brand-primary text-xs">64LW8DZcrttzaZ5RTTxAytfCGdb3QvDeTq5pUY7WBqSm</code>.
@@ -440,7 +444,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 12. GOVERNANCE */}
-            <SectionCard title="12. Governance — designed, not built" icon={<ChartBarIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-12" title="12. Governance — designed, not built" icon={<ChartBarIcon className="w-5 h-5" />}>
                 <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 text-[10px] font-black uppercase tracking-widest">
                     Not implemented yet
                 </div>
@@ -485,7 +489,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 13. ROADMAP */}
-            <SectionCard title="13. Roadmap" icon={<BeakerIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-13" title="13. Roadmap" icon={<BeakerIcon className="w-5 h-5" />}>
                 <div className="space-y-6 mt-2">
                     {[
                         { phase: 'Phase 1 — Distribution', status: 'COMPLETED', items: ['Proof of Claim with rising difficulty', 'Hourly quota of 2,000 $CLAIM', 'Per-IP wallet cap', 'Block indexer service', 'Explorer and appchain API'] },
@@ -531,7 +535,7 @@ export const Whitepaper: React.FC = () => {
             </SectionCard>
 
             {/* 14. CONCLUSION */}
-            <SectionCard title="14. Conclusion" icon={<DocumentTextIcon className="w-5 h-5" />}>
+            <SectionCard id="wp-14" title="14. Conclusion" icon={<DocumentTextIcon className="w-5 h-5" />}>
                 <p className="text-brand-muted leading-relaxed">
                     FaucetChain represents a fundamental rethinking of blockchain consensus — one where network influence
                     is earned through genuine participation rather than merely purchased through capital accumulation.

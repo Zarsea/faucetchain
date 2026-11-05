@@ -165,8 +165,12 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
     // projeto procura o supply. Um numero que nao veio e um travessao, nao uma
     // estimativa -- e o 14,5% ainda era o mesmo valor que o servidor devolvia
     // por omissao, entao a tela mentia igual com a API no ar ou fora dele.
-    const num = (v: number | null | undefined, fmt: (n: number) => string) =>
-        v === null || v === undefined ? '—' : fmt(v);
+    // O travessao, no tamanho 4xl do numero, lia como uma barrinha decorativa.
+    // Escrito por extenso e no tamanho do texto, ninguem confunde com um valor.
+    const num = (v: number | null | undefined, fmt: (n: number) => string): React.ReactNode =>
+        v === null || v === undefined
+            ? <span className="text-sm font-semibold text-brand-muted">{tri('No data', 'Sem dados', 'Sin datos')}</span>
+            : fmt(v);
     const apy = num(vault?.stakingApy, n => n + '%');
     const burned = num(vault?.totalBurned, n => (n / 1000000).toFixed(2) + 'M');
     const circ = num(vault?.circulatingSupply, n => (n / 1000000).toFixed(2) + 'M');

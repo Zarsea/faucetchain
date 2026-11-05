@@ -41,6 +41,12 @@ export const Header: React.FC<{ onNavigate?: (aba: string) => void; onOpenDapps?
             : estado === 'expired' ? 'auth.googleExpired' : 'auth.googleFailed'));
         setIsAuthModalOpen(true);
     }, []);
+    // Outras telas pedem para abrir o login sem conhecer o cabecalho.
+    useEffect(() => {
+        const abrir = () => setIsAuthModalOpen(true);
+        window.addEventListener('faucetchain:open-auth', abrir);
+        return () => window.removeEventListener('faucetchain:open-auth', abrir);
+    }, []);
     // Telefone sem provider injetado: nao e erro, e navegador errado.
     const [precisaDoPhantom, setPrecisaDoPhantom] = useState(false);
     const [authModalView, setAuthModalView] = useState<'MAIN' | 'EMAIL'>('MAIN');

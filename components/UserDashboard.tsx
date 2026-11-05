@@ -226,7 +226,7 @@ const StakingSummaryWidget: React.FC<{ userAddress: string; onNavigate: (tab: st
 
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({ onNavigate }) => {
-    const { tFn: t, lang } = useLanguage();
+    const { tFn: t, lang, tri } = useLanguage();
     const { userAddress, isConnected, authMethod } = useAuth();
     const { metrics } = useNetwork();
 
@@ -331,24 +331,56 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
     }, [fetchUserData, refreshTick]);
 
     if (!isConnected) {
+        // Era um quadro tracejado com "Access your ecosystem" e dois rotulos
+        // (rede, consenso). Nao dizia o que o produto faz nem levava a lugar
+        // nenhum, e e a primeira tela de quem chega.
+        const passos: [string, string][] = [
+            [tri('Click on a partner faucet', 'Clique numa torneira parceira', 'Clic en un grifo socio'),
+             tri('Every claim is credited here, free and instant.', 'Cada claim é creditado aqui, grátis e na hora.', 'Cada claim se acredita aquí, gratis e inmediato.')],
+            [tri('Settled on Solana', 'Liquidado na Solana', 'Liquidado en Solana'),
+             tri('Credits close into a batch whose root the Solana program checks against the vault the sponsor funded.', 'Os créditos fecham num lote cuja raiz o programa da Solana confere contra o cofre do patrocinador.', 'Los créditos se cierran en un lote cuya raíz el programa de Solana verifica contra la bóveda del patrocinador.')],
+            [tri('Withdrawn by you', 'Sacado por você', 'Retirado por ti'),
+             tri('You sign with your wallet and the tokens leave the vault. Nobody else can release them.', 'Você assina com a sua carteira e os tokens saem do cofre. Ninguém mais consegue liberá-los.', 'Firmas con tu billetera y los tokens salen de la bóveda. Nadie más puede liberarlos.')],
+        ];
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-brand-surface/20 border-2 border-dashed border-brand-border rounded-2xl text-center max-w-2xl mx-auto animate-fadeIn">
-                <div className="w-20 h-20 bg-brand-primary/10 rounded-full flex items-center justify-center mb-6">
-                    <WalletIcon className="w-10 h-10 text-brand-primary opacity-50" />
+            <div className="max-w-3xl mx-auto space-y-8 animate-fadeIn">
+                <div className="space-y-3">
+                    <h2 className="text-3xl md:text-4xl font-bold text-white tracking-tight text-balance">
+                        {tri('Faucet rewards that settle on Solana', 'Recompensas de torneira que liquidam na Solana', 'Recompensas de grifo que se liquidan en Solana')}
+                    </h2>
+                    <p className="text-brand-muted text-lg leading-relaxed max-w-2xl">
+                        {t('dashboard.welcomeDesc')}
+                    </p>
                 </div>
-                <h2 className="text-2xl font-bold text-white uppercase tracking-tighter">{t('dashboard.welcome')}</h2>
-                <p className="text-brand-muted mt-4 mb-8 leading-relaxed">
-                    {t('dashboard.welcomeDesc')}
-                </p>
-                <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
-                    <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
-                        <span className="text-[10px] font-bold text-brand-primary uppercase block">{t('dashboard.network')}</span>
-                        <span className="text-xs font-bold text-white">FaucetChain L1 · settles on Solana</span>
-                    </div>
-                    <div className="p-3 bg-brand-bg/50 border border-brand-border rounded-xl">
-                        <span className="text-[10px] font-bold text-brand-primary uppercase block">{t('dashboard.consensus')}</span>
-                        <span className="text-xs font-bold text-white">Proof of Claim</span>
-                    </div>
+                <ol className="grid gap-3 md:grid-cols-3">
+                    {passos.map(([titulo, desc], i) => (
+                        <li key={i} className="rounded-2xl border border-brand-border/50 bg-brand-surface/40 p-5">
+                            <span className="font-mono text-xs font-bold text-brand-primary">{String(i + 1).padStart(2, '0')}</span>
+                            <p className="mt-2 font-bold text-white">{titulo}</p>
+                            <p className="mt-1 text-sm text-brand-muted leading-relaxed">{desc}</p>
+                        </li>
+                    ))}
+                </ol>
+                <div className="flex flex-wrap gap-3">
+                    <button
+                        onClick={() => window.dispatchEvent(new Event('faucetchain:open-auth'))}
+                        className="inline-flex items-center gap-2 min-h-[44px] px-6 rounded-xl text-sm font-black bg-brand-primary text-brand-bg hover:bg-white transition-colors"
+                    >
+                        <WalletIcon className="w-4 h-4" />
+                        {t('wallet.connect')}
+                    </button>
+                    <button
+                        onClick={() => onNavigate('Settlement Ledger')}
+                        className="min-h-[44px] px-5 rounded-xl text-sm font-bold border border-brand-border text-brand-secondary hover:border-brand-primary/60 hover:text-white transition-colors"
+                    >
+                        {tri('See the settlement ledger', 'Ver o livro de liquidação', 'Ver el libro de liquidación')}
+                    </button>
+                    <button
+                        onClick={() => onNavigate('Faucet')}
+                        className="min-h-[44px] px-5 rounded-xl text-sm font-bold border border-brand-border text-brand-secondary hover:border-brand-primary/60 hover:text-white transition-colors"
+                    >
+                        {tri('Try the faucet', 'Testar a torneira', 'Probar el grifo')}
+                    </button>
                 </div>
             </div>
         );

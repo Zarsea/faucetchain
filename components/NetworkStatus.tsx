@@ -54,7 +54,7 @@ export const legendaDoBalde = (
 };
 
 export const NetworkStatus: React.FC = () => {
-    const { metrics, blocks, triggerAnomaly, anomaly } = useNetwork();
+    const { metrics, blocks, anomaly } = useNetwork();
     const { lang, tri } = useLanguage();
     const [currentTime, setCurrentTime] = useState(Date.now());
     const [verifyState, setVerifyState] = useState<Record<number, 'idle' | 'loading' | 'verified' | 'failed'>>({});
@@ -138,6 +138,14 @@ export const NetworkStatus: React.FC = () => {
         }
     };
 
+    // Um grafico sem dados desenhava so a grade e os eixos, e quem olhava nao
+    // sabia se estava carregando, quebrado ou vazio.
+    const semDados = (
+        <div className="flex h-[260px] items-center justify-center rounded-xl border border-dashed border-brand-border/60 text-center text-sm text-brand-muted px-6">
+            {tri('No blocks in this range yet.', 'Nenhum bloco neste intervalo ainda.', 'Aún no hay bloques en este intervalo.')}
+        </div>
+    );
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -147,26 +155,9 @@ export const NetworkStatus: React.FC = () => {
                         Live metrics and AI-driven supervision of the FaucetChain appchain, which settles on Solana.
                     </p>
                 </div>
-                {/* Estes botões não tocam a rede nem o servidor: só acendem o
-                    alerta na tela por 15 s (NetworkContext.triggerAnomaly). O
-                    rótulo diz isso, porque a tela ao redor é de dados reais. */}
-                <div role="group" aria-label="Demo only: simulated alerts, no effect on the network" className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold uppercase tracking-[0.14em] text-brand-muted/70">Demo only · simulated alert, the network is untouched</span>
-                    <div className="flex gap-2 p-1 bg-brand-surface border border-brand-border rounded-lg">
-                        <button
-                            onClick={() => triggerAnomaly('CONGESTION')}
-                            className="px-3 py-1 min-h-[44px] md:min-h-0 text-[10px] font-bold uppercase bg-orange-500/10 text-orange-500 border border-orange-500/30 rounded hover:bg-orange-500/20 transition-all"
-                        >
-                            Simulate Congestion
-                        </button>
-                        <button
-                            onClick={() => triggerAnomaly('VALIDATOR_DROP')}
-                            className="px-3 py-1 min-h-[44px] md:min-h-0 text-[10px] font-bold uppercase bg-red-500/10 text-red-500 border border-red-500/30 rounded hover:bg-red-500/20 transition-all"
-                        >
-                            Force Validator Drop
-                        </button>
-                    </div>
-                </div>
+                {/* Os botoes "Simulate Congestion" e "Force Validator Drop" sairam:
+                    acendiam um alerta falso por 15 s numa tela de dados reais, e
+                    para quem visita pareciam controles da rede. */}
             </div>
 
             <NetworkSentinel />
@@ -224,8 +215,10 @@ export const NetworkStatus: React.FC = () => {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
+            {/* Os dois graficos ocupavam dois tercos da largura, com o terco
+                restante vazio. Lado a lado, cada um tem metade inteira. */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="contents">
                     <SectionCard title="Transaction Volume" icon={<ChartBarIcon className="w-5 h-5" />}>
                         <h4 className="text-[10px] font-black text-brand-muted uppercase tracking-widest mb-4">
                             {porBalde
@@ -236,6 +229,7 @@ export const NetworkStatus: React.FC = () => {
                                       'Transações por bloco',
                                       'Transacciones por bloque')}
                         </h4>
+                        {serie.length === 0 ? semDados : (
                         <div style={{ width: '100%', height: 260 }}>
                             <ResponsiveContainer>
                                 <BarChart data={serie}>
@@ -261,6 +255,7 @@ export const NetworkStatus: React.FC = () => {
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
+                        )}
                     </SectionCard>
 
                     <SectionCard title="TPS" icon={<SignalIcon className="w-5 h-5 text-brand-primary" />}>
@@ -276,6 +271,7 @@ export const NetworkStatus: React.FC = () => {
                                       'Transações por segundo, medidas',
                                       'Transacciones por segundo, medidas')}
                         </h4>
+                        {serie.length === 0 ? semDados : (
                         <div style={{ width: '100%', height: 260 }}>
                             <ResponsiveContainer>
                                 <AreaChart data={serie}>
@@ -315,6 +311,7 @@ export const NetworkStatus: React.FC = () => {
                                 </AreaChart>
                             </ResponsiveContainer>
                         </div>
+                        )}
                     </SectionCard>
                 </div>
             </div>
