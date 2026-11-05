@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { SectionCard } from './SectionCard';
-import { MermaidDiagram } from './MermaidDiagram';
 import {
     DocumentTextIcon,
     CpuChipIcon,
@@ -39,102 +38,6 @@ const FormulaBlock: React.FC<{ title: string; formula: string; desc: string }> =
         <p className="text-xs text-brand-muted leading-relaxed">{desc}</p>
     </div>
 );
-
-const CONSENSUS_DIAGRAM = `
-flowchart TD
-    A["User Activity / Claim"] --> B{"Sentinel AI Audit"}
-    B -- "Valid" --> C["PoC Merit Pool"]
-    B -- "Sybil Detected" --> D["Reputation Penalty 0.1x"]
-
-    subgraph SEAL["Sealer selection"]
-        C --> E{"weight = 1 + active stake"}
-        F["Staked $CLAIM (PoS)"] --> E
-    end
-
-    E --> H["Weights for this round"]
-    H --> I["Deterministic draw, seeded by parent hash"]
-    I --> J["Block Finalization"]
-    J --> K["L1 FaucetChain Consensus"]
-`;
-
-const TOKEN_FLOW_DIAGRAM = `
-flowchart LR
-    subgraph Emission["Token Emission"]
-        Epoch["Hourly quota — 2,000/hr"] --> Mint["Claim recorded"]
-        Mint --> User["User Wallet"]
-    end
-
-    subgraph Usage["Token Utility"]
-        User --> Stake["UTXO Staking Vault"]
-        User --> DApp["Faucet Registry (10K stake)"]
-        User --> Bounty["Bounty Board"]
-        User --> Burn["Voluntary Burn"]
-    end
-
-    subgraph Rewards["Yield Flow"]
-        Stake --> Yield["Tier Yield (0.5-10%)"]
-        Yield --> User
-    end
-`;
-
-const EPOCH_DIAGRAM = `
-sequenceDiagram
-    participant U as User/Faucet
-    participant EM as Hourly quota
-    participant DR as Faucet registry
-    participant CT as $CLAIM ledger
-
-    U->>EM: Claim submitted (wallet, amount)
-    EM->>DR: Is this faucet authorised?
-    DR-->>EM: true (stake >= 10K)
-
-    EM->>EM: Check epoch quota (2000/hr)
-    alt Quota available
-        EM->>CT: credit(wallet, amount)
-        CT-->>U: $CLAIM minted
-    else Quota depleted
-        EM-->>U: HIATO — Wait next hour
-    end
-`;
-
-const UTXO_DIAGRAM = `
-flowchart LR
-    subgraph Deposit["Stake (Create UTXO)"]
-        U["User"] --> |"$CLAIM"| V["Staking Vault"]
-        V --> NFT["Position Receipt"]
-        NFT --> |"Metadata"| Meta["Amount + Tier + Timelock"]
-    end
-
-    subgraph Tiers["Lock Tiers"]
-        T0["Tier 0: 1h → 0.5%"]
-        T1["Tier 1: 24h → 2%"]
-        T2["Tier 2: 7d → 10%"]
-    end
-
-    subgraph Withdraw["Unstake (Spend UTXO)"]
-        NFT --> |"After timelock"| Burn["Spend position"]
-        Burn --> Pay["Principal + Yield"]
-        Pay --> U
-    end
-`;
-
-const SECURITY_DIAGRAM = `
-flowchart TD
-    subgraph FraudDetection["Sentinel V3 Fraud Detection"]
-        Input["Claim Sequence"] --> T["Temporal Analysis"]
-        Input --> G["Timing Uniformity Check"]
-        Input --> C["Compression Pattern Match"]
-        T --> Score{"Fraud Score"}
-        G --> Score
-        C --> Score
-    end
-
-    Score -- "> 0.8" --> Flagged["FLAGGED / BANNED"]
-    Score -- "< 0.8" --> Verified["VERIFIED"]
-    Verified --> Bonus["DeFi Bonus Calculator"]
-    Bonus --> Final["Final Multiplier (1.0x-2.5x)"]
-    Flagged --> Penalty["0.1x Multiplier"]
-`;
 
 export const Whitepaper: React.FC = () => {
     const { lang } = useLanguage();
@@ -264,12 +167,6 @@ export const Whitepaper: React.FC = () => {
                         </div>
                     ))}
                 </div>
-                <MermaidDiagram
-                    code={CONSENSUS_DIAGRAM}
-                    title="Consensus Pipeline"
-                    icon={<CpuChipIcon className="w-5 h-5" />}
-                    prompt="Explain the full consensus pipeline from user activity to block finalization in FaucetChain."
-                />
             </SectionCard>
 
             {/* 4. PROOF OF CLAIM */}
@@ -367,12 +264,6 @@ export const Whitepaper: React.FC = () => {
                         </ul>
                     </div>
                 </div>
-                <MermaidDiagram
-                    code={EPOCH_DIAGRAM}
-                    title="Claim & Emission Sequence"
-                    icon={<CubeIcon className="w-5 h-5" />}
-                    prompt="Walk through the complete token minting sequence from user claim to $CLAIM emission, including the hiatus mechanism."
-                />
             </SectionCard>
 
             {/* 7. TOKENOMICS */}
@@ -410,12 +301,6 @@ export const Whitepaper: React.FC = () => {
                         </tbody>
                     </table>
                 </div>
-                <MermaidDiagram
-                    code={TOKEN_FLOW_DIAGRAM}
-                    title="Token Flow Architecture"
-                    icon={<CreditCardIcon className="w-5 h-5" />}
-                    prompt="Trace the lifecycle of a $CLAIM token from emission through all possible uses in the ecosystem."
-                />
             </SectionCard>
 
             {/* 8. UTXO STAKING */}
@@ -443,12 +328,6 @@ export const Whitepaper: React.FC = () => {
                     </table>
                 </div>
                 <p className="text-xs text-brand-muted mt-2 italic">* APY figures are theoretical maximums assuming continuous compounding at PoC rates. Actual yields depend on vault liquidity.</p>
-                <MermaidDiagram
-                    code={UTXO_DIAGRAM}
-                    title="UTXO Staking Lifecycle"
-                    icon={<CubeIcon className="w-5 h-5" />}
-                    prompt="Explain how the UTXO staking vault works, comparing it to both Bitcoin UTXOs and traditional account-based staking."
-                />
             </SectionCard>
 
             {/* 9. SECURITY */}
@@ -476,12 +355,6 @@ export const Whitepaper: React.FC = () => {
                         </div>
                     ))}
                 </div>
-                <MermaidDiagram
-                    code={SECURITY_DIAGRAM}
-                    title="Fraud Detection Pipeline"
-                    icon={<ShieldCheckIcon className="w-5 h-5" />}
-                    prompt="Explain how FaucetChain's Sentinel AI detects and penalizes Sybil attacks using the three-module fraud detection system."
-                />
 
                 <h4 className="text-sm font-black text-brand-secondary uppercase tracking-wider mt-6 mb-3">9.2 L1 Anchoring & Merkle Proofs</h4>
                 <p className="text-brand-muted leading-relaxed text-sm">

@@ -1,8 +1,6 @@
 
 import React from 'react';
 import { SparklesIcon, WalletIcon, SignalIcon, ArrowPathIcon } from './IconComponents';
-import { MermaidDiagram } from './MermaidDiagram';
-import { diagrams } from '../constants';
 import { useLanguage } from './LanguageContext';
 
 export const ClaimEventSection: React.FC = () => {
@@ -11,7 +9,7 @@ export const ClaimEventSection: React.FC = () => {
     const content = {
         en: {
             title: "The 'Claim Event' Lifecycle",
-            description: "A claim is the unit of work on this network. These four steps are what the code does; the diagram beside them is the same path, drawn.",
+            description: "A claim is the unit of work on this network. These four steps are what the code does.",
             steps: [
                 {
                     title: "Claim, with proof",
@@ -45,7 +43,7 @@ export const ClaimEventSection: React.FC = () => {
         },
         pt: {
             title: "Ciclo de Vida do 'Evento de Reivindicação'",
-            description: "Um claim é a unidade de trabalho desta rede. Estes quatro passos são o que o código faz; o diagrama ao lado é o mesmo caminho, desenhado.",
+            description: "Um claim é a unidade de trabalho desta rede. Estes quatro passos são o que o código faz.",
             steps: [
                 {
                     title: "Claim, com prova",
@@ -79,7 +77,7 @@ export const ClaimEventSection: React.FC = () => {
         },
         es: {
             title: "Ciclo de Vida del 'Evento de Reclamo'",
-            description: "Un claim es la unidad de trabajo de esta red. Estos cuatro pasos son lo que hace el código; el diagrama al lado es el mismo camino, dibujado.",
+            description: "Un claim es la unidad de trabajo de esta red. Estos cuatro pasos son lo que hace el código.",
             steps: [
                 {
                     title: "Claim, con prueba",
@@ -141,7 +139,7 @@ export const ClaimEventSection: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-                    <div className="lg:col-span-5 flex flex-col gap-6">
+                    <div className="lg:col-span-12 grid gap-6 md:grid-cols-2">
                         {t.steps.map((step, idx) => (
                             <div 
                                 key={idx} 
@@ -165,15 +163,6 @@ export const ClaimEventSection: React.FC = () => {
                         ))}
                     </div>
                     
-                    <div className="lg:col-span-7 flex flex-col h-full">
-                        <div className="sticky top-24">
-                            <MermaidDiagram 
-                                code={diagrams(lang).CLAIM_EVENT_DIAGRAM} 
-                                title={tri("Protocol Execution Flow", "Fluxo de Execução do Protocolo", "Flujo de Ejecución del Protocolo")}
-                                prompt="Analyze the chronological sequence of the Claim Event. Why is the 80/20 split written at credit time rather than charged at withdrawal?"
-                            />
-                        </div>
-                    </div>
                 </div>
 
                 <div className="pt-8 border-t border-brand-border/50">

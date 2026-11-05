@@ -1,10 +1,8 @@
 
 import React from 'react';
 import { SectionCard } from './SectionCard';
-import { MermaidDiagram } from './MermaidDiagram';
 import { CubeIcon, ShieldCheckIcon, SignalIcon, CreditCardIcon, SparklesIcon, ChartBarIcon, CpuChipIcon, BoltIcon } from './IconComponents';
 import { useLanguage, localeDoIdioma } from './LanguageContext';
-import { diagrams } from '../constants';
 import { useNetwork } from './NetworkContext';
 
 const StatCard: React.FC<{ label: string; value: string; icon: React.ReactNode; accent?: string }> = ({ label, value, icon, accent = "text-brand-primary" }) => (
@@ -96,7 +94,7 @@ export const Overview: React.FC = () => {
 
             {/* Technical Split */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
-                <div className="lg:col-span-5 flex flex-col gap-8">
+                <div className="lg:col-span-12 flex flex-col gap-8">
                     <SectionCard title="Sealer Weight" icon={<ChartBarIcon className="w-6 h-6" />}>
                          <p className="text-lg font-medium text-brand-secondary/80">
                              {tri(
@@ -127,13 +125,6 @@ export const Overview: React.FC = () => {
                     </SectionCard>
                 </div>
 
-                <div className="lg:col-span-7 h-full">
-                    <MermaidDiagram 
-                        code={diagrams(lang).MERMAID_CODE} 
-                        title="V3 Consensus Evolution Flow" 
-                        prompt="Explique por que a garantia de pagamento da FaucetChain mora no programa da Solana e não nesta cadeia, e o que o programa recusa fazer."
-                    />
-                </div>
             </div>
         </div>
     );

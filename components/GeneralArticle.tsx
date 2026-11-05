@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { SectionCard } from './SectionCard';
-import { MermaidDiagram } from './MermaidDiagram';
 import { 
     CubeIcon, 
     ShieldCheckIcon, 
@@ -15,7 +14,7 @@ import {
 } from './IconComponents';
 import { useLanguage } from './LanguageContext';
 import { ClaimEventSection } from './ClaimEventSection';
-import { diagrams, POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
+import { POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
 import { CodeBlock } from './CodeBlock';
 
 export const GeneralArticle: React.FC = () => {
@@ -156,38 +155,11 @@ export const GeneralArticle: React.FC = () => {
                 </div>
             </div>
 
-            {/* HIGH-VISIBILITY: FaucetChain V3 Full Ecosystem Mindmap */}
-            <div className="glass border border-brand-primary/30 rounded-[3rem] p-1 lg:p-10 shadow-glow-primary relative overflow-hidden">
-                <div className="absolute inset-0 bg-brand-primary/5 pointer-events-none opacity-30"></div>
-                <div className="relative z-10 space-y-6">
-                    <div className="flex flex-col items-center justify-center text-center space-y-4 mb-8">
-                        <div className="p-4 bg-brand-primary/10 rounded-2xl w-fit">
-                            <CubeIcon className="w-10 h-10 text-brand-primary" />
-                        </div>
-                        <h2 className="text-4xl font-black text-white tracking-tighter leading-none">
-                            {tri("Architecture Mindmap", "Mapa Mental da Arquitetura", "Mapa Mental de la Arquitectura")}
-                        </h2>
-                        <p className="text-brand-muted text-lg max-w-2xl">
-                            {tri(
-                                "A holistic top-down view of the FaucetChain ecosystem, mapping the latest V3 upgrades: Dual Consensus, P2P Transfers, SQLite B-Tree Indexes, and Sentinel AI V3.",
-                                "Uma visão holística do ecossistema FaucetChain, mapeando os últimos upgrades V3: Consenso Duplo, Transferências P2P, Índices B-Tree no SQLite e IA Sentinela V3.",
-                                "Una visión holística del ecosistema FaucetChain, que mapea las últimas mejoras V3: Consenso Dual, Transferencias P2P, Índices B-Tree en SQLite e IA Centinela V3.")}
-                        </p>
-                    </div>
-                    <div className="w-full h-full min-h-[600px] bg-brand-bg/50 rounded-[2rem] border border-brand-border/40 p-4">
-                        <MermaidDiagram 
-                            code={diagrams(lang).MINDMAP_CODE} 
-                            title={tri("Full Ecosystem Topology", "Topologia Completa do Ecossistema", "Topología Completa del Ecosistema")}
-                        />
-                    </div>
-                </div>
-            </div>
-
             {/* HIGH-VISIBILITY: Claim Event Lifecycle Diagram */}
             <div className="glass border border-brand-primary/30 rounded-[3rem] p-1 lg:p-10 shadow-glow-primary relative overflow-hidden">
                 <div className="absolute inset-0 bg-brand-primary/5 pointer-events-none opacity-30"></div>
                 <div className="relative z-10 flex flex-col lg:flex-row gap-12">
-                    <div className="lg:w-1/3 space-y-6">
+                    <div className="lg:w-2/5 space-y-6">
                         <div className="p-4 bg-brand-primary/10 rounded-2xl w-fit">
                             <ArrowPathIcon className="w-10 h-10 text-brand-primary" />
                         </div>
@@ -212,13 +184,28 @@ export const GeneralArticle: React.FC = () => {
                         <div className="pt-6">
                         </div>
                     </div>
-                    <div className="lg:w-2/3 h-full min-h-[500px]">
-                        <MermaidDiagram 
-                            code={diagrams(lang).CLAIM_LIFECYCLE_DETAILED_CODE} 
-                            title={tri("Full Execution Pipeline", "Pipeline de Execução Completo", "Pipeline de Ejecución Completo")} 
-                            prompt="Deconstruct the sequence from Minting to Yield. Why is Treasury Settlement the penultimate step before Yield generation?"
-                        />
-                    </div>
+                    <ol className="flex-1 space-y-3" aria-label={tri("From click to wallet", "Do clique à carteira", "Del clic a la billetera")}>
+                        {[
+                            [tri("Click on the faucet", "Clique na torneira", "Clic en el grifo"),
+                             tri("The partner faucet pays its user, then makes one HTTP call.", "A torneira parceira paga o usuário dela e depois faz uma chamada HTTP.", "El grifo socio paga a su usuario y luego hace una llamada HTTP.")],
+                            [tri("Credited on the appchain", "Crédito na appchain", "Crédito en la appchain"),
+                             tri("Free and instant: 80 percent to the user, 20 to the treasury.", "Grátis e na hora: 80% para o usuário, 20% para a tesouraria.", "Gratis e inmediato: 80% al usuario, 20% a la tesorería.")],
+                            [tri("Batch closes", "O lote fecha", "El lote se cierra"),
+                             tri("Every pending credit becomes one leaf of a Merkle tree.", "Cada crédito pendente vira uma folha de uma árvore de Merkle.", "Cada crédito pendiente se vuelve una hoja de un árbol de Merkle.")],
+                            [tri("Root published on Solana", "Raiz publicada na Solana", "Raíz publicada en Solana"),
+                             tri("The program refuses it if the vault cannot cover what is promised.", "O programa recusa se o cofre não cobrir o que foi prometido.", "El programa la rechaza si la bóveda no cubre lo prometido.")],
+                            [tri("Withdrawn with a proof", "Saque com prova", "Retiro con prueba"),
+                             tri("The user proves their leaf and signs; a receipt blocks a second withdrawal.", "O usuário prova a folha dele e assina; um recibo impede um segundo saque.", "El usuario prueba su hoja y firma; un recibo impide un segundo retiro.")],
+                        ].map(([titulo, desc], i) => (
+                            <li key={i} className="flex gap-4 rounded-2xl border border-brand-border/40 bg-brand-bg/40 p-4">
+                                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-brand-primary/15 font-mono text-sm font-bold text-brand-primary">{i + 1}</span>
+                                <div>
+                                    <p className="font-bold text-brand-secondary">{titulo}</p>
+                                    <p className="text-sm text-brand-muted">{desc}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
                 </div>
             </div>
 

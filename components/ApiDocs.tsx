@@ -3,8 +3,7 @@ import React from 'react';
 import { SectionCard } from './SectionCard';
 import { CodeBracketIcon, GlobeAltIcon, ShieldCheckIcon } from './IconComponents';
 import { useLanguage } from './LanguageContext';
-import { diagrams, REPO_URL } from '../constants';
-import { MermaidDiagram } from './MermaidDiagram';
+import { REPO_URL } from '../constants';
 
 /** O comando de instalacao, com copia. Nao reusa o Copiavel da pagina do
  *  operador de proposito: aquela tela tem paleta propria (white/10 e cyan) e
@@ -140,10 +139,6 @@ export const ApiDocs: React.FC = () => {
 }`}
                             </pre>
                         </div>
-                        <MermaidDiagram
-                            code={diagrams(lang).HUB_INTEGRATION_DIAGRAM}
-                            title={T('Faucet-to-L1 synchronization', 'Sincronização Torneira-para-L1', 'Sincronización Grifo-a-L1')}
-                        />
                     </SectionCard>
 
                     <SectionCard

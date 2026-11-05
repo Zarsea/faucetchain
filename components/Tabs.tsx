@@ -33,6 +33,8 @@ interface TabsProps {
     /** Told when the rail widens, so the page beside it can move out of the way
      *  instead of being covered. */
     onExpandedChange?: (expanded: boolean) => void;
+    /** No telefone o cabecalho nao tem lugar para o botao Dapps; ele mora aqui. */
+    onOpenDapps?: () => void;
 }
 
 type IconComponent = React.FC<{ className?: string }>;
@@ -98,7 +100,7 @@ const FORA_DA_BARRA = new Set<string>(['Privacy']);
  *  qualquer tela que ainda nao foi classificada. */
 const grupoDe = (tab: string) => GROUPS.find((g) => g.tabs.includes(tab))?.key;
 
-export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExpandedChange }) => {
+export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExpandedChange, onOpenDapps }) => {
     const { t } = useTranslation();
     const [hoveredTab, setHoveredTab] = useState<string | null>(null);
     // Aberta por padrão. Fechada-com-abre-no-hover escondia os vinte rótulos até
@@ -297,7 +299,7 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                                         min-h-[44px] md:min-h-0 md:py-1.5
                                         text-[10px] font-semibold uppercase tracking-[0.14em]
                                         transition-colors hover:bg-white/[0.03] hover:text-brand-secondary
-                                        ${temAtiva ? 'text-brand-primary/90' : 'text-brand-muted/70'}`}
+                                        ${temAtiva ? 'text-brand-primary' : 'text-brand-muted'}`}
                                 >
                                     <span className="flex-1 text-left">
                                         {t(`navGroups.${grupo.key}`, { defaultValue: grupo.fallback })}
@@ -305,7 +307,7 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
                                     {/* A contagem só aparece fechado. Aberto, os itens
                                         estão à vista e o número viraria ruído. */}
                                     {!aberto && (
-                                        <span className="tabular font-bold text-brand-muted/60">{grupo.itens.length}</span>
+                                        <span className="tabular font-bold text-brand-muted">{grupo.itens.length}</span>
                                     )}
                                     <svg viewBox="0 0 24 24" fill="none" strokeWidth={2.5} stroke="currentColor"
                                          className={`w-3 h-3 flex-shrink-0 transition-transform duration-200 ${aberto ? 'rotate-90' : ''}`}
@@ -327,6 +329,17 @@ export const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab, tabs, onExp
 
             {/* Rodapé: só o controle da própria barra. O estado da rede é da
                 faixa no topo da página, que já o anuncia em letra maior. */}
+            {onOpenDapps && (
+                <div className="sm:hidden border-t border-brand-border/60 p-3">
+                    <button
+                        onClick={() => { setGavetaAberta(false); onOpenDapps(); }}
+                        className="w-full min-h-[44px] rounded-xl border border-brand-accent/50 text-brand-accent text-sm font-black hover:bg-brand-accent/10 transition-colors"
+                    >
+                        Dapps
+                    </button>
+                </div>
+            )}
+
             {/* Escondido no telefone: encolher para 72px dentro de uma gaveta
                 nao serve para nada -- a gaveta ja sai inteira da tela. */}
             <div className="hidden md:flex border-t border-brand-border/60 px-3 py-2 items-center justify-between gap-2">

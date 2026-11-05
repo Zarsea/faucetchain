@@ -9,8 +9,8 @@ import { solanaProvider, encodeSignature, isMobileBrowser, phantomBrowseLink } f
 import { walletProofMessage } from '../utils/actionMessage';
 import { WalletButton } from './WalletPanel';
 
-export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNavigate }) => {
-    const { tFn: t, lang, setLang } = useLanguage();
+export const Header: React.FC<{ onNavigate?: (aba: string) => void; onOpenDapps?: () => void }> = ({ onNavigate, onOpenDapps }) => {
+    const { tFn: t, lang, setLang, tri } = useLanguage();
     const { isConnected, login } = useAuth();
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isGuestLoading, setIsGuestLoading] = useState(false);
@@ -194,13 +194,12 @@ export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNav
 
     return (
         <header className="glass border-b border-brand-primary/30 sticky top-0 z-50">
-            <div className="bg-brand-primary/20 py-1.5 px-4 text-center border-b border-brand-primary/40 neon-border-dynamic">
-                <p className="text-[10px] font-black text-brand-primary uppercase tracking-[0.15em] md:tracking-[0.3em] flex items-center justify-center gap-2 md:gap-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-ping"></span>
-                    Public TestNet · Settlement live on Solana devnet
-                </p>
-            </div>
-            <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-3">
+            {/* A faixa "Public TestNet · Settlement live on Solana devnet" saiu:
+                o selo Testnet e o chip "Settles on Solana · devnet", logo abaixo,
+                ja dizem as duas coisas. Eram tres avisos iguais na mesma tela.
+                pl-16 abaixo de md abre lugar para o botao fixo da gaveta, que
+                antes ganhava uma faixa vazia so para ele em cima do cabecalho. */}
+            <div className="container mx-auto pl-16 pr-4 md:px-4 py-3 md:py-4 flex items-center justify-between gap-3">
                 {/* min-w-0 nos dois niveis: sem isso o bloco da marca nao
                     encolhe abaixo do proprio conteudo, e num telefone de
                     360px o selo Testnet era desenhado por cima do botao de
@@ -254,7 +253,18 @@ export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNav
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
+                <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+                    {/* Era uma gota amarela flutuante de 96px no canto, por cima
+                        de graficos e tabelas em toda tela. Aqui ela nao cobre nada. */}
+                    {onOpenDapps && (
+                        <button
+                            onClick={onOpenDapps}
+                            title={tri('Open DApps Environment', 'Abrir o DApps Environment', 'Abrir el DApps Environment')}
+                            className="hidden sm:inline-flex items-center px-3 md:px-4 py-2.5 rounded-xl text-xs font-black whitespace-nowrap border border-brand-accent/50 text-brand-accent hover:bg-brand-accent/10 transition-colors"
+                        >
+                            Dapps
+                        </button>
+                    )}
                     {isConnected ? (
                         /* O endereco inteiro ficava escrito aqui: ocupava a largura toda,
                            sumia no celular (`hidden lg:flex`) e so dava para copiar
@@ -266,7 +276,7 @@ export const Header: React.FC<{ onNavigate?: (aba: string) => void }> = ({ onNav
                             onClick={() => setIsAuthModalOpen(true)}
                             className="flex items-center gap-2 px-3 md:px-6 py-2.5 rounded-xl text-xs font-black whitespace-nowrap transition-all duration-300 bg-brand-primary text-brand-bg hover:bg-white hover:shadow-glow-primary hover:scale-105 active:scale-95 border border-brand-primary/50"
                         >
-                            <WalletIcon className="w-4 h-4" />
+                            <WalletIcon className="hidden sm:block w-4 h-4" />
                             {t('wallet.connect')}
                         </button>
                     )}

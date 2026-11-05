@@ -114,12 +114,6 @@ jobs:
       - name: Screen text stuck in one language does not increase
         run: node test_no_hardcoded_english.mjs
 
-      - name: Every diagram parses, and no language without one breaks the page
-        run: node test_diagrams_parse.mjs
-
-      - name: The allocation chart says tokens, not just slices
-        run: node test_tokenomics_chart.mjs
-
       - name: The dashboard numbers come from the block table
         run: python tests/test_network_metrics.py
 

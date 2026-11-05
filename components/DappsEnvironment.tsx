@@ -4,38 +4,6 @@ import { FaucetInternal } from './FaucetInternal';
 import ConnectYourFaucet from './ConnectYourFaucet';
 import { useLanguage, triGlobal } from './LanguageContext';
 
-export const DappsFloatingButton: React.FC<{ onClick: () => void }> = ({ onClick }) => {
-    const { tri } = useLanguage();
-    return (
-        <button
-            onClick={onClick}
-            // O bounce infinito saiu. Um alvo que nunca para de se mexer e dificil
-            // de acertar com o cursor, e impossivel para automacao: o Playwright
-            // espera o elemento ficar estavel antes de clicar, e este nunca ficava.
-            // Era a causa de "esse botao nao funciona".
-            //
-            // A atencao que a animacao buscava continua vindo do halo e do crescer
-            // no hover, que acontecem quando o cursor ja esta la -- quando o alvo
-            // ficar parado e o unico momento em que mexer ajuda.
-            className="fixed bottom-5 right-5 w-16 h-16 md:bottom-12 md:right-12 md:w-24 md:h-24 z-40 bg-gradient-to-br from-brand-accent via-yellow-500 to-yellow-600 shadow-[0_0_25px_rgba(234,179,8,0.7)] flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-[0_0_40px_rgba(234,179,8,1)] transition-all duration-300"
-            style={{ 
-                borderRadius: '0 50% 50% 50%', 
-                transform: 'rotate(45deg)' 
-            }}
-            title={tri('Open DApps Environment', 'Abrir o DApps Environment',
-                       'Abrir el DApps Environment')}
-        >
-            <span 
-                className="text-black font-extrabold text-lg tracking-wider drop-shadow-md select-none" 
-                style={{ transform: 'rotate(-45deg)' }}
-            >
-                Dapps
-            </span>
-            <div className="absolute w-full h-full rounded-full border-2 border-white/20 scale-90" style={{ borderRadius: '0 50% 50% 50%' }}></div>
-        </button>
-    );
-};
-
 interface DappsEnvironmentProps {
     onClose: () => void;
 }

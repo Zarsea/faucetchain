@@ -45,7 +45,6 @@ const CONVERTIDOS = [
     'components/Tokenomics.tsx',
     'components/TransactionDetailsModal.tsx',
     'components/NetworkStatus.tsx',
-    'components/MermaidDiagram.tsx',
     // Convertidos em 25/10. `ConnectFaucet` e o caso que mostrou o furo desta
     // lista: o ratchet guardava `ConnectYourFaucet`, que so vive dentro do
     // Dapps, enquanto quem esta roteado no App.tsx e este -- e este mandava

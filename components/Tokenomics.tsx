@@ -1,12 +1,11 @@
 
 import React from 'react';
 import { CodeBlock } from './CodeBlock';
-import { YAML_CODE, diagrams } from '../constants';
+import { YAML_CODE } from '../constants';
 import { SectionCard } from './SectionCard';
 import { CreditCardIcon, SignalIcon, ChartBarIcon, CubeIcon, BookOpenIcon, BoltIcon, ChartPieIcon } from './IconComponents';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Area, AreaChart } from 'recharts';
 import { numeroLocal, useLanguage } from './LanguageContext';
-import { MermaidDiagram } from './MermaidDiagram';
 import { API_BASE_URL } from '../apiConfig';
 
 interface TokenomicsProps {
@@ -302,16 +301,6 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
                 </SectionCard>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                 <div className="lg:col-span-2">
-                    <MermaidDiagram 
-                        code={diagrams(lang).TOKENOMICS_FLOW_CODE} 
-                        title={t('tokenomics.flowTitle')} 
-                        icon={<SignalIcon className="w-5 h-5"/>}
-                        prompt="Explain how a claim splits 80/20 between the user and the treasury, and why the treasury's share is staked rather than sold."
-                    />
-                </div>
-            </div>
 
             <h3 className="text-2xl font-bold text-brand-secondary mt-12 mb-6 border-b border-brand-border/30 pb-3">
                 {tri("Real-Time Supply Extraction", "Extração de Suprimento em Tempo Real", "Extracción de Suministro en Tiempo Real")}
@@ -320,12 +309,26 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-12">
                 <div className="lg:col-span-2 space-y-6">
-                    <MermaidDiagram 
-                        code={diagrams(lang).TREASURY_ALLOCATION_DIAGRAM} 
-                        title={t('tokenomics.distTitle')} 
-                        icon={<CreditCardIcon className="w-5 h-5"/>}
-                        prompt="Why does 80 percent of every claim reach the user, and what does the remaining 20 percent actually fund?"
-                    />
+                    <SectionCard title={t('tokenomics.distTitle')} icon={<CreditCardIcon className="w-5 h-5"/>}>
+                        <p className="text-brand-muted text-sm mb-4">
+                            {tri("Proposed split of the 99M cap, not yet committed.", "Divisão proposta do teto de 99M, ainda não decidida.", "División propuesta del tope de 99M, aún no decidida.")}
+                        </p>
+                        <ul className="divide-y divide-brand-border/40">
+                            {([
+                                [tri("Proof of Work, miners", "Proof of Work, mineradores", "Proof of Work, mineros"), 30],
+                                [tri("Proof of Stake, vault", "Proof of Stake, cofre", "Proof of Stake, bóveda"), 30],
+                                [tri("Proof of Claim, merit", "Proof of Claim, mérito", "Proof of Claim, mérito"), 20],
+                                [tri("Core team and liquidity", "Core team e liquidez", "Equipo central y liquidez"), 20],
+                            ] as [string, number][]).map(([nome, pct]) => (
+                                <li key={nome} className="flex items-baseline justify-between gap-4 py-2.5">
+                                    <span className="text-sm text-brand-secondary">{nome}</span>
+                                    <span className="font-mono tabular-nums text-sm text-brand-primary whitespace-nowrap">
+                                        {pct}% · {numeroLocal(99 * pct / 100, { maximumFractionDigits: 1 })}M
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </SectionCard>
 
                     <div className="mt-8">
                         <SectionCard title={t('tokenomics.ecoFundTitle')} icon={<SignalIcon className="w-5 h-5"/>}>
