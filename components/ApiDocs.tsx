@@ -196,7 +196,7 @@ Content-Type: application/json
 
                 <div className="lg:col-span-1 space-y-6">
                     <SectionCard
-                        title={T('The two rules', 'As duas regras', 'Las dos reglas')}
+                        title={T('Three rules', 'Três regras', 'Tres reglas')}
                         icon={<ShieldCheckIcon className="w-5 h-5" />}
                     >
                         <div className="space-y-4">

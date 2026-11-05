@@ -20,7 +20,7 @@ interface ClaimHistory {
 
 export const Faucet: React.FC = () => {
     const { t, lang, tFn, tri } = useLanguage();
-    const { metrics, addBlockManually } = useNetwork();
+    const { metrics } = useNetwork();
     const { isConnected, userAddress, authMethod } = useAuth();
 
     const [userBalance, setUserBalance] = useState(0);
@@ -206,8 +206,6 @@ export const Faucet: React.FC = () => {
                 setIsSuccess(true);
             }
 
-            // Trigger local update manually for UI
-            addBlockManually(`POC_CLAIM_USER`, 1);
 
         } catch (error) {
             console.error("Erro no Claim:", error);

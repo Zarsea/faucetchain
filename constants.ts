@@ -134,16 +134,23 @@ pub mod faucetchain {
 
 
 export const PYTHON_CODE = `
-import zlib
-import time
-from typing import List, Dict
+# FraudAndBonusDetector.py, as the claim route calls it (api_server.py).
+#
+# One address's own history can say one thing: whether two of its claims
+# arrived closer together than the cooldown allows. The route already refuses
+# a claim less than an hour after the last one, so a pair under a minute apart
+# means the cooldown was bypassed.
 
-class SentinelV2Engine:
-    def audit_node(self, node_data: Dict) -> Dict:
-        claim_sequence = node_data.get('claims', [])
-        is_bot = self.detector.is_sybil_pattern(claim_sequence)
-        reputation_score = 0.1 if is_bot else node_data.get('reputation', 1.0)
-        return { "status": "FLAGGED" if is_bot else "VERIFIED", "final_multiplier": reputation_score }
+class FraudDetector:
+    def __init__(self):
+        self.min_claim_interval = 60  # seconds
+
+    def has_impossible_cadence(self, claim_sequence):
+        if len(claim_sequence) < 3:
+            return False
+        timestamps = sorted(c.get('timestamp', 0) for c in claim_sequence)
+        intervals = [b - a for a, b in zip(timestamps, timestamps[1:])]
+        return bool(intervals) and min(intervals) < self.min_claim_interval
 `;
 
 export const YAML_CODE = `

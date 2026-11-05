@@ -172,7 +172,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
             ? <span className="text-sm font-semibold text-brand-muted">{tri('No data', 'Sem dados', 'Sin datos')}</span>
             : fmt(v);
     const apy = num(vault?.stakingApy, n => n + '%');
-    const burned = num(vault?.totalBurned, n => (n / 1000000).toFixed(2) + 'M');
+    const burned = num(vault?.totalBurned, n => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : (numeroLocal(n, { maximumFractionDigits: 2 }) ?? '0'));
     const circ = num(vault?.circulatingSupply, n => (n / 1000000).toFixed(2) + 'M');
 
     return (
@@ -273,7 +273,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <SectionCard title={tri("Staking APY", "APY de Staking", "APY de Staking")} icon={<BoltIcon className="w-5 h-5 text-green-400"/>}>
                     <p className="text-brand-muted leading-relaxed mb-4 text-sm">
-                        {tri("Dynamic yield based on network participation and PoS epoch rewards.", "Rendimento dinâmico baseado na participação da rede e recompensas de época PoS.", "Rendimiento dinámico basado en la participación de la red y las recompensas de época PoS.")}
+                        {tri("A fixed pool per epoch, split over what is locked: the less is staked, the higher this reads. Testnet $CLAIM, not a promised return.", "Um pool fixo por época, dividido pelo que está travado: quanto menos travado, mais alto este número. $CLAIM de testnet, não é rendimento prometido.", "Un pool fijo por época, repartido entre lo bloqueado: cuanto menos hay en stake, más alto este número. $CLAIM de testnet, no es un rendimiento prometido.")}
                     </p>
                     <div className="p-4 bg-brand-bg rounded border border-brand-border text-center relative overflow-hidden group">
                         <div className="absolute inset-0 bg-green-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>
@@ -284,7 +284,7 @@ export const Tokenomics: React.FC<TokenomicsProps> = ({ onNavigate }) => {
 
                 <SectionCard title={tri("Total Burned", "Total Queimado", "Total Quemado")} icon={<ChartPieIcon className="w-5 h-5 text-orange-400"/>}>
                     <p className="text-brand-muted leading-relaxed mb-4 text-sm">
-                        {tri("Tokens permanently removed from circulation via transaction fees.", "Tokens removidos permanentemente de circulação via taxas de transação.", "Tokens retirados permanentemente de circulación mediante comisiones de transacción.")}
+                        {tri("The share of every booster purchase that is destroyed rather than sent to the treasury.", "A parte de cada booster comprado que é destruída em vez de ir para a tesouraria.", "La parte de cada booster comprado que se destruye en lugar de ir a la tesorería.")}
                     </p>
                     <div className="p-4 bg-brand-bg rounded border border-brand-border text-center relative overflow-hidden group">
                         <div className="absolute inset-0 bg-orange-500/5 translate-y-full group-hover:translate-y-0 transition-transform duration-700"></div>

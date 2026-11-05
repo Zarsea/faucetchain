@@ -98,11 +98,16 @@ export class LocalIntelligence {
         return undefined;
     }
 
+    // tps e avgGasPrice sao null ate a primeira medicao (NetworkContext), e
+    // .toFixed em null derrubava TODA pergunta ao chat, nao so as que citam
+    // esses numeros: o template e montado antes de saber se usa a variavel.
     private static injectVariables(template: string, metrics: NetworkMetrics): string {
+        const fixo = (v: number | null | undefined, casas: number) =>
+            v === null || v === undefined ? '—' : v.toFixed(casas);
         return template
-            .replace('{{blockHeight}}', metrics.blockHeight.toString())
-            .replace('{{tps}}', metrics.tps.toFixed(1))
-            .replace('{{gasPrice}}', metrics.avgGasPrice.toFixed(2))
-            .replace('{{activeValidators}}', metrics.activeValidators.toString());
+            .replace('{{blockHeight}}', String(metrics.blockHeight ?? '—'))
+            .replace('{{tps}}', fixo(metrics.tps, 1))
+            .replace('{{gasPrice}}', fixo(metrics.avgGasPrice, 2))
+            .replace('{{activeValidators}}', String(metrics.activeValidators ?? '—'));
     }
 }

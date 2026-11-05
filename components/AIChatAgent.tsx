@@ -38,14 +38,15 @@ interface Message {
 }
 
 export const AIChatAgent: React.FC = () => {
-    const { metrics, addBlockManually, triggerAnomaly, anomaly } = useNetwork();
+    const { metrics, anomaly } = useNetwork();
     const { lang, tri } = useLanguage();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: '1',
-            text: lang === 'pt'
-                ? "Olá. Eu sou o Sentinel AI (Local V3.0). Minha rede neural opera diretamente no seu nó, sem depender de APIs externas. Como posso ajudar com sua infraestrutura hoje?"
-                : "Hello. I am Sentinel AI (Local V3.0). My neural network operates directly on your node, independent of external APIs. How can I assist with your infrastructure today?",
+            text: tri(
+                "Hi. I answer from FaucetChain's own documentation, here in your browser. Ask how a claim becomes a payment, how settlement on Solana works, or how to connect a faucet.",
+                "Olá. Eu respondo a partir da documentação da própria FaucetChain, aqui no seu navegador. Pergunte como um claim vira pagamento, como funciona a liquidação na Solana ou como conectar uma torneira.",
+                "Hola. Respondo a partir de la documentación de FaucetChain, aquí en tu navegador. Pregunta cómo un claim se vuelve un pago, cómo funciona la liquidación en Solana o cómo conectar un grifo."),
             sender: 'ai',
             timestamp: Date.now(),
             source: 'local',
@@ -204,14 +205,14 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                             : "I didn't quite get that. Try asking about network status, consensus, or minting tokens.";
                     }
                 } else {
-                    if (intelligence.action === 'MINT_TOKENS') {
-                        const txCount = intelligence.actionPayload?.amount ?? 1;
-                        addBlockManually("SENTINEL_AI_FAUCET", Math.min(Math.max(txCount, 1), 100));
-                        finalContent += "\n\n[SYSTEM]: Protocol 'MINT_Claim' executed. Block added.";
-                    } else if (intelligence.action === 'TRIGGER_ANOMALY') {
-                        const anomalyType = intelligence.actionPayload?.anomalyType ?? 'CONGESTION';
-                        triggerAnomaly(anomalyType);
-                        finalContent += "\n\n[SYSTEM]: Anomaly sequence triggered. Monitoring.";
+                    // "Mint" acrescentava um bloco inventado na tela e respondia
+                    // "Block added"; "stress test" acendia um alarme falso. Nenhum
+                    // dos dois tocava a rede. Um chat nao cunha token nem para bloco.
+                    if (intelligence.action === 'MINT_TOKENS' || intelligence.action === 'TRIGGER_ANOMALY') {
+                        finalContent = tri(
+                            "I can't mint tokens or change the network; nothing here does that from a chat. $CLAIM comes from the Merit Faucet, and campaign rewards from partner faucets.",
+                            "Eu não consigo cunhar tokens nem mexer na rede; nada aqui faz isso por um chat. O $CLAIM vem da Merit Faucet, e as recompensas de campanha vêm das torneiras parceiras.",
+                            "No puedo acuñar tokens ni cambiar la red; nada aquí lo hace desde un chat. El $CLAIM viene del Merit Faucet, y las recompensas de campaña de los grifos socios.");
                     }
                 }
 
@@ -255,13 +256,8 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                             <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-brand-success rounded-full border-2 border-brand-bg animate-bounce"></div>
                         </div>
                         <div>
-                            <h3 className="font-black text-brand-secondary tracking-tight">SENTINEL AI <span className="text-[10px] bg-brand-primary/20 text-brand-primary px-1.5 py-0.5 rounded ml-2">LOCAL CORE</span></h3>
-                            <p className="text-[10px] text-brand-muted uppercase tracking-widest font-mono">Consensus Guardian • Zero-Latency</p>
-                        </div>
-                    </div>
-                    <div className="flex gap-2">
-                        <div className="px-2 py-1 bg-brand-bg border border-brand-border rounded text-[10px] font-mono text-brand-muted">
-                            LATENCY: <span className="text-brand-success">1ms (Local)</span>
+                            <h3 className="font-black text-brand-secondary tracking-tight">SENTINEL AI</h3>
+                            <p className="text-[10px] text-brand-muted uppercase tracking-widest font-mono">{tri('Answers from the docs', 'Respostas da documentação', 'Respuestas de la documentación')}</p>
                         </div>
                     </div>
                 </div>
@@ -335,20 +331,6 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
             <div className="p-8 bg-brand-surface/20 border border-brand-border/40 rounded-[2rem] backdrop-blur-md">
                 <div className="flex flex-wrap gap-3 mb-8">
                     <button
-                        onClick={() => handleSendMessage("Mint 100 merit tokens.")}
-                        className="px-6 py-3 bg-brand-bg/50 border border-brand-border/40 rounded-xl text-[10px] font-black uppercase text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-3 group hover:shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
-                    >
-                        <ShieldCheckIcon className="w-4 h-4 group-hover:scale-110 transition-transform text-brand-success" />
-                        Request merit
-                    </button>
-                    <button
-                        onClick={() => handleSendMessage("Simulate network congestion.")}
-                        className="px-6 py-3 bg-brand-bg/50 border border-brand-border/40 rounded-xl text-[10px] font-black uppercase text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-3 group hover:shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
-                    >
-                        <SignalIcon className="w-4 h-4 group-hover:scale-110 transition-transform text-brand-error" />
-                        Stress test
-                    </button>
-                    <button
                         onClick={() => handleSendMessage("Explain PoC consensus.")}
                         className="px-6 py-3 bg-brand-bg/50 border border-brand-border/40 rounded-xl text-[10px] font-black uppercase text-brand-muted hover:border-brand-primary hover:text-brand-primary transition-all flex items-center gap-3 group hover:shadow-[0_0_15px_rgba(var(--brand-primary-rgb),0.2)]"
                     >
@@ -365,7 +347,7 @@ Current block: ${metrics.blockHeight} • TPS: ${metrics.tps.toFixed(1)} • Avg
                             value={inputText}
                             onChange={(e) => setInputText(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder={tri("Enter your command for the local protocol...", "Digite seu comando para o protocolo local...", "Escriba su comando para el protocolo local...")}
+                            placeholder={tri("Ask about claims, settlement or faucets...", "Pergunte sobre claims, liquidação ou torneiras...", "Pregunta sobre claims, liquidación o grifos...")}
                             className="flex-1 bg-transparent border-none py-4 text-base text-brand-secondary focus:outline-none placeholder:text-brand-muted/30 font-light tracking-wide"
                         />
                         <button

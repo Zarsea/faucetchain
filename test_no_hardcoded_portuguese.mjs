@@ -36,7 +36,6 @@ const CONVERTIDOS = [
     'components/InfrastructureMonitor.tsx',
     'components/FaucetHub.tsx',
     'components/ApiDocs.tsx',
-    'components/ClaimEventSection.tsx',
     'components/GeneralArticle.tsx',
     'components/DappsEnvironment.tsx',
     'components/CodeViewer.tsx',

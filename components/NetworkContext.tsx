@@ -70,8 +70,6 @@ interface NetworkContextType {
     blocks: Block[];
     anomaly: Anomaly;
     setAnomaly: (a: Anomaly) => void;
-    triggerAnomaly: (type: Anomaly['type']) => void;
-    addBlockManually: (validator: string, txCount: number) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
@@ -97,51 +95,10 @@ export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     const [blocks, setBlocks] = useState<Block[]>([]);
 
-    const addBlockManually = (validator: string, txCount: number) => {
-        setBlocks(prev => {
-            const nextHeight = metrics.blockHeight + 1;
-
-            const newBlock = {
-                height: nextHeight,
-                validator,
-                txs: txCount,
-                timestamp: Date.now(),
-                reward: metrics.currentReward || 50
-            };
-
-            setMetrics(m => ({
-                ...m,
-                blockHeight: nextHeight,
-                totalTransactions: m.totalTransactions + txCount,
-            }));
-
-            return [newBlock, ...prev.slice(0, 19)];
-        });
-    };
-
-    const triggerAnomaly = (type: Anomaly['type']) => {
-        let desc = '';
-        let severity: Anomaly['severity'] = 'MEDIUM';
-
-        switch (type) {
-            case 'CONGESTION':
-                desc = 'Traffic spike detected on external hubs.';
-                severity = 'MEDIUM';
-                break;
-            case 'VALIDATOR_DROP':
-                desc = 'Mass disconnection of PoS nodes detected.';
-                severity = 'CRITICAL';
-                break;
-            default:
-                desc = 'Stable.';
-                severity = 'LOW';
-        }
-
-        setAnomaly({ type, severity, timestamp: Date.now(), description: desc });
-        setTimeout(() => {
-            setAnomaly({ type: 'NONE', severity: 'LOW', timestamp: Date.now(), description: 'Network stable.' });
-        }, 15000);
-    };
+    // addBlockManually e triggerAnomaly sairam. O primeiro punha na tela um
+    // bloco que nao existia (altura + 1, recompensa 50) depois de um claim ou
+    // de um "mint" pedido ao chat; o segundo acendia um alarme falso por 15 s.
+    // O bloco de verdade chega pelo fetch logo abaixo.
 
     const fetchNetworkData = async () => {
         try {
@@ -211,7 +168,7 @@ export const NetworkProvider: React.FC<{ children: ReactNode }> = ({ children })
     }, []);
 
     return (
-        <NetworkContext.Provider value={{ metrics, blocks, anomaly, setAnomaly, triggerAnomaly, addBlockManually }}>
+        <NetworkContext.Provider value={{ metrics, blocks, anomaly, setAnomaly }}>
             {children}
         </NetworkContext.Provider>
     );

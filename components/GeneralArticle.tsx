@@ -13,7 +13,6 @@ import {
     XMarkIcon
 } from './IconComponents';
 import { useLanguage } from './LanguageContext';
-import { ClaimEventSection } from './ClaimEventSection';
 import { POC_WEIGHT_LOGIC_CODE, AI_REPUTATION_LOGIC_CODE } from '../constants';
 import { CodeBlock } from './CodeBlock';
 
@@ -101,7 +100,7 @@ export const GeneralArticle: React.FC = () => {
     // `conteudo[lang]` em vez de ternario aninhado: a forma de tres ramos
     // encadeados ja mandou o espanhol para o portugues uma vez e para o
     // ingles outra, cada vez por trocar um operador. Com as chaves nomeadas
-    // nao ha ordem para errar, e fica igual ao ClaimEventSection.
+    // nao ha ordem para errar, como a extinta ClaimEventSection fazia.
     const t = conteudo[lang] ?? conteudo.en;
 
     return (
@@ -126,12 +125,9 @@ export const GeneralArticle: React.FC = () => {
                         <h3 className="text-2xl font-black text-white">Proof of Claim (PoC)</h3>
                         <p className="text-brand-muted leading-relaxed text-lg">
                             {tri(
-                                "Decentralized validation allowing any entity proving legitimate activity to gain network weight, eliminating the hardware-gate for entry.",
-                                "Validação descentralizada permitindo que qualquer entidade que prove atividade legítima ganhe peso na rede, eliminando a barreira de hardware.",
-                                "Validación descentralizada que permite a cualquier entidad que pruebe actividad legítima ganar peso en la red, eliminando la barrera de hardware para entrar.")}
-                        </p>
-                        <p className="text-brand-primary font-bold italic border-l-2 border-brand-primary pl-4 py-1">
-                            "Meritocracy encoded in the ledger."
+                                "Every claim on the built-in faucet carries a keccak puzzle tied to the chain tip, so it cannot be precomputed in bulk. The puzzle gets harder as the hour's 2,000 $CLAIM quota is spent.",
+                                "Cada claim na torneira interna carrega um desafio keccak amarrado à ponta da cadeia, então não dá para calcular em massa de antemão. O desafio fica mais difícil conforme a cota de 2.000 $CLAIM da hora é gasta.",
+                                "Cada claim en el grifo interno lleva un desafío keccak atado a la punta de la cadena, así que no se puede precalcular en masa. El desafío se vuelve más difícil a medida que se gasta la cuota de 2.000 $CLAIM de la hora.")}
                         </p>
                     </div>
                     
@@ -147,10 +143,6 @@ export const GeneralArticle: React.FC = () => {
                         <p className="text-brand-muted leading-relaxed text-lg">
                             {t.hubDesc}
                         </p>
-                        <div className="pt-2 flex items-center gap-2 text-xs font-bold text-brand-accent">
-                            <SignalIcon className="w-4 h-4 animate-pulse" />
-                            Live Bridge Synchronization Active
-                        </div>
                     </div>
                 </div>
             </div>
@@ -332,7 +324,6 @@ export const GeneralArticle: React.FC = () => {
                 </div>
             </div>
 
-            <ClaimEventSection />
         </div>
     );
 };

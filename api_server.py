@@ -4105,9 +4105,14 @@ async def get_vault_yield():
         except Exception:
             pass
             
-        # Calculate Total Burned (Using Miner Pool as proxy for deflationary mechanics)
-        miner_info = await get_user_balance(MINER_POOL_ADDRESS)
-        total_burned = miner_info["total_claim"]
+        # Era o saldo do pool de mineradores, "como proxy": a tela chamava de
+        # queimado um dinheiro que existe e esta la. A unica queima real e a
+        # parte de cada booster comprado que e destruida (cyberdrip_boosters).
+        try:
+            total_burned = c.execute(
+                "SELECT COALESCE(SUM(burned), 0) FROM cyberdrip_boosters").fetchone()[0]
+        except sqlite3.OperationalError:
+            total_burned = 0.0
         
         # APY do que o cofre realmente paga, e nao um numero plausivel.
         #
@@ -4134,12 +4139,14 @@ async def get_vault_yield():
         }
     except Exception as e:
         print(f"Vault yield error: {e}")
+        # Sem dado e None, que a tela escreve como "sem dados". Antes voltavam
+        # zeros e um APY de 14,5% que nenhuma conta produziu.
         return {
-            "totalExternalValue": 0,
-            "yieldGenerated": 0,
-            "circulatingSupply": 0,
-            "totalBurned": 0,
-            "stakingApy": 14.5,
+            "totalExternalValue": None,
+            "yieldGenerated": None,
+            "circulatingSupply": None,
+            "totalBurned": None,
+            "stakingApy": None,
             "assets": []
         }
 

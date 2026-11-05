@@ -38,15 +38,15 @@ export const CodeViewer: React.FC<CodeViewerProps> = ({ section }) => {
         return (
             <div>
                 <h2 className="text-2xl font-bold text-brand-secondary mb-4">
-                    {tri('AI Module for Fraud Detection & Bonus Calculation',
-                         'Módulo de IA para detecção de fraude e cálculo de bônus',
-                         'Módulo de IA para detección de fraude y cálculo de bono')}
+                    {tri('Sentinel: the cadence check',
+                         'Sentinel: a checagem de ritmo',
+                         'Sentinel: la verificación de ritmo')}
                 </h2>
                 <p className="text-brand-muted mb-6">
                     {tri(
-                        'This Python module uses machine learning to enhance the consensus mechanism. It detects anomalous patterns indicative of claim farming and calculates an activity bonus for validators participating in the DeFi ecosystem.',
-                        'Este módulo em Python usa aprendizado de máquina para reforçar o mecanismo de consenso. Ele detecta padrões anômalos típicos de farm de claims e calcula um bônus de atividade para validadores que participam do ecossistema DeFi.',
-                        'Este módulo en Python usa aprendizaje automático para reforzar el mecanismo de consenso. Detecta patrones anómalos típicos del farmeo de claims y calcula un bono de actividad para validadores que participan del ecosistema DeFi.')}
+                        'There is no machine learning here. Before a merit claim is accepted, the server reads that wallet’s last twenty claims and refuses the new one if two of them came less than a minute apart, which the one-hour cooldown should make impossible. The limits that actually stop farming are arithmetic: the hourly quota, the per-IP wallet cap and the puzzle in the browser.',
+                        'Não há aprendizado de máquina aqui. Antes de aceitar um claim de mérito, o servidor lê os últimos vinte claims daquela carteira e recusa o novo se dois deles vieram com menos de um minuto de diferença, o que o intervalo de uma hora deveria impedir. Os limites que de fato seguram o farm são aritméticos: a cota por hora, o teto de carteiras por IP e o desafio no navegador.',
+                        'Aquí no hay aprendizaje automático. Antes de aceptar un claim de mérito, el servidor lee los últimos veinte claims de esa billetera y rechaza el nuevo si dos de ellos llegaron con menos de un minuto de diferencia, algo que el intervalo de una hora debería impedir. Los límites que de verdad frenan el farmeo son aritméticos: la cuota por hora, el tope de billeteras por IP y el desafío en el navegador.')}
                 </p>
                 <CodeBlock code={PYTHON_CODE} language="python" title="FraudAndBonusDetector.py" />
             </div>
