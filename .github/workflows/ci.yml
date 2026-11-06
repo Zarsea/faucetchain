@@ -88,6 +88,9 @@ jobs:
       - name: The public ledger shows what the next batch would carry, and the batch agrees
         run: python tests/test_awaiting_batch.py
 
+      - name: A bounty locks the reward, pays the hunter once and refunds on cancel
+        run: python tests/test_bounty_escrow.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

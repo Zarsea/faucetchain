@@ -5021,8 +5021,35 @@ def init_bounties_table():
             completed_at INTEGER DEFAULT NULL
         )
     ''')
+    # Ate 06/11/2026 a criacao nao debitava nada (SEC-013). locked=1 marca as
+    # que travaram saldo de verdade; so essas pagam ao aprovar e devolvem ao
+    # cancelar. As antigas ficam com 0 e nao viram dinheiro do nada.
+    cols = {r[1] for r in c.execute("PRAGMA table_info(bounties)")}
+    if "locked" not in cols:
+        c.execute("ALTER TABLE bounties ADD COLUMN locked INTEGER NOT NULL DEFAULT 0")
     conn.commit()
     conn.close()
+
+
+# O saldo gastavel do usuario: o mesmo livro que a loja de boosters debita.
+FAUCET_INTERNAL_WALLET = "0x84da71247cbfb0737a9112de1f10dae9823fc298"
+
+
+def _debitar_interno(c, wallet: str, valor: float) -> bool:
+    """Debita so se houver saldo; o teste e a escrita sao um UPDATE so."""
+    c.execute(
+        "UPDATE microclaims_ledger SET virtual_balance = virtual_balance - ? "
+        "WHERE faucet_wallet = ? AND user_wallet = ? AND virtual_balance >= ?",
+        (valor, FAUCET_INTERNAL_WALLET, wallet, valor))
+    return c.rowcount == 1
+
+
+def _creditar_interno(c, wallet: str, valor: float, ts: int):
+    c.execute(
+        "INSERT INTO microclaims_ledger (faucet_wallet, user_wallet, virtual_balance, created_at) "
+        "VALUES (?, ?, ?, ?) ON CONFLICT(faucet_wallet, user_wallet) "
+        "DO UPDATE SET virtual_balance = virtual_balance + excluded.virtual_balance",
+        (FAUCET_INTERNAL_WALLET, wallet, valor, ts))
 
 # A cada 5s a fila e drenada; a reserva e conferida a cada 60s, porque ela
 # custa uma leitura de saldo e nao muda de segundo em segundo.
@@ -5177,11 +5204,15 @@ async def create_bounty(req: CreateBountyRequest, request: Request,
 
     conn = get_db_connection()
     c = conn.cursor()
+    if not _debitar_interno(c, creator_lower, req.reward):
+        conn.close()
+        raise HTTPException(status_code=400,
+                            detail=f"Not enough balance to lock {req.reward} CLAIM.")
     c.execute('''
-        INSERT INTO bounties (creator_address, title, description, reward, created_at, deadline, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'OPEN')
+        INSERT INTO bounties (creator_address, title, description, reward, created_at, deadline, status, locked)
+        VALUES (?, ?, ?, ?, ?, ?, 'OPEN', 1)
     ''', (
-        req.creator_address.strip().lower(),
+        creator_lower,
         sanitize_input(req.title),
         sanitize_input(req.description),
         req.reward,
@@ -5306,17 +5337,25 @@ async def approve_bounty(bounty_id: int, req: ApproveBountyRequest,
         raise HTTPException(status_code=400, detail="That bounty is not under review.")
 
     current_ts = int(datetime.now().timestamp())
+    # O status na condicao faz a troca valer uma vez so, mesmo com dois
+    # pedidos ao mesmo tempo.
     c.execute(
-        "UPDATE bounties SET status = 'COMPLETED', completed_at = ? WHERE id = ?",
+        "UPDATE bounties SET status = 'COMPLETED', completed_at = ? WHERE id = ? AND status = 'CLAIMED'",
         (current_ts, bounty_id)
     )
+    if c.rowcount != 1:
+        conn.close()
+        raise HTTPException(status_code=400, detail="That bounty is not under review.")
+    pago = bounty["reward"] if bounty.get("locked") else 0
+    if pago:
+        _creditar_interno(c, bounty["hunter_address"], pago, current_ts)
     conn.commit()
     conn.close()
 
     return {
         "status": "success",
         "bounty_id": bounty_id,
-        "reward_paid": bounty["reward"],
+        "reward_paid": pago,
         "hunter": bounty["hunter_address"]
     }
 
@@ -5355,16 +5394,22 @@ async def cancel_bounty(bounty_id: int, req: ApproveBountyRequest,
         raise HTTPException(status_code=400, detail="A bounty in this state cannot be cancelled.")
 
     c.execute(
-        "UPDATE bounties SET status = 'CANCELLED', completed_at = ? WHERE id = ?",
-        (current_ts, bounty_id)
+        "UPDATE bounties SET status = 'CANCELLED', completed_at = ? WHERE id = ? AND status = ?",
+        (current_ts, bounty_id, bounty["status"])
     )
+    if c.rowcount != 1:
+        conn.close()
+        raise HTTPException(status_code=400, detail="A bounty in this state cannot be cancelled.")
+    devolvido = bounty["reward"] if bounty.get("locked") else 0
+    if devolvido:
+        _creditar_interno(c, bounty["creator_address"], devolvido, current_ts)
     conn.commit()
     conn.close()
 
     return {
         "status": "success",
         "bounty_id": bounty_id,
-        "refund": bounty["reward"]
+        "refund": devolvido
     }
 
 
@@ -5409,10 +5454,10 @@ async def get_bounty_stats():
         c.execute("SELECT COUNT(*) FROM bounties WHERE status = 'COMPLETED'")
         completed = c.fetchone()[0]
 
-        c.execute("SELECT COALESCE(SUM(reward), 0) FROM bounties WHERE status = 'OPEN' OR status = 'CLAIMED'")
+        c.execute("SELECT COALESCE(SUM(reward), 0) FROM bounties WHERE status IN ('OPEN', 'CLAIMED') AND locked = 1")
         locked_rewards = c.fetchone()[0]
 
-        c.execute("SELECT COALESCE(SUM(reward), 0) FROM bounties WHERE status = 'COMPLETED'")
+        c.execute("SELECT COALESCE(SUM(reward), 0) FROM bounties WHERE status = 'COMPLETED' AND locked = 1")
         paid_rewards = c.fetchone()[0]
 
         conn.close()
@@ -6489,7 +6534,7 @@ async def get_infrastructure_status():
         open_bounties = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM bounties WHERE status = 'CLAIMED'")
         claimed = c.fetchone()[0]
-        c.execute("SELECT COALESCE(SUM(reward), 0) FROM bounties WHERE status = 'COMPLETED'")
+        c.execute("SELECT COALESCE(SUM(reward), 0) FROM bounties WHERE status = 'COMPLETED' AND locked = 1")
         distributed = c.fetchone()[0]
         result["bounty"] = {
             "status": "online",
@@ -7086,7 +7131,7 @@ async def buy_booster(req: BoosterBuyRequest, x_session_token: Optional[str] = H
         raise HTTPException(status_code=400, detail="That booster is already active.")
 
     # Check user's L2 virtual balance from microclaims_ledger (FaucetInternal)
-    FAUCET_WALLET = "0x84da71247cbfb0737a9112de1f10dae9823fc298"
+    FAUCET_WALLET = FAUCET_INTERNAL_WALLET
     c.execute("SELECT virtual_balance FROM microclaims_ledger WHERE faucet_wallet = ? AND user_wallet = ?",
               (FAUCET_WALLET, wallet_lower))
     ledger_row = c.fetchone()
