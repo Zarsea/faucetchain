@@ -25,6 +25,9 @@ import indexer_service  # noqa: E402
 indexer_service.init_db()
 
 import api_server as srv  # noqa: E402
+# Caucao, preco do clique e prova de clique tem teste proprio (tests/test_faucet_escrow_required.py); aqui nao sao o assunto.
+srv.click_quote = lambda *a: 100.0
+srv.MICROCLAIM_REQUIRE_PROOF = False
 import settlement  # noqa: E402
 
 srv.HAS_VECTOR_DB = False  # não carrega ChromaDB/modelo nos testes

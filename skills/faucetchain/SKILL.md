@@ -56,14 +56,20 @@ curl -X POST https://www.faucetchain.com.br/api/faucethub/register \
   -d '{"name":"My Faucet","wallet_address":"0x...","site_url":"https://myfaucet.example"}'
 ```
 
-**2. One call per claim**, from your server.
+**2. One call per claim**, from your server, carrying the Proof of Claim your
+user's browser solved (`GET /api/poc/challenge`).
 
 ```bash
 curl -X POST https://www.faucetchain.com.br/api/faucethub/microclaim \
   -H "Content-Type: application/json" \
   -H "X-API-Key: $FAUCETCHAIN_KEY" \
-  -d '{"user_wallet":"0x...","amount":1.0}'
+  -d '{"user_wallet":"0x...","amount":1.0,"poc_nonce":123,"poc_epoch_id":498406,"poc_parent_hash":"0x..."}'
 ```
+
+`amount` is the most you want to pay. The click is priced by supply and
+demand: your escrow's free part spread over 30 days, divided by your clicks
+of the last day, capped at 1. Show the user `credited` from the response,
+never the `amount` you sent.
 
 **3. Show the user their balance.** This route needs no key, so your frontend can
 read it directly.
@@ -91,9 +97,11 @@ this network that was 48 of 86 people who had earned campaign tokens. If your
 users will ever withdraw, get them to link a wallet *before* they earn, not after,
 and show the ones who have not what they are missing.
 
-**Below the minimum, nothing settles.** `MIN_WITHDRAW` is **10.0**. The balance
-route tells you `can_withdraw` and `missing_to_withdraw`; use those rather than
-computing the rule yourself, because it is the server's rule and it can change.
+**Below the minimum, nothing settles.** The minimum is 10 clicks at your
+faucet's current click value, so it is 10 when a click is worth 1 and smaller
+as clicks dilute. The balance route tells you `min_withdraw`, `can_withdraw`
+and `missing_to_withdraw`; use those rather than computing the rule yourself,
+because it moves with every click.
 
 **Spending is authorised by the user, not by your key.** Your API key says which
 faucet is calling. It cannot move anybody's balance on its own — a spend carries
@@ -124,6 +132,8 @@ replace it with a generic message of your own. Common ones:
 |---|---|
 | `401` | No `X-API-Key`, or the key does not match a registered faucet |
 | `400` | The address is not a valid address, or the amount is not positive |
+| `402` on microclaim | Your escrow is too thin: a click would be worth less than 0.01. Add escrow with `POST /api/faucethub/reserve`; nothing was credited |
+| `400` on microclaim, "Proof of Claim" | The proof is missing, stale, too easy, or was already used. Have the browser solve a fresh challenge |
 | `429` | A rate limit. Rejected calls are not counted against you, so backing off recovers on its own |
 | `400` on withdraw | Below `MIN_WITHDRAW`, or the user has no linked Solana wallet |
 

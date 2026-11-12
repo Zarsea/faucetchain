@@ -1,12 +1,24 @@
 # FaucetHub — Integration Guide for Developers
 **Everything needed to connect your faucet to FaucetChain through the API.**
 
-**Version:** 1.4 | **Updated:** 21 October 2026 | **Base URL:** `https://www.faucetchain.com.br`
+**Version:** 1.5 | **Updated:** 11 November 2026 | **Base URL:** `https://www.faucetchain.com.br`
 
-> Every example here pointed at `http://localhost:8000` until today, months
-> after this API went live. Nothing failed, because nothing checked. There is
-> an agent skill in `skills/faucetchain/` that carries the same integration
-> and ships `check.py`, which asserts its promises against the running API.
+> There is an agent skill in `skills/faucetchain/` that carries the same
+> integration and ships `check.py`, which asserts its promises against the
+> running API.
+
+## Changes that need action on your side
+
+Newest first. If an entry is dated after your integration went live, your
+code needs the change it describes. We tell every registered faucet before
+one of these reaches production.
+
+| Date | What changed | What you do |
+|---|---|---|
+| 11 Nov 2026 | `/microclaim` requires a **Proof of Claim**, single-use across all faucets. Without one the click answers `400`. | Have the user's browser solve the challenge and forward three fields. [Section 4](#the-proof-of-claim-step-by-step). |
+| 11 Nov 2026 | A click is **priced by supply and demand**. `amount` became a ceiling; what the user got comes back as `credited`. | Show `credited`, never the `amount` you sent. [Section 4](#what-a-click-is-worth). |
+| 11 Nov 2026 | The minimum withdrawal is **10 clicks at your current click value**, not a fixed 10. | Read `min_withdraw` / `can_withdraw` from the balance route instead of hard-coding 10. |
+| 6 Nov 2026 | **Escrow is required.** Without it `/microclaim` answers `402`. | `POST /api/faucethub/reserve` before going live. |
 
 ---
 
@@ -50,7 +62,7 @@ did.
        |
        |  after your own commit — your payout already happened
        v
-[The bridge]    POST /api/faucethub/microclaim   { user_wallet, amount }
+[The bridge]    POST /api/faucethub/microclaim   { user_wallet, amount, poc_* }
        |
        v
 [FaucetChain]   every enrolled campaign credits that user from its budget
@@ -176,13 +188,19 @@ POST /api/faucethub/microclaim
 | Field | Type | What it is |
 |---|---|---|
 | `user_wallet` | string | Your user's **Solana address**, or a FaucetChain `0x` address. The Solana one is the useful case — see *the derivation* below. |
-| `amount` | number | How much work this click represents, `0 < amount <= 100`. It is **not** what the user earns; the network computes that from the campaign budget, the days left and how many people are participating. This number only says "a click happened". |
+| `amount` | number | The most $CLAIM you will pay for this click, `0 < amount <= 100`. The user gets the smaller of this and the click's current value (below). Campaign rewards ignore it; the network computes those from the campaign budget, the days left and how many people take part. |
+| `poc_nonce` | integer | The nonce the user's browser found. Required. |
+| `poc_epoch_id` | integer | `epochId` from the challenge it solved. Required. |
+| `poc_parent_hash` | string | `parentHash` from the same challenge. Required. |
 
 ### A successful response (200)
 
 ```json
 {
   "user_address": "0x6f9b...c41e",
+  "credited": 0.42,
+  "virtual_balance": 18.7,
+  "next_claim_in": 300,
   "campaigns": [
     { "campaign_id": 990001, "amount": 4.82, "treasury": 1.2, "funding": "vault" }
   ],
@@ -237,7 +255,91 @@ list, no email, no token exchange, no account-linking step. We do the derivation
 on this side on purpose: it is a keccak over a decoded base58 key, and a faucet
 running PHP on shared hosting should not have to acquire either.
 
-### The two rules that are not negotiable
+### What a click is worth
+
+Your escrow pays your users, so your escrow sets the price. A click is worth
+
+```
+min(amount, (escrow − what you already owe) ÷ 30 days ÷ (your clicks in the last 24 h + 1))
+```
+
+With few users the click is worth the `amount` you sent. As more people click,
+each click is worth less, until you add escrow. With 19,600 in free escrow and
+24 clicks a day per user, the 1-CLAIM click starts to dilute at about 27 active
+users. Below 0.01 the click is refused with `402` and nothing is credited.
+
+Three consequences for your code:
+
+- **Show `credited`, not `amount`.** A screen that says "+1 $CLAIM" while 0.42
+  was credited is a promise your user will catch you breaking.
+- **Read the minimum, don't hard-code it.** The minimum withdrawal is 10 clicks
+  at the current value. `GET /microclaim/balance/{user}` returns `min_withdraw`,
+  `can_withdraw` and `missing_to_withdraw` for each faucet.
+- **Escrow cannot go below what you owe.** You can release the free part, never
+  the part already promised to your users. Pay them first.
+
+### The Proof of Claim, step by step
+
+Every `/microclaim` carries a small proof of work, solved in your user's browser
+and good for one click at one faucet. A script that calls your claim endpoint in
+a loop now has to burn CPU for every click, and a proof cannot be replayed at a
+second faucet.
+
+The proof is a nonce such that
+
+```
+keccak256("FaucetChain-PoC|<chainId>|<epochId>|<parentHash>|<user_wallet>|<nonce>")
+```
+
+starts with `difficultyBits` zero bits. Expect 16 bits, about 65 thousand
+hashes, and up to 19 under load. That is a second or two in a browser.
+
+**1. Your server fetches the challenge.** Do this on your server, not in the
+browser (see the CORS note in the agent skill), and fetch it when the user starts
+the claim. A challenge goes stale within the hour, or sooner if the chain seals
+a block.
+
+```php
+// poc_challenge.php — the browser asks you, you ask FaucetChain
+header('Content-Type: application/json');
+$raw = @file_get_contents(rtrim(FAUCETCHAIN_URL, '/') . '/api/poc/challenge', false,
+    stream_context_create(['http' => ['timeout' => 4]]));
+echo $raw !== false ? $raw : '{"error":"unavailable"}';
+```
+
+**2. The browser solves it** over the exact `user_wallet` your server will
+send. A Solana address is case-sensitive: use it as it is. A `0x` address goes
+in lowercase, with the `0x`.
+
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-sha3/0.9.3/sha3.min.js"></script>
+<script>
+async function solveClaimProof(wallet) {
+  const ch = await (await fetch('/api/poc_challenge.php')).json();
+  const shift = BigInt(256 - ch.difficultyBits);
+  for (let nonce = 0; ; nonce++) {
+    const msg = `FaucetChain-PoC|${ch.chainId}|${ch.epochId}|${ch.parentHash}|${wallet}|${nonce}`;
+    if ((BigInt('0x' + keccak256(msg)) >> shift) === 0n) {
+      return { poc_nonce: nonce, poc_epoch_id: ch.epochId, poc_parent_hash: ch.parentHash };
+    }
+    if (nonce % 5000 === 0) await new Promise(r => setTimeout(r)); // keep the page responsive
+  }
+}
+// on the claim button: send the three fields with your own claim request
+// const proof = await solveClaimProof(userSolanaAddress);
+// fetch('/api/claim.php', { method: 'POST', body: JSON.stringify({ ...yourFields, ...proof }) });
+</script>
+```
+
+**3. Your server forwards the three fields** with the microclaim, untouched.
+It does not check them; FaucetChain does.
+
+If the proof is missing, stale, too easy or already used, the answer is `400`
+with a `detail` that says which. Your own claim has already been paid by then
+(rule 1 below), so log it and move on. A rejected click does not use up the
+proof; a click that was credited does.
+
+### The rules that are not negotiable
 
 **1. Call it after your commit.** Your user's payout must be recorded before
 FaucetChain is even looked up. A payment cannot depend on somebody else's
@@ -253,12 +355,19 @@ wrong, and the person it costs is your user.
 the same lock you almost certainly already have. Treat it as "nothing to do" and
 do not log an error, or your log fills with false alarms.
 
+`402` and `400` are not outages either: your escrow is too thin, or the proof
+was refused. Log the `detail`, show the user that this click earned no $CLAIM,
+and do not mark FaucetChain as offline.
+
+**3. Show what was credited.** Read `credited` from the response. If the call
+failed, the user earned nothing here, so do not show anything.
+
 ### A working PHP implementation
 
-`dist/api/faucetchain.php` in the FaucetHunter tree is a complete one, written
-to be copied: env-var config, short timeout, swallowed errors, and the install
-steps in a comment at the bottom. About 60 lines of actual code. Four things to
-change in a faucet that already exists:
+`dist/api/faucetchain.php` in the FaucetHunter tree is the reference: env-var
+config, short timeout, swallowed errors. It was written before 11 November and
+does not forward the proof yet, so add steps 5 and 6 below. The changes for a
+faucet that already exists:
 
 ```php
 // 1. a column for the wallet, optional — whoever leaves it empty keeps
@@ -284,10 +393,24 @@ try {
 } catch (Throwable $e) {
     error_log('[FaucetChain] ' . $e->getMessage());
 }
+
+// 5. take the proof from the browser's claim request and put it in the
+//    microclaim body, next to user_wallet and amount
+$in = json_decode(file_get_contents('php://input'), true) ?: [];
+$body = [
+    'user_wallet'     => $solanaAddress,
+    'amount'          => 1.0,              // a ceiling, not what the user gets
+    'poc_nonce'       => (int)($in['poc_nonce'] ?? 0),
+    'poc_epoch_id'    => (int)($in['poc_epoch_id'] ?? 0),
+    'poc_parent_hash' => (string)($in['poc_parent_hash'] ?? ''),
+];
+
+// 6. return what was really credited, and show that number
+$credited = (float)($response['credited'] ?? 0);
 ```
 
 Then add `'faucetchain' => $fc` to your JSON response if you want to show the
-user what the campaign paid.
+user what the click and the campaigns paid.
 
 ### With cURL
 
@@ -295,8 +418,20 @@ user what the campaign paid.
 curl -X POST https://www.faucetchain.com.br/api/faucethub/microclaim \
   -H "X-Api-Key: fch_your_key" \
   -H "Content-Type: application/json" \
-  -d '{"user_wallet": "EL5Hubaf...jpPAvpkmjLzA", "amount": 1.0}'
+  -d '{"user_wallet": "EL5Hubaf...jpPAvpkmjLzA", "amount": 1.0,
+       "poc_nonce": 48213, "poc_epoch_id": 498406, "poc_parent_hash": "0x..."}'
 ```
+
+### Checklist before you go live
+
+1. Registered, API key stored as a server secret.
+2. Escrow posted (`POST /api/faucethub/reserve`).
+3. Users have a Solana address on file, or the bridge does nothing for them.
+4. The browser solves the proof over the same `user_wallet` the server sends.
+5. The microclaim runs after your commit, with a 4-second timeout, and its
+   failure cannot fail your claim.
+6. The screen shows `credited`, and withdrawal reads `min_withdraw`.
+7. You took FaucetChain offline on purpose and your faucet kept paying.
 
 
 ## 5. Step 3: Manage your API key
@@ -815,8 +950,9 @@ app.listen(3001, () => console.log('🚰 Mini Faucet rodando em http://localhost
 
 | Code | Meaning | Usual cause |
 |---|---|---|
-| `400` | Bad Request | Malformed wallet address, amount <= 0, or a wallet that is already registered |
+| `400` | Bad Request | Malformed wallet address, amount <= 0, a wallet that is already registered, or on `/microclaim` a Proof of Claim that is missing, stale, too easy or already used |
 | `401` | Unauthorized | API key missing, wrong, or deactivated |
+| `402` | Payment Required | On `/microclaim`: your escrow is too thin, a click would be worth under 0.01. Nothing was credited |
 | `404` | Not Found | Wallet not registered, or it has no active key |
 | `429` | Too Many Requests | Rate limit exceeded (100 requests per minute) |
 | `500` | Internal Error | Something broke on our side — please report it |
@@ -852,6 +988,9 @@ app.listen(3001, () => console.log('🚰 Mini Faucet rodando em http://localhost
 
 ### What happens when my reserve runs out?
 The settlement is refused with `400 — Insufficient reserve`. Your users keep accumulating their balance on your site; they just cannot withdraw until you top the wallet up. Watch the board and refill before you hit zero.
+
+### Is escrow required?
+Yes, since 6 November 2026, and since 11 November it also sets what a click is worth: the free part of your escrow, spread over 30 days and over your clicks of the last day, capped at the `amount` you send. Below 0.01 per click the call answers `402` and nothing is credited. Move $CLAIM into escrow with `POST /api/faucethub/reserve`. You can release escrow, but never below what you owe your users. Campaign tokens are not affected; they are covered by the campaign's vault on Solana.
 
 ### How do I top up?
 Send $CLAIM to the registered address like any other transfer, or earn it through mining and staking on FaucetChain.

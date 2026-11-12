@@ -37,6 +37,9 @@ def main() -> int:
     sys.path.insert(0, ROOT)
 
     import api_server
+    # Caucao, preco do clique e prova de clique tem teste proprio (tests/test_faucet_escrow_required.py); aqui nao sao o assunto.
+    api_server.click_quote = lambda *a: 100.0
+    api_server.MICROCLAIM_REQUIRE_PROOF = False
     from fastapi.testclient import TestClient
 
     api_server.init_users_table()

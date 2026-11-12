@@ -1917,7 +1917,60 @@ async def get_settlements(wallet: str, limit: int = 50):
 # ===========================
 
 MICROCLAIM_COOLDOWN = 300  # 5 minutes between claims
-MIN_WITHDRAW_AMOUNT = 10.0  # Minimum $CLAIM to withdraw to L1
+
+# Oferta x demanda (11/11/2026). O clique nao tem preco fixo: a torneira gasta
+# por dia 1/30 da folga (caucao - divida) e divide isso pelos cliques do
+# ultimo dia. Poucos usuarios, clique cheio (ate o teto); muitos, clique
+# diluido. Refeita a cada clique, a folga encolhe pela metade a cada ~21 dias
+# sem reposicao, mas nunca zera de uma vez, e a torneira nunca promete o que
+# a caucao nao cobre.
+CLICK_HORIZON_DAYS = 30
+CLICK_CAP = 1.0
+CLICK_FLOOR = 0.01       # abaixo disto o clique e poeira: 402, reponha caucao
+MIN_WITHDRAW_CLICKS = 10  # o saque minimo e 10 cliques ao valor de agora
+MIN_WITHDRAW_AMOUNT = MIN_WITHDRAW_CLICKS * CLICK_CAP  # o minimo com clique cheio
+# O clique precisa trazer o Claim Proof que o usuario resolveu no navegador.
+# Desligavel so para a ordem de deploy: a torneira parceira tem que mandar a
+# prova antes de isto valer em producao.
+MICROCLAIM_REQUIRE_PROOF = os.getenv("MICROCLAIM_REQUIRE_PROOF", "1") != "0"
+
+
+def click_quote(conn, faucet_wallet: str, now: int) -> float:
+    """Quanto vale um clique nesta torneira agora, em CLAIM."""
+    folga = max(0.0, faucet_escrow(conn, faucet_wallet) - faucet_owed(conn, faucet_wallet))
+    try:
+        cliques = conn.execute(
+            "SELECT COUNT(*) FROM microclaims_history "
+            "WHERE faucet_wallet = ? AND event_type = 'CLAIM' AND timestamp > ?",
+            (faucet_wallet, now - 86400)).fetchone()[0]
+    except sqlite3.OperationalError:
+        cliques = 0
+    # +1: este clique tambem conta, e a primeira hora de uma torneira nova
+    # nao divide por zero.
+    return min(CLICK_CAP, folga / CLICK_HORIZON_DAYS / (cliques + 1))
+
+
+def min_withdraw(conn, faucet_wallet: str, now: int) -> float:
+    """O saque minimo acompanha o clique: sempre cerca de 10 cliques de trabalho."""
+    return MIN_WITHDRAW_CLICKS * min(CLICK_CAP, click_quote(conn, faucet_wallet, now))
+
+
+def exigir_prova_de_clique(conn, alvo: str, epoch_id, parent_hash, nonce, now: int) -> None:
+    """Valida o Claim Proof do clique e impede que a mesma prova pague duas vezes.
+
+    Sem o registro, uma prova valida por ate duas epocas pagaria em toda
+    torneira em que o usuario clicasse, e o custo por clique, que e o que
+    encarece carteiras falsas, cairia pela metade a cada torneira a mais.
+    """
+    if not MICROCLAIM_REQUIRE_PROOF:
+        return
+    c = conn.cursor()
+    digest = verify_claim_proof(c, alvo, epoch_id, parent_hash, nonce, now)
+    c.execute("CREATE TABLE IF NOT EXISTS microclaim_proofs (hash TEXT PRIMARY KEY, used_at INTEGER)")
+    try:
+        c.execute("INSERT INTO microclaim_proofs (hash, used_at) VALUES (?, ?)", (digest, now))
+    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=400, detail="This Proof of Claim was already used. Solve a fresh challenge.")
 
 def faucet_user_address(given: str) -> str:
     """The FaucetChain address for whatever a partner faucet calls its user.
@@ -1956,6 +2009,11 @@ class MicroClaimRequest(BaseModel):
     # o que as outras torneiras ja esperam deste endpoint.
     campaigns: Optional[bool] = None    # False: paga $CLAIM e nenhuma campanha
     campaign_id: Optional[int] = None   # paga so esta campanha, e nenhum $CLAIM
+    # Claim Proof resolvido no navegador do usuario (GET /api/poc/challenge),
+    # sobre o mesmo user_wallet que a torneira envia aqui.
+    poc_nonce: Optional[int] = None
+    poc_epoch_id: Optional[int] = None
+    poc_parent_hash: Optional[str] = None
 
 @app.post("/api/faucethub/microclaim")
 async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = Header(None)):
@@ -1999,6 +2057,13 @@ async def credit_microclaim(req: MicroClaimRequest, x_api_key: Optional[str] = H
         raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
 
     try:
+        # A prova e sobre o endereco que o navegador do usuario conhece: o que
+        # a torneira mandou, nao a conta derivada dele aqui.
+        alvo = req.user_wallet.strip()
+        if re.fullmatch(r"(0x)?[0-9a-fA-F]{40}", alvo):
+            alvo = user_lower
+        exigir_prova_de_clique(conn, alvo, req.poc_epoch_id, req.poc_parent_hash,
+                               req.poc_nonce, int(_time.time()))
         if req.campaign_id is not None:
             result = _claim_one_campaign(conn, faucet_wallet, user_lower, req.campaign_id)
         else:
@@ -2183,6 +2248,22 @@ def _credit_microclaim(conn, faucet_wallet: str, user_lower: str, amount: float)
                 detail=f"Cooldown active. Wait {remaining}s before next claim."
             )
 
+    # Caucao obrigatoria (06/11) com preco por oferta x demanda (11/11): o
+    # clique vale o que a folga da caucao aguenta, e `amount` passa a ser o
+    # maximo que a torneira quer pagar. Como o valor e no maximo 1/30 da folga,
+    # todo credito fica coberto pela caucao. Saldo livre nao conta.
+    # ponytail: ler e gravar nao sao atomicos; dois cliques simultaneos leem a
+    # mesma folga. Cada um paga <= 1/30 dela, entao nao descobre a divida.
+    cotacao = click_quote(conn, faucet_wallet, now)
+    if cotacao < CLICK_FLOOR:
+        caucao, devido = faucet_escrow(conn, faucet_wallet), faucet_owed(conn, faucet_wallet)
+        raise HTTPException(
+            status_code=402,
+            detail=(f"This faucet's escrow is too thin to pay a click: escrow {caucao:.4f} CLAIM, "
+                    f"owed {devido:.4f}, a click would be worth {cotacao:.6f} "
+                    f"(minimum {CLICK_FLOOR}). Add escrow with POST /api/faucethub/reserve."))
+    amount = round(min(amount, cotacao), 8)
+
     # Upsert the ledger entry
     if ledger_row:
         c.execute('''
@@ -2304,9 +2385,11 @@ async def get_microclaim_balance(user_wallet: str):
     
     result = []
     total_pending = 0.0
+    agora = int(_time.time())
     for row in rows:
         balance = row["virtual_balance"]
         total_pending += balance
+        minimo = round(min_withdraw(conn, row["faucet_wallet"], agora), 8)
         result.append({
             "faucet_wallet": row["faucet_wallet"],
             "faucet_name": row["faucet_name"] or "Unknown",
@@ -2314,13 +2397,14 @@ async def get_microclaim_balance(user_wallet: str):
             "total_claimed": round(row["total_claimed"], 4),
             "total_withdrawn": round(row["total_withdrawn"], 4),
             "claim_count": row["claim_count"],
-            "can_withdraw": balance >= MIN_WITHDRAW_AMOUNT,
-            "min_withdraw": MIN_WITHDRAW_AMOUNT,
+            "can_withdraw": balance > 0 and balance >= minimo,
+            # Acompanha o valor do clique desta torneira: ~10 cliques de agora.
+            "min_withdraw": minimo,
             # Sem estes tres a tela so sabia dizer "abaixo do minimo", que e um
             # beco: o usuario ficava sabendo que nao pode sacar e nao ficava
             # sabendo o que fazer a respeito.
             "site_url": row["site_url"],
-            "missing_to_withdraw": round(max(0.0, MIN_WITHDRAW_AMOUNT - balance), 4),
+            "missing_to_withdraw": round(max(0.0, minimo - balance), 4),
             "next_claim_at": (row["last_claim_at"] + MICROCLAIM_COOLDOWN)
                              if row["last_claim_at"] else None
         })
@@ -2396,11 +2480,13 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
     ''', (faucet_lower, user_lower))
     row = c.fetchone()
     
-    if not row or row["virtual_balance"] < MIN_WITHDRAW_AMOUNT:
+    minimo = min_withdraw(conn, faucet_lower, int(_time.time()))
+    if not row or row["virtual_balance"] <= 0 or row["virtual_balance"] < minimo:
         conn.close()
         raise HTTPException(
             status_code=400,
-            detail=f"Minimum withdrawal is {MIN_WITHDRAW_AMOUNT} CLAIM. Current balance: {row['virtual_balance'] if row else 0}"
+            detail=f"Minimum withdrawal is {round(minimo, 8)} CLAIM (10 clicks at this faucet's current click value). "
+                   f"Current balance: {row['virtual_balance'] if row else 0}"
         )
     
     withdraw_amount = row["virtual_balance"]

@@ -48,9 +48,23 @@ users browsing the hub.
   "user_wallet": "0x...",
   "amount": 1.0,
   "campaigns": true,
-  "campaign_id": null
+  "campaign_id": null,
+  "poc_nonce": 123,
+  "poc_epoch_id": 498406,
+  "poc_parent_hash": "0x..."
 }
 ```
+
+**Proof of Claim is required.** Your user's browser gets `GET /api/poc/challenge`
+and finds a nonce whose keccak256 over the `messageTemplate` (with the same
+`user_wallet` you send here) starts with `difficultyBits` zero bits. Each proof
+pays once, at one faucet.
+
+**The click is priced, `amount` is a ceiling.** A click is worth your escrow's
+free part (escrow minus what you owe) divided by 30 days, divided by your
+clicks of the last 24 hours, capped at 1. Few users, a full click; many, a
+diluted one. The response's `credited` is what the user got. Below 0.01 the
+click answers `402` until you add escrow.
 
 `campaigns` and `campaign_id` are both optional, and **leaving both out is the
 normal case**: the click pays $CLAIM and every campaign the user qualifies for.
@@ -99,8 +113,8 @@ is not one number: each faucet is liable for its own.
 }
 ```
 
-Read `can_withdraw` and `missing_to_withdraw` instead of comparing against 10.0
-yourself. The rule belongs to the server.
+Read `can_withdraw` and `missing_to_withdraw` instead of comparing yourself.
+`min_withdraw` is 10 clicks at this faucet's current click value, so it moves.
 
 ### `GET /api/faucethub/microclaim/history/{user_wallet}` — no auth
 
@@ -160,8 +174,8 @@ the wrong purchase the first time a user buys two things at the same price.
 ```
 
 This is the user's action, not yours: it is authorised by their session or their
-wallet signature, never by your API key. It refuses below `MIN_WITHDRAW` (10.0)
-and when the user has no linked Solana wallet.
+wallet signature, never by your API key. It refuses below `min_withdraw` (10
+clicks at the current click value) and when the user has no linked Solana wallet.
 
 ### `GET /api/faucethub/settlements/{wallet}` — no auth
 
@@ -176,9 +190,14 @@ For a faucet settling a claim it owes directly.
 
 ## Reserve
 
-### `POST /api/faucethub/reserve` — needs `X-API-Key`
+### `POST /api/faucethub/reserve` — signed by the faucet's wallet
 
-Declare what you hold against what you owe.
+Moves `amount` $CLAIM from your faucet's balance into escrow. **Escrow is
+required**: it sets what a click is worth, and with too little of it
+`/microclaim` answers `402`. You cannot release escrow below what you owe, and
+withdrawals spend escrow before your free balance.
+
+Body: `{"wallet_address", "amount", "signature", "sig_timestamp"}`.
 
 ### `GET /api/faucethub/proof-of-reserve` — no auth
 

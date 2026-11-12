@@ -91,6 +91,9 @@ jobs:
       - name: A bounty locks the reward, pays the hunter once and refunds on cancel
         run: python tests/test_bounty_escrow.py
 
+      - name: A click is priced by escrow and demand, carries a single-use proof, and moves the minimum withdrawal
+        run: python tests/test_faucet_escrow_required.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

@@ -123,6 +123,13 @@ export const ApiDocs: React.FC = () => {
                                 'La clave aparece una vez, aquí y en la rotación. Solo su sha256 queda guardado, así que nada la revela después.'
                             )}
                         </p>
+                        <p className="text-sm text-brand-muted mb-4">
+                            {T(
+                                'Then post escrow with POST /api/faucethub/reserve. It is required, and it sets the price: a click is worth the free part of your escrow over 30 days, divided by your clicks of the last day, capped at the amount you send. Below 0.01 the answer is 402 and nothing is credited. Escrow can be released, never below what you owe your users.',
+                                'Depois deposite a caução com POST /api/faucethub/reserve. Ela é obrigatória e define o preço: um clique vale a parte livre da sua caução em 30 dias, dividida pelos seus cliques do último dia, com teto no amount que você envia. Abaixo de 0,01 a resposta é 402 e nada é creditado. A caução pode ser retirada, nunca abaixo do que você deve aos usuários.',
+                                'Después deposite la garantía con POST /api/faucethub/reserve. Es obligatoria y fija el precio: un clic vale la parte libre de su garantía en 30 días, dividida por sus clics del último día, con tope en el amount que usted envía. Por debajo de 0,01 la respuesta es 402 y no se acredita nada. La garantía se puede retirar, nunca por debajo de lo que usted debe a los usuarios.'
+                            )}
+                        </p>
                         <div className="bg-brand-bg p-4 rounded-xl border border-brand-border mb-6">
                             <code className="text-xs font-mono text-brand-primary">POST /api/faucethub/register</code>
                             <pre className="mt-3 text-[10px] text-brand-muted bg-brand-bg/50 p-2 rounded overflow-x-auto">
@@ -147,12 +154,15 @@ export const ApiDocs: React.FC = () => {
                     >
                         <p className="text-sm text-brand-muted mb-3">
                             {T(
-                                '`amount` is how much work the click represents, between 0 and 100. It is not what the user earns: ' +
-                                'the network computes that from the campaign budget, the days left and how many people are taking part.',
-                                '`amount` é quanto de trabalho o clique representa, entre 0 e 100. Não é o que o usuário ganha: ' +
-                                'a rede calcula isso a partir do orçamento da campanha, dos dias restantes e de quantas pessoas participam.',
-                                '`amount` es cuánto trabajo representa el clic, entre 0 y 100. No es lo que el usuario gana: ' +
-                                'la red lo calcula a partir del presupuesto de la campaña, de los días restantes y de cuánta gente participa.'
+                                '`amount` is the most you will pay for this click; show the user `credited` from the response, which is what they got. ' +
+                                'Every call carries a Proof of Claim solved in the user\'s browser (GET /api/poc/challenge) over the same user_wallet, ' +
+                                'and each proof pays once, at one faucet. Without it the answer is 400.',
+                                '`amount` é o máximo que você paga por este clique; mostre ao usuário o `credited` da resposta, que é o que ele recebeu. ' +
+                                'Toda chamada leva uma Prova de Clique resolvida no navegador do usuário (GET /api/poc/challenge) sobre o mesmo user_wallet, ' +
+                                'e cada prova paga uma vez, em uma torneira. Sem ela a resposta é 400.',
+                                '`amount` es lo máximo que usted paga por este clic; muestre al usuario el `credited` de la respuesta, que es lo que recibió. ' +
+                                'Cada llamada lleva una Prueba de Clic resuelta en el navegador del usuario (GET /api/poc/challenge) sobre el mismo user_wallet, ' +
+                                'y cada prueba paga una vez, en un grifo. Sin ella la respuesta es 400.'
                             )}
                         </p>
                         <div className="bg-brand-bg p-4 rounded-xl border border-brand-border">
@@ -163,12 +173,16 @@ Content-Type: application/json
 
 {
     "user_wallet": "7xKX…",   // Solana address, or a 0x FaucetChain one
-    "amount": 1
+    "amount": 1,              // ceiling
+    "poc_nonce": 48213,
+    "poc_epoch_id": 498406,
+    "poc_parent_hash": "0x…"
 }
 
 → 200
 {
     "user_address": "0x6f9b…c41e",
+    "credited": 0.42,         // what the user got
     "campaigns": [
         { "campaign_id": 990001, "amount": 4.82, "treasury": 1.2, "funding": "vault" }
     ]

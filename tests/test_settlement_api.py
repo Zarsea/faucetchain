@@ -43,6 +43,9 @@ import indexer_service  # noqa: E402
 indexer_service.init_db()
 
 import api_server as srv  # noqa: E402
+# Caucao, preco do clique e prova de clique tem teste proprio (tests/test_faucet_escrow_required.py); aqui nao sao o assunto.
+srv.click_quote = lambda *a: 100.0
+srv.MICROCLAIM_REQUIRE_PROOF = False
 
 # O registro de campanha confere o mint na cadeia desde 25/10, e estes testes
 # registram campanhas com mint inventado porque estao medindo outra coisa --
