@@ -15,6 +15,7 @@ one of these reaches production.
 
 | Date | What changed | What you do |
 |---|---|---|
+| 13 Nov 2026 | **Fix to our own sample.** The solver in section 4 started at `nonce = 0`. The challenge only changes with a new block, so every click in that block found the same proof, and from the second one on it answered `400 "Proof of Claim was already used"`. | Start the nonce at a random value, as section 4 now does. |
 | 11 Nov 2026 | `/microclaim` requires a **Proof of Claim**, single-use across all faucets. Without one the click answers `400`. | Have the user's browser solve the challenge and forward three fields. [Section 4](#the-proof-of-claim-step-by-step). |
 | 11 Nov 2026 | A click is **priced by supply and demand**. `amount` became a ceiling; what the user got comes back as `credited`. | Show `credited`, never the `amount` you sent. [Section 4](#what-a-click-is-worth). |
 | 11 Nov 2026 | The minimum withdrawal is **10 clicks at your current click value**, not a fixed 10. | Read `min_withdraw` / `can_withdraw` from the balance route instead of hard-coding 10. |
@@ -317,7 +318,10 @@ in lowercase, with the `0x`.
 async function solveClaimProof(wallet) {
   const ch = await (await fetch('/api/poc_challenge.php')).json();
   const shift = BigInt(256 - ch.difficultyBits);
-  for (let nonce = 0; ; nonce++) {
+  // Random start: the challenge stays the same until a new block, so a search
+  // from 0 finds the same nonce every click, and a used proof is refused.
+  // The start stays below 2^42, a safe integer in JS, PHP and Python.
+  for (let nonce = crypto.getRandomValues(new Uint32Array(1))[0] * 1024; ; nonce++) {
     const msg = `FaucetChain-PoC|${ch.chainId}|${ch.epochId}|${ch.parentHash}|${wallet}|${nonce}`;
     if ((BigInt('0x' + keccak256(msg)) >> shift) === 0n) {
       return { poc_nonce: nonce, poc_epoch_id: ch.epochId, poc_parent_hash: ch.parentHash };
