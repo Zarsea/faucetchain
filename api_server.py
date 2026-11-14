@@ -2590,6 +2590,92 @@ async def withdraw_microclaim(req: MicroClaimWithdrawRequest, x_session_token: O
         "layer": "L1"
     }
 
+
+class MicroClaimDepositRequest(BaseModel):
+    user_wallet: str
+    faucet_wallet: str
+    amount: ValorFinito
+    signature: Optional[str] = None
+    sig_timestamp: Optional[int] = None
+
+
+@app.post("/api/faucethub/microclaim/deposit")
+async def deposit_microclaim(req: MicroClaimDepositRequest, x_session_token: Optional[str] = Header(None)):
+    """O saque ao contrario: $CLAIM da conta do usuario para o saldo dele numa torneira.
+
+    O dinheiro nao sai da FaucetChain. Vai da conta para a tesouraria, como na
+    caucao, e caucao e divida da torneira sobem o mesmo valor: a cobertura nao
+    piora e a folga, que da o preco do clique, nao muda. A torneira gasta pelo
+    /spend, que exige a assinatura do usuario, entao nao pode tomar o deposito.
+    """
+    try:
+        user_lower = normalize_address(req.user_wallet)
+        faucet_lower = normalize_address(req.faucet_wallet)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    amount = round(float(req.amount), 8)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be a positive number")
+    if faucet_lower == user_lower:
+        raise HTTPException(status_code=400, detail="A faucet cannot deposit into itself")
+
+    require_action_signature(
+        user_lower,
+        settlement.deposit_message(user_lower, faucet_lower, amount, CHAIN_ID, req.sig_timestamp or 0),
+        req.signature, req.sig_timestamp, x_session_token
+    )
+
+    conn = get_db_connection()
+    c = conn.cursor()
+    try:
+        # A linha (torneira, usuario) so existe se a torneira ja creditou esta
+        # conta, e isso prova que ela conhece a identidade. Sem a trava, quem
+        # minerou numa conta 0x nunca ligada a Solana depositaria numa linha que
+        # a torneira nunca consulta, e o dinheiro sumiria para os dois lados.
+        c.execute("SELECT 1 FROM microclaims_ledger WHERE faucet_wallet = ? AND user_wallet = ?",
+                  (faucet_lower, user_lower))
+        if not c.fetchone():
+            raise HTTPException(
+                status_code=400,
+                detail="This faucet does not know this account yet. Claim there once with "
+                       "this wallet, or link your Solana wallet on the payouts screen, then deposit.")
+
+        # Trava a escrita antes de ler o saldo: dois depositos ao mesmo tempo
+        # leriam o mesmo saldo livre e gastariam duas vezes.
+        conn.execute("BEGIN IMMEDIATE")
+        livre = (await get_user_balance(user_lower))["total_claim"]
+        if livre + 1e-9 < amount:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough free balance. Free: {round(livre, 4)}, deposit: {amount}")
+
+        agora = int(_time.time())
+        tx_hash = "0x" + keccak256(f"FAUCET_DEPOSIT:{agora}:{user_lower}:{faucet_lower}:{amount}".encode()).hex()
+        c.execute("INSERT INTO transactions (hash, block_height, from_address, to_address, value, "
+                  "gas_price, timestamp, tx_type) VALUES (?, 0, ?, ?, ?, 0.0, ?, 'FAUCET_DEPOSIT')",
+                  (tx_hash, user_lower, TREASURY_ADDRESS, amount, agora))
+        c.execute("INSERT INTO faucet_reserves (faucet_wallet, amount, declared_at) VALUES (?, ?, ?) "
+                  "ON CONFLICT(faucet_wallet) DO UPDATE SET amount = amount + excluded.amount",
+                  (faucet_lower, amount, agora))
+        c.execute("UPDATE microclaims_ledger SET virtual_balance = virtual_balance + ? "
+                  "WHERE faucet_wallet = ? AND user_wallet = ?", (amount, faucet_lower, user_lower))
+        c.execute("INSERT INTO microclaims_history (faucet_wallet, user_wallet, amount, event_type, "
+                  "tx_hash, timestamp) VALUES (?, ?, ?, 'DEPOSIT', ?, ?)",
+                  (faucet_lower, user_lower, amount, tx_hash, agora))
+        saldo = c.execute("SELECT virtual_balance FROM microclaims_ledger WHERE faucet_wallet = ? "
+                          "AND user_wallet = ?", (faucet_lower, user_lower)).fetchone()[0]
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    _avisar_saque("deposit.settled", faucet_lower, user_lower, amount, "CLAIM", tx_hash)
+    audit_logger.info("L2_DEPOSIT: %s -> %s | %s CLAIM | tx=%s", user_lower, faucet_lower, amount, tx_hash)
+    return {"status": "deposited", "tx_hash": tx_hash, "amount": amount,
+            "faucet_wallet": faucet_lower, "balance": round(saldo, 8)}
+
 @app.get("/api/faucethub/microclaim/history/{user_wallet}")
 async def get_microclaim_history(user_wallet: str, limit: int = 50):
     """Get micro-claim history (claims + withdrawals) for a user."""

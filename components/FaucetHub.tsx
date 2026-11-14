@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../apiConfig';
 import { useAuth, sessionHeaders } from './AuthContext';
-import { signAction } from '../utils/actionSignature';import { withdrawMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
+import { signAction } from '../utils/actionSignature';import { withdrawMessage, depositMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
 import { dataHoraLocal, dataLocal, numeroLocal, useLanguage } from './LanguageContext';
 
 
@@ -226,6 +226,32 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
                 fetchL2Stats();
                 fetchLeaderboard();
                 fetchActivityLinks();
+            } else {
+                setL2WithdrawStatus(`❌ ${data.detail}`);
+            }
+        } catch (e: any) { setL2WithdrawStatus(`❌ ${e.message}`); }
+    };
+
+    // O saque ao contrario: $CLAIM da conta para o saldo nesta torneira, para gastar la.
+    const handleL2Deposit = async (faucetWallet: string) => {
+        setL2WithdrawStatus(null);
+        const raw = window.prompt(tri('How much $CLAIM to deposit into this faucet?',
+            'Quanto $CLAIM depositar nesta torneira?', '¿Cuánto $CLAIM depositar en este faucet?'));
+        const amount = Number((raw || '').replace(',', '.'));
+        if (!raw || !Number.isFinite(amount) || amount <= 0) return;
+        try {
+            const user = l2LookupWallet.trim().toLowerCase();
+            const faucet = faucetWallet.trim().toLowerCase();
+            const sig = await signAction(authMethod, (ts) => depositMessage(user, faucet, amount, ts));
+            const res = await fetch(`${API_BASE_URL}/api/faucethub/microclaim/deposit`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...sessionHeaders() },
+                body: JSON.stringify({ user_wallet: user, faucet_wallet: faucet, amount, ...sig })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setL2WithdrawStatus(`✅ ${tri('Deposited', 'Depositado', 'Depositado')} ${data.amount} CLAIM`);
+                lookupL2Balance();
             } else {
                 setL2WithdrawStatus(`❌ ${data.detail}`);
             }
@@ -1209,6 +1235,12 @@ const formataCobertura = (c: number): string =>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-4">
+                                                <button
+                                                    onClick={() => handleL2Deposit(entry.faucet_wallet)}
+                                                    className="px-3 py-2 rounded-lg text-xs font-bold transition-all bg-purple-600/25 border border-purple-500/40 text-purple-200 hover:bg-purple-500/35 whitespace-nowrap"
+                                                >
+                                                    {tri('Deposit', 'Depositar', 'Depositar')}
+                                                </button>
                                                 <div className="text-right">
                                                     <p className="text-purple-100 font-bold text-sm">{numeroLocal(entry.virtual_balance)} CLAIM</p>
                                                     <p className="text-purple-500 text-[10px]">

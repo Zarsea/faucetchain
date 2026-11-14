@@ -57,6 +57,10 @@ CASES = {
         settlement.withdraw_message(USER, FAUCET, "7777", TS_FIXED),
         f"withdrawMessage({USER!r}, {FAUCET!r}, {TS_FIXED})",
     ),
+    "deposit": (
+        settlement.deposit_message(USER, FAUCET, 12.5, "7777", TS_FIXED),
+        f"depositMessage({USER!r}, {FAUCET!r}, 12.5, {TS_FIXED})",
+    ),
     "apiKeyReveal": (
         settlement.api_key_reveal_message(FAUCET, "7777", TS_FIXED),
         f"apiKeyRevealMessage({FAUCET!r}, {TS_FIXED})",

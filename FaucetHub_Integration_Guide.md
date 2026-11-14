@@ -996,6 +996,9 @@ The settlement is refused with `400 — Insufficient reserve`. Your users keep a
 ### Is escrow required?
 Yes, since 6 November 2026, and since 11 November it also sets what a click is worth: the free part of your escrow, spread over 30 days and over your clicks of the last day, capped at the `amount` you send. Below 0.01 per click the call answers `402` and nothing is credited. Move $CLAIM into escrow with `POST /api/faucethub/reserve`. You can release escrow, but never below what you owe your users. Campaign tokens are not affected; they are covered by the campaign's vault on Solana.
 
+### Can a user bring $CLAIM they already hold into my faucet?
+Yes, since 13 November 2026, with nothing to change on your side. The user signs a deposit on FaucetChain (`POST /api/faucethub/microclaim/deposit`). The amount leaves their account, goes into your escrow, and appears in their balance at your faucet, the same balance you already read and spend with `/microclaim/spend`. Your escrow and what you owe rise by the same amount, so your coverage and your click value do not change. A deposit is only accepted into a faucet that has already credited that account, so it never lands on a user you cannot see. The history shows it as `DEPOSIT`.
+
 ### How do I top up?
 Send $CLAIM to the registered address like any other transfer, or earn it through mining and staking on FaucetChain.
 

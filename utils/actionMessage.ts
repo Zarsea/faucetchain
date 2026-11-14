@@ -57,7 +57,17 @@ export const withdrawMessage = (user: string, faucet: string, ts: number): strin
         ts
     );
 
-export const stakeMessage = (user: string, amount: number, tier: string, ts: number): string =>
+export const depositMessage = (user: string, faucet: string, amount: number, ts: number): string =>
+    actionMessage(
+        'deposit into a faucet',
+        'Signing moves this much $CLAIM out of your account and into your balance ' +
+        'at the faucet below, where you can spend it. You can withdraw it back ' +
+        "under that faucet's minimum withdrawal.",
+        [['Account', user], ['Faucet', faucet], ['Amount', `${amount.toFixed(4)} $CLAIM`]],
+        ts
+    );
+
+export const stakeMessage =(user: string, amount: number, tier: string, ts: number): string =>
     actionMessage(
         'stake your CLAIM',
         'Signing locks the amount below in the tier below. It stays locked ' +

@@ -94,6 +94,9 @@ jobs:
       - name: A click is priced by escrow and demand, carries a single-use proof, and moves the minimum withdrawal
         run: python tests/test_faucet_escrow_required.py
 
+      - name: A deposit moves $CLAIM from the account into one faucet, only one that knows the user
+        run: python tests/test_microclaim_deposit.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

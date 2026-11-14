@@ -170,6 +170,19 @@ def withdraw_message(user, faucet, chain_id, ts) -> str:
     )
 
 
+def deposit_message(user, faucet, amount, chain_id, ts) -> str:
+    """The withdrawal run backwards: $CLAIM from the account into one faucet."""
+    return action_message(
+        "deposit into a faucet",
+        "Signing moves this much $CLAIM out of your account and into your balance "
+        "at the faucet below, where you can spend it. You can withdraw it back "
+        "under that faucet's minimum withdrawal.",
+        [("Account", user), ("Faucet", faucet), ("Amount", f"{float(amount):.4f} $CLAIM")],
+        chain_id,
+        ts,
+    )
+
+
 def stake_message(user, amount, tier, chain_id, ts) -> str:
     return action_message(
         "stake your CLAIM",
