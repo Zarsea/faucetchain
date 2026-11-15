@@ -36,6 +36,7 @@ except ImportError:  # sem dotenv o script ainda roda com variaveis exportadas
 import requests
 from solders.pubkey import Pubkey
 
+import settlement
 import solana_settlement as chain
 
 
@@ -48,6 +49,26 @@ def fetch_batch(api: str, campaign_id: int, batch_id: int) -> dict:
         if batch["batch_id"] == batch_id:
             return batch
     raise SystemExit(f"Batch {batch_id} does not exist in campaign {campaign_id}")
+
+
+def fetch_leaves(api: str, batch: dict) -> list:
+    """The batch's leaves, refused unless they rebuild to the root about to go out.
+
+    They go into the same transaction as the root, so a list that does not match
+    it would put on Solana, next to the root, a record that contradicts it.
+    """
+    response = requests.get(f"{api}/api/solana/batch/{batch['batch_id']}/leaves", timeout=30)
+    if response.status_code == 404:
+        raise SystemExit("The appchain does not serve /api/solana/batch/{id}/leaves: deploy d518e46 first")
+    response.raise_for_status()
+    leaves = [
+        (Pubkey.from_string(x["recipient"]), x["amount"], x["leaf_index"])
+        for x in sorted(response.json()["leaves"], key=lambda x: x["leaf_index"])
+    ]
+    rebuilt, _ = settlement.root_and_proofs([settlement.leaf_hash(bytes(p), a, i) for p, a, i in leaves])
+    if len(leaves) != batch["leaf_count"] or "0x" + rebuilt.hex() != batch["root"].lower():
+        raise SystemExit(f"Batch {batch['batch_id']}: the leaves do not rebuild to its root, nothing sent")
+    return leaves
 
 
 def mark_published(api: str, token: str, batch_id: int, signature: str) -> None:
@@ -99,12 +120,21 @@ def main() -> None:
         print(f"  {name:9} {meta.pubkey}")
     print(f"root {batch['root']} index {batch['root_index']} "
           f"total {batch['total_amount']} leaves {batch['leaf_count']}")
+    # The leaves go on Solana with the root: the first eight in the same
+    # transaction, any beyond that in memo-only transactions right after.
+    memos = chain.leaves_memos(args.campaign, batch["root_index"], fetch_leaves(api, batch))
+    for memo in memos:
+        print(f"memo      {memo.data.decode()}")
     if args.dry_run:
         print(f"data      {instruction.data.hex()}")
         return
 
-    signature = chain.send_and_confirm(rpc_url, [instruction], operator, [operator])
+    signature = chain.send_and_confirm(rpc_url, [instruction, memos[0]], operator, [operator])
     print(f"published in {signature}")
+    # ponytail: the extra memo signatures are only printed; record them on the
+    # batch if batches ever pass eight leaves (today they hold one to three).
+    for memo in memos[1:]:
+        print(f"leaves in {chain.send_and_confirm(rpc_url, [memo], operator, [operator])}")
 
     token = os.getenv("SETTLEMENT_OPERATOR_TOKEN")
     if token:

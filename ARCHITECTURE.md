@@ -797,6 +797,22 @@ knows; the user does not.
 
 ## Change log
 
+**2026-11-15 - the leaves go on Solana with the root.** `publish_root.py` now
+fetches the batch's leaves, refuses to send unless they rebuild to the root,
+and adds a Memo instruction (`MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr`) to
+the same transaction: `faucetchain/leaves/v1 <campaign> <root_index> <base64>`,
+where the base64 is each leaf as the hash takes it, recipient 32 bytes | amount
+u64 LE | index u32 LE. Eight leaves fit in one memo and the whole transaction
+stays under 1232 bytes; a larger batch sends the rest in memo-only transactions
+right after. Anyone reading the root's transaction (`published_signature`) gets
+every leaf and can build a proof with this server gone;
+`solana_settlement.decode_leaves_memo` reads one back. The program is unchanged.
+First run on devnet: transaction
+`2rnYAm2KrWZHLrMcyZqAtu62fYWpqBDNFLSdLcMKCeCAgcn5dJh1Nf2cRkbecCoNn5kewJbtBop25ypiFoqPjhEE`,
+two leaves read back from the chain rebuilt the root, and a withdrawal paid.
+Limits: the memo lives in transaction history, which a public RPC may not keep
+for old slots, and the 29 batches published before this carry no memo.
+
 **2026-11-14 - a spend is paid from the faucet's escrow.** A purchase through
 `/microclaim/spend` used to lower the user's balance at that faucet and nothing
 else: the debt fell, the escrow stayed, and the movement showed nowhere. Now

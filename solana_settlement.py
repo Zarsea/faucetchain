@@ -212,6 +212,63 @@ def publish_root(
     return _ix(pid, metas, data)
 
 
+# --------------------------------------------------------------------------
+# The batch's leaves, written next to its root
+#
+# The root on Solana says nothing about who it pays, and without the leaf list
+# nobody can build a proof. That list used to live only on the appchain's
+# server. It now rides in a memo on the same transaction as publish_root, so
+# whoever reads the root's transaction also reads every leaf, and a user can
+# withdraw with this server gone. The program is unchanged: a memo is just one
+# more instruction, and the program never sees it.
+# --------------------------------------------------------------------------
+
+MEMO_PROGRAM = Pubkey.from_string("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
+LEAVES_MEMO_TAG = "faucetchain/leaves/v1"
+# A memo with no signer holds up to 566 single-byte characters. Eight leaves are
+# 352 bytes, 472 in base64, and leave room for the tag and the two numbers.
+LEAVES_PER_MEMO = 8
+MEMO_MAX_BYTES = 566
+LEAF_BYTES = 32 + 8 + 4
+
+
+def leaves_memos(campaign_id: int, root_index: int, leaves: Sequence[tuple]) -> List[Instruction]:
+    """Memo instructions carrying `leaves`, eight per memo, in tree order.
+
+    Each leaf is (recipient Pubkey, amount, leaf_index), encoded exactly as the
+    leaf hash takes it: recipient 32 bytes | amount u64 LE | index u32 LE. The
+    memo has to be UTF-8, hence base64.
+    """
+    raws = [bytes(p) + a.to_bytes(8, "little") + i.to_bytes(4, "little") for p, a, i in leaves]
+    memos = []
+    for start in range(0, len(raws), LEAVES_PER_MEMO):
+        chunk = b"".join(raws[start:start + LEAVES_PER_MEMO])
+        text = f"{LEAVES_MEMO_TAG} {campaign_id} {root_index} {base64.b64encode(chunk).decode()}"
+        if len(text) > MEMO_MAX_BYTES:
+            raise ValueError(f"memo of {len(text)} bytes exceeds {MEMO_MAX_BYTES}")
+        memos.append(Instruction(MEMO_PROGRAM, text.encode(), []))
+    return memos
+
+
+def decode_leaves_memo(text: str) -> Optional[dict]:
+    """The leaves inside one memo, or None when the memo is not one of ours."""
+    parts = text.split(" ")
+    if len(parts) != 4 or parts[0] != LEAVES_MEMO_TAG:
+        return None
+    raw = base64.b64decode(parts[3], validate=True)
+    if not raw or len(raw) % LEAF_BYTES:
+        return None
+    leaves = []
+    for at in range(0, len(raw), LEAF_BYTES):
+        leaf = raw[at:at + LEAF_BYTES]
+        leaves.append({
+            "recipient": str(Pubkey.from_bytes(leaf[:32])),
+            "amount": int.from_bytes(leaf[32:40], "little"),
+            "leaf_index": int.from_bytes(leaf[40:44], "little"),
+        })
+    return {"campaign_id": int(parts[1]), "root_index": int(parts[2]), "leaves": leaves}
+
+
 def claim_reward(
     idl: dict, recipient: Pubkey, payer: Pubkey, sponsor: Pubkey, mint: Pubkey,
     campaign_id: int, root_index: int, leaf_index: int, amount: int,
@@ -562,6 +619,26 @@ def _self_check() -> None:
     assert data[12:44] == root
     assert data[44:52] == (350_000_000).to_bytes(8, "little")
     assert data[52:] == (2).to_bytes(4, "little")
+
+    # The leaves memo: round trip, eight per memo, and a full memo still fits
+    # in one legacy transaction (1232 bytes) next to publish_root.
+    from solders.hash import Hash
+    wallets = [Keypair().pubkey() for _ in range(9)]
+    sample = [(w, 1_000 + i, i) for i, w in enumerate(wallets)]
+    memos = leaves_memos(7, 3, sample)
+    assert len(memos) == 2 and all(m.program_id == MEMO_PROGRAM and not m.accounts for m in memos)
+    back = [decode_leaves_memo(m.data.decode()) for m in memos]
+    assert all(b["campaign_id"] == 7 and b["root_index"] == 3 for b in back)
+    flat = back[0]["leaves"] + back[1]["leaves"]
+    assert [(x["recipient"], x["amount"], x["leaf_index"]) for x in flat] == \
+        [(str(w), a, i) for w, a, i in sample]
+    assert decode_leaves_memo("hello") is None
+    assert decode_leaves_memo(f"{LEAVES_MEMO_TAG} 7 3 AAAA") is None   # 3 bytes: no whole leaf
+    signer = Keypair()
+    full = Transaction.new_signed_with_payer(
+        [publish_root(idl, signer.pubkey(), sponsor, 7, 3, root, 1, 8), memos[0]],
+        signer.pubkey(), [signer], Hash.default())
+    assert len(bytes(full)) <= 1232, len(bytes(full))
 
     # A vector argument carries its length; two siblings mean 4 + 64 bytes.
     claim = claim_reward(idl, sponsor, sponsor, sponsor, mint, 7, 0, 5, 42, [root, root])
