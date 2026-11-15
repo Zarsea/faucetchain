@@ -97,6 +97,9 @@ jobs:
       - name: A deposit moves $CLAIM from the account into one faucet, only one that knows the user
         run: python tests/test_microclaim_deposit.py
 
+      - name: A spend is signed by the user, paid from the faucet escrow, and refunded once
+        run: python tests/test_microclaim_spend.py
+
       - name: The browser and the server build the same signed sentences
         run: |
           npm ci

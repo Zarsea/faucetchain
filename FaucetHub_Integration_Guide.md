@@ -15,6 +15,7 @@ one of these reaches production.
 
 | Date | What changed | What you do |
 |---|---|---|
+| 14 Nov 2026 | A **spend is paid out of your escrow**. `/microclaim/spend` now moves the amount from your escrow to your faucet wallet (`FAUCET_SPEND`, visible in the explorer), and answers `402` with `"faucet escrow does not cover this spend"` and an `escrow` field when your escrow is smaller than the purchase. A refund moves it back, and answers `402` if your wallet no longer holds the payment. | Treat a `402` whose `detail` mentions `escrow` as *your* shortfall, not the user's: do not deliver the item, top up `POST /api/faucethub/reserve`. Keep enough free balance to cover refunds of recent spends. |
 | 13 Nov 2026 | **Fix to our own sample.** The solver in section 4 started at `nonce = 0`. The challenge only changes with a new block, so every click in that block found the same proof, and from the second one on it answered `400 "Proof of Claim was already used"`. | Start the nonce at a random value, as section 4 now does. |
 | 11 Nov 2026 | `/microclaim` requires a **Proof of Claim**, single-use across all faucets. Without one the click answers `400`. | Have the user's browser solve the challenge and forward three fields. [Section 4](#the-proof-of-claim-step-by-step). |
 | 11 Nov 2026 | A click is **priced by supply and demand**. `amount` became a ceiling; what the user got comes back as `credited`. | Show `credited`, never the `amount` you sent. [Section 4](#what-a-click-is-worth). |

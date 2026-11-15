@@ -109,6 +109,12 @@ def _creditar(faucet, kp, quanto):
                  "virtual_balance, total_claimed, claim_count, last_claim_at, created_at) "
                  "VALUES (?, ?, ?, ?, 1, ?, ?)",
                  (faucet, conta, quanto, quanto, agora, agora))
+    # Saldo de torneira sem caucao nao se gasta; aqui ele nasce coberto.
+    conn.execute("CREATE TABLE IF NOT EXISTS faucet_reserves (faucet_wallet TEXT PRIMARY KEY, "
+                 "amount REAL, declared_at INTEGER, signature TEXT)")
+    conn.execute("INSERT INTO faucet_reserves (faucet_wallet, amount, declared_at) VALUES (?, ?, ?) "
+                 "ON CONFLICT(faucet_wallet) DO UPDATE SET amount = amount + excluded.amount",
+                 (faucet.lower(), quanto, agora))
     conn.commit()
     conn.close()
     return conta
@@ -389,6 +395,64 @@ def test_gastar_reduz_o_que_a_torneira_deve(client):
     depois = srv.faucet_owed(conn, faucet)
     conn.close()
     assert abs((antes - depois) - 10.0) < 1e-9, (antes, depois)
+
+
+def _caucao(faucet):
+    conn = srv.get_db_connection()
+    try:
+        return srv.faucet_escrow(conn, faucet.lower())
+    finally:
+        conn.close()
+
+
+def _livre(carteira):
+    import asyncio
+    return asyncio.run(srv.get_user_balance(carteira.lower()))["total_claim"]
+
+
+def test_o_gasto_paga_a_torneira_com_a_caucao(client):
+    """Divida e caucao caem juntas, e o valor aparece na carteira da torneira
+    numa transacao que o explorer mostra."""
+    chave, faucet = _torneira(client)
+    kp = _usuario()
+    _creditar(faucet, kp, 50.0)
+    caucao, livre = _caucao(faucet), _livre(faucet)
+    corpo = _corpo(kp, faucet, amount=10.0)
+    _gastar(client, chave, corpo)
+
+    assert abs(_caucao(faucet) - (caucao - 10.0)) < 1e-9, "a caucao nao caiu"
+    assert abs(_livre(faucet) - (livre + 10.0)) < 1e-9, "a torneira nao recebeu"
+    conn = srv.get_db_connection()
+    tx = conn.execute("SELECT from_address, to_address, value FROM transactions "
+                      "WHERE tx_type = 'FAUCET_SPEND' AND hash = ?",
+                      (srv._spend_tx_hash(corpo["idempotency_key"]),)).fetchone()
+    conn.close()
+    assert tx and tuple(tx) == (srv.TREASURY_ADDRESS, faucet.lower(), 10.0), tx
+
+
+def test_gasto_que_a_caucao_nao_cobre_e_recusado(client):
+    chave, faucet = _torneira(client)
+    kp = _usuario()
+    _creditar(faucet, kp, 50.0)
+    conn = srv.get_db_connection()
+    conn.execute("UPDATE faucet_reserves SET amount = 5 WHERE faucet_wallet = ?", (faucet.lower(),))
+    conn.commit()
+    conn.close()
+    corpo = _corpo(kp, faucet, amount=10.0)
+    r = client.post("/api/faucethub/microclaim/spend", json=corpo, headers={"X-API-Key": chave})
+    assert r.status_code == 402 and "escrow" in r.text, r.text
+    assert _caucao(faucet) == 5.0 and _saldo(faucet, srv.faucet_user_address(str(kp.pubkey()))) == 50.0
+
+
+def test_o_estorno_devolve_o_pagamento_a_caucao(client):
+    chave, faucet = _torneira(client)
+    kp = _usuario()
+    _creditar(faucet, kp, 50.0)
+    caucao, livre = _caucao(faucet), _livre(faucet)
+    corpo = _corpo(kp, faucet, amount=10.0)
+    _gastar(client, chave, corpo)
+    assert _estornar(client, chave, corpo["idempotency_key"]).status_code == 200
+    assert abs(_caucao(faucet) - caucao) < 1e-9 and abs(_livre(faucet) - livre) < 1e-9
 
 
 # ------------------------------------------------------------ portas fechadas

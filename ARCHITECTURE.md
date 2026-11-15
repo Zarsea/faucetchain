@@ -797,6 +797,22 @@ knows; the user does not.
 
 ## Change log
 
+**2026-11-14 - a spend is paid from the faucet's escrow.** A purchase through
+`/microclaim/spend` used to lower the user's balance at that faucet and nothing
+else: the debt fell, the escrow stayed, and the movement showed nowhere. Now
+the same amount leaves the escrow for the faucet's wallet as a `FAUCET_SPEND`
+transaction, so debt and escrow fall together and the slack (and the click
+price) is unchanged. A spend the escrow cannot cover is refused with `402`. A
+refund reverses the payment (`FAUCET_SPEND_REFUND`); a spend from before this
+change has no payment and its refund moves no escrow.
+
+**2026-11-14 - a batch publishes its leaves.** `GET /api/solana/batch/{id}/leaves`
+lists every leaf of a closed batch in tree order: Solana wallet, amount and
+index, never the account behind the wallet. With it anyone rebuilds the tree,
+checks it against the root on Solana and builds their own proof, so a withdrawal
+no longer depends on `/api/solana/proof` answering. The list still lives on this
+server; it is not posted to the chain.
+
 **2026-10-25 - three things this document asserted and the system contradicted.**
 Yesterday's entry brought the record up to date and introduced one error of its
 own, which is the first of these.

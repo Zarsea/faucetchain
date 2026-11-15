@@ -750,6 +750,20 @@ def test_batch_root_and_proofs_match_the_program_tree(client):
         leaf = settlement.leaf_hash(settlement.decode_pubkey(wallet), amount, proof["leaf_index"])
         assert settlement.verify(root, leaf, proof["leaf_index"], [bytes.fromhex(s[2:]) for s in proof["proof"]])
 
+    # The published leaves alone rebuild the root: nobody needs the proof route.
+    published = client.get(f"/api/solana/batch/{batch['batch_id']}/leaves")
+    assert published.status_code == 200, published.text
+    leaves = published.json()["leaves"]
+    assert [x["leaf_index"] for x in leaves] == list(range(len(leaves)))
+    rebuilt, _ = settlement.root_and_proofs([
+        settlement.leaf_hash(settlement.decode_pubkey(x["recipient"]), x["amount"], x["leaf_index"])
+        for x in leaves
+    ])
+    assert "0x" + rebuilt.hex() == batch["root"]
+    # The list names Solana wallets, never the accounts behind them.
+    assert alice.address.lower() not in published.text and bob.address.lower() not in published.text
+    assert client.get("/api/solana/batch/999999/leaves").status_code == 404
+
     # A closed batch does not go out twice.
     assert client.post("/api/solana/batch", json={"campaign_id": campaign}, headers=OP).status_code == 400
 

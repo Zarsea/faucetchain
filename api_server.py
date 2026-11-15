@@ -9154,6 +9154,16 @@ class MicroClaimRefundRequest(BaseModel):
     reason: Optional[str] = None
 
 
+def _spend_tx_hash(idempotency_key: str, kind: str = "FAUCET_SPEND") -> str:
+    """O hash da transacao de um gasto, derivado da chave dele.
+
+    Derivado, e nao sorteado, para o estorno achar a transacao sem coluna nova:
+    gasto anterior a 14/11/2026 nao tem transacao, nao mexeu na caucao, e o
+    estorno dele tambem nao mexe.
+    """
+    return "0x" + keccak256(f"{kind}:{idempotency_key.lower()}".encode()).hex()
+
+
 @app.post("/api/faucethub/microclaim/spend")
 async def spend_microclaim(req: MicroClaimSpendRequest,
                            x_api_key: Optional[str] = Header(None)):
@@ -9203,6 +9213,9 @@ async def spend_microclaim(req: MicroClaimSpendRequest,
         except ValueError as e:
             raise HTTPException(status_code=400, detail=f"Invalid user wallet: {e}")
 
+        # Trava antes de ler saldo e caucao: duas compras ao mesmo tempo leriam
+        # a mesma caucao e a gastariam duas vezes.
+        conn.execute("BEGIN IMMEDIATE")
         c.execute("SELECT virtual_balance FROM microclaims_ledger "
                   "WHERE faucet_wallet = ? AND user_wallet = ?", (faucet_wallet, user_lower))
         linha = c.fetchone()
@@ -9210,9 +9223,25 @@ async def spend_microclaim(req: MicroClaimSpendRequest,
         if saldo + 1e-9 < float(req.amount):
             raise HTTPException(status_code=402,
                                 detail={"detail": "insufficient balance", "balance": round(saldo, 8)})
+        # O saldo que o usuario gasta e o que a caucao garante. Compra que a
+        # caucao nao cobre gastaria um saldo sem lastro, entao nao passa.
+        caucao = faucet_escrow(conn, faucet_wallet.lower())
+        if caucao + 1e-9 < float(req.amount):
+            raise HTTPException(status_code=402,
+                                detail={"detail": "faucet escrow does not cover this spend",
+                                        "balance": round(saldo, 8), "escrow": round(caucao, 8)})
 
         agora = int(_time.time())
         novo = round(saldo - float(req.amount), 8)
+        # O que o usuario gastou sai da caucao e vai para a carteira da torneira
+        # como pagamento pelo item, numa transacao que o explorer mostra. Divida
+        # e caucao caem juntas, entao a folga (e o preco do clique) nao muda.
+        tx_hash = _spend_tx_hash(req.idempotency_key)
+        c.execute("INSERT INTO transactions (hash, block_height, from_address, to_address, value, "
+                  "gas_price, timestamp, tx_type) VALUES (?, 0, ?, ?, ?, 0.0, ?, 'FAUCET_SPEND')",
+                  (tx_hash, TREASURY_ADDRESS, faucet_wallet.lower(), float(req.amount), agora))
+        c.execute("UPDATE faucet_reserves SET amount = amount - ? WHERE faucet_wallet = ?",
+                  (float(req.amount), faucet_wallet.lower()))
         c.execute("UPDATE microclaims_ledger SET virtual_balance = ? "
                   "WHERE faucet_wallet = ? AND user_wallet = ?",
                   (novo, faucet_wallet, user_lower))
@@ -9289,6 +9318,26 @@ async def refund_microclaim(req: MicroClaimRefundRequest,
             return {"status": "refunded", "balance": None, "refunded": 0.0, "repeated": True}
 
         agora = int(_time.time())
+        conn.execute("BEGIN IMMEDIATE")
+        # Gasto que pagou a torneira com a caucao: o estorno devolve o valor da
+        # carteira dela para a caucao, senao o usuario volta a ter saldo e a
+        # torneira fica com o pagamento -- divida sem lastro.
+        pago = c.execute("SELECT 1 FROM transactions WHERE hash = ?",
+                         (_spend_tx_hash(req.idempotency_key),)).fetchone()
+        if pago:
+            valor = float(gasto["amount"])
+            livre = (await get_user_balance(faucet_wallet.lower()))["total_claim"]
+            if livre + 1e-9 < valor:
+                raise HTTPException(
+                    status_code=402,
+                    detail={"detail": "faucet wallet cannot return this payment to escrow",
+                            "free_balance": round(livre, 8), "needed": valor})
+            c.execute("INSERT INTO transactions (hash, block_height, from_address, to_address, value, "
+                      "gas_price, timestamp, tx_type) VALUES (?, 0, ?, ?, ?, 0.0, ?, 'FAUCET_SPEND_REFUND')",
+                      (_spend_tx_hash(req.idempotency_key, "FAUCET_SPEND_REFUND"),
+                       faucet_wallet.lower(), TREASURY_ADDRESS, valor, agora))
+            c.execute("UPDATE faucet_reserves SET amount = amount + ? WHERE faucet_wallet = ?",
+                      (valor, faucet_wallet.lower()))
         c.execute("SELECT virtual_balance FROM microclaims_ledger "
                   "WHERE faucet_wallet = ? AND user_wallet = ?",
                   (faucet_wallet, gasto["user_wallet"]))
@@ -9957,6 +10006,51 @@ async def list_settlement_batches(campaign_id: Optional[int] = None, limit: int 
             }
             for row in rows
         ]
+    }
+
+
+@app.get("/api/solana/batch/{batch_id}/leaves")
+async def get_batch_leaves(batch_id: int, request: Request):
+    """Every leaf of a closed batch, in tree order.
+
+    The root on Solana says nothing about who it pays. With this list anyone
+    rebuilds the tree, checks it against the published root and builds their
+    own proof, without asking /api/solana/proof or trusting this server. Only
+    the Solana wallet appears: the account behind it stays private.
+    """
+    if not within_rate("leaves", request.client.host, PROOF_HOURLY_PER_IP):
+        raise HTTPException(status_code=429, detail="Too many requests from this address. Wait a little.")
+    conn = get_db_connection()
+    try:
+        c = conn.cursor()
+        c.execute(
+            """SELECT campaign_id, root_index, root, total_amount, leaf_count, published_signature
+                 FROM settlement_batches WHERE id = ?""",
+            (batch_id,),
+        )
+        row = c.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="No such batch")
+        campaign_id, root_index, root, total_amount, leaf_count, signature = row
+        rebuilt = _batch_tree(c, batch_id, root)
+    finally:
+        conn.close()
+    if rebuilt is None:
+        audit_logger.error(f"Settlement batch {batch_id} no longer rebuilds to its published root")
+        raise HTTPException(status_code=409, detail="This batch no longer rebuilds to its root")
+    return {
+        "batch_id": batch_id,
+        "campaign_id": campaign_id,
+        "root_index": root_index,
+        "root": root,
+        "total_amount": total_amount,
+        "leaf_count": leaf_count,
+        "published_signature": signature,
+        "leaf_encoding": "keccak256(recipient pubkey 32 bytes | amount u64 LE | leaf_index u32 LE)",
+        "leaves": [
+            {"leaf_index": x["leaf_index"], "recipient": x["recipient"], "amount": x["amount"]}
+            for x in rebuilt["claims"]
+        ],
     }
 
 
