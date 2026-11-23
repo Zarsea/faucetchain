@@ -797,6 +797,36 @@ knows; the user does not.
 
 ## Change log
 
+**2026-11-22 - the chain moves again, and the draw it runs is lopsided.** The
+2026-09-27 entry below describes a tip stuck at block 21. On 22 November the
+tip was block 182, sealed at 00:22, with four mining nodes online. Three of
+them have no stake. The team's own node has 193,300 $CLAIM staked, so its weight
+is 1 + min(stake, `SEALER_STAKE_CAP` = 10,000) = 10,001 against 1 for each of
+the others, and it wins 99.97% of the draws. That share is paid: whoever seals a
+block takes `MINING_FEE`, 20% of each claim in it. The epoch reward is split
+separately. Its 1,695 $CLAIM an hour (`MINING_CONFIG.epoch_reward`, inside the
+2,000 `TOKENS_PER_HOUR` quota) goes out by each node's share of uptime, so stake
+does not move it. Two changes are open and touch production: take the team's
+node out of the draw or lower the cap, and require a minimum stake per node
+before it earns from the epoch (the anti-Sybil gap noted in `register_miner`).
+Neither is made here.
+
+The same day the miner stopped sending a heartbeat right after it registered.
+Registration already records `last_heartbeat`, and the server answers 429 to any
+heartbeat under `min_heartbeat_gap` (10 s), so the first one always failed. And
+the labels that still promised a hybrid consensus came down: the tab title, the
+"Hybrid Evolution" card on the overview, the "PoC consensus" chat suggestion,
+and the miner's banner, which also claimed 2,000 $CLAIM an hour for miners
+instead of the 1,695 they share. Still promising it: the in-app whitepaper page
+(`components/Whitepaper.tsx`) and the simulation's "PoC Hybrid Weight" chart.
+
+Later that day the chat ("Ask Sentinel") left the interface: the tab, its
+keyword answers (`KnowledgeBase.ts`, `LocalIntelligence.ts`), the unused
+`HybridIntelligence.ts` example and `test_chat_answers.mjs` with its CI step.
+`POST /api/vector-search` and `VectorKnowledgeBase.py` stay on the server, since
+the fraud detector loads the same knowledge base. The Sentinel fraud checks on
+`/api/claim` are a different thing and are untouched.
+
 **2026-11-15 - the leaves go on Solana with the root.** `publish_root.py` now
 fetches the batch's leaves, refuses to send unless they rebuild to the root,
 and adds a Memo instruction (`MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr`) to

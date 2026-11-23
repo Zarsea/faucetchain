@@ -38,8 +38,8 @@ export const Overview: React.FC = () => {
                     icon={<CubeIcon className="w-6 h-6" />} 
                 />
                 <StatCard 
-                    label="NETWORK ERA" 
-                    value="HYBRID EVOLUTION" 
+                    label="SETTLEMENT"
+                    value="ON SOLANA"
                     icon={<BoltIcon className="w-6 h-6" />} 
                     accent="text-brand-accent"
                 />

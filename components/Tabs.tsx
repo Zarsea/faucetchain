@@ -12,7 +12,6 @@ import {
     ChartPieIcon,
     CheckCircleIcon,
     CodeBracketIcon,
-    CpuChipIcon,
     CreditCardIcon,
     CubeIcon,
     DocumentTextIcon,
@@ -52,7 +51,6 @@ const TAB_ICONS: Record<string, IconComponent> = {
     'Bounty Board': SparklesIcon,
     'Connect a Faucet': ShieldCheckIcon,
     'Staking Vault': CubeIcon,
-    'AI Agent': CpuChipIcon,
     'Wallet Explorer': WalletIcon,
     'Address Tracker': MagnifyingGlassPlusIcon,
     'Network Status': SignalIcon,
@@ -74,7 +72,7 @@ const TAB_ICONS: Record<string, IconComponent> = {
 const GROUPS: { key: string; fallback: string; tabs: string[] }[] = [
     { key: 'settlement', fallback: 'Settlement', tabs: ['Solana Payouts', 'Settlement Ledger'] },
     { key: 'earn', fallback: 'Earn', tabs: ['Faucet', 'Mining Hub', 'Bounty Board'] },
-    { key: 'operate', fallback: 'Operate', tabs: ['Connect a Faucet', 'Staking Vault', 'AI Agent'] },
+    { key: 'operate', fallback: 'Operate', tabs: ['Connect a Faucet', 'Staking Vault'] },
     { key: 'explore', fallback: 'Explore', tabs: ['Wallet Explorer', 'Address Tracker', 'Network Status', 'Infra Monitor'] },
     { key: 'reference', fallback: 'Reference', tabs: ['Whitepaper', 'General Article', 'Tokenomics', 'Smart Contract', 'AI Module', 'Technical Specs', 'API Docs'] }
 ];

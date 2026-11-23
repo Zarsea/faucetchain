@@ -15,7 +15,6 @@ import { LanguageProvider } from './components/LanguageContext';
 import { NetworkProvider } from './components/NetworkContext';
 const TechnicalSpecs = React.lazy(() => import('./components/TechnicalSpecs').then(m => ({ default: m.TechnicalSpecs })));
 import { WalletExplorer } from './components/WalletExplorer';
-import { AIChatAgent } from './components/AIChatAgent';
 import { UserDashboard } from './components/UserDashboard';
 import PrivacySettings from './components/PrivacySettings';
 import { StakingVault } from './components/StakingVault';
@@ -38,7 +37,6 @@ const TABS = [
     'Address Tracker',
     'Staking Vault',
     'Bounty Board',
-    'AI Agent',
     'Wallet Explorer',
     'Network Status',
     'Faucet',
@@ -76,8 +74,6 @@ const AppContent: React.FC = () => {
                 return <BountyBoard />;
             case 'Overview':
                 return <Overview />;
-            case 'AI Agent':
-                return <AIChatAgent />;
             case 'Wallet Explorer':
                 return <WalletExplorer />;
             case 'General Article':

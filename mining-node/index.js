@@ -40,9 +40,9 @@ const logo = `
 ${chalk.cyan('╔══════════════════════════════════════════════╗')}
 ${chalk.cyan('║')}  ${chalk.white.bold('⛏️  FaucetChain Mining Node')}  ${chalk.gray('v' + VERSION)}        ${chalk.cyan('║')}
 ${chalk.cyan('╠══════════════════════════════════════════════╣')}
-${chalk.cyan('║')}  ${chalk.gray('Network:')} ${chalk.green('FaucetChain PoC+PoS')}               ${chalk.cyan('║')}
+${chalk.cyan('║')}  ${chalk.gray('Network:')} ${chalk.green('FaucetChain (Solana settlement)')}   ${chalk.cyan('║')}
 ${chalk.cyan('║')}  ${chalk.gray('Token:  ')} ${chalk.yellow('$CLAIM')}                            ${chalk.cyan('║')}
-${chalk.cyan('║')}  ${chalk.gray('Reward: ')} ${chalk.white('2,000 CLAIM/hour (shared)')}         ${chalk.cyan('║')}
+${chalk.cyan('║')}  ${chalk.gray('Reward: ')} ${chalk.white('1,695 CLAIM/hour (shared)')}         ${chalk.cyan('║')}
 ${chalk.cyan('╚══════════════════════════════════════════════╝')}
 `;
 
@@ -106,7 +106,7 @@ miner.on('heartbeat', (state) => {
 
 miner.on('block-mined', (data) => {
     console.log('');
-    log('coin', chalk.yellow.bold(`[DUAL CONSENSUS] ⛏️ Bloco PoC Produzido | ${data.message} | Taxa: ${data.miner_fee.toFixed(4)} CLAIM`));
+    log('coin', chalk.yellow.bold(`[SELADOR] ⛏️ Bloco selado | ${data.message} | Taxa: ${data.miner_fee.toFixed(4)} CLAIM`));
     // Redraw prompt line underneath properly next heartbeat
 });
 

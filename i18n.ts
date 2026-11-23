@@ -37,7 +37,6 @@ const resourcesEn = {
             Whitepaper: "Whitepaper",
             Faucet: "Merit Faucet",
             APIDocs: "FaucetHub API",
-            AIAgent: "Ask Sentinel"
         },
         wallet: {
             connect: "Connect Wallet",
@@ -224,7 +223,6 @@ const resourcesPt = {
             Whitepaper: "Whitepaper",
             Faucet: "Faucet de Mérito",
             APIDocs: "API do FaucetHub",
-            AIAgent: "Perguntar ao Sentinela"
         },
         wallet: {
             connect: "Conectar Carteira",
@@ -411,7 +409,6 @@ const resourcesEs = {
             Whitepaper: "Whitepaper",
             Faucet: "Faucet de Mérito",
             APIDocs: "API de FaucetHub",
-            AIAgent: "Preguntar al Centinela"
         },
         wallet: {
             connect: "Conectar Billetera",

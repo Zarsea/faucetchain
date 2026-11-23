@@ -214,7 +214,6 @@ export const TRANSLATIONS = {
       Whitepaper: "Evolutionary Paper",
       Faucet: "Merit Faucet",
       APIDocs: "Hub API",
-      AIAgent: "AI Agent Sentinel"
     },
     tokenomics: {
       title: "Proof of Claim Yield Logic",
@@ -276,7 +275,6 @@ export const TRANSLATIONS = {
       Whitepaper: "Paper Evolutivo",
       Faucet: "Faucet de Mérito",
       APIDocs: "API de Hubs",
-      AIAgent: "IA Agente Sentinela"
     },
     tokenomics: {
       title: "Economia do Proof of Claim",
