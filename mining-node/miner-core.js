@@ -321,8 +321,9 @@ class MinerCore extends EventEmitter {
 
         this.emit('mining-started', { heartbeatInterval: this.heartbeatInterval });
 
-        // First heartbeat immediately
-        await this.sendHeartbeat();
+        // Sem heartbeat imediato: o registro ja grava last_heartbeat, e o
+        // servidor recusa com 429 ("Too fast") qualquer heartbeat a menos de
+        // min_heartbeat_gap (10s) dele. O primeiro vai no fim do intervalo.
 
         // Heartbeat loop
         this._heartbeatTimer = setInterval(async () => {
