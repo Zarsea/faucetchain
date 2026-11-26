@@ -291,7 +291,9 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                 if (resTxs.ok) {
                     const txData = await resTxs.json();
                     allData.push(...txData.map((tx: any) => ({
-                        id: tx.hash, type: tx.from_address?.toLowerCase() === userAddress.toLowerCase() ? 'SEND' : 'RECEIVE',
+                        id: tx.hash,
+                        type: tx.tx_type === 'STAKE' || tx.tx_type === 'UNSTAKE' ? tx.tx_type
+                            : tx.from_address?.toLowerCase() === userAddress.toLowerCase() ? 'SEND' : 'RECEIVE',
                         amount: tx.value, status: 'Confirmed',
                         time: dataHoraLocal(tx.timestamp * 1000), timestamp: tx.timestamp, hash: tx.hash
                     })));
@@ -311,9 +313,11 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                     })));
                 }
                 allData.sort((a, b) => b.timestamp - a.timestamp);
-                setTransactions(allData.length > 0 ? allData.slice(0, 5) : []);
+                // 10, not 5: a miner gets a MINING row every epoch, and five of
+                // those pushed every stake out of sight.
+                setTransactions(allData.slice(0, 10));
             } catch {
-                setTransactions([{ id: 1, type: 'MINT', amount: metrics.currentReward, status: 'Confirmed', time: '2m ago', hash: '0x3a...4f2' }]);
+                setTransactions([]);
             }
             setReputation(Math.min(100, 75 + (metrics.blockHeight % 25)));
         } catch (error) {
@@ -563,11 +567,11 @@ export const UserDashboard: React.FC<{ onNavigate: (tab: string) => void }> = ({
                                     <div key={tx.id} className="flex items-center justify-between p-4 bg-brand-surface/40 hover:bg-brand-bg/40 border border-brand-border/30 rounded-xl transition-all group">
                                         <div className="flex items-center gap-4">
                                             <div className={`p-2 rounded-lg ${tx.type === 'MINT' ? 'bg-brand-success/10 text-brand-success' :
-                                                tx.type === 'STAKE' ? 'bg-brand-primary/10 text-brand-primary' :
+                                                tx.type === 'STAKE' || tx.type === 'UNSTAKE' ? 'bg-brand-primary/10 text-brand-primary' :
                                                     'bg-brand-accent/10 text-brand-accent'
                                                 }`}>
                                                 {tx.type === 'MINT' ? <SparklesIcon className="w-4 h-4" /> :
-                                                    tx.type === 'STAKE' ? <BoltIcon className="w-4 h-4" /> :
+                                                    tx.type === 'STAKE' || tx.type === 'UNSTAKE' ? <BoltIcon className="w-4 h-4" /> :
                                                         <ArrowUpRightIcon className="w-4 h-4" />}
                                             </div>
                                             <div>

@@ -4860,6 +4860,9 @@ async def startup_staking():
     except Exception as e:
         print(f"⚠️ Failed to init staking_positions table: {e}")
 
+# Pseudo-address that holds staked $CLAIM in the transactions ledger.
+STAKING_VAULT_ADDRESS = "0x537461b696e675661756c740000000000000000"
+
 class StakeRequest(BaseModel):
     staker_address: str
     amount: ValorFinito
@@ -4966,16 +4969,17 @@ async def create_stake(req: StakeRequest, request: Request, x_session_token: Opt
         # Debit: record as an outgoing transaction from staker to a
         # virtual "STAKING_VAULT" address so the balance formula
         # (claims + mining + yield + incoming - outgoing) reflects the lock.
-        VAULT_ADDRESS = "0x537461b696e675661756c740000000000000000"
         stake_tx_hash = "0x" + keccak256(
             (staker_lower + "stake" + str(req.amount) + str(current_ts)).encode()
         ).hex()
 
+        # Typed so the wallet can say "stake" instead of "send". The balance
+        # filters only exclude CLAIM and MINING_FEE, so this still counts.
         c.execute('''
             INSERT INTO transactions
-                (hash, block_height, from_address, to_address, value, gas_price, timestamp)
-            VALUES (?, 0, ?, ?, ?, 0, ?)
-        ''', (stake_tx_hash, staker_lower, VAULT_ADDRESS, req.amount, current_ts))
+                (hash, block_height, from_address, to_address, value, gas_price, timestamp, tx_type)
+            VALUES (?, 0, ?, ?, ?, 0, ?, 'STAKE')
+        ''', (stake_tx_hash, staker_lower, STAKING_VAULT_ADDRESS, req.amount, current_ts))
 
         # Create the staking UTXO position
         c.execute('''
@@ -5083,7 +5087,6 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
         )
 
     # ── STEP 1: Mark UTXO as spent ──────────────────────────────────────────
-    VAULT_ADDRESS = "0x537461b696e675661756c740000000000000000"
     try:
         c.execute('''
             UPDATE staking_positions
@@ -5100,9 +5103,9 @@ async def unstake_position(req: UnstakeRequest, x_session_token: Optional[str] =
 
         c.execute('''
             INSERT INTO transactions
-                (hash, block_height, from_address, to_address, value, gas_price, timestamp)
-            VALUES (?, 0, ?, ?, ?, 0, ?)
-        ''', (unstake_tx_hash, VAULT_ADDRESS, staker_lower, payout, current_ts))
+                (hash, block_height, from_address, to_address, value, gas_price, timestamp, tx_type)
+            VALUES (?, 0, ?, ?, ?, 0, ?, 'UNSTAKE')
+        ''', (unstake_tx_hash, STAKING_VAULT_ADDRESS, staker_lower, payout, current_ts))
 
         conn.commit()
     except Exception as e:
@@ -7701,6 +7704,17 @@ def init_settlement_tables():
             c.execute(f"ALTER TABLE transactions ADD COLUMN {column} {decl}")
         except sqlite3.OperationalError:
             pass  # already there, or the indexer has not made the table yet
+
+    # Stakes and unstakes were written untyped until 21/11/2026, so the wallet
+    # showed them as plain sends and receives. Only the vault moves these rows,
+    # and only NULL rows are touched, so running this again changes nothing.
+    try:
+        c.execute("UPDATE transactions SET tx_type = 'STAKE' "
+                  "WHERE tx_type IS NULL AND to_address = ?", (STAKING_VAULT_ADDRESS,))
+        c.execute("UPDATE transactions SET tx_type = 'UNSTAKE' "
+                  "WHERE tx_type IS NULL AND from_address = ?", (STAKING_VAULT_ADDRESS,))
+    except sqlite3.OperationalError:
+        pass  # the indexer has not made the table yet
 
     try:
         c.execute("ALTER TABLE settlement_rewards ADD COLUMN solana_address TEXT")

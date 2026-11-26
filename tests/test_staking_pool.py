@@ -355,6 +355,32 @@ def test_o_unstake_paga_o_acumulado_e_nao_a_taxa(client):
     taxa_antiga = 100 * srv.TIER_CONFIG[2]["yield_bp"] / 10000
     assert abs(corpo["yield_paid"] - taxa_antiga) > 1e-6, (
         "pagou exatamente a taxa antiga; o caminho velho continua vivo")
+    conn = srv.get_db_connection()
+    tipo = conn.execute("SELECT tx_type FROM transactions WHERE from_address = ? "
+                        "AND to_address = ?", (srv.STAKING_VAULT_ADDRESS, conta)).fetchone()
+    conn.close()
+    assert tipo and tipo["tx_type"] == "UNSTAKE", "unstake gravado sem tipo; a carteira mostra RECEIVE"
+
+
+def test_stakes_antigos_ganham_tipo_e_o_resto_nao():
+    """Até 21/11 stake e unstake entravam sem tx_type e a carteira os mostrava
+    como envio comum. A migração marca só as linhas do cofre que estão sem tipo."""
+    v, w, ts = srv.STAKING_VAULT_ADDRESS, "0x" + "ab" * 20, int(time.time())
+    linhas = [("0xs1", w, v, None), ("0xu1", v, w, None),
+              ("0xt1", w, "0x" + "cd" * 20, None), ("0xc1", v, w, "CLAIM")]
+    conn = srv.get_db_connection()
+    conn.executemany("INSERT INTO transactions (hash, block_height, from_address, to_address, "
+                     "value, gas_price, timestamp, tx_type) VALUES (?, 0, ?, ?, 1, 0, ?, ?)",
+                     [(h, f, t, ts, k) for h, f, t, k in linhas])
+    conn.commit()
+    conn.close()
+    srv.init_settlement_tables()
+    srv.init_settlement_tables()  # rodar de novo não muda nada
+    conn = srv.get_db_connection()
+    tipos = {r["hash"]: r["tx_type"] for r in conn.execute(
+        "SELECT hash, tx_type FROM transactions WHERE hash IN ('0xs1','0xu1','0xt1','0xc1')")}
+    conn.close()
+    assert tipos == {"0xs1": "STAKE", "0xu1": "UNSTAKE", "0xt1": None, "0xc1": "CLAIM"}, tipos
 
 
 def test_as_stats_dizem_estimativa_e_nao_promessa(client):
