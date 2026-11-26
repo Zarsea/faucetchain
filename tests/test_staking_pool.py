@@ -360,6 +360,9 @@ def test_o_unstake_paga_o_acumulado_e_nao_a_taxa(client):
                         "AND to_address = ?", (srv.STAKING_VAULT_ADDRESS, conta)).fetchone()
     conn.close()
     assert tipo and tipo["tx_type"] == "UNSTAKE", "unstake gravado sem tipo; a carteira mostra RECEIVE"
+    # O painel le o tipo pela API, nao pelo banco: o response_model ja o descartou uma vez.
+    tipos = [t.get("tx_type") for t in client.get("/api/address/%s/transactions" % conta).json()]
+    assert "UNSTAKE" in tipos, "a API esconde o tx_type do painel: %s" % tipos
 
 
 def test_stakes_antigos_ganham_tipo_e_o_resto_nao():

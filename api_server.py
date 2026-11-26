@@ -883,6 +883,8 @@ class TransactionInfo(BaseModel):
     to_address: Optional[str]
     value: float
     timestamp: int
+    # Sem isto o response_model descartava o tipo, e o painel nunca via STAKE/UNSTAKE.
+    tx_type: Optional[str] = None
 
 class SearchQuery(BaseModel):
     query: str
