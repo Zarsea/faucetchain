@@ -3,6 +3,10 @@ import { API_BASE_URL } from '../apiConfig';
 import { useAuth, sessionHeaders } from './AuthContext';
 import { signAction } from '../utils/actionSignature';import { withdrawMessage, depositMessage, apiKeyRotateMessage, reserveDeclareMessage } from '../utils/actionMessage';
 import { dataHoraLocal, dataLocal, numeroLocal, useLanguage } from './LanguageContext';
+import {
+    ArrowPathIcon, BoltIcon, ChartBarIcon, CheckCircleIcon, CodeBracketIcon, FaucetChainLogoIcon,
+    GlobeAltIcon, LockClosedIcon, MagnifyingGlassPlusIcon, ShieldCheckIcon, SignalIcon,
+} from './IconComponents';
 
 
 interface FaucetHubProps {
@@ -333,9 +337,11 @@ export const FaucetHub: React.FC<FaucetHubProps> = ({ onBack }) => {
     // sem escala: 500 $CLAIM parecia igual tendo prometido 100 ou 50.000. So o
     // proprietario sabe o numero, entao ele assina -- e a assinatura nao tranca
     // nada, o que a propria sentenca diz a quem assina.
-    const handleDeclareReserve = async (wallet: string) => {
+    // `valor` existe para os atalhos de soltar: eles chamavam setReserveInput e
+    // esta funcao na mesma linha, e ela lia o campo ainda com o valor velho.
+    const handleDeclareReserve = async (wallet: string, valor?: string) => {
         setReserveError("");
-        const amount = parseFloat(reserveInput.replace(",", "."));
+        const amount = parseFloat((valor ?? reserveInput).replace(",", "."));
         if (!isFinite(amount) || amount < 0) {
             setReserveError("Enter a value of 0 or more.");
             return;
@@ -408,30 +414,30 @@ const formataCobertura = (c: number): string =>
         valor === 'Ativa' ? 'Active' : valor === 'Hiato' ? 'Idle' : valor;
     const totalSettlements = faucets.reduce((acc, f) => acc + f.settlements, 0);
 
-    // SVG rendering helpers for interactive map
+    // Map layout: faucets on the left (L2), users on the right (L1 recipients).
+    const MAP_FAUCET_X = 92;
+    const MAP_USER_X = 408;
+    const mapY = (idx: number, count: number) => (count <= 1 ? 150 : 50 + idx * (200 / (count - 1)));
+
     const renderFaucetNodes = () => {
         const uniqueFaucets = Array.from(new Set(activityLinks.map(l => l.faucet_wallet.toLowerCase())));
         if (uniqueFaucets.length === 0) {
             uniqueFaucets.push("0x84da71247cbfb0737a9112de1f10dae9823fc298");
         }
-        
+
         return uniqueFaucets.slice(0, 4).map((wallet, idx, arr) => {
-            const y = arr.length <= 1 ? 150 : 50 + idx * (200 / (arr.length - 1));
-            const x = 70;
+            const y = mapY(idx, arr.length);
+            const x = MAP_FAUCET_X;
             const faucetInfo = faucets.find(f => f.wallet_address.toLowerCase() === wallet) || { name: "Faucet L2" };
             const isSelected = selectedFaucet?.toLowerCase() === wallet;
+            const hue = walletHue(String(wallet));
 
             return (
                 <g key={`faucet-${wallet}`} className="cursor-pointer" onClick={() => setSelectedFaucet(wallet)}>
-                    <circle 
-                        cx={x} cy={y} r="16" 
-                        fill="#1b0c3a" 
-                        stroke={isSelected ? "#c084fc" : "#7c3aed"} 
-                        strokeWidth={isSelected ? "3" : "2"}
-                        filter="url(#glow-purple)"
-                    />
-                    <text x={x} y={y + 4} textAnchor="middle" fontSize="12" fill="#fff">💧</text>
-                    <text x={x - 12} y={y - 20} fontSize="8" fontWeight="bold" fill="#c0a9e3" textAnchor="start">
+                    <circle cx={x} cy={y} r="15" fill="#0C1620"
+                        stroke={isSelected ? "#2B9FE8" : `hsl(${hue} 60% 55%)`} strokeWidth={isSelected ? 2.5 : 1.5} />
+                    <circle cx={x} cy={y} r="5" fill={`hsl(${hue} 65% 58%)`} />
+                    <text x={x} y={y - 22} fontSize="9" fontWeight="600" fill="#D6E0F6" textAnchor="middle">
                         {faucetInfo.name}
                     </text>
                 </g>
@@ -444,9 +450,8 @@ const formataCobertura = (c: number): string =>
         if (uniqueUsers.length === 0) {
             return (
                 <g key="no-user">
-                    <circle cx="430" cy="150" r="12" fill="#0c0418" stroke="#3b82f6" strokeWidth="1.5" />
-                    <text x="430" y="153" textAnchor="middle" fontSize="10" fill="#fff">👤</text>
-                    <text x="360" y="153" fontSize="8" fill="#93c5fd" textAnchor="start">
+                    <circle cx={MAP_USER_X} cy="150" r="11" fill="#070F16" stroke="#1C2E3D" strokeWidth="1.5" strokeDasharray="3 3" />
+                    <text x={MAP_USER_X - 18} y="154" fontSize="9" fill="#6B8299" textAnchor="end">
                         {tri('Waiting for claims...', 'Aguardando claims...', 'Esperando claims...')}
                     </text>
                 </g>
@@ -454,20 +459,15 @@ const formataCobertura = (c: number): string =>
         }
 
         return uniqueUsers.slice(0, 4).map((wallet, idx, arr) => {
-            const y = arr.length <= 1 ? 150 : 50 + idx * (200 / (arr.length - 1));
-            const x = 430;
+            const y = mapY(idx, arr.length);
+            const x = MAP_USER_X;
 
             return (
                 <g key={`user-${wallet}`}>
-                    <circle 
-                        cx={x} cy={y} r="12" 
-                        fill="#0c0418" 
-                        stroke="#3b82f6" 
-                        strokeWidth="1.5"
-                    />
-                    <text x={x} y={y + 3} textAnchor="middle" fontSize="10" fill="#fff">👤</text>
-                    <text x={x - 75} y={y + 3} fontSize="8" fontFamily="monospace" fill="#93c5fd" textAnchor="start">
-                        {String(wallet).slice(0, 6)}...{String(wallet).slice(-4)}
+                    <circle cx={x} cy={y} r="11" fill="#070F16" stroke="#9945FF" strokeWidth="1.5" />
+                    <circle cx={x} cy={y} r="3.5" fill="#14F195" />
+                    <text x={x + 18} y={y + 3} fontSize="9" fontFamily="'JetBrains Mono', monospace" fill="#D6E0F6" textAnchor="start">
+                        {String(wallet).slice(0, 6)}…{String(wallet).slice(-4)}
                     </text>
                 </g>
             );
@@ -478,37 +478,47 @@ const formataCobertura = (c: number): string =>
         const uniqueFaucets = Array.from(new Set(activityLinks.map(l => l.faucet_wallet.toLowerCase())));
         if (uniqueFaucets.length === 0) uniqueFaucets.push("0x84da71247cbfb0737a9112de1f10dae9823fc298");
         const uniqueUsers = Array.from(new Set(activityLinks.map(l => l.user_wallet.toLowerCase())));
+        const shownFaucets = uniqueFaucets.slice(0, 4);
+        const shownUsers = uniqueUsers.slice(0, 4);
 
         return activityLinks.slice(0, 6).map((link, idx) => {
-            const fIdx = uniqueFaucets.slice(0, 4).indexOf(link.faucet_wallet.toLowerCase());
-            const uIdx = uniqueUsers.slice(0, 4).indexOf(link.user_wallet.toLowerCase());
-
+            const fIdx = shownFaucets.indexOf(link.faucet_wallet.toLowerCase());
+            const uIdx = shownUsers.indexOf(link.user_wallet.toLowerCase());
             if (fIdx === -1 || uIdx === -1) return null;
 
-            const fy = uniqueFaucets.slice(0, 4).length <= 1 ? 150 : 50 + fIdx * (200 / (uniqueFaucets.slice(0, 4).length - 1));
-            const fx = 70;
-
-            const uy = uniqueUsers.slice(0, 4).length <= 1 ? 150 : 50 + uIdx * (200 / (uniqueUsers.slice(0, 4).length - 1));
-            const ux = 430;
-
+            const fx = MAP_FAUCET_X + 15, fy = mapY(fIdx, shownFaucets.length);
+            const ux = MAP_USER_X - 11, uy = mapY(uIdx, shownUsers.length);
             const d = `M ${fx} ${fy} C ${(fx + ux) / 2} ${fy}, ${(fx + ux) / 2} ${uy}, ${ux} ${uy}`;
 
+            // The pulse travels only because a real claim connects these two.
             return (
                 <g key={`path-${idx}`}>
-                    <path 
-                        d={d} 
-                        fill="none" 
-                        stroke="url(#glowGrad)" 
-                        strokeWidth="1.5" 
-                        strokeOpacity="0.4"
-                    />
-                    <circle r="3" fill="#fb7185">
-                        <animateMotion dur={`${2 + idx * 0.5}s`} repeatCount="indefinite" path={d} />
+                    <path d={d} fill="none" stroke="url(#settleGrad)" strokeWidth="1.5" strokeOpacity="0.55" />
+                    <circle r="2.5" fill="#14F195" className="motion-reduce:hidden">
+                        <animateMotion dur={`${2.4 + idx * 0.45}s`} repeatCount="indefinite" path={d} />
                     </circle>
                 </g>
             );
         });
     };
+
+    // ---- shared look -------------------------------------------------------
+    // One surface, one border, one radius. Elevation comes from the panel
+    // sitting on the page ground, not from glow.
+    const panel = "rounded-2xl border border-brand-border bg-brand-surface";
+    const panelHead = "flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-brand-border";
+    const h2 = "flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em] text-brand-secondary";
+    const label = "text-[11px] font-medium uppercase tracking-[0.12em] text-brand-muted";
+    const well = "rounded-xl border border-brand-border bg-brand-bg p-3";
+    const focusRing = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary";
+    const btn = `inline-flex items-center justify-center gap-2 min-h-[36px] px-3.5 rounded-lg border text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${focusRing}`;
+    const btnGhost = `${btn} border-brand-border bg-brand-card text-brand-secondary hover:border-brand-primary/60 hover:text-white`;
+    const btnPrimary = `${btn} border-brand-primary bg-brand-deep text-white hover:bg-brand-primary`;
+    const btnDanger = `${btn} border-brand-error/40 bg-brand-error/10 text-red-300 hover:bg-brand-error/20`;
+    const field = "w-full bg-brand-bg border border-brand-border rounded-lg px-3 py-2.5 text-sm text-brand-secondary placeholder:text-brand-muted/80 focus:outline-none focus:border-brand-primary";
+    const claimLink = `inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-brand-primary/40 text-brand-primary hover:bg-brand-primary/10 whitespace-nowrap ${focusRing}`;
+    const fmt2 = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const networkCoverage = totalOwed > 0 ? totalDeclared / totalOwed : null;
 
     // Sem conta conectada o painel não abre.
     //
@@ -526,30 +536,29 @@ const formataCobertura = (c: number): string =>
     // mostrar, sem proteger nada que já não esteja protegido por assinatura.
     if (!isConnected || !userAddress) {
         return (
-            <div className="fixed inset-0 z-50 bg-[#02000A] text-purple-100 flex items-center justify-center font-sans p-6">
-                <div className="max-w-2xl w-full bg-purple-950/20 border-2 border-dashed border-purple-500/30 rounded-[2rem] p-10 text-center max-h-[92vh] overflow-y-auto">
-                    <div className="w-20 h-20 bg-purple-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
-                        🔑
+            <div className="fixed inset-0 z-50 bg-brand-bg text-brand-secondary flex items-center justify-center font-sans p-4 sm:p-6 selection:bg-brand-primary/30">
+                <div className={`max-w-2xl w-full ${panel} p-6 sm:p-10 max-h-[92vh] overflow-y-auto custom-scrollbar shadow-lift-lg`}>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl border border-brand-border bg-brand-bg flex items-center justify-center">
+                            <LockClosedIcon className="w-6 h-6 text-brand-primary" />
+                        </div>
+                        <h2 className="text-2xl font-bold tracking-[-0.02em] text-brand-secondary">
+                            FaucetHub Core
+                        </h2>
                     </div>
-                    <h2 className="text-2xl font-black uppercase tracking-tighter text-purple-100">
-                        FaucetHub Core
-                    </h2>
-                    <p className="text-purple-300/70 mt-4 leading-relaxed">
+                    <p className="text-brand-secondary/85 mt-5 leading-relaxed max-w-[60ch]">
                         {tri(
                             'This is the console for whoever runs a faucet: API key, reserve and payout. Sign in to open it. Every action here is signed by the wallet that owns the faucet, and without an account there is nothing to sign.',
                             'Este é o console de quem opera uma torneira: chave de API, reserva e pagamento. Entre para abrir. Toda ação aqui é assinada pela carteira dona da torneira, e sem conta não há o que assinar.',
                             'Esta es la consola de quien opera un grifo: clave de API, reserva y pago. Inicie sesión para abrirla. Toda acción aquí la firma la billetera dueña del grifo, y sin cuenta no hay qué firmar.')}
                     </p>
-                    <p className="text-purple-400/50 text-xs mt-6 leading-relaxed">
+                    <p className="text-brand-muted text-sm mt-3 leading-relaxed max-w-[60ch]">
                         {tri(
                             "The faucet board below stays public, with each one's balance, debt and coverage. It is there to be audited, and auditing asks for no login.",
                             'O quadro de torneiras abaixo continua público, com saldo, dívida e cobertura de cada uma. Ele existe para ser auditado, e auditar não pede login.',
                             'El tablero de grifos de abajo sigue público, con saldo, deuda y cobertura de cada uno. Existe para ser auditado, y auditar no pide inicio de sesión.')}
                     </p>
-                    <button
-                        onClick={onBack}
-                        className="mt-8 px-6 py-3 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-500/30 text-purple-100 rounded-xl text-sm font-bold transition-colors"
-                    >
+                    <button onClick={onBack} className={`mt-6 ${btnGhost}`}>
                         ← Back
                     </button>
 
@@ -559,35 +568,33 @@ const formataCobertura = (c: number): string =>
                         mostrava a parede. Prometer uma coisa e entregar outra e pior
                         que nao prometer. */}
                     {faucets.length > 0 && (
-                        <div className="mt-10 text-left">
-                            <p className="text-purple-400/60 text-[11px] uppercase tracking-[0.2em] font-bold mb-3">
+                        <div className="mt-8 pt-6 border-t border-brand-border">
+                            <p className={`${label} mb-3`}>
                                 Public board · {faucets.length} faucets
                             </p>
-                            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                            <div className="divide-y divide-brand-border border border-brand-border rounded-xl overflow-hidden max-h-72 overflow-y-auto custom-scrollbar">
                                 {faucets.map((f, i) => (
-                                    <div key={i} className="flex items-center justify-between gap-3 p-3 bg-purple-900/25 border border-purple-500/10 rounded-xl">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="font-bold text-purple-100 text-sm truncate">{f.name}</h4>
-                                                {f.site_url && (
-                                                    <a
-                                                        href={f.site_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 whitespace-nowrap"
-                                                    >
-                                                        claim →
-                                                    </a>
-                                                )}
+                                    <div key={i} className="flex items-center justify-between gap-3 px-3 py-2.5 bg-brand-bg">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <WalletIdenticon address={f.wallet_address} size={28} />
+                                            <div className="min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h4 className="font-semibold text-brand-secondary text-sm truncate">{f.name}</h4>
+                                                    {f.site_url && (
+                                                        <a href={f.site_url} target="_blank" rel="noopener noreferrer" className={claimLink}>
+                                                            claim →
+                                                        </a>
+                                                    )}
+                                                </div>
+                                                <p className="text-brand-muted text-[11px] mt-0.5">
+                                                    {f.coverage === null
+                                                        ? 'nothing owed yet'
+                                                        : `owes ${f.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · ${formataCobertura(f.coverage)} covered`}
+                                                </p>
                                             </div>
-                                            <p className="text-purple-500 text-[10px] mt-0.5">
-                                                {f.coverage === null
-                                                    ? 'nothing owed yet'
-                                                    : `owes ${f.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · ${formataCobertura(f.coverage)} covered`}
-                                            </p>
                                         </div>
-                                        <p className="text-purple-200 font-bold text-xs whitespace-nowrap">
-                                            {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})} CLAIM
+                                        <p className="font-mono tabular-nums text-brand-secondary text-xs whitespace-nowrap">
+                                            {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})} <span className="text-brand-muted">CLAIM</span>
                                         </p>
                                     </div>
                                 ))}
@@ -599,125 +606,123 @@ const formataCobertura = (c: number): string =>
         );
     }
 
-    return (
-        <div className="fixed inset-0 z-50 bg-[#02000A] text-purple-100 flex flex-col font-sans overflow-hidden animate-slideUpFadeIn">
-            {/* --- Dynamic OS Background --- */}
-            <div className="absolute inset-0 z-0 opacity-60 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-indigo-900/20 rounded-full blur-[120px] animate-[pulse_8s_infinite]"></div>
-                <div className="absolute bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-purple-900/20 rounded-full blur-[150px] animate-[pulse_12s_infinite_reverse]"></div>
-                
-                {/* Cyber Grid Pattern */}
-                <div 
-                    className="absolute inset-0 opacity-[0.03]" 
-                    style={{
-                        backgroundImage: 'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)',
-                        backgroundSize: '40px 40px'
-                    }}
-                ></div>
-            </div>
+    const selected = selectedFaucet
+        ? faucets.find(x => x.wallet_address.toLowerCase() === selectedFaucet.toLowerCase())
+        : undefined;
+    const porAssets: any[] = (por && por.assets) || [];
 
-            {/* --- Terminal OS Header --- */}
-            <div className="relative z-30 h-16 bg-black/40 backdrop-blur-2xl border-b border-white/10 flex items-center justify-between px-8 shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
-                <div className="flex items-center space-x-4">
-                    <div className="w-10 h-10 bg-indigo-900/50 border border-indigo-400 rounded-lg flex items-center justify-center text-xl shadow-[0_0_15px_rgba(99,102,241,0.5)]">
-                        🌐
+    return (
+        <div className="fixed inset-0 z-50 bg-brand-bg text-brand-secondary flex flex-col font-sans overflow-hidden animate-slideUpFadeIn selection:bg-brand-primary/30">
+            {/* --- Header: who you are on-chain, and the way out --- */}
+            <header className="relative z-30 bg-brand-bg/90 backdrop-blur-md border-b border-brand-border">
+                <div className="max-w-7xl mx-auto h-16 px-4 sm:px-8 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <FaucetChainLogoIcon className="w-9 h-9 flex-none" />
+                        <div className="min-w-0">
+                            <h1 className="text-base sm:text-lg font-bold tracking-[-0.02em] text-brand-secondary leading-tight">FaucetHub Core</h1>
+                            <p className="text-[11px] text-brand-muted tracking-wide truncate">L1 Infrastructure • Proof of Reserve</p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl font-black text-indigo-300 tracking-widest uppercase">FaucetHub Core</h1>
-                        <p className="text-[10px] text-indigo-500 uppercase tracking-widest">L1 Infrastructure • Proof of Reserve</p>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                        <div className="hidden sm:flex items-center gap-2 h-9 pl-1.5 pr-3 rounded-full border border-brand-border bg-brand-surface" title={userAddress}>
+                            <WalletIdenticon address={userAddress} size={24} round />
+                            <span className="font-mono text-xs text-brand-secondary">{shortAddr(userAddress)}</span>
+                        </div>
+                        <button onClick={onBack} className={btnGhost}>
+                            &larr; Exit
+                        </button>
                     </div>
                 </div>
-                <button 
-                    onClick={onBack}
-                    className="px-4 py-2 bg-black border border-indigo-500/50 text-indigo-300 rounded hover:bg-indigo-900/30 hover:border-indigo-400 transition-all font-bold text-xs tracking-widest uppercase flex items-center space-x-2"
-                >
-                    <span>&larr; Exit</span>
-                </button>
-            </div>
+            </header>
 
             {/* Content */}
-            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar relative z-10">
-                <div className="max-w-7xl mx-auto space-y-8">
+            <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-8 py-6 sm:py-8 space-y-6">
 
-                    {/* Stats Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                        <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Faucets connected</h3>
-                            <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
-                                {loading ? "..." : faucets.length}
+                    {/* Ledger band: four readings of the same book, side by side. */}
+                    <section className={`${panel} grid grid-cols-2 lg:grid-cols-4 [&>*]:border-brand-border`}>
+                        <div className="p-5 border-b lg:border-b-0 border-r">
+                            <p className={label}>Faucets connected</p>
+                            <p className="mt-2 font-mono tabular-nums text-3xl font-semibold text-brand-secondary tracking-[-0.03em]">
+                                {loading ? "…" : faucets.length}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">{activeCount} active</p>
+                            <p className="mt-1 flex items-center gap-1.5 text-xs text-brand-muted">
+                                <LiveDot on={activeCount > 0} /> {activeCount} active
+                            </p>
                         </div>
-                        <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
+                        <div className="p-5 border-b lg:border-b-0 lg:border-r">
                             {/* Dizia "Proof of Reserve (PoR)" sobre a soma dos saldos, com o
                                 rotulo "$CLAIM em reservas". Nada era provado e nada era uma
                                 reserva: era o saldo das torneiras somado. Agora o cartao mostra
                                 o saldo, e a reserva declarada aparece ao lado como o que e. */}
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Faucet balances</h3>
-                            <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
-                                {loading ? "..." : totalLiquidity.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            <p className={label}>Faucet balances</p>
+                            <p className="mt-2 font-mono tabular-nums text-3xl font-semibold text-brand-secondary tracking-[-0.03em]">
+                                {loading ? "…" : fmt2(totalLiquidity)}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">
+                            <p className="mt-1 text-xs text-brand-muted leading-relaxed">
                                 $CLAIM free · {totalDeclared.toLocaleString(undefined, {maximumFractionDigits: 0})} escrowed by {declaredCount} · {totalOwed.toLocaleString(undefined, {maximumFractionDigits: 2})} owed
                             </p>
+                            <CoverageBar coverage={networkCoverage} className="mt-3" />
                             {shortCount > 0 && (
-                                <p className="text-yellow-400/90 text-xs mt-1">
+                                <p className="text-brand-warn text-xs mt-2">
                                     {shortCount} {shortCount === 1 ? "faucet owes" : "faucets owe"} more than {shortCount === 1 ? "it escrowed" : "they escrowed"}
                                 </p>
                             )}
                         </div>
-                        <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Settlements (L1)</h3>
-                            <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
-                                {loading ? "..." : totalSettlements}
+                        <div className="p-5 border-r">
+                            <p className={label}>Settlements (L1)</p>
+                            <p className="mt-2 font-mono tabular-nums text-3xl font-semibold text-brand-secondary tracking-[-0.03em]">
+                                {loading ? "…" : totalSettlements}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">On-chain settlements</p>
+                            <p className="mt-1 text-xs text-brand-muted">On-chain settlements</p>
                         </div>
-                        <div className="bg-black/30 border border-white/10 backdrop-blur-2xl rounded-2xl p-5 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                            <h3 className="text-purple-400 text-xs font-semibold mb-1">Active API keys</h3>
-                            <p className="text-3xl font-black text-purple-100 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]">
-                                {loading ? "..." : faucets.length}
+                        <div className="p-5">
+                            <p className={label}>Active API keys</p>
+                            <p className="mt-2 font-mono tabular-nums text-3xl font-semibold text-brand-secondary tracking-[-0.03em]">
+                                {loading ? "…" : faucets.length}
                             </p>
-                            <p className="text-purple-400 text-xs mt-1">Connected integrations</p>
+                            <p className="mt-1 text-xs text-brand-muted">Connected integrations</p>
                         </div>
-                    </div>
+                    </section>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Monitoramento de Torneiras */}
-                        <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)] flex flex-col min-h-[480px]">
-                            <div className="flex items-center justify-between mb-5">
-                                <h2 className="text-xl font-bold text-purple-200 flex items-center">
-                                    <span className="mr-2 text-lg">🌐</span> Web3 monitoring
+                        <section className={`${panel} flex flex-col min-h-[480px] min-w-0`}>
+                            <div className={panelHead}>
+                                <h2 className={h2}>
+                                    <SignalIcon className="w-[18px] h-[18px] text-brand-primary" /> Web3 monitoring
                                 </h2>
-                                <button 
+                                <button
                                     onClick={() => { setShowRegister(!showRegister); setGeneratedKey(null); }}
-                                    className="px-4 py-1.5 text-xs bg-purple-600/30 border border-purple-500/50 rounded-lg hover:bg-purple-500/40 transition-colors"
+                                    className={showRegister ? btnGhost : btnPrimary}
                                 >
                                     {showRegister ? "Hide" : "+ Register new"}
                                 </button>
                             </div>
-                            
+
                             {showRegister && (
-                                <div className="mb-5 bg-purple-900/40 p-5 rounded-xl border border-purple-500/50">
+                                <div className="mx-5 sm:mx-6 mt-5 rounded-xl border border-brand-primary/40 bg-brand-bg p-5">
                                     {!generatedKey ? (
                                         <form onSubmit={handleRegister}>
-                                            <h3 className="font-semibold text-purple-200 mb-3 text-sm">Register a faucet (DApp)</h3>
+                                            <h3 className="font-semibold text-brand-secondary mb-3 text-sm">Register a faucet (DApp)</h3>
                                             <div className="space-y-3">
-                                                <input 
+                                                <input
+                                                    id="faucethub-register-name"
                                                     type="text" placeholder={tri('Faucet name', 'Nome da torneira', 'Nombre del grifo')} value={newName}
                                                     onChange={e => setNewName(e.target.value)}
-                                                    className="w-full bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
+                                                    className={field}
                                                     required
                                                 />
-                                                <input 
+                                                <input
+                                                    id="faucethub-register-wallet"
                                                     type="text" placeholder={tri('Wallet address (0x...)', 'Endereço da carteira (0x...)',
                                                                                  'Dirección de la billetera (0x...)')} value={newWallet}
                                                     onChange={e => setNewWallet(e.target.value)}
-                                                    className="w-full bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
+                                                    className={`${field} font-mono`}
                                                     required
                                                 />
-                                                {registerError && <p className="text-red-400 text-xs">{registerError}</p>}
-                                                <button type="submit" className="w-full bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 rounded-lg text-sm transition-colors">
+                                                {registerError && <p className="text-red-300 text-xs">{registerError}</p>}
+                                                <button type="submit" className={`${btnPrimary} w-full min-h-[40px] text-sm`}>
                                                     {tri('Link to FaucetHub', 'Vincular ao FaucetHub',
                                                          'Vincular a FaucetHub')}
                                                 </button>
@@ -725,31 +730,28 @@ const formataCobertura = (c: number): string =>
                                         </form>
                                     ) : (
                                         <div className="space-y-3">
-                                            <div className="flex items-center space-x-2 mb-2">
-                                                <span className="text-green-400 text-lg">✅</span>
-                                                <h3 className="font-bold text-green-300 text-sm">Faucet registered</h3>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <CheckCircleIcon className="w-5 h-5 text-brand-success" />
+                                                <h3 className="font-semibold text-brand-success text-sm">Faucet registered</h3>
                                             </div>
-                                            <p className="text-purple-300 text-xs">Your API key is ready. Store it somewhere safe: it will not be shown again.</p>
-                                            <div className="bg-black/40 rounded-lg p-3 border border-purple-500/30 flex items-center justify-between">
-                                                <code className="text-green-400 text-xs font-mono break-all flex-1 mr-2">{generatedKey}</code>
-                                                <button 
-                                                    onClick={() => copyToClipboard(generatedKey)}
-                                                    className="px-3 py-1 bg-purple-600/40 border border-purple-500/50 rounded text-xs hover:bg-purple-500/40 transition-colors flex-shrink-0"
-                                                >
+                                            <p className="text-brand-secondary/80 text-xs">Your API key is ready. Store it somewhere safe: it will not be shown again.</p>
+                                            <div className={`${well} flex items-center justify-between gap-2`}>
+                                                <code className="text-brand-success text-xs font-mono break-all flex-1">{generatedKey}</code>
+                                                <button onClick={() => copyToClipboard(generatedKey)} className={`${btnGhost} flex-shrink-0`}>
                                                     {keyCopied ? "✓ Copied" : "Copy"}
                                                 </button>
                                             </div>
-                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/20 text-xs text-purple-300 space-y-1">
-                                                <p className="font-semibold text-purple-200">How to integrate:</p>
-                                                <code className="block bg-black/30 p-2 rounded text-green-400/90 font-mono text-[11px]">
-                                                    POST /api/faucethub/settle<br/>
-                                                    Header: X-Api-Key: {generatedKey.slice(0, 20)}...<br/>
-                                                    Body: {`{"user_wallet": "0x...", "amount": 10.0}`}
+                                            <div className={`${well} text-xs space-y-2`}>
+                                                <p className="font-semibold text-brand-secondary">How to integrate:</p>
+                                                <code className="block font-mono text-[11px] leading-relaxed text-brand-secondary/90">
+                                                    <span className="text-brand-primary">POST</span> /api/faucethub/settle<br/>
+                                                    <span className="text-brand-muted">Header:</span> X-Api-Key: {generatedKey.slice(0, 20)}...<br/>
+                                                    <span className="text-brand-muted">Body:</span> {`{"user_wallet": "0x...", "amount": 10.0}`}
                                                 </code>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={() => { setShowRegister(false); setGeneratedKey(null); setNewName(""); setNewWallet(""); }}
-                                                className="w-full bg-purple-800/40 hover:bg-purple-700/40 text-purple-200 py-2 rounded-lg text-sm transition-colors border border-purple-500/30"
+                                                className={`${btnGhost} w-full min-h-[40px] text-sm`}
                                             >
                                                 Close
                                             </button>
@@ -758,572 +760,596 @@ const formataCobertura = (c: number): string =>
                                 </div>
                             )}
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-3">
-                                {loading && !faucets.length && <p className="text-purple-400/80 text-sm text-center py-8">Reading network activity...</p>}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 space-y-2">
+                                {loading && !faucets.length && <p className="text-brand-muted text-sm text-center py-8">Reading network activity...</p>}
                                 {!loading && faucets.length === 0 && (
-                                    <p className="text-purple-400/80 text-sm text-center py-8">No faucet registered yet.</p>
+                                    <p className="text-brand-muted text-sm text-center py-8">No faucet registered yet.</p>
                                 )}
-                                {faucets.map((faucet, idx) => (
-                                    <div 
-                                        key={idx} 
-                                        onClick={() => { setSelectedFaucet(faucet.wallet_address); fetchKeyInfo(faucet.wallet_address); }}
-                                        className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer ${
-                                            selectedFaucet === faucet.wallet_address 
-                                                ? 'bg-purple-800/40 border-purple-400/60 shadow-[0_0_10px_rgba(168,85,247,0.3)]' 
-                                                : 'bg-purple-900/30 border-purple-500/10 hover:border-purple-500/40'
-                                        }`}
-                                    >
-                                        <div className="flex items-center space-x-3">
-                                            <div className="w-10 h-10 rounded-lg bg-purple-800/50 flex items-center justify-center border border-purple-500/30 text-lg">
-                                                💧
-                                            </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="font-bold text-purple-100 text-sm">{faucet.name}</h4>
-                                                    {/* stopPropagation porque o card inteiro seleciona a torneira:
-                                                        sem isto, abrir o site tambem trocaria a selecao por baixo. */}
-                                                    {faucet.site_url && (
-                                                        <a
-                                                            href={faucet.site_url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 hover:bg-cyan-500/30 whitespace-nowrap"
-                                                        >
-                                                            claim →
-                                                        </a>
-                                                    )}
+                                {faucets.map((faucet, idx) => {
+                                    const isSel = selectedFaucet === faucet.wallet_address;
+                                    const pick = () => { setSelectedFaucet(faucet.wallet_address); fetchKeyInfo(faucet.wallet_address); };
+                                    return (
+                                        <div
+                                            key={idx}
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-pressed={isSel}
+                                            onClick={pick}
+                                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } }}
+                                            className={`group flex items-center justify-between gap-3 p-3.5 rounded-xl border transition-colors cursor-pointer ${focusRing} ${
+                                                isSel
+                                                    ? 'bg-brand-primary/[0.07] border-brand-primary/70'
+                                                    : 'bg-brand-bg border-brand-border hover:border-brand-primary/40'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <WalletIdenticon address={faucet.wallet_address} size={40} />
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <h4 className="font-semibold text-brand-secondary text-sm truncate">{faucet.name}</h4>
+                                                        {/* stopPropagation porque o card inteiro seleciona a torneira:
+                                                            sem isto, abrir o site tambem trocaria a selecao por baixo. */}
+                                                        {faucet.site_url && (
+                                                            <a
+                                                                href={faucet.site_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                onKeyDown={(e) => e.stopPropagation()}
+                                                                className={claimLink}
+                                                            >
+                                                                claim →
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                    <p className="font-mono text-[11px] text-brand-muted mt-0.5">{shortAddr(faucet.wallet_address)}</p>
+                                                    <p className="flex items-center gap-1.5 text-[11px] mt-0.5">
+                                                        <LiveDot on={faucet.status === 'Ativa'} />
+                                                        <span className={faucet.status === 'Ativa' ? 'text-brand-success font-medium' : 'text-brand-warn font-medium'}>
+                                                            {statusEmIngles(faucet.status)}
+                                                        </span>
+                                                        <span className="text-brand-muted">· {faucet.settlements} settlements</span>
+                                                    </p>
                                                 </div>
-                                                <span className={`text-xs font-semibold ${faucet.status === 'Ativa' ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    • {statusEmIngles(faucet.status)}
-                                                </span>
-                                                <span className="text-purple-500 text-xs ml-2">{faucet.settlements} settlements</span>
+                                            </div>
+                                            <div className="text-right flex-none w-[42%] max-w-[190px]">
+                                                <p className="font-mono tabular-nums text-brand-secondary font-semibold text-sm">
+                                                    {fmt2(faucet.liquidity)} <span className="text-brand-muted font-normal text-xs">CLAIM</span>
+                                                </p>
+                                                {/* Sem declaracao nao ha cobertura a mostrar, e inventar 0%
+                                                    acusaria a torneira de nao honrar algo que nunca prometeu. */}
+                                                {faucet.coverage === null ? (
+                                                    <p className="text-brand-muted text-[11px] mt-0.5">nothing owed yet</p>
+                                                ) : (
+                                                    <p className={`text-[11px] font-medium mt-0.5 ${faucet.coverage >= 1 ? 'text-brand-success' : 'text-brand-warn'}`}>
+                                                        owes {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {formataCobertura(faucet.coverage)} escrowed
+                                                    </p>
+                                                )}
+                                                <CoverageBar coverage={faucet.coverage} className="mt-1.5 ml-auto" />
+                                                <p className="text-brand-muted text-[11px] mt-1 font-mono tabular-nums">{faucet.recent_txs} Txs/hr</p>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-purple-200 font-bold text-sm">{faucet.liquidity.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} CLAIM</p>
-                                            {/* Sem declaracao nao ha cobertura a mostrar, e inventar 0%
-                                                acusaria a torneira de nao honrar algo que nunca prometeu. */}
-                                            {faucet.coverage === null ? (
-                                                <p className="text-purple-400/50 text-xs">nothing owed yet</p>
-                                            ) : (
-                                                <p className={`text-xs font-semibold ${faucet.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    owes {faucet.owed.toLocaleString(undefined, {maximumFractionDigits: 2})} · {formataCobertura(faucet.coverage)} escrowed
-                                                </p>
-                                            )}
-                                            <p className="text-purple-400/80 text-xs">{faucet.recent_txs} Txs/hr</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
-                        </div>
+                        </section>
 
                         {/* Right Panel: API Key Management + PoR */}
-                        <div className="space-y-6">
+                        <div className="space-y-6 min-w-0">
                             {/* API Key Management Panel */}
-                            <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                                <h2 className="text-xl font-bold text-purple-200 mb-4 flex items-center">
-                                    <span className="mr-2 text-lg">🔑</span> API Key Management
-                                </h2>
-
-                                {!selectedFaucet && (
-                                    <div className="text-center py-8">
-                                        <p className="text-purple-400/60 text-sm">Pick a faucet on the left to manage its API key</p>
-                                    </div>
-                                )}
-
-                                {selectedFaucet && keyLoading && (
-                                    <div className="text-center py-8">
-                                        <p className="text-purple-400 text-sm animate-pulse">Loading…</p>
-                                    </div>
-                                )}
-
-                                {selectedFaucet && !keyLoading && keyInfo && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-purple-400 text-xs font-semibold">API key</span>
-                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${keyInfo.is_active ? 'bg-green-900/50 text-green-400 border border-green-500/30' : 'bg-red-900/50 text-red-400 border border-red-500/30'}`}>
-                                                {keyInfo.is_active ? "ACTIVE" : "INACTIVE"}
-                                            </span>
+                            <section className={panel}>
+                                <div className={panelHead}>
+                                    <h2 className={h2}>
+                                        <CodeBracketIcon className="w-[18px] h-[18px] text-brand-primary" /> API Key Management
+                                    </h2>
+                                    {selected && (
+                                        <span className="flex items-center gap-2 text-xs text-brand-muted min-w-0">
+                                            <WalletIdenticon address={selected.wallet_address} size={20} round />
+                                            <span className="truncate">{selected.name}</span>
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="p-5 sm:p-6">
+                                    {!selectedFaucet && (
+                                        <div className="text-center py-6">
+                                            <p className="text-brand-muted text-sm">Pick a faucet on the left to manage its API key</p>
                                         </div>
-                                        
-                                        {revealedKey ? (
-                                            <div className="bg-black/40 rounded-lg p-3 border border-purple-500/20 flex items-center justify-between">
-                                                <code className="text-green-400/90 text-[11px] font-mono break-all flex-1 mr-2">
-                                                    {revealedKey.slice(0, 12)}{"•".repeat(20)}{revealedKey.slice(-8)}
-                                                </code>
-                                                <button
-                                                    onClick={() => copyToClipboard(revealedKey)}
-                                                    className="px-2 py-1 bg-purple-600/30 border border-purple-500/40 rounded text-[10px] hover:bg-purple-500/30 transition-colors flex-shrink-0"
-                                                >
-                                                    {keyCopied ? "✓" : "Copy"}
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="bg-black/30 rounded-lg p-3 border border-purple-500/15">
-                                                <p className="text-purple-300/90 text-[11px] leading-relaxed">
-                                                    {tri(
-                                                        "The key cannot be shown again. Only its hash is kept here, so that reading the database does not hand anyone the right to distribute on this faucet's behalf.",
-                                                        'A chave não pode ser mostrada de novo. Só o hash dela fica guardado aqui, para que ler o banco não entregue a ninguém o direito de distribuir no lugar desta torneira.',
-                                                        'La clave no puede mostrarse de nuevo. Solo su hash queda guardado aquí, para que leer la base no entregue a nadie el derecho de distribuir en nombre de este grifo.')}
-                                                </p>
-                                                <p className="text-purple-400/70 text-[10px] mt-2 leading-relaxed">
-                                                    {tri(
-                                                        'Lost yours? Rotate below: the new one is shown once, and the previous one dies in the same call.',
-                                                        'Perdeu a sua? Gire abaixo: a nova aparece uma vez, e a anterior morre na mesma chamada.',
-                                                        '¿Perdió la suya? Rótela abajo: la nueva aparece una vez, y la anterior muere en la misma llamada.')}
-                                                </p>
-                                            </div>
-                                        )}
+                                    )}
 
-                                        {keyError && (
-                                            <p className="text-red-300 text-[11px]">{keyError}</p>
-                                        )}
-
-                                        <div className="grid grid-cols-2 gap-3 mt-3">
-                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">REQUESTS</p>
-                                                <p className="text-xl font-black text-purple-100">{keyInfo.total_requests}</p>
-                                            </div>
-                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">VOLUME SETTLED</p>
-                                                <p className="text-xl font-black text-purple-100">{numeroLocal(keyInfo.total_settled)} <span className="text-xs font-normal text-purple-400">CLAIM</span></p>
-                                            </div>
+                                    {selectedFaucet && keyLoading && (
+                                        <div className="text-center py-6">
+                                            <p className="text-brand-muted text-sm animate-pulse">Loading…</p>
                                         </div>
+                                    )}
 
-                                        {keyInfo.last_used && (
-                                            <p className="text-purple-500 text-[10px]">
-                                                Last used: {dataHoraLocal(keyInfo.last_used * 1000)}
-                                            </p>
-                                        )}
-
-                                        <button 
-                                            onClick={() => handleRegenerateKey(selectedFaucet)}
-                                            className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 border border-red-500/30 text-red-300 rounded-lg text-xs font-semibold transition-colors"
-                                        >
-                                            ⟳ Rotate key (kills the current one)
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Declaracao de reserva: a outra metade do numero do painel */}
-                            {selectedFaucet && (() => {
-                                const f = faucets.find(x => x.wallet_address.toLowerCase() === selectedFaucet.toLowerCase());
-                                if (!f) return null;
-                                return (
-                                    <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                                        <h2 className="text-xl font-bold text-purple-200 mb-1 flex items-center">
-                                            <span className="mr-2 text-lg">🔐</span>{' '}
-                                            {tri('Escrowed reserve', 'Reserva em caução', 'Reserva en garantía')}
-                                        </h2>
-                                        <p className="text-purple-400/70 text-[11px] mb-4 leading-relaxed">
-                                            {tri(
-                                                "Signing moves this amount from the faucet's balance into the FaucetChain treasury, and that is where your users are paid from when they withdraw. You stop being able to spend it. You can lower it later, never below what users already have coming.",
-                                                'Assinar move este valor do saldo da torneira para a tesouraria da FaucetChain, e é de lá que seus usuários são pagos quando sacam. Você deixa de poder gastá-lo. Dá para baixar depois, nunca abaixo do que os usuários já têm a receber.',
-                                                'Firmar mueve este monto del saldo del grifo a la tesorería de FaucetChain, y de allí se paga a sus usuarios cuando retiran. Usted deja de poder gastarlo. Se puede bajar después, nunca por debajo de lo que los usuarios ya tienen por cobrar.')}
-                                        </p>
-
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">FREE</p>
-                                                <p className="text-lg font-black text-purple-100">
-                                                    {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})}
-                                                </p>
+                                    {selectedFaucet && !keyLoading && keyInfo && (
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <span className={label}>API key</span>
+                                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider border ${keyInfo.is_active ? 'text-brand-success border-brand-success/40 bg-brand-success/10' : 'text-red-300 border-brand-error/40 bg-brand-error/10'}`}>
+                                                    {keyInfo.is_active ? "ACTIVE" : "INACTIVE"}
+                                                </span>
                                             </div>
-                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10">
-                                                <p className="text-purple-400 text-[10px] font-semibold">ESCROWED</p>
-                                                <p className="text-lg font-black text-purple-100">
-                                                    {f.reserve > 0 ? f.reserve.toLocaleString(undefined, {maximumFractionDigits: 2}) : "—"}
-                                                </p>
-                                            </div>
-                                            <div className="bg-purple-900/30 rounded-lg p-3 border border-purple-500/10 col-span-2">
-                                                <p className="text-purple-400 text-[10px] font-semibold">OWED TO USERS</p>
-                                                <p className="text-lg font-black text-purple-100">
-                                                    {f.owed.toLocaleString(undefined, {maximumFractionDigits: 4})}
-                                                    <span className="text-[10px] font-normal text-purple-400 ml-2">
-                                                        measured in the ledger, not declared
-                                                    </span>
-                                                </p>
-                                            </div>
-                                        </div>
 
-                                        {f.coverage !== null && (
-                                            <div className="mb-4">
-                                                <div className="h-2 w-full bg-purple-900/40 rounded-full overflow-hidden border border-purple-500/20">
-                                                    <div
-                                                        className={`h-full rounded-full ${f.coverage >= 1 ? 'bg-green-500/70' : 'bg-yellow-500/70'}`}
-                                                        style={{ width: `${Math.min(f.coverage * 100, 100)}%` }}
-                                                    />
+                                            {revealedKey ? (
+                                                <div className={`${well} flex items-center justify-between gap-2`}>
+                                                    <code className="text-brand-success text-[11px] font-mono break-all flex-1">
+                                                        {revealedKey.slice(0, 12)}{"•".repeat(20)}{revealedKey.slice(-8)}
+                                                    </code>
+                                                    <button onClick={() => copyToClipboard(revealedKey)} className={`${btnGhost} flex-shrink-0`}>
+                                                        {keyCopied ? "✓" : "Copy"}
+                                                    </button>
                                                 </div>
-                                                <p className={`text-[11px] mt-1 ${f.coverage >= 1 ? 'text-green-400' : 'text-yellow-400'}`}>
-                                                    {f.coverage >= 1
-                                                        ? `Covered: the escrow covers ${formataCobertura(f.coverage)} of what you owe.`
-                                                        : `Short: the escrow covers ${formataCobertura(f.coverage)} of what you owe; the rest comes out of the free balance at withdrawal, if there is any.`}
-                                                    {f.reserve_declared_at && ` Escrowed on ${dataLocal(f.reserve_declared_at * 1000)}.`}
-                                                </p>
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <div className={well}>
+                                                    <p className="text-brand-secondary/85 text-xs leading-relaxed">
+                                                        {tri(
+                                                            "The key cannot be shown again. Only its hash is kept here, so that reading the database does not hand anyone the right to distribute on this faucet's behalf.",
+                                                            'A chave não pode ser mostrada de novo. Só o hash dela fica guardado aqui, para que ler o banco não entregue a ninguém o direito de distribuir no lugar desta torneira.',
+                                                            'La clave no puede mostrarse de nuevo. Solo su hash queda guardado aquí, para que leer la base no entregue a nadie el derecho de distribuir en nombre de este grifo.')}
+                                                    </p>
+                                                    <p className="text-brand-muted text-[11px] mt-2 leading-relaxed">
+                                                        {tri(
+                                                            'Lost yours? Rotate below: the new one is shown once, and the previous one dies in the same call.',
+                                                            'Perdeu a sua? Gire abaixo: a nova aparece uma vez, e a anterior morre na mesma chamada.',
+                                                            '¿Perdió la suya? Rótela abajo: la nueva aparece una vez, y la anterior muere en la misma llamada.')}
+                                                    </p>
+                                                </div>
+                                            )}
 
-                                        <div className="flex gap-2">
-                                            <input
-                                                id="faucethub-reserve"
-                                                type="number"
-                                                min="0"
-                                                step="0.0001"
-                                                value={reserveInput}
-                                                onChange={(e) => setReserveInput(e.target.value)}
-                                                placeholder={f.reserve > 0 ? String(f.reserve) : "0.0000"}
-                                                className="flex-1 bg-black/40 border border-purple-500/30 rounded-lg px-3 py-2 text-sm text-purple-100 placeholder-purple-500/40 focus:outline-none focus:border-purple-400"
-                                            />
-                                            <button
-                                                onClick={() => handleDeclareReserve(selectedFaucet)}
-                                                disabled={reserveSaving || reserveInput.trim() === ""}
-                                                className="px-4 py-2 bg-purple-900/40 hover:bg-purple-800/50 disabled:opacity-40 disabled:cursor-not-allowed border border-purple-500/30 text-purple-200 rounded-lg text-xs font-semibold transition-colors"
-                                            >
-                                                {reserveSaving ? "Assinando..." : "Travar"}
+                                            {keyError && (
+                                                <p className="text-red-300 text-xs">{keyError}</p>
+                                            )}
+
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className={well}>
+                                                    <p className={label}>Requests</p>
+                                                    <p className="mt-1 font-mono tabular-nums text-xl font-semibold text-brand-secondary">{keyInfo.total_requests}</p>
+                                                </div>
+                                                <div className={well}>
+                                                    <p className={label}>Volume settled</p>
+                                                    <p className="mt-1 font-mono tabular-nums text-xl font-semibold text-brand-secondary">{numeroLocal(keyInfo.total_settled)} <span className="text-xs font-normal text-brand-muted">CLAIM</span></p>
+                                                </div>
+                                            </div>
+
+                                            {keyInfo.last_used && (
+                                                <p className="text-brand-muted text-[11px]">
+                                                    Last used: <span className="font-mono">{dataHoraLocal(keyInfo.last_used * 1000)}</span>
+                                                </p>
+                                            )}
+
+                                            <button onClick={() => handleRegenerateKey(selectedFaucet)} className={`${btnDanger} w-full`}>
+                                                <ArrowPathIcon className="w-4 h-4" /> Rotate key (kills the current one)
                                             </button>
                                         </div>
+                                    )}
+                                </div>
+                            </section>
 
-                                        {/* Destravar sempre existiu no servidor: a rota recebe o valor TOTAL
-                                            que fica travado, então mandar menos libera a diferença. O que não
-                                            existia era o caminho na tela, e sem ele a caução parecia porta de
-                                            mão única — que é o contrário do que ela é.
+                            {/* Declaracao de reserva: a outra metade do numero do painel */}
+                            {selected && (() => {
+                                const f = selected;
+                                return (
+                                    <section className={panel}>
+                                        <div className={panelHead}>
+                                            <h2 className={h2}>
+                                                <LockClosedIcon className="w-[18px] h-[18px] text-brand-primary" />
+                                                {tri('Escrowed reserve', 'Reserva em caução', 'Reserva en garantía')}
+                                            </h2>
+                                        </div>
+                                        <div className="p-5 sm:p-6">
+                                            <p className="text-brand-secondary/80 text-xs mb-4 leading-relaxed">
+                                                {tri(
+                                                    "Signing moves this amount from the faucet's balance into the FaucetChain treasury, and that is where your users are paid from when they withdraw. You stop being able to spend it. You can lower it later, never below what users already have coming.",
+                                                    'Assinar move este valor do saldo da torneira para a tesouraria da FaucetChain, e é de lá que seus usuários são pagos quando sacam. Você deixa de poder gastá-lo. Dá para baixar depois, nunca abaixo do que os usuários já têm a receber.',
+                                                    'Firmar mueve este monto del saldo del grifo a la tesorería de FaucetChain, y de allí se paga a sus usuarios cuando retiran. Usted deja de poder gastarlo. Se puede bajar después, nunca por debajo de lo que los usuarios ya tienen por cobrar.')}
+                                            </p>
 
-                                            Os dois atalhos cobrem o que se quer de verdade: soltar o que
-                                            sobra acima da dívida, ou soltar tudo. Qualquer outro valor se
-                                            digita no campo acima e se trava normalmente. */}
-                                        {f.reserve > 0 && (
-                                            <div className="mt-3">
-                                                <p className="text-purple-400 text-[10px] font-semibold mb-2">
-                                                    {tri('RELEASE', 'DESTRAVAR', 'LIBERAR')}
-                                                </p>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <button
-                                                        onClick={() => {
-                                                            setReserveInput(String(Math.max(f.owed, 0)));
-                                                            handleDeclareReserve(selectedFaucet);
-                                                        }}
-                                                        disabled={reserveSaving || f.reserve <= f.owed}
-                                                        title={f.reserve <= f.owed
-                                                            ? "No surplus: the reserve already equals or sits below the debt."
-                                                            : undefined}
-                                                        className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
-                                                    >
-                                                        {tri('Release the surplus', 'Soltar o excedente',
-                                                             'Soltar el excedente')}
-                                                        <span className="block text-[10px] font-normal text-purple-400">
-                                                            {Math.max(f.reserve - f.owed, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} livres
-                                                        </span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            setReserveInput("0");
-                                                            handleDeclareReserve(selectedFaucet);
-                                                        }}
-                                                        disabled={reserveSaving || f.owed > 0}
-                                                        title={f.owed > 0
-                                                            ? `Not possible: this faucet owes ${f.owed} to its users, and the reserve does not go below the debt.`
-                                                            : undefined}
-                                                        className="px-3 py-2 bg-purple-900/20 hover:bg-purple-800/40 disabled:opacity-30 disabled:cursor-not-allowed border border-purple-500/20 text-purple-200 rounded-lg text-[11px] font-semibold transition-colors"
-                                                    >
-                                                        {tri('Release all', 'Soltar tudo', 'Soltar todo')}
-                                                        <span className="block text-[10px] font-normal text-purple-400">
-                                                            {f.owed > 0 ? "blocked by debt" : "nothing owed"}
-                                                        </span>
-                                                    </button>
+                                            <div className="grid grid-cols-2 gap-3 mb-4">
+                                                <div className={well}>
+                                                    <p className={label}>Free</p>
+                                                    <p className="mt-1 font-mono tabular-nums text-lg font-semibold text-brand-secondary">
+                                                        {f.liquidity.toLocaleString(undefined, {maximumFractionDigits: 2})}
+                                                    </p>
                                                 </div>
-                                                <p className="text-purple-500/60 text-[10px] mt-2 leading-relaxed">
-                                                    Releasing returns the amount to the faucet's free balance. The
-                                                    server refuses to go below what users already have coming — the
-                                                    rule is its own, not this button's, and it holds even if this
-                                                    screen is wrong.
-                                                </p>
+                                                <div className={well}>
+                                                    <p className={label}>Escrowed</p>
+                                                    <p className="mt-1 font-mono tabular-nums text-lg font-semibold text-brand-secondary">
+                                                        {f.reserve > 0 ? f.reserve.toLocaleString(undefined, {maximumFractionDigits: 2}) : "—"}
+                                                    </p>
+                                                </div>
+                                                <div className={`${well} col-span-2`}>
+                                                    <p className={label}>{tri('Owed to users', 'Devido aos usuários', 'Adeudado a los usuarios')}</p>
+                                                    <p className="mt-1 font-mono tabular-nums text-lg font-semibold text-brand-secondary">
+                                                        {f.owed.toLocaleString(undefined, {maximumFractionDigits: 4})}
+                                                        <span className="font-sans text-[11px] font-normal text-brand-muted ml-2">
+                                                            measured in the ledger, not declared
+                                                        </span>
+                                                    </p>
+                                                </div>
                                             </div>
-                                        )}
-                                        {reserveError && <p className="text-red-300 text-[11px] mt-2">{reserveError}</p>}
-                                        <p className="text-purple-500/60 text-[10px] mt-3 leading-relaxed">
-                                            {tri(
-                                                'The escrowed amount leaves your balance and shows on your dashboard as unavailable. What does not exist yet: faucet reputation, and any warning to a user when the escrow does not cover what they are owed.',
-                                                'O valor em caução sai do seu saldo e aparece no seu painel como indisponível. O que ainda não existe: reputação de torneira, e qualquer aviso ao usuário quando a caução não cobre o que ele tem a receber.',
-                                                'El monto en garantía sale de su saldo y aparece en su panel como no disponible. Lo que todavía no existe: reputación de grifo, y cualquier aviso al usuario cuando la garantía no cubre lo que tiene por cobrar.')}
-                                        </p>
-                                    </div>
+
+                                            {f.coverage !== null && (
+                                                <div className="mb-4">
+                                                    <CoverageBar coverage={f.coverage} wide />
+                                                    <p className={`text-xs mt-2 leading-relaxed ${f.coverage >= 1 ? 'text-brand-success' : 'text-brand-warn'}`}>
+                                                        {f.coverage >= 1
+                                                            ? `Covered: the escrow covers ${formataCobertura(f.coverage)} of what you owe.`
+                                                            : `Short: the escrow covers ${formataCobertura(f.coverage)} of what you owe; the rest comes out of the free balance at withdrawal, if there is any.`}
+                                                        {f.reserve_declared_at && ` Escrowed on ${dataLocal(f.reserve_declared_at * 1000)}.`}
+                                                    </p>
+                                                </div>
+                                            )}
+
+                                            <div className="flex gap-2">
+                                                <input
+                                                    id="faucethub-reserve"
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.0001"
+                                                    value={reserveInput}
+                                                    onChange={(e) => setReserveInput(e.target.value)}
+                                                    placeholder={f.reserve > 0 ? String(f.reserve) : "0.0000"}
+                                                    className={`${field} flex-1 font-mono tabular-nums`}
+                                                />
+                                                <button
+                                                    onClick={() => handleDeclareReserve(f.wallet_address)}
+                                                    disabled={reserveSaving || reserveInput.trim() === ""}
+                                                    className={btnPrimary}
+                                                >
+                                                    {reserveSaving ? "Assinando..." : "Travar"}
+                                                </button>
+                                            </div>
+
+                                            {/* Destravar sempre existiu no servidor: a rota recebe o valor TOTAL
+                                                que fica travado, então mandar menos libera a diferença. O que não
+                                                existia era o caminho na tela, e sem ele a caução parecia porta de
+                                                mão única — que é o contrário do que ela é.
+
+                                                Os dois atalhos cobrem o que se quer de verdade: soltar o que
+                                                sobra acima da dívida, ou soltar tudo. Qualquer outro valor se
+                                                digita no campo acima e se trava normalmente. Eles passam o valor
+                                                direto: antes punham no campo e liam o campo na mesma chamada,
+                                                que ainda tinha o valor velho, e o botão nunca soltava nada. */}
+                                            {f.reserve > 0 && (
+                                                <div className="mt-4">
+                                                    <p className={`${label} mb-2`}>
+                                                        {tri('RELEASE', 'DESTRAVAR', 'LIBERAR')}
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <button
+                                                            onClick={() => handleDeclareReserve(f.wallet_address, String(Math.max(f.owed, 0)))}
+                                                            disabled={reserveSaving || f.reserve <= f.owed}
+                                                            title={f.reserve <= f.owed
+                                                                ? "No surplus: the reserve already equals or sits below the debt."
+                                                                : undefined}
+                                                            className={`${btnGhost} flex-col items-start py-2`}
+                                                        >
+                                                            {tri('Release the surplus', 'Soltar o excedente',
+                                                                 'Soltar el excedente')}
+                                                            <span className="block text-[10px] font-normal text-brand-muted font-mono">
+                                                                {Math.max(f.reserve - f.owed, 0).toLocaleString(undefined, { maximumFractionDigits: 2 })} livres
+                                                            </span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeclareReserve(f.wallet_address, "0")}
+                                                            disabled={reserveSaving || f.owed > 0}
+                                                            title={f.owed > 0
+                                                                ? `Not possible: this faucet owes ${f.owed} to its users, and the reserve does not go below the debt.`
+                                                                : undefined}
+                                                            className={`${btnGhost} flex-col items-start py-2`}
+                                                        >
+                                                            {tri('Release all', 'Soltar tudo', 'Soltar todo')}
+                                                            <span className="block text-[10px] font-normal text-brand-muted">
+                                                                {f.owed > 0 ? "blocked by debt" : "nothing owed"}
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-brand-muted text-[11px] mt-2 leading-relaxed">
+                                                        Releasing returns the amount to the faucet's free balance. The
+                                                        server refuses to go below what users already have coming — the
+                                                        rule is its own, not this button's, and it holds even if this
+                                                        screen is wrong.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            {reserveError && <p className="text-red-300 text-xs mt-2">{reserveError}</p>}
+                                            <p className="text-brand-muted text-[11px] mt-3 leading-relaxed">
+                                                {tri(
+                                                    'The escrowed amount leaves your balance and shows on your dashboard as unavailable. What does not exist yet: faucet reputation, and any warning to a user when the escrow does not cover what they are owed.',
+                                                    'O valor em caução sai do seu saldo e aparece no seu painel como indisponível. O que ainda não existe: reputação de torneira, e qualquer aviso ao usuário quando a caução não cobre o que ele tem a receber.',
+                                                    'El monto en garantía sale de su saldo y aparece en su panel como no disponible. Lo que todavía no existe: reputación de grifo, y cualquier aviso al usuario cuando la garantía no cubre lo que tiene por cobrar.')}
+                                            </p>
+                                        </div>
+                                    </section>
                                 );
                             })()}
 
                             {/* Proof of Reserve */}
-                            <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                                <h2 className="text-xl font-bold text-purple-200 mb-4 flex items-center">
+                            <section className={panel}>
+                                <div className={panelHead}>
                                     {/* Chamava-se "Proof of Reserve (PoR)". Continua honesto -- le
                                         /api/faucethub/proof-of-reserve, uma linha por ativo, com
                                         allSolvent nulo quando alguma nao pode ser lida -- mas ao lado do
                                         painel "Reserva declarada" os dois nomes se confundiam, e medem
                                         coisas diferentes: aqui e o que a rede deve, por ativo; la e o que
                                         uma torneira diz guardar. O rotulo agora diz qual dos dois e. */}
-                                    <span className="mr-2 text-lg">🔒</span> Network solvency, by asset
-                                </h2>
-
-                                <div className="relative h-48 w-full bg-purple-900/20 rounded-xl border border-purple-500/20 flex flex-col items-center justify-center overflow-hidden">
-                                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-800/40 via-transparent to-transparent"></div>
-                                    
-                                    <div className="w-24 h-24 rounded-full border-[3px] border-purple-500/50 border-t-purple-400 border-b-purple-400 animate-spin-slow flex items-center justify-center relative z-10 shadow-[0_0_25px_rgba(168,85,247,0.4)]">
-                                        <div className="w-[72px] h-[72px] rounded-full border border-purple-300/30 bg-purple-900/80 flex items-center justify-center backdrop-blur-sm animate-none">
-                                            <span className="text-xl font-bold text-purple-200">
+                                    <h2 className={h2}>
+                                        <ShieldCheckIcon className="w-[18px] h-[18px] text-brand-primary" /> Network solvency, by asset
+                                    </h2>
+                                </div>
+                                <div className="p-5 sm:p-6">
+                                    {/* The verdict, then one block per asset: the strip is the
+                                        proof read left to right, coloured by what each block said. */}
+                                    <div className="flex items-end justify-between gap-4">
+                                        <div>
+                                            <p className={label}>Solvency by asset</p>
+                                            <p className={`mt-1 text-3xl font-bold tracking-[-0.03em] ${
+                                                !por ? 'text-brand-muted'
+                                                : por.allSolvent === true ? 'text-brand-success'
+                                                : por.allSolvent === false ? 'text-red-300'
+                                                : 'text-brand-warn'}`}>
                                                 {!por ? "—"
                                                     : por.allSolvent === true ? "OK"
                                                     : por.allSolvent === false ? "SHORT"
                                                     : "PARTIAL"}
-                                            </span>
+                                            </p>
                                         </div>
-                                    </div>
-                                    <div className="mt-4 text-center relative z-10 px-4">
-                                        <p className="text-purple-200 font-bold tracking-widest uppercase text-xs">Solvency by asset</p>
-                                        <p className="text-purple-400 text-[10px] mt-1">
-                                            {!por ? 'No reading from the server.'
-                                                : por.allSolvent === null
-                                                    ? 'One or more assets could not be read. Not knowing is not the same as being covered.'
-                                                    : `${(por.assets || []).length} asset(s). Each reserve answers only for the debt in its own currency.`}
+                                        <p className="font-mono tabular-nums text-xs text-brand-muted">
+                                            {porAssets.filter(a => a.solvent === true).length}/{porAssets.length} covered
                                         </p>
                                     </div>
-                                </div>
-                                
-                                {por && (por.assets || []).length > 0 && (
-                                    <div className="mt-4 space-y-2 max-h-56 overflow-y-auto pr-1">
-                                        {por.assets.map((a: any) => (
-                                            <div key={`${a.asset}-${a.campaignId ?? 'claim'}`}
-                                                 className="flex items-center justify-between gap-2 p-2.5 bg-purple-950/20 border border-purple-500/15 rounded-lg">
-                                                <div className="min-w-0">
-                                                    <p className="text-[11px] font-bold text-purple-100 truncate">
-                                                        {a.asset === 'CLAIM' ? '$CLAIM' : `${a.asset.slice(0, 6)}…${a.asset.slice(-4)}`}
-                                                    </p>
-                                                    <p className="text-[9px] text-purple-400/80">
-                                                        {a.verifiedOnChain ? 'read from Solana' : "sequencer's ledger"}
-                                                        {a.obligations != null && ` · owes ${numeroLocal(Number(a.obligations))}`}
-                                                    </p>
-                                                </div>
-                                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border flex-shrink-0 ${
-                                                    a.solvent === true ? 'text-green-300 border-green-500/40 bg-green-900/20'
-                                                    : a.solvent === false ? 'text-red-300 border-red-500/40 bg-red-900/20'
-                                                    : 'text-yellow-300 border-yellow-500/40 bg-yellow-900/20'
-                                                }`}>
-                                                    {a.solvent === true ? 'covered' : a.solvent === false ? `short ${numeroLocal(Number(a.shortfall))}` : 'not read'}
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                    {porAssets.length > 0 && (
+                                        <div className="mt-3 flex gap-1" aria-hidden="true">
+                                            {porAssets.map((a: any, i: number) => (
+                                                <span key={i}
+                                                    className={`h-2 flex-1 rounded-sm origin-left motion-safe:animate-blockIn ${
+                                                        a.solvent === true ? 'bg-brand-success'
+                                                        : a.solvent === false ? 'bg-brand-error'
+                                                        : 'bg-brand-warn/70'}`}
+                                                    style={{ animationDelay: `${i * 70}ms` }} />
+                                            ))}
+                                        </div>
+                                    )}
+                                    <p className="text-brand-muted text-xs mt-3 leading-relaxed">
+                                        {!por ? 'No reading from the server.'
+                                            : por.allSolvent === null
+                                                ? 'One or more assets could not be read. Not knowing is not the same as being covered.'
+                                                : `${porAssets.length} asset(s). Each reserve answers only for the debt in its own currency.`}
+                                    </p>
 
-                                <button
-                                    onClick={() => { fetchFaucets(); fetchProofOfReserve(); }}
-                                    className="w-full mt-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/50 text-purple-200 rounded-xl font-bold text-sm transition-all shadow-[0_0_15px_rgba(168,85,247,0.2)]"
-                                >
-                                    {tri('Reload reserves', 'Reler reservas', 'Releer reservas')}
-                                </button>
-                            </div>
+                                    {porAssets.length > 0 && (
+                                        <div className="mt-4 divide-y divide-brand-border border border-brand-border rounded-xl overflow-hidden max-h-64 overflow-y-auto custom-scrollbar">
+                                            {porAssets.map((a: any) => (
+                                                <div key={`${a.asset}-${a.campaignId ?? 'claim'}`}
+                                                     className="flex items-center justify-between gap-3 px-3 py-2.5 bg-brand-bg">
+                                                    <div className="min-w-0">
+                                                        <p className="font-mono text-xs font-semibold text-brand-secondary truncate">
+                                                            {a.asset === 'CLAIM' ? '$CLAIM' : `${a.asset.slice(0, 6)}…${a.asset.slice(-4)}`}
+                                                        </p>
+                                                        <p className="flex items-center gap-1.5 text-[11px] text-brand-muted mt-0.5">
+                                                            {a.verifiedOnChain ? (
+                                                                <>
+                                                                    <span className="w-2 h-2 rounded-full bg-gradient-to-br from-sol-purple to-sol-green flex-none" />
+                                                                    <span className="text-brand-secondary/90">read from Solana</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <span className="w-2 h-2 rounded-full border border-brand-muted flex-none" />
+                                                                    <span>sequencer's ledger</span>
+                                                                </>
+                                                            )}
+                                                            {a.obligations != null && <span className="font-mono">· owes {numeroLocal(Number(a.obligations))}</span>}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border flex-shrink-0 ${
+                                                        a.solvent === true ? 'text-brand-success border-brand-success/40 bg-brand-success/10'
+                                                        : a.solvent === false ? 'text-red-300 border-brand-error/40 bg-brand-error/10'
+                                                        : 'text-brand-warn border-brand-warn/40 bg-brand-warn/10'
+                                                    }`}>
+                                                        {a.solvent === true ? 'covered' : a.solvent === false ? `short ${numeroLocal(Number(a.shortfall))}` : 'not read'}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <button
+                                        onClick={() => { fetchFaucets(); fetchProofOfReserve(); }}
+                                        className={`${btnGhost} w-full mt-4 min-h-[40px]`}
+                                    >
+                                        <ArrowPathIcon className="w-4 h-4" />
+                                        {tri('Reload reserves', 'Reler reservas', 'Releer reservas')}
+                                    </button>
+                                </div>
+                            </section>
                         </div>
                     </div>
 
                     {/* L2 Micro-Claims Ledger */}
-                    <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                        <div className="flex items-center justify-between mb-5">
-                            <h2 className="text-xl font-bold text-purple-200 flex items-center">
-                                <span className="mr-2 text-lg">⚡</span> Ledger L2 — Micro-Claims Off-Chain
+                    <section className={panel}>
+                        <div className={panelHead}>
+                            <h2 className={h2}>
+                                <BoltIcon className="w-[18px] h-[18px] text-brand-primary" /> Ledger L2 — Micro-Claims Off-Chain
                             </h2>
-                            <span className="px-3 py-1 bg-purple-600/20 border border-purple-500/30 rounded-full text-[10px] font-bold text-purple-300 tracking-wider">LAYER 2</span>
+                            <span className="px-2.5 py-1 rounded-full border border-brand-border text-[10px] font-semibold tracking-[0.12em] text-brand-muted">LAYER 2</span>
                         </div>
 
-                        {/* L2 Global Stats */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-                            <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">L2 USERS</p>
-                                <p className="text-lg font-black text-purple-100">{l2Stats?.total_users ?? "..."}</p>
-                            </div>
-                            <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">VIRTUAL BALANCE</p>
-                                <p className="text-lg font-black text-purple-100">{numeroLocal(l2Stats?.total_virtual_balance) ?? "..."}</p>
-                            </div>
-                            <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">TOTAL CLAIMS</p>
-                                <p className="text-lg font-black text-purple-100">{numeroLocal(l2Stats?.total_claims_count) ?? "..."}</p>
-                            </div>
-                            <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">DISTRIBUTED ON L2</p>
-                                <p className="text-lg font-black text-purple-100">{numeroLocal(l2Stats?.total_claimed_all_time) ?? "..."}</p>
-                            </div>
-                            <div className="bg-purple-900/30 rounded-xl p-3 border border-purple-500/10 text-center">
-                                <p className="text-purple-400 text-[10px] font-semibold">WITHDRAWN → L1</p>
-                                <p className="text-lg font-black text-green-400">{numeroLocal(l2Stats?.total_withdrawn_all_time) ?? "..."}</p>
-                            </div>
-                        </div>
-
-                        {/* User Lookup */}
-                        <div className="bg-purple-900/30 rounded-xl p-5 border border-purple-500/20">
-                            <h3 className="text-sm font-semibold text-purple-200 mb-3">🔍 {tri("Look up a user's virtual balance",
-                                                   'Consultar o saldo virtual de um usuário',
-                                                   'Consultar el saldo virtual de un usuario')}</h3>
-                            <div className="flex gap-3">
-                                <input 
-                                    type="text" 
-                                    placeholder={tri('User wallet address (0x...)',
-                                                     'Endereço da carteira do usuário (0x...)',
-                                                     'Dirección de la billetera del usuario (0x...)')}
-                                    value={l2LookupWallet}
-                                    onChange={e => setL2LookupWallet(e.target.value)}
-                                    className="flex-1 bg-purple-950 border border-purple-500/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-400"
-                                />
-                                <button 
-                                    onClick={lookupL2Balance}
-                                    className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-sm transition-colors"
-                                >
-                                    Consultar
-                                </button>
-                            </div>
-
-                            {l2Loading && <p className="text-purple-400 text-sm mt-4 animate-pulse">Consultando ledger...</p>}
-
-                            {l2WithdrawStatus && (
-                                <p className={`text-sm mt-3 ${l2WithdrawStatus.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
-                                    {l2WithdrawStatus}
-                                </p>
-                            )}
-
-                            {l2Balances && !l2Loading && (
-                                <div className="mt-5 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-purple-300 text-xs">User: <code className="text-purple-100 font-mono">{l2Balances.user.slice(0, 10)}...{l2Balances.user.slice(-6)}</code></p>
-                                        <p className="text-purple-200 font-bold text-sm">Total pending: {numeroLocal(l2Balances.total_pending)} CLAIM</p>
+                        <div className="p-5 sm:p-6">
+                            {/* L2 Global Stats */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 rounded-xl border border-brand-border overflow-hidden mb-6 bg-brand-bg">
+                                {[
+                                    { k: 'L2 users', v: l2Stats?.total_users ?? "..." },
+                                    { k: 'Virtual balance', v: numeroLocal(l2Stats?.total_virtual_balance) ?? "..." },
+                                    { k: 'Total claims', v: numeroLocal(l2Stats?.total_claims_count) ?? "..." },
+                                    { k: 'Distributed on L2', v: numeroLocal(l2Stats?.total_claimed_all_time) ?? "..." },
+                                    { k: 'Withdrawn → L1', v: numeroLocal(l2Stats?.total_withdrawn_all_time) ?? "...", ok: true },
+                                ].map((s, i) => (
+                                    <div key={i} className="p-3.5 border-brand-border border-b md:border-b-0 [&:not(:last-child)]:border-r">
+                                        <p className={label}>{s.k}</p>
+                                        <p className={`mt-1 font-mono tabular-nums text-lg font-semibold ${s.ok ? 'text-brand-success' : 'text-brand-secondary'}`}>{s.v}</p>
                                     </div>
+                                ))}
+                            </div>
 
-                                    {/* Saldo zero era um beco: a tela dizia que nao havia nada
-                                        e parava ai, justamente para quem acabou de chegar e e
-                                        quem mais precisa de direcao. As torneiras ja estao
-                                        carregadas na memoria desta tela; so faltava oferece-las. */}
-                                    {l2Balances.faucets.length === 0 && (
-                                        <div className="py-5 text-center">
-                                            <p className="text-purple-400 text-sm">
-                                                {tri(
-                                                    'Nothing here yet. Claim on any faucet below and the balance shows up here.',
-                                                    'Nada aqui ainda. Faça claim em qualquer torneira abaixo e o saldo aparece aqui.',
-                                                    'Nada aquí todavía. Haga claim en cualquier grifo de abajo y el saldo aparece aquí.')}
+                            {/* User Lookup */}
+                            <div className="rounded-xl border border-brand-border bg-brand-bg p-4 sm:p-5">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-secondary mb-3">
+                                    <MagnifyingGlassPlusIcon className="w-4 h-4 text-brand-primary" />
+                                    {tri("Look up a user's virtual balance",
+                                         'Consultar o saldo virtual de um usuário',
+                                         'Consultar el saldo virtual de un usuario')}
+                                </h3>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <input
+                                        id="faucethub-l2-lookup"
+                                        type="text"
+                                        placeholder={tri('User wallet address (0x...)',
+                                                         'Endereço da carteira do usuário (0x...)',
+                                                         'Dirección de la billetera del usuario (0x...)')}
+                                        value={l2LookupWallet}
+                                        onChange={e => setL2LookupWallet(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') lookupL2Balance(); }}
+                                        className={`${field} flex-1 font-mono`}
+                                    />
+                                    <button onClick={lookupL2Balance} className={`${btnPrimary} min-h-[42px] px-5 text-sm`}>
+                                        Consultar
+                                    </button>
+                                </div>
+
+                                {l2Loading && <p className="text-brand-muted text-sm mt-4 animate-pulse">Consultando ledger...</p>}
+
+                                {l2WithdrawStatus && (
+                                    <p className={`text-sm mt-3 ${l2WithdrawStatus.startsWith('✅') ? 'text-brand-success' : 'text-red-300'}`}>
+                                        {l2WithdrawStatus}
+                                    </p>
+                                )}
+
+                                {l2Balances && !l2Loading && (
+                                    <div className="mt-5 space-y-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <p className="flex items-center gap-2 text-brand-muted text-xs">
+                                                User:
+                                                <WalletIdenticon address={l2Balances.user} size={18} round />
+                                                <code className="text-brand-secondary font-mono">{l2Balances.user.slice(0, 10)}...{l2Balances.user.slice(-6)}</code>
                                             </p>
-                                            {faucets.filter(f => f.site_url).length > 0 && (
-                                                <div className="flex flex-wrap justify-center gap-2 mt-4">
-                                                    {faucets.filter(f => f.site_url).map((f, i) => (
-                                                        <a
-                                                            key={i}
-                                                            href={f.site_url!}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-600/25 border border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/35 whitespace-nowrap"
-                                                        >
-                                                            {f.name} &rarr;
-                                                        </a>
-                                                    ))}
-                                                </div>
-                                            )}
+                                            <p className="text-brand-secondary font-semibold text-sm">Total pending: <span className="font-mono tabular-nums">{numeroLocal(l2Balances.total_pending)}</span> CLAIM</p>
                                         </div>
-                                    )}
 
-                                    {l2Balances.faucets.map((entry, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-4 bg-purple-800/20 rounded-xl border border-purple-500/20">
-                                            <div className="flex items-center space-x-3">
-                                                <div className="w-9 h-9 rounded-lg bg-purple-700/40 flex items-center justify-center border border-purple-500/30 text-base">💧</div>
-                                                <div>
-                                                    <h4 className="font-bold text-purple-100 text-sm">{entry.faucet_name}</h4>
-                                                    <p className="text-purple-500 text-[10px]">{entry.claim_count} claims | withdrawn: {numeroLocal(entry.total_withdrawn)}</p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-center space-x-4">
-                                                <button
-                                                    onClick={() => handleL2Deposit(entry.faucet_wallet)}
-                                                    className="px-3 py-2 rounded-lg text-xs font-bold transition-all bg-purple-600/25 border border-purple-500/40 text-purple-200 hover:bg-purple-500/35 whitespace-nowrap"
-                                                >
-                                                    {tri('Deposit', 'Depositar', 'Depositar')}
-                                                </button>
-                                                <div className="text-right">
-                                                    <p className="text-purple-100 font-bold text-sm">{numeroLocal(entry.virtual_balance)} CLAIM</p>
-                                                    <p className="text-purple-500 text-[10px]">
-                                                        {entry.can_withdraw
-                                                            ? `Min: ${entry.min_withdraw}`
-                                                            : `${numeroLocal(entry.missing_to_withdraw)} short of the minimum`}
-                                                    </p>
-                                                </div>
-                                                {/* Quando nao da para sacar, o caminho e claimar mais -- e e
-                                                    la que o botao leva. Antes a tela dizia "abaixo do minimo"
-                                                    e terminava a conversa. */}
-                                                {entry.can_withdraw ? (
-                                                    <button
-                                                        onClick={() => handleL2Withdraw(entry.faucet_wallet)}
-                                                        className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-green-600/30 border border-green-500/50 text-green-300 hover:bg-green-500/40"
-                                                    >
-                                                        Withdraw → L1
-                                                    </button>
-                                                ) : entry.site_url ? (
-                                                    <a
-                                                        href={entry.site_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="px-4 py-2 rounded-lg text-xs font-bold transition-all bg-cyan-600/25 border border-cyan-500/50 text-cyan-200 hover:bg-cyan-500/35 whitespace-nowrap"
-                                                    >
-                                                        {cooldownRestante(entry.next_claim_at)
-                                                            ? `${tri('Unlocks in', 'Libera em', 'Se libera en')} ${cooldownRestante(entry.next_claim_at)}`
-                                                            : `${tri('Claim on', 'Claimar em', 'Hacer claim en')} ${entry.faucet_name} →`}
-                                                    </a>
-                                                ) : (
-                                                    <span className="px-4 py-2 rounded-lg text-xs font-bold bg-purple-900/30 border border-purple-500/10 text-purple-500">
-                                                        {tri('Below minimum', 'Abaixo do mínimo',
-                                                             'Por debajo del mínimo')}
-                                                    </span>
+                                        {/* Saldo zero era um beco: a tela dizia que nao havia nada
+                                            e parava ai, justamente para quem acabou de chegar e e
+                                            quem mais precisa de direcao. As torneiras ja estao
+                                            carregadas na memoria desta tela; so faltava oferece-las. */}
+                                        {l2Balances.faucets.length === 0 && (
+                                            <div className="py-5 text-center">
+                                                <p className="text-brand-muted text-sm">
+                                                    {tri(
+                                                        'Nothing here yet. Claim on any faucet below and the balance shows up here.',
+                                                        'Nada aqui ainda. Faça claim em qualquer torneira abaixo e o saldo aparece aqui.',
+                                                        'Nada aquí todavía. Haga claim en cualquier grifo de abajo y el saldo aparece aquí.')}
+                                                </p>
+                                                {faucets.filter(f => f.site_url).length > 0 && (
+                                                    <div className="flex flex-wrap justify-center gap-2 mt-4">
+                                                        {faucets.filter(f => f.site_url).map((f, i) => (
+                                                            <a key={i} href={f.site_url!} target="_blank" rel="noopener noreferrer" className={btnGhost}>
+                                                                <WalletIdenticon address={f.wallet_address} size={18} round />
+                                                                {f.name} &rarr;
+                                                            </a>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                                        )}
+
+                                        {l2Balances.faucets.map((entry, idx) => (
+                                            <div key={idx} className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-brand-border bg-brand-surface">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <WalletIdenticon address={entry.faucet_wallet} size={36} />
+                                                    <div className="min-w-0">
+                                                        <h4 className="font-semibold text-brand-secondary text-sm truncate">{entry.faucet_name}</h4>
+                                                        <p className="text-brand-muted text-[11px] font-mono">{entry.claim_count} claims | withdrawn: {numeroLocal(entry.total_withdrawn)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-wrap items-center gap-3 ml-auto">
+                                                    <button onClick={() => handleL2Deposit(entry.faucet_wallet)} className={btnGhost}>
+                                                        {tri('Deposit', 'Depositar', 'Depositar')}
+                                                    </button>
+                                                    <div className="text-right">
+                                                        <p className="text-brand-secondary font-semibold text-sm font-mono tabular-nums">{numeroLocal(entry.virtual_balance)} <span className="text-brand-muted font-normal text-xs">CLAIM</span></p>
+                                                        <p className="text-brand-muted text-[11px]">
+                                                            {entry.can_withdraw
+                                                                ? `Min: ${entry.min_withdraw}`
+                                                                : `${numeroLocal(entry.missing_to_withdraw)} short of the minimum`}
+                                                        </p>
+                                                    </div>
+                                                    {/* Quando nao da para sacar, o caminho e claimar mais -- e e
+                                                        la que o botao leva. Antes a tela dizia "abaixo do minimo"
+                                                        e terminava a conversa. */}
+                                                    {entry.can_withdraw ? (
+                                                        <button
+                                                            onClick={() => handleL2Withdraw(entry.faucet_wallet)}
+                                                            className={`${btn} border-brand-success/50 bg-brand-success/15 text-brand-success hover:bg-brand-success/25`}
+                                                        >
+                                                            Withdraw → L1
+                                                        </button>
+                                                    ) : entry.site_url ? (
+                                                        <a href={entry.site_url} target="_blank" rel="noopener noreferrer" className={`${btnGhost} whitespace-nowrap`}>
+                                                            {cooldownRestante(entry.next_claim_at)
+                                                                ? `${tri('Unlocks in', 'Libera em', 'Se libera en')} ${cooldownRestante(entry.next_claim_at)}`
+                                                                : `${tri('Claim on', 'Claimar em', 'Hacer claim en')} ${entry.faucet_name} →`}
+                                                        </a>
+                                                    ) : (
+                                                        <span className={`${btn} border-brand-border text-brand-muted cursor-default`}>
+                                                            {tri('Below minimum', 'Abaixo do mínimo',
+                                                                 'Por debajo del mínimo')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    </section>
 
                     {/* New Dynamic Infrastructure & Loyalty Section */}
-                    <div className="bg-black/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 shadow-[0_0_30px_rgba(99,102,241,0.05)]">
-                        <div className="flex items-center justify-between mb-6">
+                    <section className={panel}>
+                        <div className={panelHead}>
                             <div>
-                                <h2 className="text-xl font-bold text-purple-200 flex items-center">
-                                    <span className="mr-2 text-lg">🛰️</span> L2 loyalty and traffic monitor
+                                <h2 className={h2}>
+                                    <GlobeAltIcon className="w-[18px] h-[18px] text-brand-primary" /> L2 loyalty and traffic monitor
                                 </h2>
-                                <p className="text-xs text-purple-400 mt-1">Physical network connections and user loyalty ranking</p>
+                                <p className="text-xs text-brand-muted mt-1">Physical network connections and user loyalty ranking</p>
                             </div>
-                            <button 
-                                onClick={() => { fetchLeaderboard(); fetchActivityLinks(); }}
-                                className="px-4 py-1.5 text-xs bg-purple-600/20 border border-purple-500/30 rounded-lg hover:bg-purple-500/30 transition-colors"
-                            >
-                                ⟳ Refresh map
+                            <button onClick={() => { fetchLeaderboard(); fetchActivityLinks(); }} className={btnGhost}>
+                                <ArrowPathIcon className="w-4 h-4" /> Refresh map
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        <div className="p-5 sm:p-6 grid grid-cols-1 xl:grid-cols-2 gap-6">
                             {/* Leaderboard / Competividade */}
-                            <div className="space-y-4">
-                                <h3 className="text-sm font-bold text-purple-300 flex items-center">
-                                    <span className="mr-2">🏆</span> Ranking de Acumuladores L2
+                            <div className="space-y-3 min-w-0">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-secondary">
+                                    <ChartBarIcon className="w-4 h-4 text-brand-primary" /> Ranking de Acumuladores L2
                                 </h3>
-                                <div className="overflow-x-auto custom-scrollbar border border-purple-500/20 rounded-xl bg-purple-900/10">
+                                <div className="overflow-x-auto custom-scrollbar border border-brand-border rounded-xl bg-brand-bg">
                                     <table className="w-full text-left text-xs">
-                                        <thead className="bg-purple-950/40 text-purple-400 font-bold uppercase">
-                                            <tr>
-                                                <th className="px-4 py-3">Rank</th>
-                                                <th className="px-4 py-3">{tri('User', 'Usuário', 'Usuario')}</th>
-                                                <th className="px-4 py-3">{tri('Main faucet', 'Torneira principal',
+                                        <thead className="border-b border-brand-border">
+                                            <tr className="text-brand-muted">
+                                                <th className="px-4 py-3 font-medium uppercase tracking-[0.1em] text-[10px]">Rank</th>
+                                                <th className="px-4 py-3 font-medium uppercase tracking-[0.1em] text-[10px]">{tri('User', 'Usuário', 'Usuario')}</th>
+                                                <th className="px-4 py-3 font-medium uppercase tracking-[0.1em] text-[10px]">{tri('Main faucet', 'Torneira principal',
                                                                                'Grifo principal')}</th>
-                                                <th className="px-4 py-3 text-right">Claims</th>
-                                                <th className="px-4 py-3 text-right">{tri('Total farmed', 'Total farmado',
+                                                <th className="px-4 py-3 font-medium uppercase tracking-[0.1em] text-[10px] text-right">Claims</th>
+                                                <th className="px-4 py-3 font-medium uppercase tracking-[0.1em] text-[10px] text-right">{tri('Total farmed', 'Total farmado',
                                                                                           'Total farmeado')}</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-purple-500/10">
+                                        <tbody className="divide-y divide-brand-border">
                                             {leaderboard.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={5} className="px-4 py-8 text-center text-purple-500 italic">
+                                                    <td colSpan={5} className="px-4 py-8 text-center text-brand-muted">
                                                         {tri('No user registered in the ledger.',
                                                              'Nenhum usuário registrado no livro-razão.',
                                                              'Ningún usuario registrado en el libro mayor.')}
@@ -1331,26 +1357,29 @@ const formataCobertura = (c: number): string =>
                                                 </tr>
                                             ) : (
                                                 leaderboard.map((user, idx) => {
-                                                    const isTop = idx < 3;
-                                                    const medal = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`;
-                                                    const tier = user.claim_count >= 10 
-                                                        ? { label: "Lord", style: "bg-purple-900/50 text-purple-300 border-purple-500/40" }
-                                                        : user.claim_count >= 5 
-                                                        ? { label: "Elite", style: "bg-blue-900/50 text-blue-300 border-blue-500/40" }
-                                                        : { label: "Farmer", style: "bg-purple-950/40 text-purple-400 border-purple-500/10" };
+                                                    const tier = user.claim_count >= 10
+                                                        ? { label: "Lord", style: "text-sol-purple border-sol-purple/50" }
+                                                        : user.claim_count >= 5
+                                                        ? { label: "Elite", style: "text-brand-primary border-brand-primary/50" }
+                                                        : { label: "Farmer", style: "text-brand-muted border-brand-border" };
 
                                                     return (
-                                                        <tr key={idx} className="hover:bg-purple-950/30 transition-colors">
-                                                            <td className="px-4 py-3 font-bold text-purple-300">
-                                                                <span className="mr-1">{medal}</span>
+                                                        <tr key={idx} className="hover:bg-brand-primary/[0.04] transition-colors">
+                                                            <td className="px-4 py-3">
+                                                                <span className={`inline-flex w-6 h-6 items-center justify-center rounded-md font-mono text-[11px] font-semibold ${idx < 3 ? 'bg-brand-primary/15 text-brand-primary' : 'text-brand-muted'}`}>
+                                                                    {idx + 1}
+                                                                </span>
                                                             </td>
-                                                            <td className="px-4 py-3 font-mono text-purple-200">
-                                                                {user.user_wallet.slice(0, 8)}...{user.user_wallet.slice(-4)}
+                                                            <td className="px-4 py-3">
+                                                                <span className="flex items-center gap-2 font-mono text-brand-secondary whitespace-nowrap">
+                                                                    <WalletIdenticon address={user.user_wallet} size={18} round />
+                                                                    {user.user_wallet.slice(0, 8)}...{user.user_wallet.slice(-4)}
+                                                                </span>
                                                             </td>
                                                             <td className="px-4 py-3">
                                                                 <button
                                                                     onClick={() => setSelectedFaucet(user.faucet_wallet)}
-                                                                    className="text-purple-400 hover:text-purple-300 hover:underline font-semibold text-left"
+                                                                    className={`text-brand-primary hover:underline underline-offset-2 font-medium text-left rounded ${focusRing}`}
                                                                     title={tri('Click to highlight it in the monitor',
                                                                                'Clique para destacá-la no monitor',
                                                                                'Haga clic para destacarlo en el monitor')}
@@ -1360,13 +1389,13 @@ const formataCobertura = (c: number): string =>
                                                                                'Grifo desconocido')}
                                                                 </button>
                                                             </td>
-                                                            <td className="px-4 py-3 text-right font-bold text-purple-300">
+                                                            <td className="px-4 py-3 text-right font-mono tabular-nums text-brand-secondary">
                                                                 {user.claim_count}
                                                             </td>
                                                             <td className="px-4 py-3 text-right">
-                                                                <div className="flex flex-col items-end">
-                                                                    <span className="font-bold text-purple-100">{user.total_claimed.toFixed(2)} CLAIM</span>
-                                                                    <span className={`text-[9px] px-1.5 py-0.5 rounded border mt-0.5 ${tier.style}`}>
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <span className="font-mono tabular-nums font-semibold text-brand-secondary whitespace-nowrap">{user.total_claimed.toFixed(2)} CLAIM</span>
+                                                                    <span className={`text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border ${tier.style}`}>
                                                                         {tier.label}
                                                                     </span>
                                                                 </div>
@@ -1381,22 +1410,25 @@ const formataCobertura = (c: number): string =>
                             </div>
 
                             {/* SVG Interactive Traffic Map */}
-                            <div className="space-y-4 flex flex-col">
-                                <h3 className="text-sm font-bold text-purple-300 flex items-center">
-                                    <span className="mr-2">🗺️</span> Traffic and connection map, L2 &rarr; L1
+                            <div className="space-y-3 flex flex-col min-w-0">
+                                <h3 className="flex items-center gap-2 text-sm font-semibold text-brand-secondary">
+                                    <GlobeAltIcon className="w-4 h-4 text-brand-primary" /> Traffic and connection map, L2 &rarr; L1
                                 </h3>
-                                <div className="flex-1 min-h-[300px] border border-purple-500/20 rounded-xl bg-black/40 relative overflow-hidden flex items-center justify-center p-4 shadow-inner">
+                                <div className="flex-1 min-h-[300px] border border-brand-border rounded-xl bg-brand-bg relative overflow-hidden flex items-center justify-center p-4">
+                                    <div className="absolute top-3 left-4 right-4 flex justify-between text-[10px] font-medium uppercase tracking-[0.12em] text-brand-muted pointer-events-none">
+                                        <span>Faucets · L2</span>
+                                        <span>Wallets · L1</span>
+                                    </div>
                                     {/* SVG Canvas */}
-                                    <svg className="w-full h-full min-h-[280px]" viewBox="0 0 500 300">
+                                    <svg className="w-full h-full min-h-[280px]" viewBox="0 0 500 300" role="img"
+                                         aria-label={tri('Recent claims, from each faucet to the wallet that received them',
+                                                         'Claims recentes, de cada torneira até a carteira que recebeu',
+                                                         'Claims recientes, de cada grifo a la billetera que los recibió')}>
                                         <defs>
-                                            <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                                <stop offset="0%" stopColor="#c084fc" stopOpacity="0.8" />
-                                                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.8" />
+                                            <linearGradient id="settleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                <stop offset="0%" stopColor="#2B9FE8" />
+                                                <stop offset="100%" stopColor="#9945FF" />
                                             </linearGradient>
-                                            <filter id="glow-purple" x="-30%" y="-30%" width="160%" height="160%">
-                                                <feGaussianBlur stdDeviation="4" result="blur" />
-                                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                                            </filter>
                                         </defs>
 
                                         {/* Render active link paths first (below nodes) */}
@@ -1411,10 +1443,76 @@ const formataCobertura = (c: number): string =>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
 
                 </div>
             </div>
+        </div>
+    );
+};
+
+// ---- small on-chain primitives ----------------------------------------------
+
+const shortAddr = (a: string) => (a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
+
+// FNV-1a over the address: the same wallet always gets the same hue and the
+// same pattern, on every screen, with no network call.
+const walletHash = (addr: string): number => {
+    let h = 0x811c9dc5;
+    const s = (addr || '').toLowerCase();
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+};
+const walletHue = (addr: string) => walletHash(addr) % 360;
+
+/** A 5x5 mirrored identicon derived from the address. Recognising a wallet by
+ *  its shape is how people read addresses on-chain; the hex alone is not. */
+const WalletIdenticon: React.FC<{ address: string; size?: number; round?: boolean }> = ({ address, size = 32, round }) => {
+    const h = walletHash(address);
+    const hue = h % 360;
+    const cells: React.ReactElement[] = [];
+    for (let row = 0; row < 5; row++) {
+        for (let col = 0; col < 3; col++) {
+            const bit = (h >>> ((row * 3 + col) % 30)) & 1;
+            if (!bit) continue;
+            const fill = `hsl(${hue} 62% ${(row + col) % 2 ? 52 : 62}%)`;
+            cells.push(<rect key={`${row}-${col}`} x={col + 1} y={row + 1} width="1" height="1" fill={fill} />);
+            if (col < 2) cells.push(<rect key={`${row}-${col}m`} x={5 - col} y={row + 1} width="1" height="1" fill={fill} />);
+        }
+    }
+    return (
+        <svg width={size} height={size} viewBox="0 0 7 7" aria-hidden="true" shapeRendering="crispEdges"
+             className={`flex-none border border-brand-border ${round ? 'rounded-full' : 'rounded-lg'}`}
+             style={{ background: `hsl(${hue} 35% 12%)` }}>
+            {cells}
+        </svg>
+    );
+};
+
+/** Pulses only when the thing it marks is live. */
+const LiveDot: React.FC<{ on: boolean }> = ({ on }) => (
+    <span className="relative inline-flex w-2 h-2 flex-none">
+        {on && <span className="absolute inset-0 rounded-full bg-brand-success opacity-60 motion-safe:animate-ping" />}
+        <span className={`relative inline-flex w-2 h-2 rounded-full ${on ? 'bg-brand-success' : 'bg-brand-muted'}`} />
+    </span>
+);
+
+/** Escrow against debt. Full and green when covered, amber when short, an
+ *  empty dashed track when nothing is owed, because that is not "0% covered". */
+const CoverageBar: React.FC<{ coverage: number | null; className?: string; wide?: boolean }> = ({ coverage, className = '', wide }) => {
+    const { tri } = useLanguage();
+    if (coverage === null) {
+        return <div className={`${wide ? 'h-2 w-full' : 'h-1 w-full max-w-[140px]'} rounded-full border border-dashed border-brand-border ${className}`} />;
+    }
+    const pct = Math.min(Math.max(coverage, 0), 1) * 100;
+    return (
+        <div className={`${wide ? 'h-2 w-full' : 'h-1 w-full max-w-[140px]'} rounded-full bg-brand-card overflow-hidden ${className}`}
+             role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}
+             aria-label={tri('Escrow coverage', 'Cobertura da caução', 'Cobertura de la garantía')}>
+            <div className={`h-full rounded-full ${coverage >= 1 ? 'bg-brand-success' : 'bg-brand-warn'}`} style={{ width: `${pct}%` }} />
         </div>
     );
 };

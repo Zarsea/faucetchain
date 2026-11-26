@@ -104,6 +104,12 @@
             brandBreathe: {
               '0%, 100%': { opacity: '0.55' },
               '50%': { opacity: '0.9' }
+            },
+            // Um bloco de prova entrando no lugar: a faixa de solvência da
+            // FaucetHub se monta da esquerda, um ativo por vez.
+            blockIn: {
+              '0%': { transform: 'scaleX(0)', opacity: '0' },
+              '100%': { transform: 'scaleX(1)', opacity: '1' }
             }
           },
           animation: {
@@ -112,7 +118,8 @@
             pulseGlow: 'pulseGlow 3s infinite',
             liquidFlow: 'liquidFlow 8s ease infinite',
             float: 'float 6s ease-in-out infinite',
-            brandBreathe: 'brandBreathe 4s ease-in-out infinite'
+            brandBreathe: 'brandBreathe 4s ease-in-out infinite',
+            blockIn: 'blockIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both'
           }
         }
       }
